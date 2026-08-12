@@ -59,6 +59,12 @@ class _CopilotFlowPageState extends State<CopilotFlowPage> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    final isResolvingOAuthRedirect =
+        _authController?.isResolvingOAuthRedirect ?? false;
+    if (isResolvingOAuthRedirect) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     final isSignedIn = _authController?.isSignedIn ?? false;
     if (!_hasCompletedAuthEntry && !isSignedIn) {
       return AuthEntryPage(

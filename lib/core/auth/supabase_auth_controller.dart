@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_config.dart';
 import '../supabase/supabase_initializer.dart';
+import 'oauth_redirect_cleaner.dart';
 
 class SupabaseAuthController extends ChangeNotifier {
   SupabaseAuthController(this._initializer, this._config);
@@ -22,6 +23,10 @@ class SupabaseAuthController extends ChangeNotifier {
 
   bool get isSignedIn => user != null;
 
+  bool get isResolvingOAuthRedirect => _isResolvingOAuthRedirect;
+
+  bool _isResolvingOAuthRedirect = false;
+
   Future<void> start() async {
     final client = _client;
     if (client == null || _subscription != null) {
@@ -33,6 +38,8 @@ class SupabaseAuthController extends ChangeNotifier {
       _user = event.session?.user ?? client.auth.currentUser;
       notifyListeners();
     });
+
+    await _resolveOAuthRedirectIfNeeded(client);
   }
 
   Future<void> signInWithGoogle() {
@@ -61,6 +68,35 @@ class SupabaseAuthController extends ChangeNotifier {
     }
 
     await client.auth.signInWithOAuth(provider, redirectTo: _redirectTo);
+  }
+
+  Future<void> _resolveOAuthRedirectIfNeeded(SupabaseClient client) async {
+    if (!kIsWeb || !Uri.base.queryParameters.containsKey('code')) {
+      return;
+    }
+
+    _isResolvingOAuthRedirect = true;
+    notifyListeners();
+
+    try {
+      final existingSession = client.auth.currentSession;
+      if (existingSession != null) {
+        _user = existingSession.user;
+      } else {
+        final response = await client.auth.exchangeCodeForSession(
+          Uri.base.queryParameters['code']!,
+        );
+        _user = response.session.user;
+      }
+      cleanOAuthRedirectUrl();
+    } on Object catch (error, stackTrace) {
+      debugPrint('OAuth redirect resolution failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    } finally {
+      _isResolvingOAuthRedirect = false;
+      _user = client.auth.currentUser ?? _user;
+      notifyListeners();
+    }
   }
 
   String? get _redirectTo {
