@@ -3,6 +3,8 @@
 import 'dart:convert';
 import 'dart:html' as html;
 
+import 'package:flutter/foundation.dart';
+
 import '../../../core/supabase/supabase_user_scope.dart';
 import 'local_remote_favorites_sync.dart';
 import 'supabase_match_favorites_repository.dart';
@@ -34,7 +36,8 @@ class SavedMatchFavoritesStore {
       }
 
       return mergedFavorites;
-    } on Object {
+    } on Object catch (error) {
+      debugPrint('Remote match favorites sync failed: $error');
       return localFavorites;
     }
   }
@@ -48,7 +51,8 @@ class SavedMatchFavoritesStore {
 
     try {
       await SupabaseMatchFavoritesRepository(scope).save(favoriteIds);
-    } on Object {
+    } on Object catch (error) {
+      debugPrint('Remote match favorites save failed: $error');
       // Local persistence remains the fallback in dev/offline mode.
     }
   }

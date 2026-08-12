@@ -3,6 +3,8 @@
 import 'dart:convert';
 import 'dart:html' as html;
 
+import 'package:flutter/foundation.dart';
+
 import '../../../core/supabase/supabase_user_scope.dart';
 import '../domain/ticket_strategy.dart';
 import 'local_remote_ticket_sync.dart';
@@ -36,7 +38,8 @@ class SavedTicketStrategyStore {
       }
 
       return mergedStrategies;
-    } on Object {
+    } on Object catch (error) {
+      debugPrint('Remote ticket strategy sync failed: $error');
       return localStrategies;
     }
   }
@@ -50,7 +53,8 @@ class SavedTicketStrategyStore {
 
     try {
       await SupabaseTicketStrategyRepository(scope).saveAll(strategies);
-    } on Object {
+    } on Object catch (error) {
+      debugPrint('Remote ticket strategy save failed: $error');
       // Local persistence remains the fallback in dev/offline mode.
     }
   }

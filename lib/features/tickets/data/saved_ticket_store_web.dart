@@ -3,6 +3,8 @@
 import 'dart:convert';
 import 'dart:html' as html;
 
+import 'package:flutter/foundation.dart';
+
 import '../../../core/supabase/supabase_user_scope.dart';
 import '../domain/saved_ticket.dart';
 import 'local_remote_ticket_sync.dart';
@@ -36,7 +38,8 @@ class SavedTicketStore {
       }
 
       return mergedTickets;
-    } on Object {
+    } on Object catch (error) {
+      debugPrint('Remote saved ticket sync failed: $error');
       return localTickets;
     }
   }
@@ -50,7 +53,8 @@ class SavedTicketStore {
 
     try {
       await SupabaseSavedTicketRepository(scope).saveAll(tickets);
-    } on Object {
+    } on Object catch (error) {
+      debugPrint('Remote saved ticket saveAll failed: $error');
       // Local persistence remains the fallback in dev/offline mode.
     }
   }
@@ -71,7 +75,8 @@ class SavedTicketStore {
 
     try {
       await SupabaseSavedTicketRepository(scope).upsert(ticket);
-    } on Object {
+    } on Object catch (error) {
+      debugPrint('Remote saved ticket upsert failed: $error');
       // Local persistence remains the fallback in dev/offline mode.
     }
   }
@@ -90,7 +95,8 @@ class SavedTicketStore {
 
     try {
       await SupabaseSavedTicketRepository(scope).delete(ticketId);
-    } on Object {
+    } on Object catch (error) {
+      debugPrint('Remote saved ticket delete failed: $error');
       // Local persistence remains the fallback in dev/offline mode.
     }
   }

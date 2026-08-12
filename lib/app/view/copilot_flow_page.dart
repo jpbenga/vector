@@ -111,6 +111,7 @@ class _CopilotFlowPageState extends State<CopilotFlowPage> {
     }
 
     return MatchesHomePage(
+      key: ValueKey<String>('matches-home:${_lastSyncedUserId ?? 'guest'}'),
       profile: profile,
       ticketStrategies: _ticketStrategies,
       onEditProfile: () {
@@ -144,11 +145,19 @@ class _CopilotFlowPageState extends State<CopilotFlowPage> {
 
   void _handleAuthChange() {
     final userId = _authController?.user?.id;
-    if (userId == null || userId == _lastSyncedUserId) {
+    if (userId == _lastSyncedUserId) {
       return;
     }
 
     _lastSyncedUserId = userId;
+    if (userId == null) {
+      setState(() {
+        _hasCompletedAuthEntry = true;
+        _isEditingProfile = false;
+      });
+      return;
+    }
+
     _reloadPersistedStateAfterSignIn();
   }
 

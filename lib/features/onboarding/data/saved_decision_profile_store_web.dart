@@ -3,6 +3,8 @@
 import 'dart:convert';
 import 'dart:html' as html;
 
+import 'package:flutter/foundation.dart';
+
 import '../../../core/supabase/supabase_user_scope.dart';
 import '../domain/decision_profile.dart';
 import 'local_remote_profile_sync.dart';
@@ -40,7 +42,8 @@ class SavedDecisionProfileStore {
       }
 
       return resolvedProfile;
-    } on Object {
+    } on Object catch (error) {
+      debugPrint('Remote decision profile sync failed: $error');
       return localProfile;
     }
   }
@@ -54,7 +57,8 @@ class SavedDecisionProfileStore {
 
     try {
       await SupabaseDecisionProfileRepository(scope).save(profile);
-    } on Object {
+    } on Object catch (error) {
+      debugPrint('Remote decision profile save failed: $error');
       // Local persistence remains the fallback in dev/offline mode.
     }
   }
