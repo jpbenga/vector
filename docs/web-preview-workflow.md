@@ -34,6 +34,11 @@ APP_PUBLIC_URL=https://lector-sports.vercel.app/
 MATCH_FEED_SOURCE=auto
 ```
 
+`APP_PUBLIC_URL` est obligatoire pour l'authentification OAuth en web.
+Sans cette variable au moment du build, Supabase peut rediriger vers l'URL
+courante du navigateur, par exemple `localhost`, au lieu de revenir vers le
+déploiement Vercel.
+
 Le script de build force :
 
 ```text
@@ -92,6 +97,9 @@ build/web
      `https://lector-sports.vercel.app/`
    - `MATCH_FEED_SOURCE` avec la valeur `auto`
 9. Lancer le premier deploy.
+
+Si `APP_PUBLIC_URL` manque, le build doit échouer. C'est volontaire : une build
+web sans URL publique ne peut pas garantir un callback OAuth correct.
 
 ## Configurer Supabase Auth
 

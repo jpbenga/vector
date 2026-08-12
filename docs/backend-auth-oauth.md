@@ -37,9 +37,36 @@ Côté application, seules les variables publiques suivantes sont utilisées :
 ```sh
 SUPABASE_URL
 SUPABASE_ANON_KEY
+APP_PUBLIC_URL
 ```
 
 Aucune clé `service_role` ne doit être embarquée dans le client Flutter.
+
+Pour un déploiement web, `APP_PUBLIC_URL` doit être l'origine publique de
+l'application, par exemple :
+
+```sh
+APP_PUBLIC_URL=https://lector-sports.vercel.app/
+```
+
+Cette valeur est injectée au build et utilisée comme `redirectTo` OAuth. Elle
+évite qu'un callback Google/Supabase revienne vers une URL de développement
+comme `localhost`.
+
+Dans Supabase `Authentication -> URL Configuration`, la production doit aussi
+utiliser :
+
+```text
+Site URL:
+https://lector-sports.vercel.app
+
+Redirect URLs:
+https://lector-sports.vercel.app
+https://lector-sports.vercel.app/**
+```
+
+Les URLs locales peuvent rester dans la liste des redirect URLs pour le
+développement, mais elles ne doivent pas être la `Site URL` de production.
 
 ## Comportement applicatif
 
