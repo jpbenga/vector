@@ -141,6 +141,22 @@ Une fois le deploy valide :
 
 Le QR code peut pointer vers l'URL stable Vercel ou vers un domaine custom.
 
+Guide pret a partager :
+
+```text
+docs/testers/tester-guide.md
+```
+
+QR code versionne :
+
+```text
+docs/testers/lector-sports-qr.svg
+```
+
+Si Google OAuth est encore en mode test dans Google Cloud, ajouter les comptes
+Google des testeurs dans la liste des utilisateurs de test avant de partager le
+lien. Sinon le parcours peut echouer avant le callback Supabase.
+
 ## Nouvelle version
 
 Workflow simple :
@@ -166,6 +182,8 @@ valider une iteration avant de la partager plus largement.
 - [ ] `bash tool/build_web_staging.sh`
 - [ ] Variables Vercel presentes
 - [ ] Redirect URL Vercel ajoutee dans Supabase
+- [ ] Comptes Google des testeurs ajoutes si OAuth est en mode test
 - [ ] Connexion Google testee sur l'URL Vercel
 - [ ] Snapshot Supabase charge ou fallback local clairement visible
 - [ ] QR code genere depuis l'URL stable
+- [ ] Guide testeur partage avec le lien et le QR code

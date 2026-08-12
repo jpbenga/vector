@@ -67,12 +67,14 @@ set +a
 bash tool/build_web_staging.sh
 ```
 
-Voir [Workflow Web Staging avec Vercel](docs/web-preview-workflow.md).
+Voir [Workflow Web Staging avec Vercel](docs/web-preview-workflow.md) et
+[Guide testeur](docs/testers/tester-guide.md).
 
 ## Documentation
 
 - [Architecture](docs/architecture.md)
 - [Workflow Web Staging avec Vercel](docs/web-preview-workflow.md)
+- [Guide testeur](docs/testers/tester-guide.md)
 - [Backend Lot 1A — Schema Supabase](docs/backend-lot-1a-schema.md)
 - [Backend Lot 1B — Repositories distants](docs/backend-lot-1b-repositories.md)
 - [Opportunity Architecture](docs/opportunity-architecture.md)
