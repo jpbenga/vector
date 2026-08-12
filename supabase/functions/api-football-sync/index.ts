@@ -10,6 +10,7 @@ const maxRecentFixtureRequests = 160;
 const maxFixtureStatisticsRequests = 240;
 const defaultRecentFormDaysBack = 180;
 const defaultRecentFormMatches = 5;
+const defaultApiRequestDelayMs = 750;
 
 const corsHeaders = {
   "access-control-allow-origin": "*",
@@ -37,6 +38,12 @@ Deno.serve(async (request) => {
   const serviceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
   const apiBaseUrl = Deno.env.get("API_FOOTBALL_BASE_URL") ?? defaultBaseUrl;
   const payload = await readJson(request);
+  const apiRequestDelayMs = Math.max(
+    0,
+    numberValue(payload.api_request_delay_ms) ??
+      numberValue(Deno.env.get("API_FOOTBALL_REQUEST_DELAY_MS")) ??
+      defaultApiRequestDelayMs,
+  );
   const options = syncOptionsFromPayload(payload);
 
   let runId: string | null = null;
@@ -75,6 +82,7 @@ Deno.serve(async (request) => {
           season: String(options.season),
         },
         ttlSeconds: 24 * 60 * 60,
+        requestDelayMs: apiRequestDelayMs,
       });
       summary.leagues += 1;
       summary.cachedResponses += 1;
@@ -91,6 +99,7 @@ Deno.serve(async (request) => {
           season: String(options.season),
         },
         ttlSeconds: 60 * 60,
+        requestDelayMs: apiRequestDelayMs,
       });
       summary.standings += 1;
       summary.cachedResponses += 1;
@@ -110,6 +119,7 @@ Deno.serve(async (request) => {
             timezone: options.timezone,
           },
           ttlSeconds: 15 * 60,
+          requestDelayMs: apiRequestDelayMs,
         });
         summary.fixtures += responseRows(fixtures.body).length;
         summary.cachedResponses += 1;
@@ -131,6 +141,7 @@ Deno.serve(async (request) => {
           endpoint: "/odds",
           query: oddsQuery,
           ttlSeconds: 15 * 60,
+          requestDelayMs: apiRequestDelayMs,
         });
         summary.odds += responseRows(odds.body).length;
         summary.cachedResponses += 1;
@@ -151,6 +162,7 @@ Deno.serve(async (request) => {
                 team: String(teamId),
               },
               ttlSeconds: 60 * 60,
+              requestDelayMs: apiRequestDelayMs,
             });
             summary.teamStatistics += 1;
             summary.cachedResponses += 1;
@@ -185,6 +197,7 @@ Deno.serve(async (request) => {
                 timezone: options.timezone,
               },
               ttlSeconds: 6 * 60 * 60,
+              requestDelayMs: apiRequestDelayMs,
             });
             recentFixtureRequests += 1;
             summary.recentFixtureRows += responseRows(recentFixtures.body)
@@ -223,6 +236,7 @@ Deno.serve(async (request) => {
             fixture: String(fixtureId),
           },
           ttlSeconds: 7 * 24 * 60 * 60,
+          requestDelayMs: apiRequestDelayMs,
         });
         summary.fixtureStatistics += 1;
         summary.cachedResponses += 1;
@@ -300,6 +314,7 @@ type FetchAndCacheOptions = {
   endpoint: string;
   query: Record<string, string>;
   ttlSeconds: number;
+  requestDelayMs: number;
 };
 
 function authorizeSyncRequest(request: Request): string | null {
@@ -506,12 +521,21 @@ async function fetchAndCache(
   });
 
   if (!response.ok) {
+    await delay(options.requestDelayMs);
     throw new Error(
       `API-Football ${response.status} for ${options.endpoint}.`,
     );
   }
 
+  await delay(options.requestDelayMs);
   return { body: body as JsonObject, fetchedAt: fetchedAtIso };
+}
+
+function delay(milliseconds: number): Promise<void> {
+  if (milliseconds <= 0) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 async function supabaseFetch({
