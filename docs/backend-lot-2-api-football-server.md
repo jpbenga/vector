@@ -72,7 +72,6 @@ Payload minimal :
 
 ```json
 {
-  "season": 2026,
   "timezone": "Europe/Paris",
   "window_start": "2026-08-11",
   "window_end": "2026-08-16",
@@ -84,6 +83,9 @@ Payload minimal :
   "recent_form_matches": 5
 }
 ```
+
+La saison active est resolue par ligue via `/leagues?current=true`. Le champ
+`season` ne doit etre utilise que comme fallback technique lors d'un test isole.
 
 Endpoints collectes :
 
@@ -136,7 +138,6 @@ curl -X POST \
   -H "Authorization: Bearer <API_FOOTBALL_SYNC_SECRET>" \
   -H "Content-Type: application/json" \
   -d '{
-    "season": 2026,
     "window_start": "2026-08-11",
     "window_end": "2026-08-16",
     "league_ids": [2, 3, 62, 88],

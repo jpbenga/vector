@@ -5,17 +5,36 @@ export const config = {
 };
 
 const defaultLeagues = [
-  2, // UEFA Champions League
-  3, // UEFA Europa League
-  848, // UEFA Conference League
   39, // Premier League
   61, // Ligue 1
+  140, // La Liga
   78, // Bundesliga
   135, // Serie A
-  140, // La Liga
+  94, // Liga Portugal
   88, // Eredivisie
-  103, // Eliteserien
-  113, // Allsvenskan
+  144, // Jupiler Pro League
+  179, // Scottish Premiership
+  203, // Super Lig
+  197, // Super League Greece
+  119, // Danish Superliga
+  207, // Swiss Super League
+  218, // Austrian Bundesliga
+  40, // Championship
+  62, // Ligue 2
+  136, // Serie B
+  79, // 2. Bundesliga
+  141, // La Liga 2
+  106, // Ekstraklasa
+  210, // HNL
+  209, // Czech Liga
+  283, // Liga I
+  253, // MLS
+  71, // Brasileiro Serie A
+  128, // Liga Profesional Argentina
+  262, // Liga MX
+  307, // Saudi Pro League
+  98, // J1 League
+  188, // A-League
 ];
 
 export default async function handler(request: Request): Promise<Response> {
@@ -53,7 +72,6 @@ export default async function handler(request: Request): Promise<Response> {
 
 function dailyPayload(): JsonObject {
   return {
-    season: numberEnv("API_FOOTBALL_SEASON") ?? new Date().getUTCFullYear(),
     timezone: process.env.API_FOOTBALL_TIMEZONE ?? "Europe/Paris",
     league_ids: listEnv("API_FOOTBALL_LEAGUE_IDS") ?? defaultLeagues,
     bookmaker_id: numberEnv("API_FOOTBALL_BOOKMAKER_ID") ?? 16,

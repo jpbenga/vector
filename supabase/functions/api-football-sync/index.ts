@@ -56,6 +56,7 @@ Deno.serve(async (request) => {
     recentFixtureRows: 0,
     fixtureStatistics: 0,
     cachedResponses: 0,
+    leagueSeasons: {},
   };
   const fixtureStatisticsIds = new Set<number>();
   let recentFixtureRequests = 0;
@@ -70,7 +71,7 @@ Deno.serve(async (request) => {
     runId = String(run.id);
 
     for (const leagueId of options.leagueIds) {
-      await fetchAndCache({
+      const leagueInfo = await fetchAndCache({
         apiBaseUrl,
         apiKey,
         supabaseUrl,
@@ -79,11 +80,16 @@ Deno.serve(async (request) => {
         endpoint: "/leagues",
         query: {
           id: String(leagueId),
-          season: String(options.season),
+          current: "true",
         },
         ttlSeconds: 24 * 60 * 60,
         requestDelayMs: apiRequestDelayMs,
       });
+      const leagueSeason = currentSeasonFromLeaguesPayload(
+        leagueInfo.body,
+        options.fallbackSeason,
+      );
+      summary.leagueSeasons[String(leagueId)] = leagueSeason;
       summary.leagues += 1;
       summary.cachedResponses += 1;
 
@@ -96,7 +102,7 @@ Deno.serve(async (request) => {
         endpoint: "/standings",
         query: {
           league: String(leagueId),
-          season: String(options.season),
+          season: String(leagueSeason),
         },
         ttlSeconds: 60 * 60,
         requestDelayMs: apiRequestDelayMs,
@@ -114,7 +120,7 @@ Deno.serve(async (request) => {
           endpoint: "/fixtures",
           query: {
             league: String(leagueId),
-            season: String(options.season),
+            season: String(leagueSeason),
             date,
             timezone: options.timezone,
           },
@@ -126,7 +132,7 @@ Deno.serve(async (request) => {
 
         const oddsQuery: Record<string, string> = {
           league: String(leagueId),
-          season: String(options.season),
+          season: String(leagueSeason),
           date,
         };
         if (options.bookmakerId !== null) {
@@ -158,7 +164,7 @@ Deno.serve(async (request) => {
               endpoint: "/teams/statistics",
               query: {
                 league: String(leagueId),
-                season: String(options.season),
+                season: String(leagueSeason),
                 team: String(teamId),
               },
               ttlSeconds: 60 * 60,
@@ -187,7 +193,7 @@ Deno.serve(async (request) => {
               endpoint: "/fixtures",
               query: {
                 league: String(context.leagueId),
-                season: String(options.season),
+                season: String(leagueSeason),
                 team: String(context.teamId),
                 from: subtractDays(
                   context.fixtureDate,
@@ -276,7 +282,7 @@ Deno.serve(async (request) => {
 });
 
 type SyncOptions = {
-  season: number;
+  fallbackSeason: number;
   timezone: string;
   windowStart: string;
   windowEnd: string;
@@ -298,6 +304,7 @@ type SyncSummary = {
   recentFixtureRows: number;
   fixtureStatistics: number;
   cachedResponses: number;
+  leagueSeasons: Record<string, number>;
 };
 
 type CachedResponse = {
@@ -349,7 +356,8 @@ function syncOptionsFromPayload(payload: JsonObject): SyncOptions {
   const windowStart = stringValue(payload.window_start) ?? today;
   const windowEnd = stringValue(payload.window_end) ?? windowStart;
   const leagueIds = numberList(payload.league_ids);
-  const season = numberValue(payload.season) ?? new Date().getFullYear();
+  const fallbackSeason = numberValue(payload.season) ??
+    new Date().getFullYear();
   const bookmakerId = numberValue(payload.bookmaker_id);
   const timezone = stringValue(payload.timezone) ?? defaultTimezone;
   const includeTeamStatistics = booleanValue(payload.include_team_statistics) ??
@@ -387,7 +395,7 @@ function syncOptionsFromPayload(payload: JsonObject): SyncOptions {
   }
 
   return {
-    season,
+    fallbackSeason,
     timezone,
     windowStart,
     windowEnd,
@@ -419,7 +427,7 @@ async function insertSyncRun({
     method: "POST",
     body: [
       {
-        season: options.season,
+        season: options.fallbackSeason,
         timezone: options.timezone,
         window_start: options.windowStart,
         window_end: options.windowEnd,
@@ -580,6 +588,38 @@ async function supabaseFetch({
 function responseRows(payload: JsonObject): unknown[] {
   const rows = payload.response;
   return Array.isArray(rows) ? rows : [];
+}
+
+function currentSeasonFromLeaguesPayload(
+  payload: JsonObject,
+  fallbackSeason: number,
+): number {
+  for (const row of responseRows(payload)) {
+    const root = objectValue(row);
+    if (root === null) {
+      continue;
+    }
+    const seasons = root.seasons;
+    if (!Array.isArray(seasons)) {
+      continue;
+    }
+    const current = seasons
+      .map(objectValue)
+      .find((season) =>
+        season !== null && booleanValue(season.current) === true
+      );
+    const year = numberValue(current?.year);
+    if (year !== null) {
+      return year;
+    }
+    for (const season of seasons.map(objectValue)) {
+      const year = numberValue(season?.year);
+      if (year !== null) {
+        return year;
+      }
+    }
+  }
+  return fallbackSeason;
 }
 
 function teamIdsFromFixtures(payload: JsonObject): number[] {

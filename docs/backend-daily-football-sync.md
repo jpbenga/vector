@@ -38,6 +38,30 @@ Collecte API : J-2 -> J+3
 La collecte couvre donc les resultats recents et les 4 jours a venir, mais le
 snapshot expose au front reste centre sur les matchs a venir.
 
+## Saison courante
+
+La saison n'est pas configuree comme une variable globale Vercel.
+
+Chaque ligue peut changer de saison a une date differente. Le backend resout
+donc la saison active ligue par ligue via :
+
+```text
+/leagues?id=<league_id>&current=true
+```
+
+Puis il utilise cette saison pour les endpoints dependants :
+
+```text
+/standings
+/fixtures
+/odds
+/teams/statistics
+```
+
+La colonne historique `season` dans les tables de logs/snapshots reste une
+saison de reference technique pour compatibilite. La vraie information
+auditable est conservee dans les payloads/provenances via `season_by_league`.
+
 ## Architecture
 
 ```text
@@ -122,7 +146,23 @@ SUPABASE_SERVICE_ROLE_KEY
 SUPABASE_URL
 ```
 
-`SUPABASE_SERVICE_ROLE_KEY` ne doit jamais etre expose cote front.
+Detail :
+
+- `API_FOOTBALL_KEY` : ta cle API-Football Pro. Elle vient du dashboard
+  API-Sports / API-Football. Elle ne doit exister que cote Supabase.
+- `API_FOOTBALL_SYNC_SECRET` : secret que tu inventes toi-meme, long et
+  aleatoire. Il sert a autoriser l'execution des fonctions de synchronisation.
+  La meme valeur doit etre mise dans Supabase et Vercel.
+- `API_FOOTBALL_REQUEST_DELAY_MS` : delai volontaire entre deux appels
+  API-Football. `750` garde environ 80 requetes/minute maximum.
+- `SUPABASE_SERVICE_ROLE_KEY` : cle Supabase `service_role`. Elle se trouve
+  dans Settings -> API Keys -> Legacy anon, service_role API keys. Elle permet
+  aux fonctions serveur d'ecrire dans les tables protegees par RLS.
+- `SUPABASE_URL` : URL du projet Supabase, par exemple
+  `https://ednvvxxvlawaagjyshkj.supabase.co`.
+
+Important : `SUPABASE_SERVICE_ROLE_KEY` et `API_FOOTBALL_KEY` ne doivent jamais
+etre exposees cote Flutter, Vercel client ou Git.
 
 ## Variables Vercel
 
@@ -132,9 +172,8 @@ A configurer dans Vercel :
 SUPABASE_URL
 API_FOOTBALL_SYNC_SECRET
 CRON_SECRET
-API_FOOTBALL_SEASON=2026
 API_FOOTBALL_TIMEZONE=Europe/Paris
-API_FOOTBALL_LEAGUE_IDS=2,3,848,39,61,78,135,140,88,103,113
+API_FOOTBALL_LEAGUE_IDS=39,61,140,78,135,94,88,144,179,203,197,119,207,218,40,62,136,79,141,106,210,209,283,253,71,128,262,307,98,188
 API_FOOTBALL_BOOKMAKER_ID=16
 API_FOOTBALL_RESULTS_DAYS_BACK=2
 API_FOOTBALL_FUTURE_DAYS=3
@@ -180,7 +219,6 @@ curl -X POST \
   -H "Authorization: Bearer $API_FOOTBALL_SYNC_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
-    "season": 2026,
     "league_ids": [61, 62],
     "bookmaker_id": 16,
     "results_days_back": 2,

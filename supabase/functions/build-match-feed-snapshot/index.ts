@@ -111,6 +111,7 @@ Deno.serve(async (request) => {
       window_start: options.windowStart,
       window_end: options.windowEnd,
       date_window: dateWindowValues,
+      season_by_league: options.seasonByLeague,
       bookmaker_priority: options.bookmakerPriority,
       raw: {
         fixtures: build.rawFixtures,
@@ -205,6 +206,7 @@ Deno.serve(async (request) => {
 
 type SnapshotOptions = {
   season: number;
+  seasonByLeague: Record<string, number>;
   timezone: string;
   windowStart: string;
   windowEnd: string;
@@ -296,10 +298,11 @@ async function collectSnapshotSources({
       endpoint: "/leagues",
       filters: {
         id: String(leagueId),
-        season: String(options.season),
+        current: "true",
       },
     });
     addSourceRows(leagueRows);
+    const leagueSeason = seasonForLeague(options, leagueId);
 
     const standingsRows = await cachedResponsesFor({
       supabaseUrl,
@@ -307,7 +310,7 @@ async function collectSnapshotSources({
       endpoint: "/standings",
       filters: {
         league: String(leagueId),
-        season: String(options.season),
+        season: String(leagueSeason),
       },
     });
     addSourceRows(standingsRows);
@@ -320,7 +323,7 @@ async function collectSnapshotSources({
         endpoint: "/fixtures",
         filters: {
           league: String(leagueId),
-          season: String(options.season),
+          season: String(leagueSeason),
           date,
           timezone: options.timezone,
         },
@@ -330,7 +333,7 @@ async function collectSnapshotSources({
 
       const oddsFilters: Record<string, string> = {
         league: String(leagueId),
-        season: String(options.season),
+        season: String(leagueSeason),
         date,
       };
       if (options.bookmakerId !== null) {
@@ -347,7 +350,7 @@ async function collectSnapshotSources({
     }
   }
 
-  const teamRequests = teamStatisticsRequests(rawFixtures, options.season);
+  const teamRequests = teamStatisticsRequests(rawFixtures, options);
   for (const request of teamRequests) {
     const rows = await cachedResponsesFor({
       supabaseUrl,
@@ -355,7 +358,7 @@ async function collectSnapshotSources({
       endpoint: "/teams/statistics",
       filters: {
         league: String(request.leagueId),
-        season: String(options.season),
+        season: String(request.season),
         team: String(request.teamId),
       },
     });
@@ -371,7 +374,7 @@ async function collectSnapshotSources({
       endpoint: "/fixtures",
       filters: {
         league: String(request.leagueId),
-        season: String(options.season),
+        season: String(request.season),
         team: String(request.teamId),
         from: request.from,
         to: request.to,
@@ -723,6 +726,7 @@ function provenanceSummary({
     source,
     generated_by: "build-match-feed-snapshot",
     season: options.season,
+    season_by_league: options.seasonByLeague,
     timezone: options.timezone,
     window_start: options.windowStart,
     window_end: options.windowEnd,
@@ -743,7 +747,13 @@ function snapshotOptionsFromPayload(payload: JsonObject): SnapshotOptions {
   const windowStart = stringValue(payload.window_start) ?? today;
   const windowEnd = stringValue(payload.window_end) ?? windowStart;
   const leagueIds = numberList(payload.league_ids);
-  const season = numberValue(payload.season) ?? new Date().getFullYear();
+  const fallbackSeason = numberValue(payload.season) ??
+    new Date().getFullYear();
+  const seasonByLeague = seasonByLeagueValue(
+    payload.season_by_league,
+    fallbackSeason,
+  );
+  const season = seasonByLeagueReference(seasonByLeague, fallbackSeason);
   const bookmakerId = numberValue(payload.bookmaker_id);
   const timezone = stringValue(payload.timezone) ?? defaultTimezone;
   const asOf = isoDateTimeValue(payload.as_of);
@@ -777,6 +787,7 @@ function snapshotOptionsFromPayload(payload: JsonObject): SnapshotOptions {
 
   return {
     season,
+    seasonByLeague,
     timezone,
     windowStart,
     windowEnd,
@@ -816,6 +827,38 @@ async function readJson(request: Request): Promise<JsonObject> {
   return body as JsonObject;
 }
 
+function seasonForLeague(options: SnapshotOptions, leagueId: number): number {
+  return options.seasonByLeague[String(leagueId)] ?? options.season;
+}
+
+function seasonByLeagueValue(
+  value: unknown,
+  fallbackSeason: number,
+): Record<string, number> {
+  const source = objectValue(value) ?? {};
+  const seasons: Record<string, number> = {};
+  for (const [leagueId, season] of Object.entries(source)) {
+    const parsedLeagueId = numberValue(leagueId);
+    const parsedSeason = numberValue(season);
+    if (parsedLeagueId !== null && parsedSeason !== null) {
+      seasons[String(parsedLeagueId)] = parsedSeason;
+    }
+  }
+  return Object.keys(seasons).length === 0
+    ? { fallback: fallbackSeason }
+    : seasons;
+}
+
+function seasonByLeagueReference(
+  seasonByLeague: Record<string, number>,
+  fallbackSeason: number,
+): number {
+  const first = Object.values(seasonByLeague).find((season) =>
+    Number.isFinite(season)
+  );
+  return first ?? fallbackSeason;
+}
+
 function normalizeCachedRow(row: unknown): CachedRawResponse {
   if (row === null || typeof row !== "object" || Array.isArray(row)) {
     throw new Error("Unexpected cached response row.");
@@ -850,7 +893,7 @@ function flatResponseItems(rows: CachedRawResponse[]): JsonObject[] {
 
 function teamStatisticsRequests(
   fixtures: JsonObject[],
-  season: number,
+  options: SnapshotOptions,
 ): Array<{ leagueId: number; teamId: number; season: number }> {
   const requests = new Map<
     string,
@@ -866,7 +909,11 @@ function teamStatisticsRequests(
       const team = objectValue(teams[side]);
       const teamId = numberValue((team ?? {}).id);
       if (teamId !== null) {
-        requests.set(`${leagueId}:${teamId}`, { leagueId, teamId, season });
+        requests.set(`${leagueId}:${teamId}`, {
+          leagueId,
+          teamId,
+          season: seasonForLeague(options, leagueId),
+        });
       }
     }
   }
@@ -876,6 +923,7 @@ function teamStatisticsRequests(
 type RecentFixtureRequest = {
   leagueId: number;
   teamId: number;
+  season: number;
   from: string;
   to: string;
 };
@@ -907,6 +955,7 @@ function recentFixtureRequests(
         requests.set(`${leagueId}:${teamId}:${from}:${to}`, {
           leagueId,
           teamId,
+          season: seasonForLeague(options, leagueId),
           from,
           to,
         });

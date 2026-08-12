@@ -59,7 +59,7 @@ Deno.serve(async (request) => {
       supabaseUrl,
       name: "build-match-feed-snapshot",
       syncSecret,
-      payload: snapshotPayload(options),
+      payload: snapshotPayload(options, syncResponse),
     });
 
     const databaseSizeBytes = await currentDatabaseSizeBytes({
@@ -268,9 +268,15 @@ function syncPayload(options: DailyOptions): JsonObject {
   };
 }
 
-function snapshotPayload(options: DailyOptions): JsonObject {
+function snapshotPayload(
+  options: DailyOptions,
+  syncResponse: JsonObject,
+): JsonObject {
   return {
     season: options.season,
+    season_by_league: objectValue(
+      objectValue(syncResponse.summary)?.leagueSeasons,
+    ),
     timezone: options.timezone,
     window_start: options.feedWindowStart,
     window_end: options.feedWindowEnd,

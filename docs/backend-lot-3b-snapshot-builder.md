@@ -48,7 +48,6 @@ Payload minimal :
 
 ```json
 {
-  "season": 2026,
   "timezone": "Europe/Paris",
   "window_start": "2026-08-11",
   "window_end": "2026-08-16",
@@ -56,6 +55,10 @@ Payload minimal :
   "bookmaker_id": 16
 }
 ```
+
+Le builder peut recevoir `season_by_league` depuis `daily-football-sync` afin
+de reconstruire le snapshot avec les saisons actives de chaque competition.
+`season` reste un fallback de compatibilite.
 
 Champs :
 
@@ -199,7 +202,6 @@ curl -X POST \
   -H "Authorization: Bearer $API_FOOTBALL_SYNC_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
-    "season": 2026,
     "timezone": "Europe/Paris",
     "window_start": "2026-08-11",
     "window_end": "2026-08-16",
