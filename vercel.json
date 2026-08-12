@@ -1,0 +1,11 @@
+{
+  "buildCommand": "bash tool/build_web_staging.sh",
+  "outputDirectory": "build/web",
+  "installCommand": "true",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

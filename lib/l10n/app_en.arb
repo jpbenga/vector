@@ -1,0 +1,210 @@
+{
+  "@@locale": "en",
+  "appTitle": "Lector Sport",
+  "onboardingEyebrow": "COPILOT — SETUP",
+  "onboardingTitle": "Let’s build your decision profile",
+  "onboardingSubtitle": "Not a marketing profile. A map of how you think.",
+  "onboardingQuestionProgress": "QUESTION {current} / {total}",
+  "@onboardingQuestionProgress": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "nextButton": "Next",
+  "backButton": "Back",
+  "cancelButton": "Cancel",
+  "skipOnboardingButton": "Skip",
+  "skipOnboardingTitle": "Use a default configuration?",
+  "skipOnboardingMessage": "Without onboarding, Copilot will apply a general configuration that is not personalized to how you make decisions.",
+  "keepOnboardingButton": "Continue onboarding",
+  "useDefaultProfileButton": "Use default profile",
+  "reviewProfileButton": "Review my profile",
+  "selectedOptionsTitle": "Prioritized selection",
+  "availableOptionsTitle": "Available options",
+  "removeOptionTooltip": "Remove",
+  "minOddsLabel": "Min.",
+  "maxOddsLabel": "Max.",
+  "noSelectedMarketsMessage": "No favorite market selected.",
+  "noSelectionLabel": "No selection",
+  "moreValuesLabel": "+ {count} more",
+  "@moreValuesLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profileSummaryEyebrow": "DECISION PROFILE",
+  "profileSummaryTitle": "Your profile",
+  "profileSummarySubtitle": "Check that Copilot understood how you make decisions.",
+  "confirmProfileButton": "Confirm and view matches",
+  "savedProfileDialogTitle": "Saved profile",
+  "savedProfileDialogMessage": "A decision profile already exists on this device. Do you want to use it for this development session?",
+  "savedProfileUseButton": "Use this profile",
+  "savedProfileRedoButton": "Redo onboarding",
+  "homeTitle": "Home",
+  "editProfileTooltip": "Edit my profile",
+  "profileSettingsButton": "Edit my profile",
+  "forMeTab": "For me",
+  "allMatchesTab": "All matches",
+  "forMeHeading": "{count} matches for your profile",
+  "@forMeHeading": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "forMeSubtitle": "These matches are shown according to your profile priorities. The engine remains separate from the interface.",
+  "allMatchesHeading": "{count} available matches",
+  "@allMatchesHeading": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "allMatchesSubtitle": "No match is hidden. Copilot prioritizes, it does not remove.",
+  "championshipsByCountryTitle": "Competitions by country",
+  "championshipsByCountrySubtitle": "Browse competitions, then open one to see its details.",
+  "todayChip": "Today",
+  "tomorrowChip": "Tomorrow",
+  "weekendChip": "Weekend",
+  "allFilter": "All",
+  "liveFilter": "Live",
+  "scheduledFilter": "Upcoming",
+  "resultsFilter": "Results",
+  "noMatchesForFiltersTitle": "No matches",
+  "noMatchesForFiltersSubtitle": "No matches match this filter for this date.",
+  "countryMatchSummary": "{matchCount} match(es) · {competitionCount} competition(s)",
+  "@countryMatchSummary": {
+    "placeholders": {
+      "matchCount": {
+        "type": "int"
+      },
+      "competitionCount": {
+        "type": "int"
+      }
+    }
+  },
+  "competitionCount": "{count} competition(s)",
+  "@competitionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "calendarTab": "Calendar",
+  "matchesTab": "Matches",
+  "statsTab": "Stats",
+  "matchCountLabel": "{count} match(es)",
+  "@matchCountLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "matchesWithOddsLabel": "{count} with 1X2 odds",
+  "@matchesWithOddsLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "competitionOddsSummary": "{matchCount} match(es) · {oddsCount} priced",
+  "@competitionOddsSummary": {
+    "placeholders": {
+      "matchCount": {
+        "type": "int"
+      },
+      "oddsCount": {
+        "type": "int"
+      }
+    }
+  },
+  "averageOddsLabel": "Average odds",
+  "averageCompatibilityLabel": "Average compatibility",
+  "oddsLabel": "odds",
+  "homeOutcomeLabel": "1",
+  "drawOutcomeLabel": "X",
+  "awayOutcomeLabel": "2",
+  "marketOddsUnavailable": "Odds unavailable",
+  "availableMarketsCount": "{count} MVP market(s)",
+  "@availableMarketsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "matchDetailTitle": "Match detail",
+  "copilotReadingTitle": "Copilot reading",
+  "notRecommendedLabel": "Not recommended",
+  "noCopilotSignalsMessage": "No personalized reading is available for this match.",
+  "availableMarketsTitle": "Available markets",
+  "noAvailableMarketsMessage": "No MVP market is available for this match.",
+  "analysisDataTitle": "Analysis data",
+  "analysisUnavailableMessage": "No usable analysis data is available in the snapshot for this match.",
+  "standingsUnavailableMessage": "No usable standings are available in the snapshot for this competition.",
+  "teamAnalysisUnavailableMessage": "Analysis data unavailable for this team.",
+  "teamStandingUnavailableMessage": "Standings unavailable for this team.",
+  "venueLabel": "Venue",
+  "rankShortLabel": "Rank",
+  "pointsShortLabel": "Pts",
+  "playedShortLabel": "P",
+  "recordShortLabel": "W-D-L",
+  "goalsShortLabel": "Goals",
+  "goalsForAverageLabel": "GF/m",
+  "goalsAgainstAverageLabel": "GA/m",
+  "cleanSheetsShortLabel": "CS",
+  "formShortLabel": "Form",
+  "showMoreMarketsButton": "Show {count} more odd(s)",
+  "@showMoreMarketsButton": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "showLessMarketsButton": "Show less",
+  "analysisPendingLabel": "To analyze",
+  "whyButton": "{count} arguments",
+  "@whyButton": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "addToTicket": "Add",
+  "selectedForTicket": "Selected",
+  "proofsLabel": "Proofs",
+  "ticketSelectionCount": "Current selection: {count}",
+  "@ticketSelectionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ticketBuilderLater": "Workshop in the next step",
+  "environmentLabel": "Environment: {environment}",
+  "@environmentLabel": {
+    "placeholders": {
+      "environment": {
+        "type": "String"
+      }
+    }
+  },
+  "environmentDevelopment": "development",
+  "environmentStaging": "staging",
+  "environmentProduction": "production"
+}

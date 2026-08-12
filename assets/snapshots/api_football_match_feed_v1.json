@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "source": "api-football",
+  "captured_at": "2026-07-30T08:00:00Z",
+  "timezone": "Europe/Paris",
+  "bookmaker": {
+    "id": 8,
+    "name": "Demo Bookmaker"
+  },
+  "raw": {
+    "fixtures": [
+      {
+        "fixture": {
+          "id": 868160,
+          "date": "2026-07-30T16:00:00+02:00",
+          "timezone": "Europe/Paris",
+          "status": {
+            "long": "Not Started",
+            "short": "NS",
+            "elapsed": null
+          }
+        },
+        "league": {
+          "id": 39,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb.svg",
+          "season": 2025
+        },
+        "teams": {
+          "home": {
+            "id": 42,
+            "name": "Arsenal",
+            "logo": "https://media.api-sports.io/football/teams/42.png"
+          },
+          "away": {
+            "id": 45,
+            "name": "Everton",
+            "logo": "https://media.api-sports.io/football/teams/45.png"
+          }
+        },
+        "goals": {
+          "home": null,
+          "away": null
+        },
+        "score": {
+          "fulltime": {
+            "home": null,
+            "away": null
+          }
+        }
+      },
+      {
+        "fixture": {
+          "id": 868161,
+          "date": "2026-07-30T21:00:00+02:00",
+          "timezone": "Europe/Paris",
+          "status": {
+            "long": "Not Started",
+            "short": "NS",
+            "elapsed": null
+          }
+        },
+        "league": {
+          "id": 61,
+          "name": "Ligue 1",
+          "country": "France",
+          "logo": "https://media.api-sports.io/football/leagues/61.png",
+          "flag": "https://media.api-sports.io/flags/fr.svg",
+          "season": 2025
+        },
+        "teams": {
+          "home": {
+            "id": 79,
+            "name": "Lille",
+            "logo": "https://media.api-sports.io/football/teams/79.png"
+          },
+          "away": {
+            "id": 83,
+            "name": "Nantes",
+            "logo": "https://media.api-sports.io/football/teams/83.png"
+          }
+        },
+        "goals": {
+          "home": null,
+          "away": null
+        },
+        "score": {
+          "fulltime": {
+            "home": null,
+            "away": null
+          }
+        }
+      }
+    ],
+    "odds": [
+      {
+        "fixture": {
+          "id": 868160
+        },
+        "league": {
+          "id": 39,
+          "season": 2025
+        },
+        "bookmakers": [
+          {
+            "id": 8,
+            "name": "Demo Bookmaker",
+            "bets": [
+              {
+                "id": 12,
+                "name": "Double Chance",
+                "values": [
+                  {
+                    "value": "Home/Draw",
+                    "odd": "1.42"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "fixture": {
+          "id": 868161
+        },
+        "league": {
+          "id": 61,
+          "season": 2025
+        },
+        "bookmakers": [
+          {
+            "id": 8,
+            "name": "Demo Bookmaker",
+            "bets": [
+              {
+                "id": 12,
+                "name": "Double Chance",
+                "values": [
+                  {
+                    "value": "Home/Draw",
+                    "odd": "1.55"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

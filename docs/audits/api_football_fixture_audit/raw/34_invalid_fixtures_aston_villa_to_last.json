@@ -1,0 +1,1 @@
+{"get":"fixtures","parameters":{"league":"39","season":"2025","team":"66","to":"2026-05-23","last":"5"},"errors":{"to":"The To field cannot be used with Last field."},"results":0,"paging":{"current":1,"total":1},"response":[]}
