@@ -16,7 +16,7 @@ Future<void> configureDependencies(AppConfig config) async {
       () => SupabaseInitializer(config),
     )
     ..registerLazySingleton<SupabaseAuthController>(
-      () => SupabaseAuthController(getIt<SupabaseInitializer>()),
+      () => SupabaseAuthController(getIt<SupabaseInitializer>(), config),
     )
     ..registerLazySingleton<MatchFeedRepositoryLoader>(
       () => MatchFeedRepositoryLoader(

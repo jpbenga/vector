@@ -3,12 +3,14 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/app_config.dart';
 import '../supabase/supabase_initializer.dart';
 
 class SupabaseAuthController extends ChangeNotifier {
-  SupabaseAuthController(this._initializer);
+  SupabaseAuthController(this._initializer, this._config);
 
   final SupabaseInitializer _initializer;
+  final AppConfig _config;
   StreamSubscription<AuthState>? _subscription;
   User? _user;
 
@@ -66,8 +68,12 @@ class SupabaseAuthController extends ChangeNotifier {
       return null;
     }
 
-    final uri = Uri.base.removeFragment();
-    return uri.toString();
+    final configuredUrl = _config.appPublicUrl;
+    if (configuredUrl != null) {
+      return configuredUrl.removeFragment().toString();
+    }
+
+    return Uri.base.removeFragment().toString();
   }
 
   @override

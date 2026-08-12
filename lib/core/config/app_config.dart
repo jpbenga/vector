@@ -7,12 +7,14 @@ class AppConfig {
     required this.environment,
     required this.supabaseUrl,
     required this.supabaseAnonKey,
+    this.appPublicUrl,
     this.matchFeedSource = 'auto',
   });
 
   final AppEnvironment environment;
   final Uri? supabaseUrl;
   final String? supabaseAnonKey;
+  final Uri? appPublicUrl;
   final String matchFeedSource;
 
   bool get isSupabaseConfigured {
@@ -28,6 +30,7 @@ class AppConfig {
     );
     const supabaseUrlValue = String.fromEnvironment('SUPABASE_URL');
     const supabaseAnonKeyValue = String.fromEnvironment('SUPABASE_ANON_KEY');
+    const appPublicUrlValue = String.fromEnvironment('APP_PUBLIC_URL');
     const matchFeedSourceValue = String.fromEnvironment(
       'MATCH_FEED_SOURCE',
       defaultValue: 'auto',
@@ -35,6 +38,7 @@ class AppConfig {
 
     final environment = AppEnvironment.parse(environmentValue);
     final supabaseUrl = _parseSupabaseUrl(supabaseUrlValue);
+    final appPublicUrl = _parseOptionalUri('APP_PUBLIC_URL', appPublicUrlValue);
     final supabaseAnonKey = supabaseAnonKeyValue.isEmpty
         ? null
         : supabaseAnonKeyValue;
@@ -43,6 +47,7 @@ class AppConfig {
       environment: environment,
       supabaseUrl: supabaseUrl,
       supabaseAnonKey: supabaseAnonKey,
+      appPublicUrl: appPublicUrl,
       matchFeedSource: matchFeedSourceValue,
     );
 

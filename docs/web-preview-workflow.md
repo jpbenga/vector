@@ -30,6 +30,7 @@ Vercel doit recevoir ces variables d'environnement :
 ```text
 SUPABASE_URL
 SUPABASE_ANON_KEY
+APP_PUBLIC_URL=https://lector-sports.vercel.app/
 MATCH_FEED_SOURCE=auto
 ```
 
@@ -87,6 +88,8 @@ build/web
 8. Ajouter les variables d'environnement :
    - `SUPABASE_URL`
    - `SUPABASE_ANON_KEY`
+   - `APP_PUBLIC_URL` avec l'URL publique Vercel, par exemple
+     `https://lector-sports.vercel.app/`
    - `MATCH_FEED_SOURCE` avec la valeur `auto`
 9. Lancer le premier deploy.
 
@@ -102,6 +105,12 @@ Ajouter dans Redirect URLs :
 
 ```text
 https://<project-vercel>.vercel.app/**
+```
+
+Pour l'URL stable actuelle :
+
+```text
+https://lector-sports.vercel.app/**
 ```
 
 Si un domaine custom est ajoute plus tard :

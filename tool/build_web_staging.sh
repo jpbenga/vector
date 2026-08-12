@@ -25,4 +25,5 @@ flutter build web --release --no-wasm-dry-run \
   --dart-define=APP_ENV=staging \
   --dart-define=SUPABASE_URL="$SUPABASE_URL" \
   --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
+  --dart-define=APP_PUBLIC_URL="${APP_PUBLIC_URL:-}" \
   --dart-define=MATCH_FEED_SOURCE="${MATCH_FEED_SOURCE:-auto}"
