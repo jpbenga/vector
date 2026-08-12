@@ -12,8 +12,9 @@ if [[ -z "${SUPABASE_ANON_KEY:-}" ]]; then
 fi
 
 if ! command -v flutter >/dev/null 2>&1; then
-  echo "Flutter SDK not found. Installing Flutter stable for CI/Vercel..."
-  git clone --depth 1 --branch stable \
+  FLUTTER_VERSION="$(grep -o '"flutter"[[:space:]]*:[[:space:]]*"[^"]*"' .fvmrc | sed 's/.*"flutter"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')"
+  echo "Flutter SDK not found. Installing Flutter ${FLUTTER_VERSION:-stable} for CI/Vercel..."
+  git clone --depth 1 --branch "${FLUTTER_VERSION:-stable}" \
     https://github.com/flutter/flutter.git /tmp/flutter
   export PATH="/tmp/flutter/bin:$PATH"
 fi
