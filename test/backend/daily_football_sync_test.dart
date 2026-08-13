@@ -6,7 +6,6 @@ void main() {
   group('Daily Football Sync MVP', () {
     late String migration;
     late String supabaseFunction;
-    late String vercelFunction;
     late String vercelConfig;
     late String docs;
 
@@ -17,7 +16,6 @@ void main() {
       supabaseFunction = File(
         'supabase/functions/daily-football-sync/index.ts',
       ).readAsStringSync();
-      vercelFunction = File('api/daily-football-sync.ts').readAsStringSync();
       vercelConfig = File('vercel.json').readAsStringSync();
       docs = File('docs/backend-daily-football-sync.md').readAsStringSync();
     });
@@ -115,7 +113,6 @@ void main() {
           'supabase/functions/build-match-feed-snapshot/index.ts',
         ).readAsStringSync();
 
-        expect(vercelFunction, isNot(contains('API_FOOTBALL_SEASON')));
         expect(apiFunction, contains('current: "true"'));
         expect(apiFunction, contains('currentSeasonFromLeaguesPayload'));
         expect(apiFunction, contains('leagueSeasons'));
@@ -126,21 +123,13 @@ void main() {
       },
     );
 
-    test('configures Vercel as a once-daily trigger only', () {
-      expect(vercelConfig, contains('"crons"'));
-      expect(vercelConfig, contains('"/api/daily-football-sync"'));
-      expect(vercelConfig, contains('"schedule": "0 6 * * *"'));
-      expect(vercelFunction, contains('runtime: "edge"'));
-      expect(vercelFunction, contains('CRON_SECRET'));
-      expect(vercelFunction, contains('API_FOOTBALL_SYNC_SECRET'));
-      expect(vercelFunction, contains('daily-football-sync'));
-      expect(vercelFunction, contains('307, // Saudi Pro League'));
-      expect(vercelFunction, contains('188, // A-League'));
-      expect(
-        vercelFunction,
-        isNot(contains('API_FOOTBALL_KEY')),
-        reason: 'Vercel must not receive or expose the API-Football key',
-      );
+    test('keeps the long-running data cron out of Vercel', () {
+      expect(vercelConfig, isNot(contains('"crons"')));
+      expect(docs, contains('Supabase Cron'));
+      expect(docs, contains('La collecte peut depasser le timeout'));
+      expect(docs, contains('daily-football-sync'));
+      expect(docs, contains('307,98,188'));
+      expect(docs, isNot(contains('CRON_SECRET')));
     });
 
     test('documents manual deployment and validation steps', () {

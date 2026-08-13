@@ -65,8 +65,7 @@ auditable est conservee dans les payloads/provenances via `season_by_league`.
 ## Architecture
 
 ```text
-Vercel Cron
-  -> /api/daily-football-sync
+Supabase Cron
   -> Supabase Edge Function daily-football-sync
   -> api-football-sync
   -> api_football_cached_responses
@@ -75,17 +74,18 @@ Vercel Cron
   -> Flutter read model
 ```
 
-Vercel ne connait pas `API_FOOTBALL_KEY`.
+Vercel heberge l'application web, mais ne porte pas le cron data.
+La collecte peut depasser le timeout d'une fonction Vercel, surtout avec le
+throttle volontaire entre appels API-Football.
+
 La cle API-Football reste uniquement dans les secrets Supabase.
 
 ## Fichiers
 
 ```text
-api/daily-football-sync.ts
 supabase/functions/daily-football-sync/index.ts
 supabase/functions/api-football-sync/index.ts
 supabase/migrations/20260813080000_backend_daily_football_sync.sql
-vercel.json
 ```
 
 ## Consommation API-Football
@@ -170,8 +170,6 @@ A configurer dans Vercel :
 
 ```text
 SUPABASE_URL
-API_FOOTBALL_SYNC_SECRET
-CRON_SECRET
 API_FOOTBALL_TIMEZONE=Europe/Paris
 API_FOOTBALL_LEAGUE_IDS=39,61,140,78,135,94,88,144,179,203,197,119,207,218,40,62,136,79,141,106,210,209,283,253,71,128,262,307,98,188
 API_FOOTBALL_BOOKMAKER_ID=16
@@ -180,6 +178,10 @@ API_FOOTBALL_FUTURE_DAYS=3
 API_FOOTBALL_REQUEST_DELAY_MS=750
 SUPABASE_DATABASE_SIZE_LIMIT_BYTES=524288000
 ```
+
+Ces variables Vercel ne sont plus utilisees pour declencher le cron data. Elles
+restent utiles si on ajoute plus tard une interface admin web ou un endpoint de
+diagnostic court. Le cron officiel du MVP est cote Supabase.
 
 Variables deja necessaires au front Vercel :
 
@@ -204,6 +206,39 @@ npx supabase functions deploy api-football-sync --no-verify-jwt
 npx supabase functions deploy build-match-feed-snapshot --no-verify-jwt
 npx supabase functions deploy daily-football-sync --no-verify-jwt
 ```
+
+## Cron Supabase
+
+Planifier l'appel quotidien depuis Supabase, pas depuis Vercel.
+
+Dans le Dashboard Supabase :
+
+1. Aller dans `Database`.
+2. Ouvrir `Cron` ou `Scheduled Jobs`.
+3. Creer un job quotidien a `06:00 UTC`.
+4. Appeler l'Edge Function `daily-football-sync` en `POST`.
+5. Ajouter le header :
+
+```text
+Authorization: Bearer <API_FOOTBALL_SYNC_SECRET>
+Content-Type: application/json
+```
+
+Body recommande :
+
+```json
+{
+  "league_ids": [39,61,140,78,135,94,88,144,179,203,197,119,207,218,40,62,136,79,141,106,210,209,283,253,71,128,262,307,98,188],
+  "bookmaker_id": 16,
+  "results_days_back": 2,
+  "future_days": 3,
+  "api_request_delay_ms": 750
+}
+```
+
+Si le Dashboard ne propose pas d'interface Cron, le meme job peut etre cree via
+SQL avec `pg_cron` + `pg_net`. A ne faire qu'une fois la syntaxe confirmee dans
+le dashboard du projet.
 
 ## Invocation manuelle
 
@@ -235,16 +270,6 @@ Validation attendue :
 - des lignes dans `api_football_cached_responses` ;
 - un nouveau snapshot dans `match_feed_snapshots` ;
 - `database_size_ratio` renseigne.
-
-## Invocation Vercel
-
-Apres deploy Vercel, tester le proxy cron :
-
-```sh
-curl -X POST \
-  "https://lector-sports.vercel.app/api/daily-football-sync" \
-  -H "Authorization: Bearer $CRON_SECRET"
-```
 
 ## Limites MVP
 
