@@ -73,6 +73,7 @@ Voir [Workflow Web Staging avec Vercel](docs/web-preview-workflow.md) et
 ## Documentation
 
 - [Architecture](docs/architecture.md)
+- [Workflow IA Design ImageGen, Penpot et Codex](docs/ai-design-workflow/README.md)
 - [Workflow Web Staging avec Vercel](docs/web-preview-workflow.md)
 - [Guide testeur](docs/testers/tester-guide.md)
 - [Backend Lot 1A — Schema Supabase](docs/backend-lot-1a-schema.md)

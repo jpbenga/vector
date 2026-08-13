@@ -3,6 +3,12 @@
 Ce document formalise la charte visuelle actuelle de l'application mobile Vector/Copilot.
 Il sert de reference pour les futures iterations UI, les maquettes, les revues de coherence et l'integration Flutter.
 
+Pour les refontes UX/UI assistees par IA, utiliser le workflow dedie :
+
+- `docs/ai-design-workflow/README.md`
+
+Ce workflow separe l'exploration ImageGen, la formalisation Penpot et l'implementation Flutter.
+
 ## Objectif visuel
 
 L'application repose sur une interface mobile sombre, dense et lisible. Elle doit donner une impression de produit d'aide a la decision : calme, technique, precis, mais jamais froid ou surcharge.
