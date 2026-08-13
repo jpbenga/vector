@@ -45,7 +45,9 @@ void main() {
       );
       expect(
         migration,
-        contains('grant execute on function public.current_database_size_bytes()'),
+        contains(
+          'grant execute on function public.current_database_size_bytes()',
+        ),
         reason: 'storage measurement should stay server-side',
       );
     });
@@ -103,23 +105,26 @@ void main() {
       expect(apiFunction, contains('await delay(options.requestDelayMs)'));
     });
 
-    test('resolves the active season per league instead of using a hardcoded season', () {
-      final apiFunction = File(
-        'supabase/functions/api-football-sync/index.ts',
-      ).readAsStringSync();
-      final snapshotBuilder = File(
-        'supabase/functions/build-match-feed-snapshot/index.ts',
-      ).readAsStringSync();
+    test(
+      'resolves the active season per league instead of using a hardcoded season',
+      () {
+        final apiFunction = File(
+          'supabase/functions/api-football-sync/index.ts',
+        ).readAsStringSync();
+        final snapshotBuilder = File(
+          'supabase/functions/build-match-feed-snapshot/index.ts',
+        ).readAsStringSync();
 
-      expect(vercelFunction, isNot(contains('API_FOOTBALL_SEASON')));
-      expect(apiFunction, contains('current: "true"'));
-      expect(apiFunction, contains('currentSeasonFromLeaguesPayload'));
-      expect(apiFunction, contains('leagueSeasons'));
-      expect(supabaseFunction, contains('season_by_league'));
-      expect(snapshotBuilder, contains('seasonByLeague'));
-      expect(snapshotBuilder, contains('seasonForLeague(options, leagueId)'));
-      expect(docs, contains("La saison n'est pas configuree"));
-    });
+        expect(vercelFunction, isNot(contains('API_FOOTBALL_SEASON')));
+        expect(apiFunction, contains('current: "true"'));
+        expect(apiFunction, contains('currentSeasonFromLeaguesPayload'));
+        expect(apiFunction, contains('leagueSeasons'));
+        expect(supabaseFunction, contains('season_by_league'));
+        expect(snapshotBuilder, contains('seasonByLeague'));
+        expect(snapshotBuilder, contains('seasonForLeague(options, leagueId)'));
+        expect(docs, contains("La saison n'est pas configuree"));
+      },
+    );
 
     test('configures Vercel as a once-daily trigger only', () {
       expect(vercelConfig, contains('"crons"'));
