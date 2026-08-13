@@ -21,11 +21,12 @@ Le MVP doit :
 Cron quotidien :
 
 ```text
-06:00 UTC
+00:00 UTC
 ```
 
-Ce choix laisse le temps aux matchs tardifs en Amerique latine de se terminer
-avant la collecte du matin.
+Ce choix correspond a environ 02:00 en France en aout et laisse le temps a une
+grande partie des matchs tardifs de se terminer. Si les resultats d'Amerique
+latine arrivent trop tard dans les donnees API, on pourra decaler a 04:00 UTC.
 
 Fenetre technique par defaut :
 
@@ -66,8 +67,7 @@ auditable est conservee dans les payloads/provenances via `season_by_league`.
 
 ```text
 Supabase Cron
-  -> Supabase Edge Function daily-football-sync
-  -> api-football-sync
+  -> collectes api-football-sync par lots
   -> api_football_cached_responses
   -> build-match-feed-snapshot
   -> match_feed_snapshots
@@ -80,11 +80,30 @@ throttle volontaire entre appels API-Football.
 
 La cle API-Football reste uniquement dans les secrets Supabase.
 
+Important : le scope complet MVP ne doit pas etre execute dans un seul appel
+`daily-football-sync`.
+
+Le test reel du 2026-08-13 a montre que 30 ligues dans une seule Edge Function
+peuvent provoquer :
+
+```text
+WORKER_RESOURCE_LIMIT
+```
+
+La strategie retenue est donc :
+
+1. une collecte par ligue via `api-football-sync` ;
+2. cache brut idempotent dans `api_football_cached_responses` ;
+3. snapshot final unique via `build-match-feed-snapshot`.
+
+Le front ne doit consommer qu'un snapshot complet, pas un snapshot par lot.
+
 ## Fichiers
 
 ```text
 supabase/functions/daily-football-sync/index.ts
 supabase/functions/api-football-sync/index.ts
+supabase/functions/build-match-feed-snapshot/index.ts
 supabase/migrations/20260813080000_backend_daily_football_sync.sql
 ```
 
@@ -211,34 +230,61 @@ npx supabase functions deploy daily-football-sync --no-verify-jwt
 
 Planifier l'appel quotidien depuis Supabase, pas depuis Vercel.
 
-Dans le Dashboard Supabase :
+Pour un test court, `daily-football-sync` reste utile avec 1 ou 2 ligues.
+Pour le scope complet MVP, utiliser des jobs Supabase Cron separes :
 
-1. Aller dans `Database`.
-2. Ouvrir `Cron` ou `Scheduled Jobs`.
-3. Creer un job quotidien a `06:00 UTC`.
-4. Appeler l'Edge Function `daily-football-sync` en `POST`.
-5. Ajouter le header :
+```text
+00:00 UTC -> api-football-sync ligue 1
+00:04 UTC -> api-football-sync ligue 2
+...
+01:56 UTC -> api-football-sync ligue 30
+02:15 UTC -> build-match-feed-snapshot toutes ligues
+```
+
+`00:00 UTC` correspond a environ `02:00` en France en aout.
+
+L'espacement de 4 minutes entre chaque ligue evite le fan-out agressif et garde
+la consommation API tres largement sous la limite Pro de 300 requetes/minute.
+
+Chaque job appelle une Edge Function en `POST` avec les headers :
 
 ```text
 Authorization: Bearer <API_FOOTBALL_SYNC_SECRET>
 Content-Type: application/json
 ```
 
-Body recommande :
+Body commun aux collectes :
+
+```json
+{
+  "window_start": "YYYY-MM-DD",
+  "window_end": "YYYY-MM-DD",
+  "bookmaker_id": 16,
+  "api_request_delay_ms": 750,
+  "include_team_statistics": true,
+  "include_recent_form": true,
+  "include_expected_goals": true
+}
+```
+
+Le backend resout la saison active par ligue au moment de chaque lot.
+
+Body du snapshot final :
 
 ```json
 {
   "league_ids": [39,61,140,78,135,94,88,144,179,203,197,119,207,218,40,62,136,79,141,106,210,209,283,253,71,128,262,307,98,188],
   "bookmaker_id": 16,
-  "results_days_back": 2,
-  "future_days": 3,
-  "api_request_delay_ms": 750
+  "window_start": "YYYY-MM-DD",
+  "window_end": "YYYY-MM-DD",
+  "recent_form_days_back": 180,
+  "recent_form_matches": 5
 }
 ```
 
-Si le Dashboard ne propose pas d'interface Cron, le meme job peut etre cree via
-SQL avec `pg_cron` + `pg_net`. A ne faire qu'une fois la syntaxe confirmee dans
-le dashboard du projet.
+Le builder complete `season_by_league` depuis les reponses `/leagues` en cache.
+Cela permet d'avoir un snapshot final unique meme si les collectes ont ete
+faites par lots.
 
 ## Invocation manuelle
 
@@ -270,6 +316,97 @@ Validation attendue :
 - des lignes dans `api_football_cached_responses` ;
 - un nouveau snapshot dans `match_feed_snapshots` ;
 - `database_size_ratio` renseigne.
+
+## Invocation manuelle du scope complet par lots
+
+Le scope complet MVP ne doit pas etre teste a la main ligue par ligue.
+Generer plutot le SQL Cron complet :
+
+```sh
+dart run tool/generate_supabase_cron_sql.dart
+open -a TextEdit /tmp/lector_api_football_cron.sql
+pbcopy < /tmp/lector_api_football_cron.sql
+```
+
+Puis coller le SQL dans Supabase SQL Editor.
+
+Le SQL genere :
+
+- supprime les anciens jobs `api-football-*` ;
+- cree 30 jobs `api-football-league-<id>` ;
+- cree 1 job `api-football-build-snapshot` ;
+- utilise `API_FOOTBALL_SYNC_SECRET` depuis `.env`.
+
+Important : le SQL genere contient `API_FOOTBALL_SYNC_SECRET` en clair dans la
+commande Cron. Ne pas le commiter ni le partager.
+
+Pour tester une seule ligue avant d'attendre le cron :
+
+```sh
+curl --max-time 900 -X POST \
+  "$SUPABASE_URL/functions/v1/api-football-sync" \
+  -H "Authorization: Bearer $API_FOOTBALL_SYNC_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "league_ids": [61],
+    "bookmaker_id": 16,
+    "window_start": "2026-08-11",
+    "window_end": "2026-08-16",
+    "api_request_delay_ms": 750,
+    "include_team_statistics": true,
+    "include_recent_form": true,
+    "include_expected_goals": true,
+    "recent_form_days_back": 180,
+    "recent_form_matches": 5
+  }'
+```
+
+Apres execution des crons de ligue, le job `api-football-build-snapshot`
+construit automatiquement le snapshot final unique.
+
+Pour construire manuellement ce snapshot final :
+
+```sh
+curl --max-time 900 -X POST \
+  "$SUPABASE_URL/functions/v1/build-match-feed-snapshot" \
+  -H "Authorization: Bearer $API_FOOTBALL_SYNC_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "league_ids": [39,61,140,78,135,94,88,144,179,203,197,119,207,218,40,62,136,79,141,106,210,209,283,253,71,128,262,307,98,188],
+    "bookmaker_id": 16,
+    "window_start": "2026-08-13",
+    "window_end": "2026-08-16",
+    "recent_form_days_back": 180,
+    "recent_form_matches": 5
+  }'
+```
+
+Verification SQL :
+
+```sql
+select
+  started_at,
+  finished_at,
+  status,
+  response_summary,
+  error_message
+from public.api_football_sync_runs
+order by started_at desc
+limit 10;
+
+select
+  id,
+  window_start,
+  window_end,
+  fixture_count,
+  odds_count,
+  source_row_count,
+  coverage_summary,
+  snapshot_created_at
+from public.match_feed_snapshots
+order by snapshot_created_at desc
+limit 5;
+```
 
 ## Limites MVP
 

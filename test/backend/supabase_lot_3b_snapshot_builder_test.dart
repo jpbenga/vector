@@ -123,6 +123,16 @@ void main() {
       expect(docs, contains('match_feed_snapshot_sources'));
     });
 
+    test(
+      'can complete active seasons from cached league rows after batched syncs',
+      () {
+        expect(functionSource, contains('completeSeasonByLeague'));
+        expect(functionSource, contains('currentSeasonFromLeaguesPayload'));
+        expect(functionSource, contains('flatApiFootballResponseItems'));
+        expect(functionSource, contains('row.endpoint !== "/leagues"'));
+      },
+    );
+
     test('is idempotent for the same immutable snapshot identity', () {
       expect(functionSource, contains('findExistingSnapshot'));
       expect(functionSource, contains('reused: true'));

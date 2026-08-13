@@ -62,6 +62,10 @@ Deno.serve(async (request) => {
   let recentFixtureRequests = 0;
 
   try {
+    await markStaleSyncRuns({
+      supabaseUrl,
+      serviceRoleKey,
+    });
     const run = await insertSyncRun({
       supabaseUrl,
       serviceRoleKey,
@@ -407,6 +411,30 @@ function syncOptionsFromPayload(payload: JsonObject): SyncOptions {
     recentFormDaysBack,
     recentFormMatches,
   };
+}
+
+async function markStaleSyncRuns({
+  supabaseUrl,
+  serviceRoleKey,
+}: {
+  supabaseUrl: string;
+  serviceRoleKey: string;
+}): Promise<void> {
+  const staleBefore = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  await supabaseFetch({
+    supabaseUrl,
+    serviceRoleKey,
+    path: `/rest/v1/api_football_sync_runs?status=eq.running&started_at=lt.${
+      encodeURIComponent(staleBefore)
+    }`,
+    method: "PATCH",
+    body: {
+      status: "failed",
+      error_message: "Run marked failed after exceeding stale running window.",
+      finished_at: new Date().toISOString(),
+    },
+    prefer: "return=minimal",
+  });
 }
 
 async function insertSyncRun({

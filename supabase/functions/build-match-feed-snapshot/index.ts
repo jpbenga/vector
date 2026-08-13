@@ -60,6 +60,11 @@ Deno.serve(async (request) => {
       );
     }
 
+    const seasonByLeague = completeSeasonByLeague({
+      options,
+      sourceRows: build.sourceRows,
+    });
+    const season = seasonByLeagueReference(seasonByLeague, options.season);
     const asOf = options.asOf ?? latestTimestamp(build.sourceRows) ??
       new Date().toISOString();
     const existing = await findExistingSnapshot({
@@ -86,7 +91,7 @@ Deno.serve(async (request) => {
       teamStatistics: build.rawTeamStatistics,
       recentLeagueMatches: build.rawRecentLeagueMatches,
       expectedGoals: build.rawExpectedGoals,
-      season: options.season,
+      season,
     });
     const summary = coverageSummary({
       rawFixtures: build.rawFixtures,
@@ -111,7 +116,7 @@ Deno.serve(async (request) => {
       window_start: options.windowStart,
       window_end: options.windowEnd,
       date_window: dateWindowValues,
-      season_by_league: options.seasonByLeague,
+      season_by_league: seasonByLeague,
       bookmaker_priority: options.bookmakerPriority,
       raw: {
         fixtures: build.rawFixtures,
@@ -134,7 +139,7 @@ Deno.serve(async (request) => {
           schema_version: schemaVersion,
           source,
           kind: snapshotKind,
-          season: options.season,
+          season,
           timezone: options.timezone,
           window_start: options.windowStart,
           window_end: options.windowEnd,
@@ -144,6 +149,8 @@ Deno.serve(async (request) => {
           coverage_summary: summary,
           provenance: provenanceSummary({
             options,
+            season,
+            seasonByLeague,
             sourceRows: build.sourceRows,
             asOf,
           }),
@@ -709,10 +716,14 @@ function coverageSummary({
 
 function provenanceSummary({
   options,
+  season,
+  seasonByLeague,
   sourceRows,
   asOf,
 }: {
   options: SnapshotOptions;
+  season: number;
+  seasonByLeague: Record<string, number>;
   sourceRows: CachedRawResponse[];
   asOf: string;
 }): JsonObject {
@@ -725,8 +736,8 @@ function provenanceSummary({
   return {
     source,
     generated_by: "build-match-feed-snapshot",
-    season: options.season,
-    season_by_league: options.seasonByLeague,
+    season,
+    season_by_league: seasonByLeague,
     timezone: options.timezone,
     window_start: options.windowStart,
     window_end: options.windowEnd,
@@ -829,6 +840,66 @@ async function readJson(request: Request): Promise<JsonObject> {
 
 function seasonForLeague(options: SnapshotOptions, leagueId: number): number {
   return options.seasonByLeague[String(leagueId)] ?? options.season;
+}
+
+function completeSeasonByLeague({
+  options,
+  sourceRows,
+}: {
+  options: SnapshotOptions;
+  sourceRows: CachedRawResponse[];
+}): Record<string, number> {
+  const seasons: Record<string, number> = { ...options.seasonByLeague };
+  for (const row of sourceRows) {
+    if (row.endpoint !== "/leagues") {
+      continue;
+    }
+    const leagueId = numberValue(row.query_params.id);
+    if (leagueId === null || seasons[String(leagueId)] !== undefined) {
+      continue;
+    }
+    seasons[String(leagueId)] = currentSeasonFromLeaguesPayload(
+      row.response_body,
+      options.season,
+    );
+  }
+  return seasons;
+}
+
+function currentSeasonFromLeaguesPayload(
+  payload: JsonObject,
+  fallbackSeason: number,
+): number {
+  for (const row of flatApiFootballResponseItems(payload)) {
+    const seasons = row.seasons;
+    if (!Array.isArray(seasons)) {
+      continue;
+    }
+    const current = seasons
+      .map(objectValue)
+      .find((season) =>
+        season !== null && booleanValue(season.current) === true
+      );
+    const currentYear = numberValue(current?.year);
+    if (currentYear !== null) {
+      return currentYear;
+    }
+    for (const season of seasons.map(objectValue)) {
+      const year = numberValue(season?.year);
+      if (year !== null) {
+        return year;
+      }
+    }
+  }
+  return fallbackSeason;
+}
+
+function flatApiFootballResponseItems(payload: JsonObject): JsonObject[] {
+  const response = payload.response;
+  if (Array.isArray(response)) {
+    return response.filter(isJsonObject);
+  }
+  return isJsonObject(response) ? [response] : [];
 }
 
 function seasonByLeagueValue(

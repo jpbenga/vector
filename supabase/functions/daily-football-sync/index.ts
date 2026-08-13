@@ -41,6 +41,10 @@ Deno.serve(async (request) => {
   let snapshotResponse: JsonObject = {};
 
   try {
+    await markStaleDailyRuns({
+      supabaseUrl,
+      serviceRoleKey,
+    });
     const run = await insertDailyRun({
       supabaseUrl,
       serviceRoleKey,
@@ -303,6 +307,30 @@ function windowsPayload(options: DailyOptions): JsonObject {
       window_end: options.fullWindowEnd,
     },
   };
+}
+
+async function markStaleDailyRuns({
+  supabaseUrl,
+  serviceRoleKey,
+}: {
+  supabaseUrl: string;
+  serviceRoleKey: string;
+}): Promise<void> {
+  const staleBefore = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  await supabaseFetch({
+    supabaseUrl,
+    serviceRoleKey,
+    path: `/rest/v1/daily_football_sync_runs?status=eq.running&started_at=lt.${
+      encodeURIComponent(staleBefore)
+    }`,
+    method: "PATCH",
+    body: {
+      status: "failed",
+      error_message: "Run marked failed after exceeding stale running window.",
+      finished_at: new Date().toISOString(),
+    },
+    prefer: "return=minimal",
+  });
 }
 
 async function insertDailyRun({
