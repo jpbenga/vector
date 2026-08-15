@@ -134,6 +134,34 @@ void main() {
     expect(tickets[0].status, SavedTicketStatus.saved);
     expect(tickets[1].status, SavedTicketStatus.won);
   });
+
+  test('settles a played ticket using the API-Football fixture id', () {
+    final tickets = engine.settleTickets(
+      tickets: [
+        _ticket(
+          selections: [
+            _selection(
+              matchId: '1554009',
+              marketId: 'matchResult',
+              selectionId: 'matchResult:home',
+              selectionLabel: '1',
+            ),
+          ],
+        ),
+      ],
+      matches: [
+        _match(
+          id: 'api-fixture-1554009',
+          apiFootballFixtureId: 1554009,
+          score: const FixtureScore(home: 2, away: 1),
+        ),
+      ],
+      checkedAt: checkedAt,
+    );
+
+    expect(tickets.single.status, SavedTicketStatus.won);
+    expect(tickets.single.updatedAt, checkedAt);
+  });
 }
 
 SavedTicket _ticket({
@@ -194,12 +222,14 @@ SavedTicketSelection _selection({
 
 MatchBoardItem _match({
   required String id,
+  int? apiFootballFixtureId,
   FixtureStatus status = FixtureStatus.finished,
   FixtureScore? score,
 }) {
   return MatchBoardItem(
     fixture: NormalizedFixture(
       id: id,
+      apiFootballFixtureId: apiFootballFixtureId,
       competition: const CompetitionInfo(
         id: 'league',
         name: 'League',

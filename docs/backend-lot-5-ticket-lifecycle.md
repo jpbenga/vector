@@ -58,7 +58,8 @@ Les marches non supportes, par exemple buteur, restent en attente.
 
 Pour regler une selection, le snapshot doit fournir :
 
-- l'identifiant du match ;
+- l'identifiant du match, soit via l'id interne `api-fixture-...`, soit via
+  l'id fixture API-Football historique ;
 - le statut `finished` ;
 - le score final domicile/exterieur.
 
@@ -88,4 +89,5 @@ Les tests du lot verifient :
 - ticket perdu des qu'une selection terminee est fausse ;
 - maintien en attente si le match n'est pas termine ;
 - maintien en attente si le marche n'est pas supporte ;
-- absence de modification des tickets non joues ou deja terminaux.
+- absence de modification des tickets non joues ou deja terminaux ;
+- reglement possible depuis l'id fixture API-Football expose par les snapshots.

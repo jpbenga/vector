@@ -1743,7 +1743,6 @@ class _AnalysisSectionState extends State<_AnalysisSection> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final match = widget.match;
-    final availableCount = match.analysis.hasAnalysisData ? 5 : 0;
 
     return _SectionCard(
       child: Column(
@@ -1753,8 +1752,8 @@ class _AnalysisSectionState extends State<_AnalysisSection> {
             icon: Icons.bar_chart_rounded,
             title: 'Vérifier les données',
             summary: match.analysis.hasAnalysisData
-                ? '$availableCount catégories disponibles'
-                : 'Donnée indisponible',
+                ? 'Données snapshot disponibles'
+                : 'Snapshot incomplet',
             isOpen: _isExpanded,
             onPressed: () {
               setState(() {
@@ -1794,7 +1793,7 @@ class _AnalysisSectionState extends State<_AnalysisSection> {
             const SizedBox(height: 16),
             if (!match.analysis.hasAnalysisData)
               Text(
-                'Donnée indisponible pour vérifier cette lecture.',
+                'Aucune donnée de classement, forme ou statistiques d’équipe disponible pour ce match.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -1897,6 +1896,21 @@ class _AnalysisPlaceholder extends StatelessWidget {
 
   final _AnalysisTab tab;
 
+  String get _message {
+    return switch (tab) {
+      _AnalysisTab.form =>
+        'La forme récente sera affichée dès que le snapshot contient les derniers matchs de championnat.',
+      _AnalysisTab.standings =>
+        'Le classement sera affiché dès que le snapshot contient la table de cette ligue.',
+      _AnalysisTab.homeAway =>
+        'Les splits domicile/extérieur seront affichés dès que les statistiques d’équipe sont disponibles.',
+      _AnalysisTab.attackDefense =>
+        'Les indicateurs attaque/défense seront affichés dès que les statistiques d’équipe sont disponibles.',
+      _ =>
+        '${tab.label} sera alimenté dès que ces données sont présentes dans le snapshot.',
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1913,7 +1927,7 @@ class _AnalysisPlaceholder extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(18),
           child: Text(
-            '${tab.label} sera alimenté dès que ces données seront normalisées dans le snapshot.',
+            _message,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w700,
@@ -2088,7 +2102,7 @@ class _TeamFormTableBlock extends StatelessWidget {
         const SizedBox(height: 10),
         if (!stats.hasResults)
           Text(
-            'Donnée indisponible',
+            'Forme récente indisponible dans le snapshot actuel.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),
@@ -2101,7 +2115,7 @@ class _TeamFormTableBlock extends StatelessWidget {
             const SizedBox(height: 8),
             const _VerificationInsightLine(
               text:
-                  'Le détail adversaire, lieu et score des 5 matchs n’est pas encore normalisé dans le snapshot.',
+                  'Le snapshot fournit seulement la série brute pour cette équipe ; le détail match par match n’est pas disponible.',
             ),
           ],
         ],
@@ -2170,7 +2184,7 @@ class _RecentFormUnavailableRow extends StatelessWidget {
 
     return _RecentFormTableLine(
       opponent: Text(
-        'Adversaires, lieux et scores indisponibles.',
+        'Détail match par match indisponible.',
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
         style: theme.textTheme.bodyMedium?.copyWith(
@@ -3178,7 +3192,7 @@ class _HomeAwayPanel extends StatelessWidget {
     );
 
     if (homePoints == null || awayPoints == null) {
-      return 'Donnée insuffisante pour comparer le domicile et l’extérieur.';
+      return 'Stats domicile/extérieur indisponibles pour produire une comparaison fiable.';
     }
 
     if (homePoints == awayPoints) {
@@ -3327,7 +3341,7 @@ class _SplitTeamBlock extends StatelessWidget {
         const SizedBox(height: 10),
         if (values.isEmpty)
           Text(
-            'Donnée indisponible',
+            'Stats domicile/extérieur indisponibles dans le snapshot actuel.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),
@@ -3833,7 +3847,7 @@ class _TeamSeriesBlock extends StatelessWidget {
         const SizedBox(height: 10),
         if (series.isEmpty)
           Text(
-            'Donnée indisponible',
+            'Séries indisponibles dans le snapshot actuel.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),

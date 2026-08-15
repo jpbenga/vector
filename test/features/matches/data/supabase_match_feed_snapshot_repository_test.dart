@@ -1,4 +1,5 @@
 import 'package:copilot/features/matches/data/supabase_match_feed_snapshot_repository.dart';
+import 'package:copilot/features/matches/data/match_feed_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -84,11 +85,48 @@ void main() {
       expect(fixtureIds, containsAll([6101, 6202]));
       expect(fixtureIds, isNot(contains(6201)));
     });
+
+    test('feeds the snapshot repository with mixed league seasons', () {
+      final payload = mergeMatchFeedSnapshotPayloads([
+        _payload(
+          leagueId: 62,
+          season: 2026,
+          capturedAt: '2026-08-14T00:08:00.000Z',
+          fixtureId: 6201,
+          teamId: 621,
+        ),
+        _payload(
+          leagueId: 98,
+          season: 2027,
+          capturedAt: '2026-08-15T11:43:00.000Z',
+          fixtureId: 1554009,
+          teamId: 981,
+        ),
+      ]);
+
+      expect(payload, isNotNull);
+      final repository = SnapshotMatchFeedRepository(snapshot: payload!);
+      final matches = repository.allMatches();
+
+      expect(matches, hasLength(2));
+      expect(
+        matches.map((match) => match.competition.name),
+        containsAll(['League 62', 'League 98']),
+      );
+      expect(
+        matches
+            .firstWhere((match) => match.competition.name == 'League 98')
+            .competition
+            .season,
+        2027,
+      );
+    });
   });
 }
 
 Map<String, Object?> _payload({
   required int leagueId,
+  int season = 2026,
   required String capturedAt,
   required int fixtureId,
   required int teamId,
@@ -101,7 +139,7 @@ Map<String, Object?> _payload({
     'window_start': '2026-08-14',
     'window_end': '2026-08-17',
     'date_window': ['2026-08-14', '2026-08-15', '2026-08-16', '2026-08-17'],
-    'season_by_league': {leagueId.toString(): 2026},
+    'season_by_league': {leagueId.toString(): season},
     'bookmaker_priority': [
       {'id': 16, 'name': 'Unibet'},
     ],
@@ -109,7 +147,11 @@ Map<String, Object?> _payload({
       'fixtures': [
         {
           'fixture': {'id': fixtureId},
-          'league': {'id': leagueId, 'name': 'League $leagueId'},
+          'league': {
+            'id': leagueId,
+            'name': 'League $leagueId',
+            'season': season,
+          },
           'teams': {
             'home': {'id': teamId},
             'away': {'id': teamId + 1},
