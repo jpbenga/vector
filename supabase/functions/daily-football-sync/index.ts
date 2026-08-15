@@ -141,7 +141,7 @@ Deno.serve(async (request) => {
 });
 
 type DailyOptions = {
-  season: number;
+  season: number | null;
   timezone: string;
   leagueIds: number[];
   bookmakerId: number | null;
@@ -212,7 +212,7 @@ function dailyOptionsFromPayload(payload: JsonObject): DailyOptions {
   }
 
   return {
-    season: numberValue(payload.season) ?? new Date().getUTCFullYear(),
+    season: numberValue(payload.season),
     timezone,
     leagueIds,
     bookmakerId: numberValue(payload.bookmaker_id) ?? defaultBookmakerId,
@@ -254,8 +254,7 @@ function dailyOptionsFromPayload(payload: JsonObject): DailyOptions {
 }
 
 function syncPayload(options: DailyOptions): JsonObject {
-  return {
-    season: options.season,
+  const payload: JsonObject = {
     timezone: options.timezone,
     window_start: options.fullWindowStart,
     window_end: options.fullWindowEnd,
@@ -270,14 +269,17 @@ function syncPayload(options: DailyOptions): JsonObject {
     purpose: "daily_football_sync",
     windows: windowsPayload(options),
   };
+  if (options.season !== null) {
+    payload.season = options.season;
+  }
+  return payload;
 }
 
 function snapshotPayload(
   options: DailyOptions,
   syncResponse: JsonObject,
 ): JsonObject {
-  return {
-    season: options.season,
+  const payload: JsonObject = {
     season_by_league: objectValue(
       objectValue(syncResponse.summary)?.leagueSeasons,
     ),
@@ -290,6 +292,10 @@ function snapshotPayload(
     recent_form_matches: options.recentFormMatches,
     as_of: new Date().toISOString(),
   };
+  if (options.season !== null) {
+    payload.season = options.season;
+  }
+  return payload;
 }
 
 function windowsPayload(options: DailyOptions): JsonObject {
@@ -349,7 +355,7 @@ async function insertDailyRun({
     method: "POST",
     body: [
       {
-        season: options.season,
+        season: options.season ?? new Date().getUTCFullYear(),
         timezone: options.timezone,
         results_window_start: options.resultsWindowStart,
         results_window_end: options.resultsWindowEnd,

@@ -16,6 +16,12 @@ const defaultBookmakerPriority = [
   { id: 6, name: "Bwin" },
 ];
 
+type SnapshotScope = {
+  scope: "global" | "league";
+  scopeKey: string;
+  leagueIds: number[];
+};
+
 const corsHeaders = {
   "access-control-allow-origin": "*",
   "access-control-allow-headers":
@@ -65,22 +71,29 @@ Deno.serve(async (request) => {
       sourceRows: build.sourceRows,
     });
     const season = seasonByLeagueReference(seasonByLeague, options.season);
-    const asOf = options.asOf ?? latestTimestamp(build.sourceRows) ??
+    const asOf = options.asOf ??
+      (options.forceRebuild ? new Date().toISOString() : null) ??
+      latestTimestamp(build.sourceRows) ??
       new Date().toISOString();
-    const existing = await findExistingSnapshot({
-      supabaseUrl,
-      serviceRoleKey,
-      options,
-      asOf,
-    });
-    if (existing !== null) {
-      return jsonResponse({
-        ok: true,
-        reused: true,
-        snapshotId: existing.id,
+    const scope = snapshotScope(options);
+    if (!options.forceRebuild) {
+      const existing = await findExistingSnapshot({
+        supabaseUrl,
+        serviceRoleKey,
+        options,
+        season,
         asOf,
-        summary: existing.coverage_summary ?? {},
-      }, 200);
+        scope,
+      });
+      if (existing !== null) {
+        return jsonResponse({
+          ok: true,
+          reused: true,
+          snapshotId: existing.id,
+          asOf,
+          summary: existing.coverage_summary ?? {},
+        }, 200);
+      }
     }
 
     const dateWindowValues = dateWindow(options.windowStart, options.windowEnd);
@@ -111,6 +124,9 @@ Deno.serve(async (request) => {
     const payloadV1 = {
       schema_version: schemaVersion,
       source,
+      scope: scope.scope,
+      scope_key: scope.scopeKey,
+      league_ids: scope.leagueIds,
       captured_at: asOf,
       timezone: options.timezone,
       window_start: options.windowStart,
@@ -139,6 +155,9 @@ Deno.serve(async (request) => {
           schema_version: schemaVersion,
           source,
           kind: snapshotKind,
+          scope: scope.scope,
+          scope_key: scope.scopeKey,
+          league_ids: scope.leagueIds,
           season,
           timezone: options.timezone,
           window_start: options.windowStart,
@@ -153,6 +172,7 @@ Deno.serve(async (request) => {
             seasonByLeague,
             sourceRows: build.sourceRows,
             asOf,
+            scope,
           }),
           source_sync_run_ids: syncRunIds,
           captured_at: asOf,
@@ -221,6 +241,7 @@ type SnapshotOptions = {
   bookmakerId: number | null;
   bookmakerPriority: JsonObject[];
   asOf: string | null;
+  forceRebuild: boolean;
   recentFormDaysBack: number;
   recentFormMatches: number;
 };
@@ -305,11 +326,14 @@ async function collectSnapshotSources({
       endpoint: "/leagues",
       filters: {
         id: String(leagueId),
-        current: "true",
       },
     });
     addSourceRows(leagueRows);
-    const leagueSeason = seasonForLeague(options, leagueId);
+    const leagueSeason = seasonForLeagueFromRows(
+      options,
+      leagueId,
+      leagueRows,
+    );
 
     const standingsRows = await cachedResponsesFor({
       supabaseUrl,
@@ -477,18 +501,23 @@ async function findExistingSnapshot({
   supabaseUrl,
   serviceRoleKey,
   options,
+  season,
   asOf,
+  scope,
 }: {
   supabaseUrl: string;
   serviceRoleKey: string;
   options: SnapshotOptions;
+  season: number;
   asOf: string;
+  scope: SnapshotScope;
 }): Promise<JsonObject | null> {
   const query = new URLSearchParams();
   query.set("select", "id,coverage_summary,snapshot_created_at");
   query.set("source", `eq.${source}`);
   query.set("schema_version", `eq.${schemaVersion}`);
-  query.set("season", `eq.${options.season}`);
+  query.set("scope_key", `eq.${scope.scopeKey}`);
+  query.set("season", `eq.${season}`);
   query.set("timezone", `eq.${options.timezone}`);
   query.set("window_start", `eq.${options.windowStart}`);
   query.set("window_end", `eq.${options.windowEnd}`);
@@ -720,12 +749,14 @@ function provenanceSummary({
   seasonByLeague,
   sourceRows,
   asOf,
+  scope,
 }: {
   options: SnapshotOptions;
   season: number;
   seasonByLeague: Record<string, number>;
   sourceRows: CachedRawResponse[];
   asOf: string;
+  scope: SnapshotScope;
 }): JsonObject {
   const endpoints: JsonObject = {};
   for (const row of sourceRows) {
@@ -736,6 +767,8 @@ function provenanceSummary({
   return {
     source,
     generated_by: "build-match-feed-snapshot",
+    scope: scope.scope,
+    scope_key: scope.scopeKey,
     season,
     season_by_league: seasonByLeague,
     timezone: options.timezone,
@@ -750,6 +783,23 @@ function provenanceSummary({
     as_of: asOf,
     note:
       "recent_league_matches and expected_goals are derived from factual cached endpoints; predictions remain empty until explicitly collected.",
+  };
+}
+
+function snapshotScope(options: SnapshotOptions): SnapshotScope {
+  const leagueIds = uniqueNumbers(options.leagueIds).sort((a, b) => a - b);
+  if (leagueIds.length === 1) {
+    return {
+      scope: "league",
+      scopeKey: `league:${leagueIds[0]}`,
+      leagueIds,
+    };
+  }
+
+  return {
+    scope: "global",
+    scopeKey: `global:${leagueIds.join(",")}`,
+    leagueIds,
   };
 }
 
@@ -768,6 +818,7 @@ function snapshotOptionsFromPayload(payload: JsonObject): SnapshotOptions {
   const bookmakerId = numberValue(payload.bookmaker_id);
   const timezone = stringValue(payload.timezone) ?? defaultTimezone;
   const asOf = isoDateTimeValue(payload.as_of);
+  const forceRebuild = booleanValue(payload.force_rebuild) ?? false;
   const bookmakerPriority = bookmakerPriorityValue(payload.bookmaker_priority);
   const recentFormDaysBack = numberValue(payload.recent_form_days_back) ?? 180;
   const recentFormMatches = numberValue(payload.recent_form_matches) ?? 5;
@@ -806,6 +857,7 @@ function snapshotOptionsFromPayload(payload: JsonObject): SnapshotOptions {
     bookmakerId,
     bookmakerPriority,
     asOf,
+    forceRebuild,
     recentFormDaysBack,
     recentFormMatches,
   };
@@ -858,39 +910,104 @@ function completeSeasonByLeague({
     if (leagueId === null || seasons[String(leagueId)] !== undefined) {
       continue;
     }
-    seasons[String(leagueId)] = currentSeasonFromLeaguesPayload(
+    seasons[String(leagueId)] = seasonForWindowFromLeaguesPayload(
       row.response_body,
       options.season,
+      options.windowStart,
+      options.windowEnd,
     );
   }
   return seasons;
 }
 
-function currentSeasonFromLeaguesPayload(
+function seasonForLeagueFromRows(
+  options: SnapshotOptions,
+  leagueId: number,
+  leagueRows: CachedRawResponse[],
+): number {
+  const explicitSeason = options.seasonByLeague[String(leagueId)];
+  if (explicitSeason !== undefined) {
+    return explicitSeason;
+  }
+
+  for (const row of leagueRows) {
+    return seasonForWindowFromLeaguesPayload(
+      row.response_body,
+      options.season,
+      options.windowStart,
+      options.windowEnd,
+    );
+  }
+
+  return options.season;
+}
+
+function seasonForWindowFromLeaguesPayload(
   payload: JsonObject,
   fallbackSeason: number,
+  windowStart: string,
+  windowEnd: string,
 ): number {
+  const overlappingSeasons: Array<{
+    year: number;
+    current: boolean;
+    start: string;
+  }> = [];
+  let currentSeason: number | null = null;
+  let firstSeason: number | null = null;
+
   for (const row of flatApiFootballResponseItems(payload)) {
     const seasons = row.seasons;
     if (!Array.isArray(seasons)) {
       continue;
     }
-    const current = seasons
-      .map(objectValue)
-      .find((season) =>
-        season !== null && booleanValue(season.current) === true
-      );
-    const currentYear = numberValue(current?.year);
-    if (currentYear !== null) {
-      return currentYear;
-    }
     for (const season of seasons.map(objectValue)) {
       const year = numberValue(season?.year);
-      if (year !== null) {
-        return year;
+      if (year === null) {
+        continue;
+      }
+      firstSeason ??= year;
+      const isCurrent = booleanValue(season?.current) === true;
+      if (isCurrent) {
+        currentSeason = year;
+      }
+      const coverage = objectValue(season?.coverage) ?? {};
+      const fixtures = objectValue(coverage.fixtures) ?? {};
+      const start = stringValue(fixtures.start);
+      const end = stringValue(fixtures.end);
+      if (
+        start !== null &&
+        end !== null &&
+        isDate(start) &&
+        isDate(end) &&
+        dateRangesOverlap(start, end, windowStart, windowEnd)
+      ) {
+        overlappingSeasons.push({ year, current: isCurrent, start });
       }
     }
   }
+
+  if (overlappingSeasons.length > 0) {
+    overlappingSeasons.sort((a, b) => {
+      if (a.current !== b.current) {
+        return a.current ? -1 : 1;
+      }
+      if (a.start !== b.start) {
+        return b.start.localeCompare(a.start);
+      }
+      return b.year - a.year;
+    });
+    return overlappingSeasons[0].year;
+  }
+
+  if (currentSeason !== null) {
+    return currentSeason;
+  }
+
+  if (firstSeason !== null) {
+    return firstSeason;
+  }
+
   return fallbackSeason;
 }
 
@@ -971,11 +1088,16 @@ function teamStatisticsRequests(
     { leagueId: number; teamId: number; season: number }
   >();
   for (const row of fixtures) {
-    const leagueId = numberValue((objectValue(row.league) ?? {}).id);
+    const league = objectValue(row.league) ?? {};
+    const leagueId = numberValue(league.id);
     const teams: JsonObject = objectValue(row.teams) ?? {};
     if (leagueId === null) {
       continue;
     }
+    const season = numberValue(league.season) ?? seasonForLeague(
+      options,
+      leagueId,
+    );
     for (const side of ["home", "away"]) {
       const team = objectValue(teams[side]);
       const teamId = numberValue((team ?? {}).id);
@@ -983,7 +1105,7 @@ function teamStatisticsRequests(
         requests.set(`${leagueId}:${teamId}`, {
           leagueId,
           teamId,
-          season: seasonForLeague(options, leagueId),
+          season,
         });
       }
     }
@@ -1010,7 +1132,8 @@ function recentFixtureRequests(
 ): RecentFixtureRequest[] {
   const requests = new Map<string, RecentFixtureRequest>();
   for (const row of fixtures) {
-    const leagueId = numberValue((objectValue(row.league) ?? {}).id);
+    const league = objectValue(row.league) ?? {};
+    const leagueId = numberValue(league.id);
     const fixtureDateTime = stringValue((objectValue(row.fixture) ?? {}).date);
     if (leagueId === null || fixtureDateTime === null) {
       continue;
@@ -1019,6 +1142,10 @@ function recentFixtureRequests(
     const fixtureDate = dateOnly(new Date(fixtureDateTime));
     const from = subtractDays(fixtureDate, options.recentFormDaysBack);
     const to = subtractDays(fixtureDate, 1);
+    const season = numberValue(league.season) ?? seasonForLeague(
+      options,
+      leagueId,
+    );
     const teams: JsonObject = objectValue(row.teams) ?? {};
     for (const side of ["home", "away"]) {
       const teamId = numberValue((objectValue(teams[side]) ?? {}).id);
@@ -1026,7 +1153,7 @@ function recentFixtureRequests(
         requests.set(`${leagueId}:${teamId}:${from}:${to}`, {
           leagueId,
           teamId,
-          season: seasonForLeague(options, leagueId),
+          season,
           from,
           to,
         });
@@ -1379,6 +1506,15 @@ function isDate(value: string): boolean {
     !Number.isNaN(Date.parse(`${value}T00:00:00.000Z`));
 }
 
+function dateRangesOverlap(
+  firstStart: string,
+  firstEnd: string,
+  secondStart: string,
+  secondEnd: string,
+): boolean {
+  return firstStart <= secondEnd && secondStart <= firstEnd;
+}
+
 function isoDateTimeValue(value: unknown): string | null {
   const text = stringValue(value);
   if (text === null) {
@@ -1424,6 +1560,21 @@ function decimalValue(value: unknown): number | null {
   return null;
 }
 
+function booleanValue(value: unknown): boolean | null {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "string") {
+    if (value.toLowerCase() === "true") {
+      return true;
+    }
+    if (value.toLowerCase() === "false") {
+      return false;
+    }
+  }
+  return null;
+}
+
 function stringValue(value: unknown): string | null {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
 }
@@ -1441,6 +1592,10 @@ function isJsonObject(value: unknown): value is JsonObject {
 }
 
 function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values)];
+}
+
+function uniqueNumbers(values: number[]): number[] {
   return [...new Set(values)];
 }
 

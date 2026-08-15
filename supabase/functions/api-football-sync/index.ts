@@ -84,14 +84,15 @@ Deno.serve(async (request) => {
         endpoint: "/leagues",
         query: {
           id: String(leagueId),
-          current: "true",
         },
         ttlSeconds: 24 * 60 * 60,
         requestDelayMs: apiRequestDelayMs,
       });
-      const leagueSeason = currentSeasonFromLeaguesPayload(
+      const leagueSeason = seasonForWindowFromLeaguesPayload(
         leagueInfo.body,
         options.fallbackSeason,
+        options.windowStart,
+        options.windowEnd,
       );
       summary.leagueSeasons[String(leagueId)] = leagueSeason;
       summary.leagues += 1;
@@ -618,10 +619,20 @@ function responseRows(payload: JsonObject): unknown[] {
   return Array.isArray(rows) ? rows : [];
 }
 
-function currentSeasonFromLeaguesPayload(
+function seasonForWindowFromLeaguesPayload(
   payload: JsonObject,
   fallbackSeason: number,
+  windowStart: string,
+  windowEnd: string,
 ): number {
+  const overlappingSeasons: Array<{
+    year: number;
+    current: boolean;
+    start: string;
+  }> = [];
+  let currentSeason: number | null = null;
+  let firstSeason: number | null = null;
+
   for (const row of responseRows(payload)) {
     const root = objectValue(row);
     if (root === null) {
@@ -631,22 +642,53 @@ function currentSeasonFromLeaguesPayload(
     if (!Array.isArray(seasons)) {
       continue;
     }
-    const current = seasons
-      .map(objectValue)
-      .find((season) =>
-        season !== null && booleanValue(season.current) === true
-      );
-    const year = numberValue(current?.year);
-    if (year !== null) {
-      return year;
-    }
     for (const season of seasons.map(objectValue)) {
       const year = numberValue(season?.year);
-      if (year !== null) {
-        return year;
+      if (year === null) {
+        continue;
+      }
+      firstSeason ??= year;
+      const isCurrent = booleanValue(season?.current) === true;
+      if (isCurrent) {
+        currentSeason = year;
+      }
+      const coverage = objectValue(season?.coverage) ?? {};
+      const fixtures = objectValue(coverage.fixtures) ?? {};
+      const start = stringValue(fixtures.start);
+      const end = stringValue(fixtures.end);
+      if (
+        start !== null &&
+        end !== null &&
+        isDate(start) &&
+        isDate(end) &&
+        dateRangesOverlap(start, end, windowStart, windowEnd)
+      ) {
+        overlappingSeasons.push({ year, current: isCurrent, start });
       }
     }
   }
+
+  if (overlappingSeasons.length > 0) {
+    overlappingSeasons.sort((a, b) => {
+      if (a.current !== b.current) {
+        return a.current ? -1 : 1;
+      }
+      if (a.start !== b.start) {
+        return b.start.localeCompare(a.start);
+      }
+      return b.year - a.year;
+    });
+    return overlappingSeasons[0].year;
+  }
+
+  if (currentSeason !== null) {
+    return currentSeason;
+  }
+
+  if (firstSeason !== null) {
+    return firstSeason;
+  }
+
   return fallbackSeason;
 }
 
@@ -824,6 +866,15 @@ function subtractDays(date: string, days: number): string {
 function isDate(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) &&
     !Number.isNaN(Date.parse(`${value}T00:00:00.000Z`));
+}
+
+function dateRangesOverlap(
+  firstStart: string,
+  firstEnd: string,
+  secondStart: string,
+  secondEnd: string,
+): boolean {
+  return firstStart <= secondEnd && secondStart <= firstEnd;
 }
 
 function numberList(value: unknown): number[] {

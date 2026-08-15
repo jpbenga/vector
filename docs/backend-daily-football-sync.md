@@ -47,10 +47,18 @@ Chaque ligue peut changer de saison a une date differente. Le backend resout
 donc la saison active ligue par ligue via :
 
 ```text
-/leagues?id=<league_id>&current=true
+/leagues?id=<league_id>
 ```
 
-Puis il utilise cette saison pour les endpoints dependants :
+La saison retenue n'est pas choisie en fonction de l'annee courante ni
+uniquement du champ `current`. Le backend inspecte les dates
+`coverage.fixtures.start` / `coverage.fixtures.end` renvoyees par API-Football
+et choisit la saison dont la couverture chevauche la fenetre demandee.
+
+Cette regle est obligatoire pour les championnats decales : par exemple une
+rencontre jouee en 2026 peut appartenir a une saison API-Football `2027`.
+
+Puis le backend utilise cette saison verifiee pour les endpoints dependants :
 
 ```text
 /standings
@@ -67,11 +75,11 @@ auditable est conservee dans les payloads/provenances via `season_by_league`.
 
 ```text
 Supabase Cron
-  -> collectes api-football-sync par lots
+  -> collecte api-football-sync par ligue
   -> api_football_cached_responses
-  -> build-match-feed-snapshot
-  -> match_feed_snapshots
-  -> Flutter read model
+  -> build-match-feed-snapshot par ligue
+  -> match_feed_snapshots scopes league:<id>
+  -> Flutter read model fusionne les snapshots par ligue
 ```
 
 Vercel heberge l'application web, mais ne porte pas le cron data.
@@ -94,9 +102,11 @@ La strategie retenue est donc :
 
 1. une collecte par ligue via `api-football-sync` ;
 2. cache brut idempotent dans `api_football_cached_responses` ;
-3. snapshot final unique via `build-match-feed-snapshot`.
+3. un snapshot par ligue via `build-match-feed-snapshot`.
 
-Le front ne doit consommer qu'un snapshot complet, pas un snapshot par lot.
+Le front reconstruit le feed global en fusionnant les derniers snapshots de
+chaque ligue pour la date demandee. Cette strategie evite de depasser les
+limites de calcul Supabase Edge avec un snapshot global trop gros.
 
 ## Fichiers
 
@@ -235,10 +245,12 @@ Pour le scope complet MVP, utiliser des jobs Supabase Cron separes :
 
 ```text
 00:00 UTC -> api-football-sync ligue 1
+00:03 UTC -> build-match-feed-snapshot ligue 1
 00:04 UTC -> api-football-sync ligue 2
+00:07 UTC -> build-match-feed-snapshot ligue 2
 ...
 01:56 UTC -> api-football-sync ligue 30
-02:15 UTC -> build-match-feed-snapshot toutes ligues
+01:59 UTC -> build-match-feed-snapshot ligue 30
 ```
 
 `00:00 UTC` correspond a environ `02:00` en France en aout.
@@ -267,24 +279,35 @@ Body commun aux collectes :
 }
 ```
 
-Le backend resout la saison active par ligue au moment de chaque lot.
+Le backend resout la saison active par ligue au moment de chaque lot en
+comparant la fenetre demandee avec la couverture de fixtures de chaque saison.
+Ne pas ajouter `season` dans les crons quotidiens : ce champ est uniquement un
+override manuel de diagnostic. Le fonctionnement normal doit laisser
+`api-football-sync` resoudre `leagueSeasons` ligue par ligue.
 
-Body du snapshot final :
+Body commun aux snapshots de ligue :
 
 ```json
 {
-  "league_ids": [39,61,140,78,135,94,88,144,179,203,197,119,207,218,40,62,136,79,141,106,210,209,283,253,71,128,262,307,98,188],
+  "league_ids": [61],
   "bookmaker_id": 16,
   "window_start": "YYYY-MM-DD",
   "window_end": "YYYY-MM-DD",
+  "force_rebuild": false,
   "recent_form_days_back": 180,
   "recent_form_matches": 5
 }
 ```
 
-Le builder complete `season_by_league` depuis les reponses `/leagues` en cache.
-Cela permet d'avoir un snapshot final unique meme si les collectes ont ete
-faites par lots.
+Le builder complete `season_by_league` depuis les reponses `/leagues` en cache
+avec la meme logique de couverture de fenetre que la collecte.
+Chaque snapshot porte un `scope_key` du type `league:61`. L'ancien scope global
+reste supporte pour compatibilite, mais il ne doit plus etre utilise pour le
+cron complet MVP.
+
+`force_rebuild: true` est reserve aux corrections de builder ou aux reprises
+manuelles. Il cree un nouveau snapshot immuable avec un nouvel `as_of` au lieu
+de reutiliser le snapshot existant.
 
 ## Invocation manuelle
 
@@ -334,79 +357,70 @@ Le SQL genere :
 
 - supprime les anciens jobs `api-football-*` ;
 - cree 30 jobs `api-football-league-<id>` ;
-- cree 1 job `api-football-build-snapshot` ;
+- cree 30 jobs `api-football-league-<id>-snapshot` ;
+- calcule les fenetres `J-2 -> J+3` et `J -> J+3` au moment de
+  l'execution cron, en UTC ;
 - utilise `API_FOOTBALL_SYNC_SECRET` depuis `.env`.
 
 Important : le SQL genere contient `API_FOOTBALL_SYNC_SECRET` en clair dans la
 commande Cron. Ne pas le commiter ni le partager.
 
-Pour tester une seule ligue avant d'attendre le cron :
+Le generateur cree aussi un SQL d'execution immediate :
 
 ```sh
-curl --max-time 900 -X POST \
-  "$SUPABASE_URL/functions/v1/api-football-sync" \
-  -H "Authorization: Bearer $API_FOOTBALL_SYNC_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "league_ids": [61],
-    "bookmaker_id": 16,
-    "window_start": "2026-08-11",
-    "window_end": "2026-08-16",
-    "api_request_delay_ms": 750,
-    "include_team_statistics": true,
-    "include_recent_form": true,
-    "include_expected_goals": true,
-    "recent_form_days_back": 180,
-    "recent_form_matches": 5
-  }'
+pbcopy < /tmp/lector_api_football_run_now.sql
 ```
 
-Apres execution des crons de ligue, le job `api-football-build-snapshot`
-construit automatiquement le snapshot final unique.
+Ce SQL planifie 60 jobs temporaires `api-football-run-now-*` :
 
-Pour construire manuellement ce snapshot final :
-
-```sh
-curl --max-time 900 -X POST \
-  "$SUPABASE_URL/functions/v1/build-match-feed-snapshot" \
-  -H "Authorization: Bearer $API_FOOTBALL_SYNC_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "league_ids": [39,61,140,78,135,94,88,144,179,203,197,119,207,218,40,62,136,79,141,106,210,209,283,253,71,128,262,307,98,188],
-    "bookmaker_id": 16,
-    "window_start": "2026-08-13",
-    "window_end": "2026-08-16",
-    "recent_form_days_back": 180,
-    "recent_form_matches": 5
-  }'
-```
+- 30 collectes, une par ligue ;
+- 30 snapshots, un par ligue ;
+- meme cadence que le cron quotidien ;
+- chaque job temporaire s'auto-supprime apres execution.
 
 Verification SQL :
 
 ```sql
-select
-  started_at,
-  finished_at,
-  status,
-  response_summary,
-  error_message
-from public.api_football_sync_runs
-order by started_at desc
-limit 10;
+select *
+from public.api_football_pipeline_health
+where health_status <> 'ok'
+order by api_football_league_id;
 
 select
-  id,
-  window_start,
-  window_end,
-  fixture_count,
-  odds_count,
-  source_row_count,
-  coverage_summary,
-  snapshot_created_at
-from public.match_feed_snapshots
-order by snapshot_created_at desc
-limit 5;
+  api_football_league_id,
+  league_name,
+  resolved_season,
+  sync_status,
+  sync_window_start,
+  sync_window_end,
+  snapshot_window_start,
+  snapshot_window_end,
+  snapshot_fixtures,
+  snapshot_odds,
+  snapshot_team_statistics,
+  snapshot_recent_league_matches,
+  missing_odds,
+  missing_team_statistics,
+  missing_recent_form,
+  missing_expected_goals,
+  health_status
+from public.api_football_pipeline_health
+order by api_football_league_id;
+
+select count(*) as distinct_league_snapshots
+from public.api_football_latest_league_snapshot_health
+where snapshot_id is not null;
+
+select *
+from public.api_football_latest_league_sync_health
+where health_status <> 'ok'
+order by api_football_league_id;
 ```
+
+Ces vues sont creees par
+`supabase/migrations/20260815123000_backend_data_observability.sql`.
+Elles sont destinees au diagnostic backend via SQL Editor/service role, pas a
+l'interface publique.
 
 ## Limites MVP
 

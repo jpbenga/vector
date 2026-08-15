@@ -91,6 +91,18 @@ void main() {
       expect(supabaseFunction, contains('defaultResultsDaysBack = 2'));
       expect(supabaseFunction, contains('defaultFutureDays = 3'));
       expect(supabaseFunction, contains('markStaleDailyRuns'));
+      expect(
+        supabaseFunction,
+        contains('season: number | null'),
+        reason:
+            'season must be an explicit override, not a global default passed to child jobs',
+      );
+      expect(
+        supabaseFunction,
+        contains('if (options.season !== null)'),
+        reason:
+            'daily orchestration should only forward a season when explicitly requested',
+      );
     });
 
     test('applies a polite API-Football request delay', () {
@@ -114,12 +126,22 @@ void main() {
           'supabase/functions/build-match-feed-snapshot/index.ts',
         ).readAsStringSync();
 
-        expect(apiFunction, contains('current: "true"'));
-        expect(apiFunction, contains('currentSeasonFromLeaguesPayload'));
+        expect(apiFunction, isNot(contains('current: "true"')));
+        expect(apiFunction, contains('seasonForWindowFromLeaguesPayload'));
+        expect(apiFunction, contains('dateRangesOverlap'));
+        expect(apiFunction, contains('coverage.fixtures'));
         expect(apiFunction, contains('leagueSeasons'));
         expect(supabaseFunction, contains('season_by_league'));
         expect(snapshotBuilder, contains('seasonByLeague'));
-        expect(snapshotBuilder, contains('seasonForLeague(options, leagueId)'));
+        expect(snapshotBuilder, contains('seasonForLeagueFromRows('));
+        expect(snapshotBuilder, contains('seasonForWindowFromLeaguesPayload'));
+        expect(snapshotBuilder, contains('leagueRows'));
+        expect(
+          supabaseFunction,
+          isNot(contains('season: options.season,')),
+          reason:
+              'daily-football-sync must not inject a single season into every league by default',
+        );
         expect(docs, contains("La saison n'est pas configuree"));
       },
     );
@@ -129,7 +151,7 @@ void main() {
       expect(docs, contains('Supabase Cron'));
       expect(docs, contains('La collecte peut depasser le timeout'));
       expect(docs, contains('une collecte par ligue'));
-      expect(docs, contains('snapshot final unique'));
+      expect(docs, contains('un snapshot par ligue'));
       expect(docs, contains('daily-football-sync'));
       expect(docs, contains('307,98,188'));
       expect(docs, isNot(contains('CRON_SECRET')));
@@ -150,17 +172,38 @@ void main() {
       expect(docs, contains('SUPABASE_DATABASE_SIZE_LIMIT_BYTES'));
     });
 
-    test('generates one Supabase cron job per league plus final snapshot', () {
+    test('generates one sync and one snapshot cron job per league', () {
       final generator = File(
         'tool/generate_supabase_cron_sql.dart',
       ).readAsStringSync();
 
       expect(generator, contains('api-football-league-\$leagueId'));
-      expect(generator, contains('api-football-build-snapshot'));
-      expect(generator, contains('final minuteOffset = index * 4'));
+      expect(generator, contains('api-football-league-\$leagueId-snapshot'));
+      expect(generator, contains('api-football-run-now-league-\$leagueId'));
+      expect(
+        generator,
+        contains('api-football-run-now-league-\$leagueId-snapshot'),
+      );
+      expect(generator, isNot(contains('api-football-build-snapshot')));
+      expect(generator, contains('final syncMinuteOffset = index * 4'));
+      expect(
+        generator,
+        contains('final snapshotMinuteOffset = syncMinuteOffset + 3'),
+      );
+      expect(generator, contains("now() at time zone 'UTC'"));
+      expect(generator, contains('cron.unschedule'));
+      expect(generator, contains('/tmp/lector_api_football_run_now.sql'));
+      expect(generator, isNot(contains('DateTime.now()')));
       expect(generator, contains('leagues.length'));
       expect(generator, contains('API_FOOTBALL_SYNC_SECRET'));
       expect(generator, contains('build-match-feed-snapshot'));
+      expect(
+        generator,
+        isNot(contains("'season'")),
+        reason:
+            'cron jobs must let api-football-sync resolve the season per league',
+      );
+      expect(generator, isNot(contains("'15 2 * * *'")));
     });
   });
 }

@@ -102,6 +102,7 @@ void main() {
       expect(functionSource, contains('rawRecentLeagueMatches'));
       expect(functionSource, contains('rawExpectedGoals'));
       expect(functionSource, contains('normalizeRecentFixturesForTeam'));
+      expect(functionSource, contains('numberValue(league.season)'));
       expect(functionSource, contains('expectedGoalsSnapshots'));
       expect(functionSource, contains('endpoint: "/fixtures/statistics"'));
       expect(functionSource, contains('has_recent_form:'));
@@ -127,7 +128,9 @@ void main() {
       'can complete active seasons from cached league rows after batched syncs',
       () {
         expect(functionSource, contains('completeSeasonByLeague'));
-        expect(functionSource, contains('currentSeasonFromLeaguesPayload'));
+        expect(functionSource, contains('seasonForWindowFromLeaguesPayload'));
+        expect(functionSource, contains('coverage.fixtures'));
+        expect(functionSource, contains('dateRangesOverlap'));
         expect(functionSource, contains('flatApiFootballResponseItems'));
         expect(functionSource, contains('row.endpoint !== "/leagues"'));
       },
@@ -136,6 +139,9 @@ void main() {
     test('is idempotent for the same immutable snapshot identity', () {
       expect(functionSource, contains('findExistingSnapshot'));
       expect(functionSource, contains('reused: true'));
+      expect(functionSource, contains('forceRebuild'));
+      expect(functionSource, contains('force_rebuild'));
+      expect(functionSource, contains('season,'));
       expect(functionSource, contains('schema_version'));
       expect(functionSource, contains('window_start'));
       expect(functionSource, contains('window_end'));
