@@ -61,7 +61,10 @@ void main() {
         previewLinksMigration,
         contains('create table public.admin_preview_links'),
       );
-      expect(previewLinksMigration, contains('token_hash text not null unique'));
+      expect(
+        previewLinksMigration,
+        contains('token_hash text not null unique'),
+      );
       expect(previewLinksMigration, isNot(contains(' token text')));
       expect(previewLinksMigration, contains('from anon, authenticated'));
       expect(previewLinksMigration, contains('to service_role'));
@@ -71,19 +74,22 @@ void main() {
       expect(function, contains('tester_token'));
     });
 
-    test('redeems tester links without admin bearer but never creates them', () {
-      expect(function, contains('action === "redeem_test_link"'));
-      expect(function, contains('Temporary tester link has expired.'));
-      expect(function, contains('Temporary tester link is invalid.'));
-      expect(
-        function.indexOf('action === "redeem_test_link"'),
-        lessThan(function.indexOf('const admin = await authorizeAdmin')),
-      );
-      expect(
-        function.indexOf('action === "create_test_link"'),
-        greaterThan(function.indexOf('const admin = await authorizeAdmin')),
-      );
-    });
+    test(
+      'redeems tester links without admin bearer but never creates them',
+      () {
+        expect(function, contains('action === "redeem_test_link"'));
+        expect(function, contains('Temporary tester link has expired.'));
+        expect(function, contains('Temporary tester link is invalid.'));
+        expect(
+          function.indexOf('action === "redeem_test_link"'),
+          lessThan(function.indexOf('const admin = await authorizeAdmin')),
+        );
+        expect(
+          function.indexOf('action === "create_test_link"'),
+          greaterThan(function.indexOf('const admin = await authorizeAdmin')),
+        );
+      },
+    );
 
     test('front calls admin-ops with the current user token only', () {
       expect(
