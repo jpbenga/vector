@@ -57,10 +57,10 @@ class ProfileCompiler {
     final selectedIds = _answerOptionIds(
       profile,
       'competitions',
-    ).map(CompetitionCatalog.resolveId).whereType<String>().toSet();
+    ).map(RuntimeCompetitionCatalog.resolveId).whereType<String>().toSet();
 
     return {
-      for (final definition in CompetitionCatalog.values)
+      for (final definition in RuntimeCompetitionCatalog.values)
         definition.id: CompetitionPreference(
           id: definition.id,
           apiFootballLeagueId: definition.apiFootballLeagueId,

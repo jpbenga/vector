@@ -1,7 +1,7 @@
 -- Backend data observability for the API-Football MVP pipeline.
 --
 -- Scope:
--- - one SQL source of truth for the 30 MVP leagues;
+-- - one SQL source of truth for the MVP leagues;
 -- - service-role health views for latest sync and latest league snapshot;
 -- - no writes, no secrets, no cron side effects.
 
@@ -17,6 +17,7 @@ from (
     (78, 'Bundesliga'),
     (135, 'Serie A'),
     (94, 'Liga Portugal'),
+    (95, 'Liga Portugal 2'),
     (88, 'Eredivisie'),
     (144, 'Jupiler Pro'),
     (179, 'Premiership'),
@@ -40,7 +41,13 @@ from (
     (262, 'Liga MX'),
     (307, 'Saudi Pro'),
     (98, 'J1 League'),
-    (188, 'A-League')
+    (188, 'A-League'),
+    (103, 'Eliteserien'),
+    (113, 'Allsvenskan'),
+    (164, 'Besta deild karla'),
+    (169, 'Chinese Super League'),
+    (244, 'Veikkausliiga'),
+    (292, 'K League 1')
 ) as leagues(api_football_league_id, league_name);
 
 comment on view public.api_football_mvp_leagues is

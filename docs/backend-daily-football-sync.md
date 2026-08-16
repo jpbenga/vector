@@ -200,7 +200,7 @@ A configurer dans Vercel :
 ```text
 SUPABASE_URL
 API_FOOTBALL_TIMEZONE=Europe/Paris
-API_FOOTBALL_LEAGUE_IDS=39,61,140,78,135,94,88,144,179,203,197,119,207,218,40,62,136,79,141,106,210,209,283,253,71,128,262,307,98,188
+API_FOOTBALL_LEAGUE_IDS=39,61,140,78,135,94,95,88,144,179,203,197,119,207,218,40,62,136,79,141,106,210,209,283,253,71,128,262,307,98,188,103,113,164,169,244,292
 API_FOOTBALL_BOOKMAKER_ID=16
 API_FOOTBALL_RESULTS_DAYS_BACK=2
 API_FOOTBALL_FUTURE_DAYS=3
@@ -249,8 +249,8 @@ Pour le scope complet MVP, utiliser des jobs Supabase Cron separes :
 00:04 UTC -> api-football-sync ligue 2
 00:07 UTC -> build-match-feed-snapshot ligue 2
 ...
-01:56 UTC -> api-football-sync ligue 30
-01:59 UTC -> build-match-feed-snapshot ligue 30
+02:24 UTC -> api-football-sync ligue 37
+02:27 UTC -> build-match-feed-snapshot ligue 37
 ```
 
 `00:00 UTC` correspond a environ `02:00` en France en aout.
@@ -356,8 +356,8 @@ Puis coller le SQL dans Supabase SQL Editor.
 Le SQL genere :
 
 - supprime les anciens jobs `api-football-*` ;
-- cree 30 jobs `api-football-league-<id>` ;
-- cree 30 jobs `api-football-league-<id>-snapshot` ;
+- cree 37 jobs `api-football-league-<id>` ;
+- cree 37 jobs `api-football-league-<id>-snapshot` ;
 - calcule les fenetres `J-2 -> J+3` et `J -> J+3` au moment de
   l'execution cron, en UTC ;
 - utilise `API_FOOTBALL_SYNC_SECRET` depuis `.env`.
@@ -371,10 +371,10 @@ Le generateur cree aussi un SQL d'execution immediate :
 pbcopy < /tmp/lector_api_football_run_now.sql
 ```
 
-Ce SQL planifie 60 jobs temporaires `api-football-run-now-*` :
+Ce SQL planifie 74 jobs temporaires `api-football-run-now-*` :
 
-- 30 collectes, une par ligue ;
-- 30 snapshots, un par ligue ;
+- 37 collectes, une par ligue ;
+- 37 snapshots, un par ligue ;
 - meme cadence que le cron quotidien ;
 - chaque job temporaire s'auto-supprime apres execution.
 
@@ -418,7 +418,8 @@ order by api_football_league_id;
 ```
 
 Ces vues sont creees par
-`supabase/migrations/20260815123000_backend_data_observability.sql`.
+`supabase/migrations/20260815123000_backend_data_observability.sql` puis
+`supabase/migrations/20260816120000_backend_expand_active_league_scope.sql`.
 Elles sont destinees au diagnostic backend via SQL Editor/service role, pas a
 l'interface publique.
 

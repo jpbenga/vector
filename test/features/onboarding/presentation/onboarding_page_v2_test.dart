@@ -18,10 +18,8 @@ void main() {
 
         expect(find.text('Compétitions suivies'), findsOneWidget);
         expect(find.text('1'), findsOneWidget);
-        expect(find.text('International'), findsOneWidget);
-        expect(find.text('UEFA Champions League'), findsOneWidget);
-        expect(find.text('UEFA Europa League'), findsOneWidget);
-        expect(find.text('UEFA Europa Conference League'), findsOneWidget);
+        expect(find.text('France'), findsOneWidget);
+        expect(find.text('UEFA Champions League'), findsNothing);
         expect(find.text('Allemagne'), findsOneWidget);
         expect(
           find.text('Sélectionnez au moins une compétition.'),
@@ -31,11 +29,13 @@ void main() {
         await tester.tap(find.text('Continuer'));
         await tester.pumpAndSettle();
         expect(find.text('Compétitions suivies'), findsOneWidget);
+        await _filterCompetitions(tester, 'Ligue 1');
+        expect(find.byKey(const ValueKey('competition-61')), findsOneWidget);
 
-        await _tapCompetition(tester, 2);
-        await _tapCompetition(tester, 3);
-        await _tapCompetition(tester, 2);
-        await _tapCompetition(tester, 2);
+        await _tapCompetition(tester, 61);
+        await _tapCompetition(tester, 62);
+        await _tapCompetition(tester, 61);
+        await _tapCompetition(tester, 61);
         await tester.pumpAndSettle();
 
         expect(
@@ -52,7 +52,7 @@ void main() {
       tester,
     ) async {
       await _pumpOnboarding(tester);
-      await _tapCompetition(tester, 2);
+      await _tapCompetition(tester, 61);
       await tester.tap(find.text('Continuer'));
       await tester.pumpAndSettle();
 
@@ -112,7 +112,8 @@ void main() {
       final compiled = const ProfileCompiler().compile(result.profile);
       expect(compiled.profileSchemaVersion, 2);
       expect(compiled.configurationState.name, 'completed');
-      expect(compiled.competitions['2']?.enabled, isTrue);
+      expect(compiled.competitions['61']?.enabled, isTrue);
+      expect(compiled.competitions['2'], isNull);
       expect(compiled.markets['doubleChance']?.enabled, isTrue);
       expect(compiled.opportunityProfiles['solid_favorite']?.enabled, isTrue);
     });
@@ -120,7 +121,7 @@ void main() {
     testWidgets('keeps answers when navigating back', (tester) async {
       await _pumpOnboarding(tester);
 
-      await _tapCompetition(tester, 2);
+      await _tapCompetition(tester, 61);
       await tester.tap(find.text('Continuer'));
       await tester.pumpAndSettle();
       await _tapText(tester, 'Double chance');
@@ -398,6 +399,9 @@ Future<void> _tapCompetition(
   int apiFootballLeagueId,
 ) async {
   final target = find.byKey(ValueKey('competition-$apiFootballLeagueId'));
+  if (target.evaluate().isEmpty) {
+    await _filterCompetitions(tester, _competitionName(apiFootballLeagueId));
+  }
   expect(target, findsOneWidget);
   await tester.ensureVisible(target);
   tester.widget<CheckboxListTile>(target).onChanged?.call(true);
@@ -406,5 +410,24 @@ Future<void> _tapCompetition(
 }
 
 Future<void> _tapFirstChip(WidgetTester tester) async {
-  await _tapCompetition(tester, 2);
+  await _tapCompetition(tester, 61);
+}
+
+Future<void> _filterCompetitions(WidgetTester tester, String search) async {
+  final field = find.byType(TextField).first;
+  expect(field, findsOneWidget);
+  await tester.enterText(field, search);
+  await tester.pumpAndSettle();
+}
+
+String _competitionName(int apiFootballLeagueId) {
+  return switch (apiFootballLeagueId) {
+    61 => 'Ligue 1',
+    62 => 'Ligue 2',
+    _ => throw ArgumentError.value(
+      apiFootballLeagueId,
+      'apiFootballLeagueId',
+      'No competition test helper mapping is defined.',
+    ),
+  };
 }

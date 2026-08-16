@@ -1,37 +1,8 @@
 import 'dart:io';
 
-const leagues = <int>[
-  39,
-  61,
-  140,
-  78,
-  135,
-  94,
-  88,
-  144,
-  179,
-  203,
-  197,
-  119,
-  207,
-  218,
-  40,
-  62,
-  136,
-  79,
-  141,
-  106,
-  210,
-  209,
-  283,
-  253,
-  71,
-  128,
-  262,
-  307,
-  98,
-  188,
-];
+import 'package:copilot/features/onboarding/domain/decision_profile_catalogs.dart';
+
+const leagues = RuntimeCompetitionCatalog.apiFootballLeagueIds;
 
 const cronOutputPath = '/tmp/lector_api_football_cron.sql';
 const runNowOutputPath = '/tmp/lector_api_football_run_now.sql';
@@ -68,9 +39,11 @@ void main() {
     ..writeln('declare')
     ..writeln('  job record;')
     ..writeln('begin')
-    ..writeln(
-      "  for job in select jobname from cron.job where jobname like 'api-football-league-%'",
-    )
+    ..writeln('  for job in')
+    ..writeln('    select jobname')
+    ..writeln('    from cron.job')
+    ..writeln("    where jobname like 'api-football-%'")
+    ..writeln("      and jobname not like 'api-football-run-now-%'")
     ..writeln('  loop')
     ..writeln('    perform cron.unschedule(job.jobname);')
     ..writeln('  end loop;')

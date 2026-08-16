@@ -11,6 +11,10 @@ if [[ -z "${SUPABASE_ANON_KEY:-}" ]]; then
   exit 1
 fi
 
+if [[ -z "${APP_PUBLIC_URL:-}" && -n "${VERCEL_URL:-}" ]]; then
+  APP_PUBLIC_URL="https://${VERCEL_URL}/"
+fi
+
 if [[ -z "${APP_PUBLIC_URL:-}" ]]; then
   echo "Missing APP_PUBLIC_URL." >&2
   echo "Set it to the public web origin, for example https://lector-sports.vercel.app/." >&2

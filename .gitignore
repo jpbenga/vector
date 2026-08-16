@@ -15,6 +15,7 @@
 .swiftpm/
 migrate_working_dir/
 var/api_football_exploration/
+var/mobile-preview-*
 
 # IntelliJ related
 *.iml

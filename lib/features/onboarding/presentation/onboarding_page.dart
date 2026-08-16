@@ -609,11 +609,12 @@ class _CompetitionGroupedSelectViewState
   @override
   void initState() {
     super.initState();
-    final firstCountry = CompetitionCatalog.values.firstOrNull?.countryCode;
+    final firstCountry =
+        RuntimeCompetitionCatalog.values.firstOrNull?.countryCode;
     if (firstCountry != null) {
       _expandedCountryCodes.add(firstCountry);
     }
-    for (final competition in CompetitionCatalog.values) {
+    for (final competition in RuntimeCompetitionCatalog.values) {
       if (widget.selectedOptionIds.contains(competition.id)) {
         _expandedCountryCodes.add(competition.countryCode);
       }
@@ -632,7 +633,7 @@ class _CompetitionGroupedSelectViewState
     final colorScheme = theme.colorScheme;
     final search = _searchController.text.trim().toLowerCase();
     final groups = <String, List<DecisionCompetitionDefinition>>{};
-    for (final competition in CompetitionCatalog.values) {
+    for (final competition in RuntimeCompetitionCatalog.values) {
       if (search.isNotEmpty &&
           !competition.name.toLowerCase().contains(search) &&
           !competition.countryName.toLowerCase().contains(search)) {
