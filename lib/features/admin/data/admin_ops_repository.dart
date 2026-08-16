@@ -37,6 +37,28 @@ class AdminOpsRepository {
     return AdminOperationResult.fromJson(data);
   }
 
+  Future<AdminTestLinkResult> createTestLink({
+    required Uri baseUrl,
+    int durationMinutes = 60,
+    String? label,
+  }) async {
+    final response = await _client.functions.invoke(
+      'admin-ops',
+      headers: _authHeaders(),
+      body: {
+        'action': 'create_test_link',
+        'base_url': baseUrl.toString(),
+        'duration_minutes': durationMinutes,
+        if (label != null && label.trim().isNotEmpty) 'label': label.trim(),
+      },
+    );
+    final data = _objectMap(response.data);
+    if (response.status >= 400 || data == null || data['ok'] != true) {
+      throw AdminOpsException(_errorMessage(data, response.status));
+    }
+    return AdminTestLinkResult.fromJson(data);
+  }
+
   Map<String, String> _authHeaders() {
     final accessToken = _client.auth.currentSession?.accessToken;
     if (accessToken == null || accessToken.isEmpty) {

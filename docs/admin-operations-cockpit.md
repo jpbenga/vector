@@ -69,10 +69,21 @@ l'utilisateur pour pouvoir renvoyer des erreurs admin explicites.
 ## Capacites MVP
 
 - voir les jobs cron API-Football planifies ;
+- voir la prochaine execution locale calculee depuis le cron quotidien ;
+- isoler les jobs cron en cours et les executions recentes en erreur ;
+- lire le message de retour des executions cron en erreur ;
 - voir les dernieres executions cron ;
 - voir la sante sync/snapshot par ligue ;
 - voir les dernieres relances admin ;
 - relancer manuellement une ligue, avec reconstruction du snapshot.
+- afficher et copier le lien release courant ;
+- afficher un QR code scannable pour le lien release courant ;
+- generer un lien testeur temporaire valable 1h, copie automatiquement ;
+- afficher un QR code scannable pour le lien testeur temporaire.
+
+Les liens testeurs sont stockes dans `admin_preview_links` sous forme de hash
+SHA-256. Le token en clair n'est renvoye qu'une seule fois, au moment de la
+generation du lien.
 
 ## Relance manuelle
 
@@ -85,3 +96,17 @@ admin-ops -> api-football-sync -> build-match-feed-snapshot
 La fenetre de collecte couvre J-2 a J+3. Le snapshot couvre J a J+3.
 
 Toutes les relances sont loggees dans `admin_operation_runs`.
+
+## Liens testeurs temporaires
+
+Le bouton `Lien testeur 1h` appelle `admin-ops` avec l'action
+`create_test_link`. La fonction :
+
+- verifie que l'utilisateur est un admin allow-list ;
+- cree un token aleatoire ;
+- stocke uniquement `token_hash` ;
+- renvoie une URL du type `https://.../?tester_token=...`.
+
+Quand un testeur ouvre ce lien, l'app appelle `admin-ops` avec l'action
+`redeem_test_link`. Cette action ne demande pas de bearer admin, mais elle ne
+permet que de valider un token deja cree, non expire et non revoque.

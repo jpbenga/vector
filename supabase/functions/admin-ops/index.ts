@@ -27,6 +27,58 @@ Deno.serve(async (request) => {
     Deno.env.get("APP_ENV") ??
     "unknown";
 
+  if (request.method === "POST") {
+    const payload = await readJson(request);
+    const action = stringValue(payload.action);
+    if (action === "redeem_test_link") {
+      const result = await redeemTestLink({
+        supabaseUrl,
+        serviceRoleKey,
+        payload,
+      });
+      return jsonResponse(result, result.ok === true ? 200 : 403);
+    }
+
+    const admin = await authorizeAdmin({
+      request,
+      supabaseUrl,
+      serviceRoleKey,
+    });
+
+    if (admin.error !== null) {
+      return jsonResponse({ error: admin.error }, admin.status);
+    }
+
+    const identity = admin.identity;
+    if (identity === null) {
+      return jsonResponse({ error: "Admin identity is required." }, 401);
+    }
+
+    if (action === "rerun_league") {
+      const result = await rerunLeague({
+        supabaseUrl,
+        serviceRoleKey,
+        environment,
+        admin: identity,
+        payload,
+      });
+      return jsonResponse(result, result.ok === true ? 200 : 400);
+    }
+
+    if (action === "create_test_link") {
+      const result = await createTestLink({
+        supabaseUrl,
+        serviceRoleKey,
+        environment,
+        admin: identity,
+        payload,
+      });
+      return jsonResponse(result, result.ok === true ? 200 : 400);
+    }
+
+    return jsonResponse({ error: "Unknown admin action." }, 400);
+  }
+
   const admin = await authorizeAdmin({
     request,
     supabaseUrl,
@@ -49,19 +101,6 @@ Deno.serve(async (request) => {
       environment,
     });
     return jsonResponse({ ok: true, admin: identity, ...overview }, 200);
-  }
-
-  const payload = await readJson(request);
-  const action = stringValue(payload.action);
-  if (action === "rerun_league") {
-    const result = await rerunLeague({
-      supabaseUrl,
-      serviceRoleKey,
-      environment,
-      admin: identity,
-      payload,
-    });
-    return jsonResponse(result, result.ok === true ? 200 : 400);
   }
 
   return jsonResponse({ error: "Unknown admin action." }, 400);
@@ -185,6 +224,121 @@ async function loadOverview({
     sync_runs: syncRuns,
     snapshots,
     admin_operation_runs: adminRuns,
+  };
+}
+
+async function createTestLink({
+  supabaseUrl,
+  serviceRoleKey,
+  environment,
+  admin,
+  payload,
+}: {
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  environment: string;
+  admin: AdminIdentity;
+  payload: JsonObject;
+}): Promise<JsonObject> {
+  const baseUrl = publicBaseUrl(payload);
+  if (baseUrl === undefined) {
+    return { ok: false, error: "base_url must be an absolute URL." };
+  }
+
+  const durationMinutes = clamp(
+    numberValue(payload.duration_minutes) ?? 60,
+    5,
+    1440,
+  );
+  const label = stringValue(payload.label);
+  const token = randomToken();
+  const tokenHash = await sha256Hex(token);
+  const expiresAt = new Date(Date.now() + durationMinutes * 60 * 1000)
+    .toISOString();
+
+  const rows = await restInsert({
+    supabaseUrl,
+    serviceRoleKey,
+    path: "admin_preview_links",
+    body: {
+      token_hash: tokenHash,
+      environment,
+      label: label ?? null,
+      created_by_user_id: admin.id,
+      created_by_email: admin.email,
+      expires_at: expiresAt,
+    },
+  });
+  const first = objectValue(rows[0]);
+  const id = stringValue(first?.id);
+  if (id === undefined) {
+    return { ok: false, error: "Preview link insert did not return an id." };
+  }
+
+  return {
+    ok: true,
+    link_id: id,
+    url: previewUrl(baseUrl, token),
+    expires_at: expiresAt,
+    duration_minutes: durationMinutes,
+  };
+}
+
+async function redeemTestLink({
+  supabaseUrl,
+  serviceRoleKey,
+  payload,
+}: {
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  payload: JsonObject;
+}): Promise<JsonObject> {
+  const token = stringValue(payload.token);
+  if (token === undefined) {
+    return { ok: false, error: "token is required." };
+  }
+
+  const tokenHash = await sha256Hex(token);
+  const rows = await restSelect({
+    supabaseUrl,
+    serviceRoleKey,
+    path: "admin_preview_links",
+    query:
+      `select=id,environment,expires_at,revoked_at,redeemed_count&token_hash=eq.${tokenHash}&limit=1`,
+  });
+  const link = objectValue(rows[0]);
+  if (link === null) {
+    return { ok: false, error: "Temporary tester link is invalid." };
+  }
+
+  const revokedAt = stringValue(link.revoked_at);
+  if (revokedAt !== undefined) {
+    return { ok: false, error: "Temporary tester link has been revoked." };
+  }
+
+  const expiresAt = stringValue(link.expires_at);
+  if (expiresAt === undefined || new Date(expiresAt).getTime() <= Date.now()) {
+    return { ok: false, error: "Temporary tester link has expired." };
+  }
+
+  const id = stringValue(link.id);
+  if (id !== undefined) {
+    await restPatch({
+      supabaseUrl,
+      serviceRoleKey,
+      path: "admin_preview_links",
+      query: `id=eq.${encodeURIComponent(id)}`,
+      body: {
+        last_redeemed_at: new Date().toISOString(),
+        redeemed_count: (numberValue(link.redeemed_count) ?? 0) + 1,
+      },
+    });
+  }
+
+  return {
+    ok: true,
+    environment: stringValue(link.environment) ?? "unknown",
+    expires_at: expiresAt,
   };
 }
 
@@ -548,6 +702,52 @@ function numberValue(value: unknown): number | undefined {
 
 function booleanValue(value: unknown): boolean | undefined {
   return typeof value === "boolean" ? value : undefined;
+}
+
+function publicBaseUrl(payload: JsonObject): URL | undefined {
+  const raw = stringValue(payload.base_url);
+  if (raw === undefined) {
+    return undefined;
+  }
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+      return undefined;
+    }
+    url.pathname = "/";
+    url.search = "";
+    url.hash = "";
+    return url;
+  } catch (_) {
+    return undefined;
+  }
+}
+
+function previewUrl(baseUrl: URL, token: string): string {
+  const url = new URL(baseUrl.toString());
+  url.searchParams.set("tester_token", token);
+  return url.toString();
+}
+
+function randomToken(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replaceAll("=", "");
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
 }
 
 function okValue(value: JsonObject): boolean {
