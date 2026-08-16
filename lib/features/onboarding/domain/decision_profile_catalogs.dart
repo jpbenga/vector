@@ -429,6 +429,71 @@ class CompetitionCatalog {
   }
 }
 
+class RuntimeCompetitionCatalog {
+  const RuntimeCompetitionCatalog._();
+
+  static const apiFootballLeagueIds = [
+    39,
+    61,
+    140,
+    78,
+    135,
+    94,
+    95,
+    88,
+    144,
+    179,
+    203,
+    197,
+    119,
+    207,
+    218,
+    40,
+    62,
+    136,
+    79,
+    141,
+    106,
+    210,
+    209,
+    283,
+    253,
+    71,
+    128,
+    262,
+    307,
+    98,
+    188,
+    103,
+    113,
+    164,
+    169,
+    244,
+    292,
+  ];
+
+  static final Set<int> _apiFootballLeagueIdSet = Set.unmodifiable(
+    apiFootballLeagueIds,
+  );
+
+  static final List<DecisionCompetitionDefinition> values = List.unmodifiable(
+    CompetitionCatalog.values.where(
+      (definition) =>
+          _apiFootballLeagueIdSet.contains(definition.apiFootballLeagueId),
+    ),
+  );
+
+  static String? resolveId(String optionId) {
+    final id = CompetitionCatalog.resolveId(optionId);
+    final leagueId = id == null ? null : int.tryParse(id);
+    if (leagueId == null || !_apiFootballLeagueIdSet.contains(leagueId)) {
+      return null;
+    }
+
+    return id;
+  }
+}
+
 class DecisionMarketDefinition {
   const DecisionMarketDefinition({
     required this.id,

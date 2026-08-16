@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:copilot/features/onboarding/domain/decision_profile_catalogs.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -25,9 +26,13 @@ void main() {
         'tool/generate_supabase_cron_sql.dart',
       ).readAsStringSync();
       docs = File('docs/backend-daily-football-sync.md').readAsStringSync();
-      observabilityMigration = File(
-        'supabase/migrations/20260815123000_backend_data_observability.sql',
-      ).readAsStringSync();
+      observabilityMigration =
+          File(
+            'supabase/migrations/20260815123000_backend_data_observability.sql',
+          ).readAsStringSync() +
+          File(
+            'supabase/migrations/20260816120000_backend_expand_active_league_scope.sql',
+          ).readAsStringSync();
     });
 
     test('resolves seasons from league fixture coverage, not current year', () {
@@ -57,7 +62,10 @@ void main() {
     });
 
     test('keeps one staggered sync and one snapshot job per MVP league', () {
-      expect(cronGenerator, contains('const leagues = <int>['));
+      expect(
+        cronGenerator,
+        contains('RuntimeCompetitionCatalog.apiFootballLeagueIds'),
+      );
       expect(cronGenerator, contains('final syncMinuteOffset = index * 4'));
       expect(
         cronGenerator,
@@ -67,6 +75,11 @@ void main() {
       expect(
         cronGenerator,
         contains("'api-football-league-\$leagueId-snapshot'"),
+      );
+      expect(cronGenerator, contains("where jobname like 'api-football-%'"));
+      expect(
+        cronGenerator,
+        contains("and jobname not like 'api-football-run-now-%'"),
       );
       expect(cronGenerator, isNot(contains('api-football-build-snapshot')));
       expect(cronGenerator, contains("now() at time zone 'UTC'"));
@@ -85,38 +98,7 @@ void main() {
     });
 
     test('exposes service-role observability for all MVP leagues', () {
-      for (final leagueId in [
-        39,
-        61,
-        140,
-        78,
-        135,
-        94,
-        88,
-        144,
-        179,
-        203,
-        197,
-        119,
-        207,
-        218,
-        40,
-        62,
-        136,
-        79,
-        141,
-        106,
-        210,
-        209,
-        283,
-        253,
-        71,
-        128,
-        262,
-        307,
-        98,
-        188,
-      ]) {
+      for (final leagueId in RuntimeCompetitionCatalog.apiFootballLeagueIds) {
         expect(observabilityMigration, contains('($leagueId,'));
       }
 

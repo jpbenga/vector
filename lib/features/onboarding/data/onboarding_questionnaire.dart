@@ -22,7 +22,7 @@ class OnboardingQuestionnaire {
       ),
       type: OnboardingQuestionType.multiSelect,
       options: [
-        for (final competition in CompetitionCatalog.values)
+        for (final competition in RuntimeCompetitionCatalog.values)
           OnboardingOption(
             id: competition.id,
             label: LocalizedLabel(fr: competition.name, en: competition.name),

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:copilot/features/onboarding/domain/decision_profile_catalogs.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -153,7 +154,7 @@ void main() {
       expect(docs, contains('une collecte par ligue'));
       expect(docs, contains('un snapshot par ligue'));
       expect(docs, contains('daily-football-sync'));
-      expect(docs, contains('307,98,188'));
+      expect(docs, contains('103,113,164,169,244,292'));
       expect(docs, isNot(contains('CRON_SECRET')));
     });
 
@@ -192,11 +193,29 @@ void main() {
       );
       expect(generator, contains("now() at time zone 'UTC'"));
       expect(generator, contains('cron.unschedule'));
+      expect(generator, contains("where jobname like 'api-football-%'"));
+      expect(
+        generator,
+        contains("and jobname not like 'api-football-run-now-%'"),
+        reason:
+            'installing daily crons must clean stale API-Football jobs without cancelling temporary run-now jobs',
+      );
       expect(generator, contains('/tmp/lector_api_football_run_now.sql'));
       expect(generator, isNot(contains('DateTime.now()')));
       expect(generator, contains('leagues.length'));
       expect(generator, contains('API_FOOTBALL_SYNC_SECRET'));
       expect(generator, contains('build-match-feed-snapshot'));
+      expect(
+        generator,
+        contains('RuntimeCompetitionCatalog.apiFootballLeagueIds'),
+      );
+      for (final leagueId in RuntimeCompetitionCatalog.apiFootballLeagueIds) {
+        expect(
+          docs,
+          contains(leagueId.toString()),
+          reason: 'the deployment docs must show every runtime league id',
+        );
+      }
       expect(
         generator,
         isNot(contains("'season'")),

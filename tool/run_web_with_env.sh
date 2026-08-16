@@ -37,6 +37,17 @@ fi
 
 port="${1:-8099}"
 mode="${2:-release}"
+web_hostname="${WEB_HOSTNAME:-localhost}"
+app_public_url="${APP_PUBLIC_URL:-$(read_env_value APP_PUBLIC_URL)}"
+match_feed_source="${MATCH_FEED_SOURCE:-$(read_env_value MATCH_FEED_SOURCE)}"
+
+if [[ -z "${app_public_url:-}" ]]; then
+  app_public_url="http://localhost:$port/"
+fi
+
+if [[ -z "${match_feed_source:-}" ]]; then
+  match_feed_source="auto"
+fi
 
 case "$mode" in
   debug|profile|release)
@@ -47,6 +58,10 @@ case "$mode" in
     ;;
 esac
 
-flutter run -d chrome "--$mode" --web-port "$port" \
+flutter run -d chrome "--$mode" \
+  --web-hostname "$web_hostname" \
+  --web-port "$port" \
   --dart-define=SUPABASE_URL="$SUPABASE_URL" \
-  --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+  --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
+  --dart-define=APP_PUBLIC_URL="$app_public_url" \
+  --dart-define=MATCH_FEED_SOURCE="$match_feed_source"

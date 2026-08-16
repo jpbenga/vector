@@ -70,9 +70,21 @@ bash tool/build_web_staging.sh
 Voir [Workflow Web Staging avec Vercel](docs/web-preview-workflow.md) et
 [Guide testeur](docs/testers/tester-guide.md).
 
+## Preview mobile locale
+
+Pour tester l'application locale depuis un telephone sur le meme Wi-Fi :
+
+```sh
+bash tool/mobile_preview.sh
+```
+
+Le script affiche une URL locale, la copie dans le presse-papiers et ouvre un QR
+code scannable. Voir [Preview mobile locale](docs/mobile-local-preview.md).
+
 ## Documentation
 
 - [Architecture](docs/architecture.md)
+- [Preview mobile locale](docs/mobile-local-preview.md)
 - [Workflow IA Design ImageGen, Penpot et Codex](docs/ai-design-workflow/README.md)
 - [Workflow Web Staging avec Vercel](docs/web-preview-workflow.md)
 - [Guide testeur](docs/testers/tester-guide.md)
