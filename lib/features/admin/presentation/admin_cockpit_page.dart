@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/auth/supabase_auth_controller.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/di/service_locator.dart';
+import '../../../core/theme/app_radius.dart';
 import '../../../core/supabase/supabase_initializer.dart';
 import '../data/admin_ops_repository.dart';
 import '../domain/admin_ops_models.dart';
@@ -41,7 +42,6 @@ class _AdminCockpitPageState extends State<AdminCockpitPage> {
   Widget build(BuildContext context) {
     final config = getIt<AppConfig>();
     return Scaffold(
-      backgroundColor: const Color(0xFF090C10),
       appBar: AppBar(
         title: const Text('Cockpit admin'),
         actions: [
@@ -335,13 +335,14 @@ class _MetricTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: 168,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF121820),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF243140)),
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Row(
         children: [
@@ -396,21 +397,21 @@ class _PipelineHealthTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isOk = row.healthStatus == 'ok';
+    final colorScheme = Theme.of(context).colorScheme;
+    final statusColor = isOk ? colorScheme.primary : colorScheme.error;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF10151C),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isOk ? const Color(0xFF214534) : const Color(0xFF5E3B28),
-        ),
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: statusColor),
       ),
       child: Row(
         children: [
           Icon(
             isOk ? Icons.check_circle_rounded : Icons.error_rounded,
-            color: isOk ? const Color(0xFF5DCA8B) : const Color(0xFFFFA35C),
+            color: statusColor,
           ),
           const SizedBox(width: 12),
           Expanded(
