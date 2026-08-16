@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../access/temporary_access_link_cleaner.dart';
+import '../access/temporary_access_link_repository.dart';
 import '../auth/auth_entry_page.dart';
 import '../../core/auth/supabase_auth_controller.dart';
 import '../../core/di/service_locator.dart';
+import '../../core/supabase/supabase_initializer.dart';
 import '../../features/matches/presentation/matches_home_page.dart';
 import '../../features/onboarding/data/saved_decision_profile_store.dart';
 import '../../features/onboarding/domain/decision_profile.dart';
@@ -42,7 +45,7 @@ class _CopilotFlowPageState extends State<CopilotFlowPage> {
         ..addListener(_handleAuthChange);
       _lastSyncedUserId = _authController?.user?.id;
     }
-    _checkSavedProfile();
+    _loadStartupState();
   }
 
   @override
@@ -122,7 +125,8 @@ class _CopilotFlowPageState extends State<CopilotFlowPage> {
     );
   }
 
-  Future<void> _checkSavedProfile() async {
+  Future<void> _loadStartupState() async {
+    final hasTemporaryAccess = await _redeemTemporaryAccessLinkIfPresent();
     final savedProfile = await widget.profileStore.load();
     final savedStrategies = await widget.ticketStrategyStore.load();
     if (!mounted) {
@@ -132,6 +136,9 @@ class _CopilotFlowPageState extends State<CopilotFlowPage> {
     setState(() {
       _ticketStrategies = savedStrategies;
       _isCheckingSavedProfile = false;
+      if (hasTemporaryAccess) {
+        _hasCompletedAuthEntry = true;
+      }
     });
 
     if (savedProfile == null) {
@@ -141,6 +148,26 @@ class _CopilotFlowPageState extends State<CopilotFlowPage> {
     setState(() {
       _profile = savedProfile;
     });
+  }
+
+  Future<bool> _redeemTemporaryAccessLinkIfPresent() async {
+    final token = Uri.base.queryParameters['tester_token'];
+    if (token == null || token.isEmpty) {
+      return false;
+    }
+
+    try {
+      final client = getIt<SupabaseInitializer>().client;
+      if (client == null) {
+        return false;
+      }
+      final result = await TemporaryAccessLinkRepository(client).redeem(token);
+      return result.isAllowed;
+    } on Object {
+      return false;
+    } finally {
+      cleanTemporaryAccessLinkUrl();
+    }
   }
 
   void _handleAuthChange() {

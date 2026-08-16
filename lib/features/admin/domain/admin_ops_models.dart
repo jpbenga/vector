@@ -45,6 +45,11 @@ class AdminOpsOverview {
       pipelineHealth.where((row) => row.healthStatus != 'ok').length;
 
   int get activeJobs => jobs.where((job) => job.active).length;
+
+  int get runningCronRuns => cronRuns.where((run) => run.isRunning).length;
+
+  Iterable<AdminCronRun> get failedRecentCronRuns =>
+      cronRuns.where((run) => run.isFailure);
 }
 
 class AdminCronJob {
@@ -109,6 +114,10 @@ class AdminCronRun {
       endTime: _dateTime(json['end_time']),
     );
   }
+
+  bool get isRunning => endTime == null && status == 'running';
+
+  bool get isFailure => status != 'succeeded' && !isRunning;
 }
 
 class AdminPipelineHealth {
@@ -264,6 +273,29 @@ class AdminOperationResult {
       operationId: _string(json['operation_id']) ?? '',
       status: _string(json['status']) ?? 'unknown',
       leagueId: _int(json['league_id']) ?? 0,
+    );
+  }
+}
+
+class AdminTestLinkResult {
+  const AdminTestLinkResult({
+    required this.linkId,
+    required this.url,
+    required this.expiresAt,
+    required this.durationMinutes,
+  });
+
+  final String linkId;
+  final Uri url;
+  final DateTime? expiresAt;
+  final int durationMinutes;
+
+  factory AdminTestLinkResult.fromJson(Map<String, Object?> json) {
+    return AdminTestLinkResult(
+      linkId: _string(json['link_id']) ?? '',
+      url: Uri.parse(_string(json['url']) ?? ''),
+      expiresAt: _dateTime(json['expires_at']),
+      durationMinutes: _int(json['duration_minutes']) ?? 60,
     );
   }
 }
