@@ -84,6 +84,7 @@ code scannable. Voir [Preview mobile locale](docs/mobile-local-preview.md).
 ## Documentation
 
 - [Architecture](docs/architecture.md)
+- [Cockpit admin operations](docs/admin-operations-cockpit.md)
 - [Preview mobile locale](docs/mobile-local-preview.md)
 - [Workflow IA Design ImageGen, Penpot et Codex](docs/ai-design-workflow/README.md)
 - [Workflow Web Staging avec Vercel](docs/web-preview-workflow.md)

@@ -98,8 +98,10 @@ build/web
    - `MATCH_FEED_SOURCE` avec la valeur `auto`
 9. Lancer le premier deploy.
 
-Si `APP_PUBLIC_URL` manque, le build doit échouer. C'est volontaire : une build
-web sans URL publique ne peut pas garantir un callback OAuth correct.
+Sur Vercel Preview, si `APP_PUBLIC_URL` manque mais que `VERCEL_URL` est fourni
+par Vercel, le build utilise automatiquement `https://$VERCEL_URL/`. En dehors
+de Vercel, `APP_PUBLIC_URL` reste obligatoire : une build web sans URL publique
+ne peut pas garantir un callback OAuth correct.
 
 ## Configurer Supabase Auth
 

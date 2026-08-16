@@ -30,7 +30,8 @@ bash tool/mobile_preview.sh 8100 debug
 - copie l'URL dans le presse-papiers ;
 - genere `var/mobile-preview-qr.svg` quand `qrencode` ou `curl` est disponible ;
 - ouvre le QR code a l'ecran seulement quand l'application est prete ;
-- sert l'application avec `python3` sur `0.0.0.0`.
+- sert l'application avec `python3` sur `0.0.0.0` ;
+- renvoie `index.html` pour les routes Flutter comme `/admin`.
 
 Le telephone doit etre connecte au meme Wi-Fi que le Mac.
 

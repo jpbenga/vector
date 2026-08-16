@@ -150,14 +150,25 @@ if command -v python3 >/dev/null 2>&1; then
   python3 - "$port" build/web <<'PY'
 import functools
 import http.server
+import os
 import socketserver
 import sys
+import urllib.parse
 
 port = int(sys.argv[1])
 directory = sys.argv[2]
 
 
 class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        parsed = urllib.parse.urlparse(self.path)
+        target = self.translate_path(parsed.path)
+        basename = os.path.basename(parsed.path)
+        if not os.path.exists(target) and "." not in basename:
+            query = f"?{parsed.query}" if parsed.query else ""
+            self.path = f"/index.html{query}"
+        super().do_GET()
+
     def end_headers(self):
         self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
         self.send_header("Pragma", "no-cache")
