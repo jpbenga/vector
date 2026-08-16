@@ -104,12 +104,10 @@ class SupabaseAuthController extends ChangeNotifier {
       return null;
     }
 
-    final configuredUrl = _config.appPublicUrl;
-    if (configuredUrl != null) {
-      return configuredUrl.removeFragment().toString();
-    }
-
-    return Uri.base.removeFragment().toString();
+    return buildOAuthRedirectUrl(
+      configuredUrl: _config.appPublicUrl,
+      currentUrl: Uri.base,
+    ).toString();
   }
 
   @override
@@ -117,4 +115,16 @@ class SupabaseAuthController extends ChangeNotifier {
     _subscription?.cancel();
     super.dispose();
   }
+}
+
+@visibleForTesting
+Uri buildOAuthRedirectUrl({
+  required Uri? configuredUrl,
+  required Uri currentUrl,
+}) {
+  final currentPath = currentUrl.path.isEmpty ? '/' : currentUrl.path;
+  final currentQuery = currentUrl.query.isEmpty ? null : currentUrl.query;
+  final base = configuredUrl ?? currentUrl;
+
+  return base.replace(path: currentPath, query: currentQuery).removeFragment();
 }
