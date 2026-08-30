@@ -1,21 +1,21 @@
 # Contrat D'Implementation Flutter
 
-Codex implemente uniquement apres validation Penpot.
+Codex implemente uniquement apres validation explicite d'une direction visuelle.
 
 ## Pre-Requis
 
 Avant de coder, il faut :
 
-- maquette Penpot validee ;
+- maquette Penpot, capture ou asset valide explicitement ;
 - ecran ou parcours cible identifie ;
 - composants Flutter concernes ;
 - liste des changements autorises ;
 - liste des fichiers a ne pas toucher ;
-- branche dediee.
+- branche dediee, sauf decision explicite de travailler sur `main`.
 
 ## Branche
 
-Nom recommande :
+Nom recommande pour les chantiers isoles :
 
 ```sh
 redesign/<nom-du-parcours-ou-ecran>
@@ -53,9 +53,15 @@ tool/
 
 Toute modification d'une zone protegee doit etre annoncee et justifiee avant implementation.
 
+Sur `main`, priorite absolue :
+
+- conserver la logique fonctionnelle existante ;
+- integrer les ajouts esthetiques valides ;
+- demander arbitrage utilisateur en cas de conflit entre logique main et refonte visuelle.
+
 ## Regles
 
-- Ne pas coder depuis une image ImageGen brute.
+- Ne pas coder depuis une image ImageGen brute non validee.
 - Ne pas ajouter de couleur locale.
 - Ne pas disperser de logique dark/light dans les widgets.
 - Ne pas modifier les contrats metier.
@@ -78,4 +84,3 @@ Selon le chantier :
 ```sh
 flutter build web --no-wasm-dry-run
 ```
-

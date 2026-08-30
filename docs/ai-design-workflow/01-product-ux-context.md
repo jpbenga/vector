@@ -13,9 +13,10 @@ LECTOR SPORT
 Read the Game.
 ```
 
-Lector aide l'utilisateur a lire une rencontre, comprendre des signaux et
-construire des tickets compatibles avec ses propres strategies. L'application
-ne promet pas de resultat, ne predit pas l'avenir et ne parle pas de gain.
+Lector aide l'utilisateur a lire une rencontre, comprendre des signaux et,
+pour les parcours avances, construire des tickets compatibles avec ses propres
+strategies. L'application ne promet pas de resultat, ne predit pas l'avenir et
+ne parle pas de gain.
 
 ## Vocabulaire Produit
 
@@ -34,20 +35,24 @@ ne promet pas de resultat, ne predit pas l'avenir et ne parle pas de gain.
 - Les tickets doivent etre contraints par les strategies de l'utilisateur.
 - Un ticket ne doit jamais melanger plusieurs jours de matchs.
 - Le mode invite doit permettre d'essayer l'application sans blocage.
+- La premiere valeur doit arriver avant authentification, onboarding ou paywall.
 - La connexion sert a retrouver profil, strategies, favoris et tickets sur plusieurs appareils.
 - Les donnees sportives doivent etre presentees comme des faits horodates, pas comme des certitudes.
+- Les parcours de suivi simple ne doivent pas etre traites comme des parcours avances.
 
 ## Ecrans Principaux
 
-- Authentification : ouvrir l'app, se connecter ou continuer en invite.
-- Onboarding : creer profil et strategies.
-- Pour moi : voir les lectures combinees selectionnees selon le profil.
-- Toutes les rencontres : explorer toutes les rencontres disponibles.
-- Detail rencontre : comprendre une lecture et verifier les donnees.
-- Generateur : proposer des tickets compatibles.
+- Arrivee dans l'app : voir la promesse et acceder aux matchs sans friction.
+- Authentification : se connecter ou continuer en invite.
+- Onboarding : creer profil et strategies lorsque le declencheur est naturel.
+- Pour moi : voir les rencontres et lectures selectionnees selon les preferences.
+- Tous : explorer toutes les rencontres disponibles, ligues replies par defaut.
+- Detail rencontre avant-match : comprendre le contexte et les reperes Lector.
+- Generateur : proposer des tickets compatibles avec les configurations utilisateur.
 - Mon ticket : gerer le ticket courant.
 - Historique : retrouver tickets et statuts.
-- Profil/parametres : gerer compte, preferences et synchronisation.
+- Profil/parametres : gerer compte, championnats, lectures, ticket builder et synchronisation.
+- Quick Dock : acceder rapidement aux actions contextuelles sans remplacer toute la navigation.
 
 ## Anti-Patterns
 
@@ -60,4 +65,3 @@ ne promet pas de resultat, ne predit pas l'avenir et ne parle pas de gain.
 - Hero decoratif sans utilite dans les ecrans operationnels.
 - Redondance argumentative.
 - Parcours qui force l'authentification avant que l'utilisateur comprenne la valeur.
-

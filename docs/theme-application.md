@@ -1,13 +1,42 @@
-# Theme de l'application Vector
+# Theme de l'application Lector Sport
 
-Ce document formalise la charte visuelle actuelle de l'application mobile Vector/Copilot.
+Ce document formalise la charte visuelle actuelle de l'application mobile Lector Sport.
 Il sert de reference pour les futures iterations UI, les maquettes, les revues de coherence et l'integration Flutter.
 
 Pour les refontes UX/UI assistees par IA, utiliser le workflow dedie :
 
 - `docs/ai-design-workflow/README.md`
 
-Ce workflow separe l'exploration ImageGen, la formalisation Penpot et l'implementation Flutter.
+Ce workflow separe l'exploration ImageGen, la formalisation visuelle validee et l'implementation Flutter.
+
+La refonte validee est documentee ici :
+
+- `docs/ai-design-workflow/07-validated-visual-redesign.md`
+
+## Apparence Lector Sport Validee
+
+Lector Sport assume une interface sombre, premium, compacte et orientee lecture de match.
+L'objectif est de garder la simplicite d'une app de scores tout en ajoutant les indices Lector qui rendent une rencontre plus lisible.
+
+Decisions structurantes :
+
+- arrivee dans l'app sans authentification forcee ni paywall ;
+- fond d'arrivee type stade premium, pas fond noir uni ni halo sous le logo ;
+- accueil par defaut sur `Pour moi` ;
+- onglets principaux de l'accueil : `Pour moi`, `Tous`, `Generateur` ;
+- calendrier horizontal compact avec jour et date ;
+- listes de championnats replies par defaut dans `Pour moi` et `Tous` ;
+- `Tous` affiche toutes les ligues, pas la selection courte `Pour moi` ;
+- Quick Dock flottant en bas a gauche, contextuel et limite a quelques actions ;
+- detail de match avant-match avec card stade premium et blocs factuels ;
+- header operationnel sans lockup complet lorsque le logo n'apporte pas de valeur.
+
+Regles d'identite :
+
+- utiliser uniquement les assets de logo transparents valides ;
+- ne pas ajouter de fond sombre, glow ou plaque derriere le logo ;
+- reserver les assets photo aux moments qui gagnent en atmosphere : arrivee, card rencontre ;
+- garder les cards data simples lorsque l'image nuirait a la lisibilite.
 
 ## Objectif visuel
 
@@ -542,11 +571,13 @@ Regles d'echelle :
 - espacement vertical courant : `AppSpacing.xxs` ou `AppSpacing.xs`, `AppSpacing.sm` uniquement pour separer des sections ;
 - titre de panneau ou sous-ecran dense : `titleMedium`, pas `titleLarge` ;
 - titre de ligne ou carte compacte : `labelLarge` ou `titleSmall` maximum ;
-- texte secondaire : `labelSmall` ou `bodySmall` ;
+- texte secondaire : `labelSmall` ou `bodySmall`, avec preference pour `11` a `12` px sur les surfaces denses ;
 - hauteur cible d'une ligne de selection : environ `48` a `56` px ;
 - logo de championnat dans une liste dense : `28` px ;
 - icone standard dans une ligne dense : `20` px ;
 - bouton principal en panneau bas : hauteur `40` a `44` px ;
+- bouton d'action dans une carte dense : hauteur `38` a `42` px, jamais disproportionne par rapport au contenu ;
+- calendrier horizontal : hauteur minimale, jour/date seulement, sans gros conteneur vertical ;
 - switch dans une liste dense : reduit visuellement, tout en gardant la ligne cliquable ;
 - rayon des lignes compactes : `AppRadius.odds` ou `AppRadius.control`, pas `AppRadius.card`.
 
@@ -556,6 +587,7 @@ Anti-patterns :
 - utiliser `titleLarge` pour des titres de reglage ou de liste ;
 - empiler des paddings de `18` a `24` px dans un sous-ecran mobile ;
 - creer des tuiles qui affichent moins de 6 lignes utiles sur un ecran mobile courant.
+- grossir un composant pour donner une impression premium : la qualite vient de la hierarchie, pas de la taille.
 
 ## Rayons
 
