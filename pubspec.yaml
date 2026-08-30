@@ -29,5 +29,7 @@ dev_dependencies:
 flutter:
   generate: true
   assets:
+    - assets/brand/
+    - assets/backgrounds/
     - assets/snapshots/
   uses-material-design: true

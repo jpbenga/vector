@@ -41,28 +41,25 @@ class _CopilotCalendarState extends State<CopilotCalendar> {
   @override
   Widget build(BuildContext context) {
     final today = _dayOnly(DateTime.now());
+    final selectedDay = _dayOnly(widget.selectedDate);
     final halfWindow = widget.visibleWindowDays ~/ 2;
     final dates = [
       for (var offset = -halfWindow; offset <= halfWindow; offset++)
-        DateTime(today.year, today.month, today.day + offset),
+        DateTime(selectedDay.year, selectedDay.month, selectedDay.day + offset),
     ];
 
     return SizedBox(
-      height: 94,
+      height: 54,
       child: Row(
         children: [
-          _CalendarArrowButton(
-            icon: Icons.chevron_left_rounded,
-            onPressed: () => _scrollByVisibleDays(-3),
-          ),
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                const separatorWidth = 2.0;
+                const separatorWidth = 1.0;
                 final tileWidth =
                     ((constraints.maxWidth - (separatorWidth * 6)) / 7).clamp(
-                      34.0,
-                      104.0,
+                      30.0,
+                      74.0,
                     );
 
                 return ListView.separated(
@@ -88,10 +85,6 @@ class _CopilotCalendarState extends State<CopilotCalendar> {
               },
             ),
           ),
-          _CalendarArrowButton(
-            icon: Icons.chevron_right_rounded,
-            onPressed: () => _scrollByVisibleDays(3),
-          ),
           if (widget.onChooseDate != null) ...[
             const SizedBox(width: AppSpacing.xs),
             _CalendarIconButton(onPressed: widget.onChooseDate!),
@@ -108,24 +101,6 @@ class _CopilotCalendarState extends State<CopilotCalendar> {
 
     final maxScroll = _controller.position.maxScrollExtent;
     _controller.jumpTo(maxScroll / 2);
-  }
-
-  void _scrollByVisibleDays(int days) {
-    if (!_controller.hasClients) {
-      return;
-    }
-
-    final tileExtent = _controller.position.viewportDimension / 7;
-    final delta = tileExtent * days;
-    final target = (_controller.offset + delta).clamp(
-      _controller.position.minScrollExtent,
-      _controller.position.maxScrollExtent,
-    );
-    _controller.animateTo(
-      target,
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOut,
-    );
   }
 
   DateTime _dayOnly(DateTime date) => DateTime(date.year, date.month, date.day);
@@ -160,9 +135,9 @@ class _CopilotCalendarDay extends StatelessWidget {
       color: AppColors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.input),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
+          padding: EdgeInsets.zero,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -170,7 +145,7 @@ class _CopilotCalendarDay extends StatelessWidget {
                 isToday ? 'AUJ' : _weekday(date),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleSmall?.copyWith(
+                style: theme.textTheme.labelMedium?.copyWith(
                   color: textColor,
                   fontWeight: FontWeight.w900,
                 ),
@@ -180,7 +155,7 @@ class _CopilotCalendarDay extends StatelessWidget {
                 '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelLarge?.copyWith(
+                style: theme.textTheme.labelSmall?.copyWith(
                   color: textColor,
                   fontWeight: isSelected || isToday
                       ? FontWeight.w900
@@ -189,10 +164,10 @@ class _CopilotCalendarDay extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xxs),
               FractionallySizedBox(
-                widthFactor: isSelected || isToday ? 0.72 : 0,
+                widthFactor: isSelected || isToday ? 0.58 : 0,
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 160),
-                  height: 3,
+                  height: 2,
                   decoration: BoxDecoration(
                     color: context.brand.accent,
                     borderRadius: BorderRadius.circular(AppRadius.chip),
@@ -224,25 +199,6 @@ class _CopilotCalendarDay extends StatelessWidget {
   }
 }
 
-class _CalendarArrowButton extends StatelessWidget {
-  const _CalendarArrowButton({required this.icon, required this.onPressed});
-
-  final IconData icon;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: 'Naviguer dans les dates',
-      onPressed: onPressed,
-      icon: Icon(icon),
-      color: Theme.of(context).colorScheme.onSurface,
-      constraints: const BoxConstraints.tightFor(width: 30, height: 48),
-      padding: EdgeInsets.zero,
-    );
-  }
-}
-
 class _CalendarIconButton extends StatelessWidget {
   const _CalendarIconButton({required this.onPressed});
 
@@ -253,8 +209,10 @@ class _CalendarIconButton extends StatelessWidget {
     return IconButton.outlined(
       tooltip: 'Choisir une date',
       onPressed: onPressed,
-      icon: const Icon(Icons.calendar_today_rounded),
+      icon: const Icon(Icons.calendar_today_rounded, size: 16),
       color: Theme.of(context).colorScheme.onSurface,
+      constraints: const BoxConstraints.tightFor(width: 34, height: 38),
+      padding: EdgeInsets.zero,
     );
   }
 }

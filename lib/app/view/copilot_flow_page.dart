@@ -7,6 +7,7 @@ import '../../core/auth/supabase_auth_controller.dart';
 import '../../core/di/service_locator.dart';
 import '../../core/supabase/supabase_initializer.dart';
 import '../../features/matches/presentation/matches_home_page.dart';
+import '../../features/matches/data/match_feed_repository.dart';
 import '../../features/onboarding/data/saved_decision_profile_store.dart';
 import '../../features/onboarding/domain/decision_profile.dart';
 import '../../features/onboarding/domain/onboarding_completion.dart';
@@ -18,17 +19,24 @@ class CopilotFlowPage extends StatefulWidget {
   const CopilotFlowPage({
     this.profileStore = const SavedDecisionProfileStore(),
     this.ticketStrategyStore = const SavedTicketStrategyStore(),
+    this.repositoryOverride,
     super.key,
   });
 
   final SavedDecisionProfileStore profileStore;
   final SavedTicketStrategyStore ticketStrategyStore;
+  final MatchFeedRepository? repositoryOverride;
 
   @override
   State<CopilotFlowPage> createState() => _CopilotFlowPageState();
 }
 
 class _CopilotFlowPageState extends State<CopilotFlowPage> {
+  static const _defaultGuestProfile = DecisionProfile(
+    onboardingVersion: '2.0',
+    answers: [],
+  );
+
   SupabaseAuthController? _authController;
   DecisionProfile? _profile;
   List<TicketStrategy> _ticketStrategies = const [];
@@ -72,24 +80,7 @@ class _CopilotFlowPageState extends State<CopilotFlowPage> {
     if (!_hasCompletedAuthEntry && !isSignedIn) {
       return AuthEntryPage(
         controller: _authController,
-        onContinueLocal: () {
-          setState(() {
-            _hasCompletedAuthEntry = true;
-          });
-        },
-      );
-    }
-
-    if (profile == null) {
-      return OnboardingPage(
-        onCancel: _cancelOnboardingWithoutSaving,
-        onCompleted: (completion) {
-          _saveCompletion(completion);
-          setState(() {
-            _profile = completion.profile;
-            _ticketStrategies = completion.ticketStrategies;
-          });
-        },
+        onContinueLocal: _continueWithoutAccount,
       );
     }
 
@@ -115,8 +106,11 @@ class _CopilotFlowPageState extends State<CopilotFlowPage> {
 
     return MatchesHomePage(
       key: ValueKey<String>('matches-home:${_lastSyncedUserId ?? 'guest'}'),
-      profile: profile,
+      profile: profile ?? _defaultGuestProfile,
       ticketStrategies: _ticketStrategies,
+      repositoryOverride: widget.repositoryOverride,
+      onProfileChanged: _saveProfilePreferences,
+      onTicketStrategiesChanged: _saveTicketStrategyPreferences,
       onEditProfile: () {
         setState(() {
           _isEditingProfile = true;
@@ -136,7 +130,7 @@ class _CopilotFlowPageState extends State<CopilotFlowPage> {
     setState(() {
       _ticketStrategies = savedStrategies;
       _isCheckingSavedProfile = false;
-      if (hasTemporaryAccess) {
+      if (hasTemporaryAccess || savedProfile != null) {
         _hasCompletedAuthEntry = true;
       }
     });
@@ -197,9 +191,7 @@ class _CopilotFlowPageState extends State<CopilotFlowPage> {
 
     setState(() {
       _hasCompletedAuthEntry = true;
-      if (savedProfile != null) {
-        _profile = savedProfile;
-      }
+      _profile = savedProfile ?? _defaultGuestProfile;
       _ticketStrategies = savedStrategies;
       _isEditingProfile = false;
     });
@@ -210,11 +202,34 @@ class _CopilotFlowPageState extends State<CopilotFlowPage> {
     await widget.ticketStrategyStore.save(completion.ticketStrategies);
   }
 
-  void _cancelOnboardingWithoutSaving() {
+  Future<void> _saveProfilePreferences(DecisionProfile profile) async {
     setState(() {
-      _profile = const DecisionProfile(onboardingVersion: '2.0', answers: []);
-      _ticketStrategies = const [];
-      _isEditingProfile = false;
+      _profile = profile;
     });
+
+    await widget.profileStore.save(profile);
+  }
+
+  Future<void> _saveTicketStrategyPreferences(
+    List<TicketStrategy> strategies,
+  ) async {
+    setState(() {
+      _ticketStrategies = strategies;
+    });
+
+    await widget.ticketStrategyStore.save(strategies);
+  }
+
+  Future<void> _continueWithoutAccount() async {
+    setState(() {
+      _hasCompletedAuthEntry = true;
+      _profile ??= _defaultGuestProfile;
+    });
+
+    try {
+      await widget.profileStore.save(_profile ?? _defaultGuestProfile);
+    } on Object {
+      // Local persistence is a convenience; access to scores must stay open.
+    }
   }
 }

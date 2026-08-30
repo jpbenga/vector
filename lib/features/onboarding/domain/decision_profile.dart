@@ -9,8 +9,46 @@ class DecisionProfile {
   final String onboardingVersion;
   final List<OnboardingAnswer> answers;
 
+  DecisionProfile copyWith({
+    String? onboardingVersion,
+    List<OnboardingAnswer>? answers,
+  }) {
+    return DecisionProfile(
+      onboardingVersion: onboardingVersion ?? this.onboardingVersion,
+      answers: answers ?? this.answers,
+    );
+  }
+
   OnboardingAnswer answerFor(String questionId) {
     return answers.firstWhere((answer) => answer.questionId == questionId);
+  }
+
+  OnboardingAnswer? optionalAnswerFor(String questionId) {
+    for (final answer in answers) {
+      if (answer.questionId == questionId) {
+        return answer;
+      }
+    }
+
+    return null;
+  }
+
+  List<String> optionIdsFor(String questionId) {
+    return optionalAnswerFor(questionId)?.orderedOptionIds ?? const [];
+  }
+
+  DecisionProfile withOptionIds(String questionId, List<String> optionIds) {
+    final nextAnswer = OnboardingAnswer(
+      questionId: questionId,
+      orderedOptionIds: List.unmodifiable(optionIds),
+    );
+    final nextAnswers = [
+      for (final answer in answers)
+        if (answer.questionId != questionId) answer,
+      nextAnswer,
+    ];
+
+    return copyWith(answers: List.unmodifiable(nextAnswers));
   }
 
   Map<String, Object?> toJson() {

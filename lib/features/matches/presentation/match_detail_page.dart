@@ -1,3 +1,5 @@
+// ignore_for_file: unused_element
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
@@ -5,15 +7,18 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/lector_brand_mark.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../opportunities/domain/opportunity.dart';
 import '../../tickets/domain/ticket_draft.dart';
 import '../../tickets/domain/saved_ticket.dart';
 import '../../tickets/domain/ticket_strategy.dart';
-import '../../tickets/presentation/ticket_builder_panel.dart';
 import '../domain/match_board_item.dart';
 import 'opportunity_decision_presenter.dart';
 import 'widgets/sports_asset_badge.dart';
+
+const _matchCardStadiumBackgroundAsset =
+    'assets/backgrounds/match-card-stadium-premium.png';
 
 class MatchDetailPage extends StatefulWidget {
   const MatchDetailPage({
@@ -43,110 +48,1549 @@ class MatchDetailPage extends StatefulWidget {
   State<MatchDetailPage> createState() => _MatchDetailPageState();
 }
 
-class _MatchDetailPageState extends State<MatchDetailPage>
-    with TickerProviderStateMixin {
-  bool _isTicketPanelExpanded = false;
+class _MatchDetailPageState extends State<MatchDetailPage> {
+  int _selectedFreeTab = 0;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.matchDetailTitle),
-        actions: [
-          _MatchDetailCloseAction(
-            onPressed: () => Navigator.of(context).maybePop(),
+      backgroundColor: context.surfaces.background,
+      body: Stack(
+        children: [
+          const _LectorMatchBackground(),
+          SafeArea(
+            child: CustomScrollView(
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 88),
+                  sliver: SliverList.list(
+                    children: [
+                      _LectorMatchTopBar(
+                        onBack: () => Navigator.of(context).maybePop(),
+                      ),
+                      const SizedBox(height: 10),
+                      _LectorMatchHero(match: widget.match),
+                      const SizedBox(height: 14),
+                      _LectorRepereSection(match: widget.match),
+                      const SizedBox(height: 14),
+                      _LectorMatchTabBar(
+                        selectedIndex: _selectedFreeTab,
+                        onSelected: (index) {
+                          setState(() => _selectedFreeTab = index);
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      _LectorFreeTabContent(
+                        match: widget.match,
+                        selectedIndex: _selectedFreeTab,
+                      ),
+                      const SizedBox(height: 10),
+                      _LectorRecentMatchesCard(match: widget.match),
+                      const SizedBox(height: 10),
+                      _LectorFollowCard(match: widget.match),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Positioned(
+            left: 14,
+            bottom: 14,
+            child: _MatchQuickDockButton(),
           ),
         ],
       ),
-      body: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment.topCenter,
-            radius: 1.1,
-            colors: [
-              colorScheme.primary.withValues(alpha: 0.10),
-              colorScheme.surface,
-            ],
+    );
+  }
+}
+
+class _LectorMatchBackground extends StatelessWidget {
+  const _LectorMatchBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    final surfaces = context.surfaces;
+    final brand = context.brand;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFF02070A),
+            surfaces.background,
+            const Color(0xFF050A0E),
+          ],
+        ),
+      ),
+      child: CustomPaint(
+        painter: _LectorStadiumPainter(
+          accent: brand.accent,
+          border: surfaces.border,
+          shadow: surfaces.shadow,
+        ),
+      ),
+    );
+  }
+}
+
+class _LectorStadiumPainter extends CustomPainter {
+  const _LectorStadiumPainter({
+    required this.accent,
+    required this.border,
+    required this.shadow,
+  });
+
+  final Color accent;
+  final Color border;
+  final Color shadow;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final glow = Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(0, -0.78),
+        radius: 0.86,
+        colors: [accent.withValues(alpha: 0.13), Colors.transparent],
+      ).createShader(Offset.zero & size);
+    canvas.drawRect(Offset.zero & size, glow);
+
+    final standTop = size.height * 0.18;
+    final standBottom = size.height * 0.38;
+    final standPaint = Paint()..color = const Color(0xFF0A151B);
+    final standPath = Path()
+      ..moveTo(0, standTop + 44)
+      ..quadraticBezierTo(
+        size.width * 0.5,
+        standTop - 12,
+        size.width,
+        standTop + 44,
+      )
+      ..lineTo(size.width, standBottom)
+      ..quadraticBezierTo(size.width * 0.5, standBottom + 24, 0, standBottom)
+      ..close();
+    canvas.drawPath(standPath, standPaint);
+
+    final linePaint = Paint()
+      ..color = border.withValues(alpha: 0.26)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    for (var i = 0; i < 6; i++) {
+      final y = standTop + 46 + i * 18;
+      final path = Path()
+        ..moveTo(0, y)
+        ..quadraticBezierTo(size.width * 0.5, y - 26, size.width, y);
+      canvas.drawPath(path, linePaint);
+    }
+
+    final pitchTop = size.height * 0.36;
+    final pitchPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          const Color(0xFF0B2524).withValues(alpha: 0.62),
+          shadow.withValues(alpha: 0.18),
+          Colors.transparent,
+        ],
+      ).createShader(Rect.fromLTWH(0, pitchTop, size.width, size.height));
+    canvas.drawRect(
+      Rect.fromLTWH(0, pitchTop, size.width, size.height - pitchTop),
+      pitchPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _LectorStadiumPainter oldDelegate) {
+    return accent != oldDelegate.accent ||
+        border != oldDelegate.border ||
+        shadow != oldDelegate.shadow;
+  }
+}
+
+class _LectorMatchTopBar extends StatelessWidget {
+  const _LectorMatchTopBar({required this.onBack});
+
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = context.brand;
+    final textColors = context.textColors;
+
+    return Row(
+      children: [
+        IconButton(
+          tooltip: 'Retour',
+          onPressed: onBack,
+          icon: Icon(
+            Icons.arrow_back_rounded,
+            color: textColors.primary,
+            size: 27,
           ),
         ),
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        const Spacer(),
+        IconButton(
+          tooltip: 'Notifications',
+          onPressed: () => _showComingSoon(context, 'Alertes à brancher'),
+          icon: Icon(
+            Icons.notifications_none_rounded,
+            color: textColors.primary,
+            size: 24,
+          ),
+        ),
+        IconButton(
+          tooltip: 'Favori',
+          onPressed: () => _showComingSoon(context, 'Favori à brancher'),
+          icon: Icon(Icons.star_rounded, color: brand.accent, size: 28),
+        ),
+      ],
+    );
+  }
+}
+
+class _LectorDetailWordmark extends StatelessWidget {
+  const _LectorDetailWordmark();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textColors = context.textColors;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const _LectorDetailMark(size: 38),
+        const SizedBox(width: 8),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1120),
-                child: Column(
-                  children: [
-                    _MatchDetailHeader(match: widget.match),
-                    if (widget.match.profileStatus ==
-                        MatchProfileStatus.outOfProfile) ...[
-                      const SizedBox(height: 14),
-                      _ProfileStatusBand(match: widget.match),
-                    ],
-                    const SizedBox(height: 14),
-                    _CopilotReadingSection(
-                      match: widget.match,
-                      opportunity: widget.opportunity,
-                    ),
-                    const SizedBox(height: 14),
-                    _CopilotArgumentsSection(
-                      match: widget.match,
-                      opportunity: widget.opportunity,
-                    ),
-                    const SizedBox(height: 14),
-                    _AnalysisSection(
-                      match: widget.match,
-                      opportunity: widget.opportunity,
-                    ),
-                    const SizedBox(height: 14),
-                    _MarketsSection(
-                      match: widget.match,
-                      opportunity: widget.opportunity,
-                      markets: widget.match.availableMarkets,
-                      ticketDraftListenable: widget.ticketDraftListenable,
-                      onToggleTicket: widget.onToggleTicket,
-                    ),
-                  ],
-                ),
+            Text(
+              'LECTOR SPORT',
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: textColors.primary,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 3,
+              ),
+            ),
+            Text(
+              'Read the Game.',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: textColors.primary,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0,
+                height: 1,
               ),
             ),
           ],
         ),
-      ),
-      bottomNavigationBar:
-          widget.ticketDraftListenable == null ||
-              widget.onRemoveTicketSelection == null ||
-              widget.onTicketSaved == null ||
-              widget.onViewSavedTickets == null
-          ? null
-          : ValueListenableBuilder<TicketDraft>(
-              valueListenable: widget.ticketDraftListenable!,
-              builder: (context, ticket, _) {
-                if (ticket.isEmpty) {
-                  return const SizedBox.shrink();
-                }
-
-                return TicketBuilderPanel(
-                  ticket: ticket,
-                  strategies: widget.ticketStrategies,
-                  isExpanded: _isTicketPanelExpanded,
-                  onToggleExpanded: () {
-                    setState(() {
-                      _isTicketPanelExpanded = !_isTicketPanelExpanded;
-                    });
-                  },
-                  onRemoveSelection: widget.onRemoveTicketSelection!,
-                  onTicketSaved: widget.onTicketSaved!,
-                  onViewSavedTickets: widget.onViewSavedTickets!,
-                  onOpenSelection: widget.onOpenTicketSelection,
-                );
-              },
-            ),
+      ],
     );
   }
+}
+
+class _LectorDetailMark extends StatelessWidget {
+  const _LectorDetailMark({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return LectorBrandMark(size: size);
+  }
+}
+
+class _LectorMatchHero extends StatelessWidget {
+  const _LectorMatchHero({required this.match});
+
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final textColors = context.textColors;
+    final venueLabel = _venueValue(match.fixture.venue);
+
+    return _LectorGlassCard(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 13),
+      backgroundAsset: _matchCardStadiumBackgroundAsset,
+      child: Column(
+        children: [
+          Row(
+            children: [
+              SportsAssetBadge(
+                size: 34,
+                imageUrl: match.competition.logoUrl,
+                fallbackLabel: match.competition.name,
+                icon: Icons.emoji_events_outlined,
+                backgroundColor: Colors.transparent,
+                padding: 1,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      match.competition.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: textColors.primary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Text(
+                      'Journée 34',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: brand.accent,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                _matchDateTimeLabel(match),
+                textAlign: TextAlign.right,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: brand.accent,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: _HeroTeamBlock(team: match.homeTeam, alignRight: false),
+              ),
+              const SizedBox(width: 8),
+              _HeroStatusBlock(match: match),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _HeroTeamBlock(team: match.awayTeam, alignRight: true),
+              ),
+            ],
+          ),
+          if (venueLabel.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.stadium_outlined,
+                  color: textColors.secondary,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    venueLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: textColors.secondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroTeamBlock extends StatelessWidget {
+  const _HeroTeamBlock({required this.team, required this.alignRight});
+
+  final TeamInfo team;
+  final bool alignRight;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textColors = context.textColors;
+
+    return Column(
+      crossAxisAlignment: alignRight
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: [
+        SportsAssetBadge(
+          size: 56,
+          imageUrl: team.logoUrl,
+          fallbackLabel: team.name,
+          backgroundColor: Colors.transparent,
+          padding: 1,
+        ),
+        const SizedBox(height: 7),
+        Text(
+          team.name,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: alignRight ? TextAlign.right : TextAlign.left,
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: textColors.primary,
+            fontWeight: FontWeight.w900,
+            height: 1.05,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HeroStatusBlock extends StatelessWidget {
+  const _HeroStatusBlock({required this.match});
+
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final textColors = context.textColors;
+    final score = match.fixture.score;
+    final isLive = match.fixture.status == FixtureStatus.live;
+    final isFinished = match.fixture.status == FixtureStatus.finished;
+
+    return SizedBox(
+      width: 94,
+      child: Column(
+        children: [
+          Text(
+            isLive
+                ? 'EN COURS'
+                : isFinished
+                ? 'TERMINÉ'
+                : 'Avant-match',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: brand.accent,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 5),
+          if (score != null)
+            Text(
+              '${score.home} - ${score.away}',
+              style: theme.textTheme.displaySmall?.copyWith(
+                color: textColors.primary,
+                fontWeight: FontWeight.w900,
+                height: 1,
+              ),
+            )
+          else
+            Text(
+              '-',
+              style: theme.textTheme.headlineLarge?.copyWith(
+                color: textColors.primary,
+                fontWeight: FontWeight.w900,
+                height: 1,
+              ),
+            ),
+          if (!isLive && !isFinished) ...[
+            const SizedBox(height: 6),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: brand.accent.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(AppRadius.chip),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                child: Text(
+                  'Avant-match',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: brand.accent,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _LectorRepereSection extends StatelessWidget {
+  const _LectorRepereSection({required this.match});
+
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final textColors = context.textColors;
+    final primaryTitle = match.thesis?.title ?? _firstSignalTitle(match);
+    final primarySubtitle = match.thesis == null
+        ? 'Lecture disponible'
+        : '${match.thesis!.supportingEvidence.length.clamp(1, 3)} lectures';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Repères Lector',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: textColors.primary,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () =>
+                  _showComingSoon(context, 'Explication premium à brancher'),
+              icon: const Icon(Icons.lock_outline_rounded, size: 15),
+              label: const Text('Pourquoi ?'),
+              style: TextButton.styleFrom(foregroundColor: brand.accent),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: _LectorRepereCard(
+                icon: Icons.track_changes_rounded,
+                title: primaryTitle,
+                subtitle: primarySubtitle,
+                color: brand.accent,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _LectorRepereCard(
+                icon: Icons.compare_arrows_rounded,
+                title: 'Match à suivre',
+                subtitle: _secondaryRepereSubtitle(match),
+                color: const Color(0xFF7A3CFF),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _LectorRepereCard extends StatelessWidget {
+  const _LectorRepereCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = context.surfaces;
+    final textColors = context.textColors;
+
+    return _LectorGlassCard(
+      padding: const EdgeInsets.all(10),
+      child: SizedBox(
+        height: 68,
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 25),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: textColors.primary,
+                      fontWeight: FontWeight.w900,
+                      height: 1.1,
+                    ),
+                  ),
+                  if (subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: surfaces.border.withValues(alpha: 0.95),
+              size: 22,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LectorMatchTabBar extends StatelessWidget {
+  const _LectorMatchTabBar({
+    required this.selectedIndex,
+    required this.onSelected,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+
+  static const _tabs = ['Contexte', 'Classement', 'Forme', 'Infos'];
+
+  @override
+  Widget build(BuildContext context) {
+    final surfaces = context.surfaces;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: surfaces.surface.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+      ),
+      child: SizedBox(
+        height: 52,
+        child: Row(
+          children: [
+            for (var index = 0; index < _tabs.length; index++)
+              Expanded(
+                child: _LectorMatchTab(
+                  label: _tabs[index],
+                  isSelected: selectedIndex == index,
+                  onPressed: () => onSelected(index),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LectorMatchTab extends StatelessWidget {
+  const _LectorMatchTab({
+    required this.label,
+    required this.isSelected,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final textColors = context.textColors;
+
+    return TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.control),
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Expanded(
+            child: Center(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: isSelected ? brand.accent : textColors.primary,
+                  fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            height: 3,
+            width: isSelected ? 58 : 0,
+            decoration: BoxDecoration(
+              color: brand.accent,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LectorFreeTabContent extends StatelessWidget {
+  const _LectorFreeTabContent({
+    required this.match,
+    required this.selectedIndex,
+  });
+
+  final MatchBoardItem match;
+  final int selectedIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    return switch (selectedIndex) {
+      0 => _LectorQuickContextCard(match: match),
+      1 => _LectorStandingContextCard(match: match),
+      2 => _LectorFormContextCard(match: match),
+      _ => _LectorInfoContextCard(match: match),
+    };
+  }
+}
+
+class _LectorQuickContextCard extends StatelessWidget {
+  const _LectorQuickContextCard({required this.match});
+
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) {
+    final homeRank = _rankLabel(match.analysis.homeStanding);
+    final awayRank = _rankLabel(match.analysis.awayStanding);
+    final form = _bestFormResults(match);
+    final awayWins = _awayWinsLabel(match);
+
+    return _LectorInfoCard(
+      title: 'Contexte rapide',
+      rows: [
+        _LectorInfoRow(
+          icon: Icons.bar_chart_rounded,
+          label: 'Classement',
+          trailing: [
+            TextSpan(text: '${match.homeTeam.name} $homeRank'),
+            const TextSpan(text: ' · '),
+            TextSpan(text: '${match.awayTeam.name} $awayRank'),
+          ],
+        ),
+        _LectorInfoRow(
+          icon: Icons.monitor_heart_outlined,
+          label: 'Forme',
+          customTrailing: _FormDots(results: form),
+        ),
+        _LectorInfoRow(
+          icon: Icons.flight_takeoff_rounded,
+          label: 'Extérieur',
+          trailing: [TextSpan(text: awayWins)],
+        ),
+      ],
+    );
+  }
+}
+
+class _LectorStandingContextCard extends StatelessWidget {
+  const _LectorStandingContextCard({required this.match});
+
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) {
+    return _LectorInfoCard(
+      title: 'Classement',
+      rows: [
+        _LectorInfoRow(
+          icon: Icons.shield_outlined,
+          label: match.homeTeam.name,
+          trailing: [
+            TextSpan(text: _standingSummary(match.analysis.homeStanding)),
+          ],
+        ),
+        _LectorInfoRow(
+          icon: Icons.shield_outlined,
+          label: match.awayTeam.name,
+          trailing: [
+            TextSpan(text: _standingSummary(match.analysis.awayStanding)),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _LectorFormContextCard extends StatelessWidget {
+  const _LectorFormContextCard({required this.match});
+
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) {
+    return _LectorInfoCard(
+      title: 'Forme',
+      rows: [
+        _LectorInfoRow(
+          icon: Icons.home_rounded,
+          label: match.homeTeam.name,
+          customTrailing: _FormDots(
+            results: _matchDetailLastFiveResults(
+              match.analysis.homeStatistics?.form ??
+                  match.analysis.homeStanding?.form,
+            ),
+          ),
+        ),
+        _LectorInfoRow(
+          icon: Icons.flight_takeoff_rounded,
+          label: match.awayTeam.name,
+          customTrailing: _FormDots(
+            results: _matchDetailLastFiveResults(
+              match.analysis.awayStatistics?.form ??
+                  match.analysis.awayStanding?.form,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LectorInfoContextCard extends StatelessWidget {
+  const _LectorInfoContextCard({required this.match});
+
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) {
+    return _LectorInfoCard(
+      title: 'Infos',
+      rows: [
+        _LectorInfoRow(
+          icon: Icons.stadium_outlined,
+          label: 'Stade',
+          trailing: [TextSpan(text: _venueValue(match.fixture.venue))],
+        ),
+        _LectorInfoRow(
+          icon: Icons.schedule_rounded,
+          label: 'Horaire',
+          trailing: [TextSpan(text: _matchDateTimeLabel(match))],
+        ),
+      ],
+    );
+  }
+}
+
+class _LectorInfoCard extends StatelessWidget {
+  const _LectorInfoCard({required this.title, required this.rows});
+
+  final String title;
+  final List<Widget> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textColors = context.textColors;
+    final surfaces = context.surfaces;
+
+    return _LectorGlassCard(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: textColors.primary,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 10),
+          for (var index = 0; index < rows.length; index++) ...[
+            rows[index],
+            if (index < rows.length - 1)
+              Divider(height: 16, color: surfaces.border),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _LectorInfoRow extends StatelessWidget {
+  const _LectorInfoRow({
+    required this.icon,
+    required this.label,
+    this.trailing,
+    this.customTrailing,
+  });
+
+  final IconData icon;
+  final String label;
+  final List<TextSpan>? trailing;
+  final Widget? customTrailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final textColors = context.textColors;
+
+    return Row(
+      children: [
+        Icon(icon, color: brand.accent, size: 23),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: textColors.primary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          child:
+              customTrailing ??
+              Text.rich(
+                TextSpan(
+                  children: trailing,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: brand.accent,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+              ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FormDots extends StatelessWidget {
+  const _FormDots({required this.results});
+
+  final List<String> results;
+
+  @override
+  Widget build(BuildContext context) {
+    final values = results.isEmpty ? const ['-', '-', '-', '-', '-'] : results;
+
+    return Wrap(
+      alignment: WrapAlignment.end,
+      spacing: 5,
+      runSpacing: 4,
+      children: [
+        for (final result in values.take(5))
+          Container(
+            width: 23,
+            height: 23,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _formDotColor(context, result),
+            ),
+            child: Text(
+              _formDotLabel(result),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _LectorRecentMatchesCard extends StatelessWidget {
+  const _LectorRecentMatchesCard({required this.match});
+
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = _recentRows(match).take(3).toList();
+    final theme = Theme.of(context);
+    final textColors = context.textColors;
+    final surfaces = context.surfaces;
+
+    return _LectorGlassCard(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Derniers matchs',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: textColors.primary,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (rows.isEmpty)
+            Text(
+              'Les derniers matchs seront affichés dès que les données sont disponibles.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: textColors.secondary,
+              ),
+            )
+          else
+            for (var index = 0; index < rows.length; index++) ...[
+              _RecentMatchLine(row: rows[index]),
+              if (index < rows.length - 1)
+                Divider(height: 14, color: surfaces.border),
+            ],
+        ],
+      ),
+    );
+  }
+}
+
+class _RecentMatchLine extends StatelessWidget {
+  const _RecentMatchLine({required this.row});
+
+  final _RecentMatchUiRow row;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textColors = context.textColors;
+
+    return Row(
+      children: [
+        SizedBox(
+          width: 48,
+          child: Text(
+            row.meta,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: textColors.secondary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        SportsAssetBadge(
+          size: 23,
+          imageUrl: row.teamLogoUrl,
+          fallbackLabel: row.teamName,
+          backgroundColor: Colors.transparent,
+          padding: 1,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            row.teamName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: textColors.primary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        Text(
+          row.score,
+          style: theme.textTheme.titleSmall?.copyWith(
+            color: textColors.primary,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            row.opponentName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: textColors.primary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        SportsAssetBadge(
+          size: 23,
+          imageUrl: row.opponentLogoUrl,
+          fallbackLabel: row.opponentName,
+          backgroundColor: Colors.transparent,
+          padding: 1,
+        ),
+      ],
+    );
+  }
+}
+
+class _LectorFollowCard extends StatelessWidget {
+  const _LectorFollowCard({required this.match});
+
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textColors = context.textColors;
+    final surfaces = context.surfaces;
+    final brand = context.brand;
+
+    return _LectorGlassCard(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Suivre',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: textColors.primary,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          _FollowActionRow(
+            icon: Icons.notifications_none_rounded,
+            label: 'Alerte coup d’envoi',
+            onTap: () => _showComingSoon(context, 'Alerte à brancher'),
+          ),
+          Divider(height: 12, color: surfaces.border),
+          _FollowActionRow(
+            icon: Icons.star_border_rounded,
+            label: 'Favori',
+            trailing: Icon(Icons.star_rounded, color: brand.accent, size: 25),
+            onTap: () => _showComingSoon(context, 'Favori à brancher'),
+          ),
+          Divider(height: 12, color: surfaces.border),
+          _FollowActionRow(
+            icon: Icons.groups_2_outlined,
+            label: 'Composition disponible',
+            onTap: () => _showComingSoon(context, 'Compositions à brancher'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FollowActionRow extends StatelessWidget {
+  const _FollowActionRow({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.trailing,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final textColors = context.textColors;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.input),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        child: Row(
+          children: [
+            Icon(icon, color: brand.accent, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: textColors.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            trailing ??
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: textColors.primary,
+                  size: 23,
+                ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MatchQuickDockButton extends StatelessWidget {
+  const _MatchQuickDockButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = context.brand;
+    final surfaces = context.surfaces;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _showMatchDockSheet(context),
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          height: 46,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: surfaces.surface.withValues(alpha: 0.88),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: brand.accent.withValues(alpha: 0.45)),
+            boxShadow: [
+              BoxShadow(
+                color: brand.accent.withValues(alpha: 0.18),
+                blurRadius: 22,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const _LectorDetailMark(size: 26),
+              const SizedBox(width: 7),
+              Text(
+                'Match',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: brand.accent,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LectorGlassCard extends StatelessWidget {
+  const _LectorGlassCard({
+    required this.child,
+    required this.padding,
+    this.backgroundAsset,
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final String? backgroundAsset;
+
+  @override
+  Widget build(BuildContext context) {
+    final surfaces = context.surfaces;
+    final radius = BorderRadius.circular(AppRadius.control);
+
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow: [
+          BoxShadow(
+            color: surfaces.shadow.withValues(alpha: 0.18),
+            blurRadius: 22,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      foregroundDecoration: BoxDecoration(
+        borderRadius: radius,
+        border: Border.all(color: surfaces.border.withValues(alpha: 0.92)),
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: ColoredBox(color: surfaces.surface.withValues(alpha: 0.72)),
+          ),
+          if (backgroundAsset != null) ...[
+            Positioned.fill(
+              child: Image.asset(
+                backgroundAsset!,
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+              ),
+            ),
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      surfaces.shadow.withValues(alpha: 0.18),
+                      surfaces.shadow.withValues(alpha: 0.52),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: ColoredBox(
+                color: surfaces.surface.withValues(alpha: 0.34),
+              ),
+            ),
+          ],
+          Padding(padding: padding, child: child),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecentMatchUiRow {
+  const _RecentMatchUiRow({
+    required this.meta,
+    required this.teamName,
+    required this.opponentName,
+    required this.score,
+    this.teamLogoUrl,
+    this.opponentLogoUrl,
+  });
+
+  final String meta;
+  final String teamName;
+  final String opponentName;
+  final String score;
+  final String? teamLogoUrl;
+  final String? opponentLogoUrl;
+}
+
+void _showComingSoon(BuildContext context, String message) {
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+}
+
+void _showMatchDockSheet(BuildContext context) {
+  final brand = context.brand;
+  final textColors = context.textColors;
+
+  showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (context) {
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _DockSheetAction(
+                icon: Icons.article_outlined,
+                label: 'Lectures',
+                color: brand.accent,
+              ),
+              _DockSheetAction(
+                icon: Icons.bar_chart_rounded,
+                label: 'Stats',
+                color: textColors.primary,
+              ),
+              _DockSheetAction(
+                icon: Icons.star_border_rounded,
+                label: 'Favori',
+                color: textColors.primary,
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _DockSheetAction extends StatelessWidget {
+  const _DockSheetAction({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: () => Navigator.of(context).pop(),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 6),
+          Text(label, style: TextStyle(color: color)),
+        ],
+      ),
+    );
+  }
+}
+
+String _matchDateTimeLabel(MatchBoardItem match) {
+  final label = match.fixture.kickoffLabel.trim();
+  return label.isEmpty ? 'Aujourd’hui' : 'Aujourd’hui · $label';
+}
+
+String _venueValue(FixtureVenue? venue) {
+  if (venue == null) {
+    return 'Stade à confirmer';
+  }
+  final name = venue.name?.trim();
+  final city = venue.city?.trim();
+  return [
+    if (name != null && name.isNotEmpty) name,
+    if (city != null && city.isNotEmpty) city,
+  ].join(' · ');
+}
+
+String _rankLabel(TeamStandingSnapshot? standing) {
+  final rank = standing?.rank;
+  if (rank == null) {
+    return '-';
+  }
+  return '${rank}e';
+}
+
+String _standingSummary(TeamStandingSnapshot? standing) {
+  if (standing == null) {
+    return 'Donnée indisponible';
+  }
+  final rank = standing.rank == null ? '-' : '${standing.rank}e';
+  final points = standing.points == null ? '-' : '${standing.points} pts';
+  return '$rank · $points';
+}
+
+String _firstSignalTitle(MatchBoardItem match) {
+  if (match.signals.isNotEmpty) {
+    return match.signals.first.title;
+  }
+  return 'Lecture disponible';
+}
+
+String _secondaryRepereSubtitle(MatchBoardItem match) {
+  if (match.signals.length > 1) {
+    return match.signals[1].summary;
+  }
+  final homeRank = match.analysis.homeStanding?.rank;
+  final awayRank = match.analysis.awayStanding?.rank;
+  if (homeRank != null && awayRank != null) {
+    return 'Écart de classement visible';
+  }
+  return 'Contexte à surveiller';
+}
+
+List<String> _bestFormResults(MatchBoardItem match) {
+  final home = _matchDetailLastFiveResults(
+    match.analysis.homeStatistics?.form ?? match.analysis.homeStanding?.form,
+  );
+  if (home.isNotEmpty) {
+    return home;
+  }
+  return _matchDetailLastFiveResults(
+    match.analysis.awayStatistics?.form ?? match.analysis.awayStanding?.form,
+  );
+}
+
+String _awayWinsLabel(MatchBoardItem match) {
+  final stats = match.analysis.awayStatistics;
+  final wins = stats?.winsAway;
+  final played = stats?.playedAway;
+  if (wins != null && played != null && played > 0) {
+    return '$wins victoire${wins > 1 ? 's' : ''} sur $played';
+  }
+  return 'Donnée à confirmer';
+}
+
+Color _formDotColor(BuildContext context, String result) {
+  final value = result.toUpperCase();
+  if (value == 'W' || value == 'V') {
+    return context.brand.accent;
+  }
+  if (value == 'D' || value == 'N') {
+    return Theme.of(context).colorScheme.outline;
+  }
+  if (value == 'L' || value == 'P') {
+    return context.semantic.error;
+  }
+  return context.surfaces.border;
+}
+
+String _formDotLabel(String result) {
+  final value = result.toUpperCase();
+  return switch (value) {
+    'W' => 'V',
+    'D' => 'N',
+    'L' => 'P',
+    '-' => '-',
+    _ => value.characters.take(1).toString(),
+  };
+}
+
+List<_RecentMatchUiRow> _recentRows(MatchBoardItem match) {
+  final homeRows = match.analysis.homeRecentLeagueMatches.map((recent) {
+    final score = recent.goalsFor == null || recent.goalsAgainst == null
+        ? recent.result
+        : '${recent.goalsFor} - ${recent.goalsAgainst}';
+    return _RecentMatchUiRow(
+      meta: recent.venue == RecentMatchVenue.home ? 'Dom.' : 'Ext.',
+      teamName: match.homeTeam.name,
+      teamLogoUrl: match.homeTeam.logoUrl,
+      opponentName: recent.opponentName,
+      opponentLogoUrl: recent.opponentLogoUrl,
+      score: score,
+    );
+  });
+
+  final awayRows = match.analysis.awayRecentLeagueMatches.map((recent) {
+    final score = recent.goalsFor == null || recent.goalsAgainst == null
+        ? recent.result
+        : '${recent.goalsFor} - ${recent.goalsAgainst}';
+    return _RecentMatchUiRow(
+      meta: recent.venue == RecentMatchVenue.home ? 'Dom.' : 'Ext.',
+      teamName: match.awayTeam.name,
+      teamLogoUrl: match.awayTeam.logoUrl,
+      opponentName: recent.opponentName,
+      opponentLogoUrl: recent.opponentLogoUrl,
+      score: score,
+    );
+  });
+
+  return [...homeRows, ...awayRows];
 }
 
 class _MatchDetailCloseAction extends StatelessWidget {
@@ -1152,7 +2596,6 @@ class _ArgumentEvidenceLine extends StatelessWidget {
   }
 }
 
-// ignore: unused_element
 class _ThesisReading extends StatelessWidget {
   const _ThesisReading({required this.thesis});
 
@@ -1224,7 +2667,6 @@ class _ThesisReading extends StatelessWidget {
   }
 }
 
-// ignore: unused_element
 class _CompactEvidenceLine extends StatelessWidget {
   const _CompactEvidenceLine({required this.evidence});
 

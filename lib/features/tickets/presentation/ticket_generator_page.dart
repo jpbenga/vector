@@ -2122,18 +2122,69 @@ class _GeneratedTicketActions extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: [
-        FilledButton.icon(
+        _CompactTicketActionButton(
+          label: 'Enregistrer',
+          icon: Icons.bookmark_add_outlined,
           onPressed: onSave,
-          icon: const Icon(Icons.bookmark_add_outlined, size: 18),
-          label: const Text('Enregistrer'),
+          isPrimary: true,
         ),
-        OutlinedButton.icon(
+        _CompactTicketActionButton(
+          label: 'Modifier',
+          icon: Icons.edit_outlined,
           onPressed: onModify,
-          icon: const Icon(Icons.edit_outlined, size: 18),
-          label: const Text('Modifier'),
-          style: OutlinedButton.styleFrom(foregroundColor: accent),
+          foregroundColor: accent,
         ),
       ],
+    );
+  }
+}
+
+class _CompactTicketActionButton extends StatelessWidget {
+  const _CompactTicketActionButton({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+    this.isPrimary = false,
+    this.foregroundColor,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+  final bool isPrimary;
+  final Color? foregroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final minimumSize = const Size(0, 42);
+    final padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 9);
+    final textStyle = Theme.of(
+      context,
+    ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w900);
+
+    if (isPrimary) {
+      return FilledButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 16),
+        label: Text(label, style: textStyle),
+        style: FilledButton.styleFrom(
+          minimumSize: minimumSize,
+          padding: padding,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      );
+    }
+
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 16),
+      label: Text(label, style: textStyle),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: foregroundColor,
+        minimumSize: minimumSize,
+        padding: padding,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
     );
   }
 }

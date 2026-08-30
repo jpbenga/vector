@@ -532,6 +532,31 @@ Regles :
 - Les listes de matchs et de tickets doivent permettre de voir plusieurs items sans scroller excessivement.
 - Les panneaux bas peuvent etre plus aeres, mais doivent rester exploitables a une main.
 
+## Echelle Mobile Lector
+
+Les nouveaux ecrans de refonte doivent s'aligner sur une densite mobile proche de l'ecran scores valide : l'information doit rester lisible sans devenir massive.
+
+Regles d'echelle :
+
+- largeur de contenu mobile : padding lateral `12` a `14` px selon le contexte ;
+- espacement vertical courant : `AppSpacing.xxs` ou `AppSpacing.xs`, `AppSpacing.sm` uniquement pour separer des sections ;
+- titre de panneau ou sous-ecran dense : `titleMedium`, pas `titleLarge` ;
+- titre de ligne ou carte compacte : `labelLarge` ou `titleSmall` maximum ;
+- texte secondaire : `labelSmall` ou `bodySmall` ;
+- hauteur cible d'une ligne de selection : environ `48` a `56` px ;
+- logo de championnat dans une liste dense : `28` px ;
+- icone standard dans une ligne dense : `20` px ;
+- bouton principal en panneau bas : hauteur `40` a `44` px ;
+- switch dans une liste dense : reduit visuellement, tout en gardant la ligne cliquable ;
+- rayon des lignes compactes : `AppRadius.odds` ou `AppRadius.control`, pas `AppRadius.card`.
+
+Anti-patterns :
+
+- utiliser `ListTile` ou `SwitchListTile` brut dans un panneau mobile dense ;
+- utiliser `titleLarge` pour des titres de reglage ou de liste ;
+- empiler des paddings de `18` a `24` px dans un sous-ecran mobile ;
+- creer des tuiles qui affichent moins de 6 lignes utiles sur un ecran mobile courant.
+
 ## Rayons
 
 | Usage | Token | Valeur |

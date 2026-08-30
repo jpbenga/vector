@@ -6,6 +6,7 @@ import '../../core/di/service_locator.dart';
 import '../../core/theme/app_components.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/widgets/google_brand_icon.dart';
 
 class AuthMenuButton extends StatelessWidget {
   const AuthMenuButton({this.showGuestLabel = false, super.key});
@@ -158,7 +159,7 @@ class _AuthSheet extends StatelessWidget {
                 const SizedBox(height: AppSpacing.lg),
                 if (signedInUser == null) ...[
                   _AuthProviderButton(
-                    icon: Icons.g_mobiledata_rounded,
+                    leading: const GoogleBrandIcon(size: 19),
                     label: 'Continuer avec Google',
                     enabled: controller.isConfigured,
                     onPressed: () =>
@@ -240,14 +241,16 @@ class _AuthSheet extends StatelessWidget {
 
 class _AuthProviderButton extends StatelessWidget {
   const _AuthProviderButton({
-    required this.icon,
     required this.label,
     required this.enabled,
     required this.onPressed,
+    this.leading,
+    this.icon,
     this.trailingLabel,
   });
 
-  final IconData icon;
+  final Widget? leading;
+  final IconData? icon;
   final String label;
   final bool enabled;
   final VoidCallback onPressed;
@@ -265,7 +268,10 @@ class _AuthProviderButton extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon),
+          if (leading != null)
+            Opacity(opacity: enabled ? 1 : 0.42, child: leading!)
+          else if (icon != null)
+            Icon(icon),
           const SizedBox(width: AppSpacing.sm),
           Expanded(child: Text(label)),
           if (trailingLabel != null) ...[

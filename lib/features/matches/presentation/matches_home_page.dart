@@ -7,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/lector_brand_mark.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../onboarding/domain/compiled_decision_profile.dart';
 import '../../onboarding/domain/decision_profile.dart';
@@ -24,6 +25,7 @@ import '../data/match_feed_repository.dart';
 import '../data/match_feed_repository_loader.dart';
 import '../data/saved_match_favorites_store.dart';
 import '../domain/match_board_item.dart';
+import 'lector_preferences_sheet.dart';
 import 'match_detail_page.dart';
 import 'opportunity_decision_presenter.dart';
 import 'widgets/copilot_calendar.dart';
@@ -34,12 +36,16 @@ class MatchesHomePage extends StatefulWidget {
     required this.profile,
     required this.onEditProfile,
     required this.ticketStrategies,
+    this.onProfileChanged,
+    this.onTicketStrategiesChanged,
     this.repositoryOverride,
     super.key,
   });
 
   final DecisionProfile profile;
   final VoidCallback onEditProfile;
+  final ProfilePreferenceSaver? onProfileChanged;
+  final TicketStrategyPreferenceSaver? onTicketStrategiesChanged;
   final List<TicketStrategy> ticketStrategies;
   final MatchFeedRepository? repositoryOverride;
 
@@ -47,9 +53,7 @@ class MatchesHomePage extends StatefulWidget {
   State<MatchesHomePage> createState() => _MatchesHomePageState();
 }
 
-class _MatchesHomePageState extends State<MatchesHomePage>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
+class _MatchesHomePageState extends State<MatchesHomePage> {
   late final Future<MatchFeedRepository> _repository;
   final SavedTicketStore _savedTicketStore = const SavedTicketStore();
   final TicketSettlementEngine _ticketSettlementEngine =
@@ -64,12 +68,12 @@ class _MatchesHomePageState extends State<MatchesHomePage>
   bool _isTicketPanelExpanded = false;
   bool _isSettlingSavedTickets = false;
   String? _lastTicketSettlementSignature;
-  int _manualTicketsOpenRequest = 0;
+  DateTime _selectedScoresDate = _todayDate();
+  _ScoresRedesignMode _scoresMode = _ScoresRedesignMode.all;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
     _repository = widget.repositoryOverride == null
         ? _loadRepository()
         : Future.value(widget.repositoryOverride);
@@ -78,38 +82,13 @@ class _MatchesHomePageState extends State<MatchesHomePage>
 
   @override
   void dispose() {
-    _tabController.dispose();
     _ticketDraftNotifier.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.homeTitle),
-        actions: [
-          const ThemeVariantMenuButton(),
-          const AuthMenuButton(showGuestLabel: true),
-          const SizedBox(width: 4),
-          TextButton.icon(
-            onPressed: widget.onEditProfile,
-            icon: const Icon(Icons.tune_rounded),
-            label: Text(l10n.profileSettingsButton),
-          ),
-          const SizedBox(width: 8),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(text: l10n.forMeTab),
-            const Tab(text: 'Générateur'),
-            Tab(text: l10n.allMatchesTab),
-          ],
-        ),
-      ),
       body: FutureBuilder<MatchFeedRepository>(
         future: _repository,
         builder: (context, snapshot) {
@@ -142,6 +121,11 @@ class _MatchesHomePageState extends State<MatchesHomePage>
             for (final match in allMatches)
               repository.analyzeFor(widget.profile, match),
           ];
+          final effectiveSelectedDate = _resolvedScoresDate(
+            selectedDate: _selectedScoresDate,
+            matches: analyzedAllMatches,
+            metadata: snapshotMetadata,
+          );
           _latestOpportunities = opportunities;
           _latestAnalyzedMatches = analyzedAllMatches;
           _scheduleSavedTicketSettlement(analyzedAllMatches);
@@ -149,44 +133,46 @@ class _MatchesHomePageState extends State<MatchesHomePage>
             _openMatchDetails(repository.analyzeFor(widget.profile, match));
           }
 
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _MatchList(
-                profile: widget.profile,
-                compiledProfile: compiledProfile,
-                opportunities: opportunities,
-                snapshotMetadata: snapshotMetadata,
-                ticketDraft: _ticketDraft,
-                onToggleTicket: _toggleTicketSelection,
-                onOpenOpportunity: (opportunity) {
-                  _openOpportunityDetails(opportunity);
-                },
-                onSeeAllMatches: () => _tabController.animateTo(2),
-                onEditProfile: widget.onEditProfile,
-              ),
-              TicketGeneratorPage(
-                profile: compiledProfile,
-                opportunities: opportunities,
-                strategies: widget.ticketStrategies,
-                savedTickets: _savedTickets,
-                manualTicketsOpenRequest: _manualTicketsOpenRequest,
-                onEditStrategies: widget.onEditProfile,
-                onOpenOpportunity: (opportunity) {
-                  _openOpportunityDetails(opportunity);
-                },
-                onSaveTicket: _upsertSavedTicket,
-                onDeleteSavedTicket: _deleteSavedTicket,
-              ),
-              _ChampionshipsByCountryView(
-                matches: analyzedAllMatches,
-                snapshotMetadata: snapshotMetadata,
-                compiledProfile: compiledProfile,
-                ticketDraft: _ticketDraft,
-                onToggleTicket: _toggleTicketSelection,
-                onOpenMatch: openAnalyzedMatch,
-              ),
+          return _ScoresRedesignHome(
+            profile: widget.profile,
+            matches: analyzedAllMatches,
+            personalizedMatches: [
+              for (final opportunity in opportunities)
+                opportunity.toMatchBoardItem(),
             ],
+            snapshotMetadata: snapshotMetadata,
+            selectedDate: effectiveSelectedDate,
+            mode: _scoresMode,
+            onModeChanged: (mode) {
+              setState(() {
+                _scoresMode = mode;
+              });
+            },
+            onDateSelected: (date) {
+              setState(() {
+                _selectedScoresDate = _dateOnly(date);
+              });
+            },
+            onChooseDate: _chooseScoresDate,
+            onOpenMatch: openAnalyzedMatch,
+            onOpenProfile: () => _showPreferenceSheet(context),
+            onOpenTheme: () => _showThemeAndAccountSheet(context),
+            onOpenDock: () => _showQuickDock(context),
+            generator: TicketGeneratorPage(
+              profile: compiledProfile,
+              opportunities: opportunities,
+              strategies: widget.ticketStrategies,
+              savedTickets: _savedTickets,
+              onEditStrategies: () => showTicketBuilderPreferencesSheet(
+                context: context,
+                strategies: widget.ticketStrategies,
+                onTicketStrategiesChanged:
+                    widget.onTicketStrategiesChanged ?? (_) async {},
+              ),
+              onOpenOpportunity: _openOpportunityDetails,
+              onSaveTicket: _upsertSavedTicket,
+              onDeleteSavedTicket: _deleteSavedTicket,
+            ),
           );
         },
       ),
@@ -206,6 +192,117 @@ class _MatchesHomePageState extends State<MatchesHomePage>
               onViewSavedTickets: _openTicketsTab,
               onOpenSelection: _openTicketSelectionDetails,
             ),
+    );
+  }
+
+  Future<void> _chooseScoresDate() async {
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: _selectedScoresDate,
+      firstDate: DateTime(_selectedScoresDate.year - 1),
+      lastDate: DateTime(_selectedScoresDate.year + 1),
+    );
+    if (selected == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _selectedScoresDate = _dateOnly(selected);
+    });
+  }
+
+  void _showThemeAndAccountSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                ThemeVariantMenuButton(),
+                SizedBox(height: AppSpacing.sm),
+                AuthMenuButton(showGuestLabel: true),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showPreferenceSheet(BuildContext context) {
+    showLectorPreferencesSheet(
+      context: context,
+      profile: widget.profile,
+      ticketStrategies: widget.ticketStrategies,
+      onProfileChanged: widget.onProfileChanged ?? (_) async {},
+      onTicketStrategiesChanged:
+          widget.onTicketStrategiesChanged ?? (_) async {},
+    );
+  }
+
+  void _showQuickDock(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            child: Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                _QuickDockSheetAction(
+                  icon: Icons.today_rounded,
+                  label: 'Aujourd’hui',
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    setState(() {
+                      _selectedScoresDate = _todayDate();
+                    });
+                  },
+                ),
+                _QuickDockSheetAction(
+                  icon: Icons.person_outline_rounded,
+                  label: 'Pour moi',
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    setState(() {
+                      _scoresMode = _ScoresRedesignMode.forMe;
+                    });
+                  },
+                ),
+                _QuickDockSheetAction(
+                  icon: Icons.auto_awesome_rounded,
+                  label: 'Générateur',
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    setState(() {
+                      _scoresMode = _ScoresRedesignMode.generator;
+                    });
+                  },
+                ),
+                _QuickDockSheetAction(
+                  icon: Icons.search_rounded,
+                  label: 'Recherche',
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('La recherche sera connectée ici.'),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -362,9 +459,8 @@ class _MatchesHomePageState extends State<MatchesHomePage>
   void _openTicketsTab() {
     setState(() {
       _isTicketPanelExpanded = false;
-      _manualTicketsOpenRequest += 1;
+      _scoresMode = _ScoresRedesignMode.generator;
     });
-    _tabController.animateTo(1);
   }
 
   void _openMatchDetails(MatchBoardItem match) {
@@ -472,6 +568,1402 @@ class _MatchesHomePageState extends State<MatchesHomePage>
   Future<MatchFeedRepository> _loadRepository() async {
     return getIt<MatchFeedRepositoryLoader>().load();
   }
+}
+
+enum _ScoresRedesignMode { forMe, all, generator }
+
+DateTime _todayDate() {
+  final now = DateTime.now();
+  return DateTime(now.year, now.month, now.day);
+}
+
+DateTime _dateOnly(DateTime date) {
+  final local = date.toLocal();
+  return DateTime(local.year, local.month, local.day);
+}
+
+DateTime _resolvedScoresDate({
+  required DateTime selectedDate,
+  required List<MatchBoardItem> matches,
+  required MatchFeedSnapshotMetadata? metadata,
+}) {
+  final selectedDay = _dateOnly(selectedDate);
+  final hasMatchOnSelectedDate = matches.any((match) {
+    final kickoff = match.fixture.kickoff?.toLocal();
+    return kickoff != null && _isSameCalendarDay(kickoff, selectedDay);
+  });
+  if (hasMatchOnSelectedDate) {
+    return selectedDay;
+  }
+
+  final coversSelectedDate = metadata?.covers(selectedDay) ?? false;
+  if (coversSelectedDate) {
+    return selectedDay;
+  }
+
+  final windowStart = metadata?.windowStart;
+  if (windowStart != null) {
+    return _dateOnly(windowStart);
+  }
+
+  for (final match in [...matches]..sort(_ScoresRedesignHome._compareMatches)) {
+    final kickoff = match.fixture.kickoff?.toLocal();
+    if (kickoff != null) {
+      return _dateOnly(kickoff);
+    }
+  }
+
+  return selectedDay;
+}
+
+bool _isSameCalendarDay(DateTime a, DateTime b) {
+  return a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+class _ScoresRedesignHome extends StatelessWidget {
+  const _ScoresRedesignHome({
+    required this.profile,
+    required this.matches,
+    required this.personalizedMatches,
+    required this.snapshotMetadata,
+    required this.selectedDate,
+    required this.mode,
+    required this.onModeChanged,
+    required this.onDateSelected,
+    required this.onChooseDate,
+    required this.onOpenMatch,
+    required this.onOpenProfile,
+    required this.onOpenTheme,
+    required this.onOpenDock,
+    required this.generator,
+  });
+
+  final DecisionProfile profile;
+  final List<MatchBoardItem> matches;
+  final List<MatchBoardItem> personalizedMatches;
+  final MatchFeedSnapshotMetadata? snapshotMetadata;
+  final DateTime selectedDate;
+  final _ScoresRedesignMode mode;
+  final ValueChanged<_ScoresRedesignMode> onModeChanged;
+  final ValueChanged<DateTime> onDateSelected;
+  final VoidCallback onChooseDate;
+  final ValueChanged<MatchBoardItem> onOpenMatch;
+  final VoidCallback onOpenProfile;
+  final VoidCallback onOpenTheme;
+  final VoidCallback onOpenDock;
+  final Widget generator;
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleMatches = _matchesForModeAndDate();
+    final storyMatches = _storyMatches(visibleMatches);
+    final competitionGroups = _competitionGroups(visibleMatches);
+    final showsGenerator = mode == _ScoresRedesignMode.generator;
+    final listTitle = switch (mode) {
+      _ScoresRedesignMode.forMe => 'Ma sélection',
+      _ScoresRedesignMode.all => 'Tous les matchs',
+      _ScoresRedesignMode.generator => 'Générateur',
+    };
+    final listSubtitle = switch (mode) {
+      _ScoresRedesignMode.forMe =>
+        'Modifiez vos championnats ou vos lectures depuis Paramètres Lector.',
+      _ScoresRedesignMode.all => 'Essayez un autre jour ou un autre mode.',
+      _ScoresRedesignMode.generator =>
+        'Configurez vos sélections depuis les paramètres Lector.',
+    };
+    final showsStories = mode == _ScoresRedesignMode.forMe;
+    const expandCompetitions = false;
+
+    return Stack(
+      children: [
+        RefreshIndicator(
+          onRefresh: () async {},
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 520),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _ScoresRedesignHeader(
+                            onOpenProfile: onOpenProfile,
+                            onOpenTheme: onOpenTheme,
+                          ),
+                          const SizedBox(height: 6),
+                          CopilotCalendar(
+                            selectedDate: selectedDate,
+                            visibleWindowDays: 7,
+                            onDateSelected: onDateSelected,
+                            onChooseDate: onChooseDate,
+                          ),
+                          _SnapshotFreshnessLine(
+                            metadata: snapshotMetadata,
+                            selectedDate: selectedDate,
+                          ),
+                          const SizedBox(height: 6),
+                          _ScoresModeControl(
+                            selected: mode,
+                            onChanged: onModeChanged,
+                          ),
+                          const SizedBox(height: 14),
+                          if (showsGenerator)
+                            SizedBox(
+                              height: _generatorViewportHeight(context),
+                              child: generator,
+                            )
+                          else ...[
+                            if (showsStories) ...[
+                              _TodayStoriesSection(
+                                matches: storyMatches,
+                                onOpenMatch: onOpenMatch,
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                            _AllMatchesDenseSection(
+                              title: listTitle,
+                              emptySubtitle: listSubtitle,
+                              initiallyExpanded: expandCompetitions,
+                              groups: competitionGroups,
+                              onOpenMatch: onOpenMatch,
+                            ),
+                          ],
+                          const SizedBox(height: 96),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          left: 14,
+          bottom: 16 + MediaQuery.paddingOf(context).bottom,
+          child: _QuickDockClosedButton(onPressed: onOpenDock),
+        ),
+      ],
+    );
+  }
+
+  List<MatchBoardItem> _matchesForModeAndDate() {
+    final dateMatches = _matchesForDate(matches);
+    final source = switch (mode) {
+      _ScoresRedesignMode.forMe => _forMeMatches(dateMatches),
+      _ScoresRedesignMode.all => dateMatches,
+      _ScoresRedesignMode.generator => const <MatchBoardItem>[],
+    };
+
+    return List<MatchBoardItem>.of(source)..sort(_compareMatches);
+  }
+
+  double _generatorViewportHeight(BuildContext context) {
+    final height = MediaQuery.sizeOf(context).height;
+    final safeBottom = MediaQuery.paddingOf(context).bottom;
+    return (height - safeBottom - 176).clamp(440.0, 760.0);
+  }
+
+  List<MatchBoardItem> _matchesForDate(List<MatchBoardItem> source) {
+    return source.where((match) {
+      final kickoff = match.fixture.kickoff?.toLocal();
+      if (kickoff == null) {
+        return _isSameCalendarDay(selectedDate, _todayDate());
+      }
+      return _isSameCalendarDay(kickoff, selectedDate);
+    }).toList();
+  }
+
+  List<MatchBoardItem> _forMeMatches(List<MatchBoardItem> dateMatches) {
+    if (_hasExplicitForMePreferences) {
+      return dateMatches.where(_matchesExplicitPreferences).toList();
+    }
+
+    final personalizedForDate = _matchesForDate(personalizedMatches);
+    if (personalizedForDate.isNotEmpty) {
+      return personalizedForDate;
+    }
+
+    final stories = _storyMatches(dateMatches);
+    if (stories.isNotEmpty) {
+      return stories;
+    }
+
+    return ([
+      ...dateMatches,
+    ]..sort(_compareMatches)).take(5).toList(growable: false);
+  }
+
+  bool get _hasExplicitForMePreferences {
+    return _selectedCompetitionIds.isNotEmpty || _selectedReadingIds.isNotEmpty;
+  }
+
+  bool _matchesExplicitPreferences(MatchBoardItem match) {
+    return _matchesSelectedCompetition(match) && _matchesSelectedReading(match);
+  }
+
+  bool _matchesSelectedCompetition(MatchBoardItem match) {
+    final selectedIds = _selectedCompetitionIds;
+    if (selectedIds.isEmpty) {
+      return true;
+    }
+
+    final apiLeagueId = match.competition.apiFootballLeagueId?.toString();
+    return selectedIds.contains(match.competition.id) ||
+        (apiLeagueId != null && selectedIds.contains(apiLeagueId));
+  }
+
+  bool _matchesSelectedReading(MatchBoardItem match) {
+    final selectedIds = _selectedReadingIds;
+    if (selectedIds.isEmpty) {
+      return true;
+    }
+
+    final thesis = match.thesis;
+    if (thesis == null) {
+      return match.signals.isNotEmpty;
+    }
+
+    return OpportunityProfileCatalog.profileIdsForThesis(
+      thesis.id,
+    ).any(selectedIds.contains);
+  }
+
+  Set<String> get _selectedCompetitionIds {
+    return {
+      for (final id in profile.optionIdsFor('competitions'))
+        if (RuntimeCompetitionCatalog.resolveId(id) != null)
+          RuntimeCompetitionCatalog.resolveId(id)!,
+    };
+  }
+
+  Set<String> get _selectedReadingIds {
+    return profile.optionIdsFor('opportunity_profiles').toSet();
+  }
+
+  List<MatchBoardItem> _storyMatches(List<MatchBoardItem> source) {
+    final candidates = source.where(_hasReadableSignal).toList()
+      ..sort((a, b) {
+        final scoreComparison = _storyScore(b).compareTo(_storyScore(a));
+        if (scoreComparison != 0) {
+          return scoreComparison;
+        }
+        return _compareMatches(a, b);
+      });
+
+    return candidates.take(3).toList(growable: false);
+  }
+
+  List<_ScoresCompetitionGroup> _competitionGroups(
+    List<MatchBoardItem> source,
+  ) {
+    final byCompetition = <String, _ScoresCompetitionGroupBuilder>{};
+    for (final match in source) {
+      final id = match.competition.id;
+      byCompetition.putIfAbsent(
+        id,
+        () => _ScoresCompetitionGroupBuilder(match.competition),
+      );
+      byCompetition[id]!.matches.add(match);
+    }
+
+    final groups = [for (final builder in byCompetition.values) builder.build()]
+      ..sort((a, b) => a.competition.name.compareTo(b.competition.name));
+
+    return groups;
+  }
+
+  static bool _hasReadableSignal(MatchBoardItem match) {
+    return match.thesis != null || match.signals.isNotEmpty;
+  }
+
+  static int _storyScore(MatchBoardItem match) {
+    final thesis = match.thesis;
+    if (thesis == null) {
+      return match.signals.length;
+    }
+    return thesis.confidence + thesis.arguments.length * 12;
+  }
+
+  static int _compareMatches(MatchBoardItem a, MatchBoardItem b) {
+    final aKickoff = a.fixture.kickoff;
+    final bKickoff = b.fixture.kickoff;
+    if (aKickoff != null && bKickoff != null) {
+      final kickoffComparison = aKickoff.compareTo(bKickoff);
+      if (kickoffComparison != 0) {
+        return kickoffComparison;
+      }
+    } else if (aKickoff != null) {
+      return -1;
+    } else if (bKickoff != null) {
+      return 1;
+    }
+    return a.homeTeam.name.compareTo(b.homeTeam.name);
+  }
+}
+
+class _ScoresRedesignHeader extends StatelessWidget {
+  const _ScoresRedesignHeader({
+    required this.onOpenProfile,
+    required this.onOpenTheme,
+  });
+
+  final VoidCallback onOpenProfile;
+  final VoidCallback onOpenTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      bottom: false,
+      child: SizedBox(
+        height: 52,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: IconButton(
+                tooltip: 'Menu',
+                onPressed: onOpenTheme,
+                icon: const Icon(Icons.menu_rounded, size: 27),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                tooltip: 'Profil',
+                onPressed: onOpenProfile,
+                icon: const Icon(Icons.person_outline_rounded, size: 25),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScoresModeControl extends StatelessWidget {
+  const _ScoresModeControl({required this.selected, required this.onChanged});
+
+  final _ScoresRedesignMode selected;
+  final ValueChanged<_ScoresRedesignMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.surfaces.backgroundSecondary,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: context.surfaces.border),
+      ),
+      child: Row(
+        children: [
+          _ScoresModeTab(
+            icon: Icons.person_outline_rounded,
+            label: 'Pour moi',
+            isSelected: selected == _ScoresRedesignMode.forMe,
+            onTap: () => onChanged(_ScoresRedesignMode.forMe),
+          ),
+          _ModeDivider(),
+          _ScoresModeTab(
+            icon: Icons.format_list_bulleted_rounded,
+            label: 'Tous',
+            isSelected: selected == _ScoresRedesignMode.all,
+            onTap: () => onChanged(_ScoresRedesignMode.all),
+          ),
+          _ModeDivider(),
+          _ScoresModeTab(
+            icon: Icons.auto_awesome_rounded,
+            label: 'Générateur',
+            isSelected: selected == _ScoresRedesignMode.generator,
+            onTap: () => onChanged(_ScoresRedesignMode.generator),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModeDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 28,
+      child: VerticalDivider(color: context.surfaces.border),
+    );
+  }
+}
+
+class _ScoresModeTab extends StatelessWidget {
+  const _ScoresModeTab({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isSelected
+        ? context.brand.accent
+        : context.textColors.secondary;
+
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        child: SizedBox(
+          height: 46,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 17, color: color),
+                  const SizedBox(width: AppSpacing.xs),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (isSelected)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: context.brand.accent,
+                      borderRadius: BorderRadius.circular(AppRadius.chip),
+                    ),
+                    child: const SizedBox(height: 3),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TodayStoriesSection extends StatelessWidget {
+  const _TodayStoriesSection({
+    required this.matches,
+    required this.onOpenMatch,
+  });
+
+  final List<MatchBoardItem> matches;
+  final ValueChanged<MatchBoardItem> onOpenMatch;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.my_location_rounded,
+              color: context.brand.accent,
+              size: 20,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'A suivre aujourd’hui',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Text(
+                    matches.isEmpty
+                        ? 'Aucune lecture claire sur cette date'
+                        : '${matches.length} matchs pour comprendre la journée',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: context.textColors.secondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: matches.isEmpty
+                  ? null
+                  : () => onOpenMatch(matches.first),
+              child: const Text('Voir tout'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (matches.isEmpty)
+          _ScoresEmptyPanel(
+            title: 'Rien de vraiment lisible',
+            subtitle:
+                'Lector ne force pas une lecture quand les signaux sont faibles.',
+          )
+        else
+          for (var index = 0; index < matches.length; index++) ...[
+            _TodayStoryCard(
+              rank: index + 1,
+              match: matches[index],
+              onTap: () => onOpenMatch(matches[index]),
+            ),
+            if (index != matches.length - 1)
+              const SizedBox(height: AppSpacing.sm),
+          ],
+      ],
+    );
+  }
+}
+
+class _TodayStoryCard extends StatelessWidget {
+  const _TodayStoryCard({
+    required this.rank,
+    required this.match,
+    required this.onTap,
+  });
+
+  final int rank;
+  final MatchBoardItem match;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = _readingColor(context, rank);
+    final reading = _readingTitle(match);
+    final chips = _readingChips(match);
+
+    return Material(
+      color: context.surfaces.surface.withValues(alpha: 0.72),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        side: BorderSide(color: context.surfaces.border),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Column(
+                children: [
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.16),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: accent),
+                    ),
+                    child: SizedBox.square(
+                      dimension: 26,
+                      child: Center(
+                        child: Text(
+                          '$rank',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: accent,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    _competitionShortLabel(match.competition.name),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: context.textColors.secondary,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _fixtureTime(match.fixture),
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: context.textColors.secondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 10),
+              SizedBox(width: 104, child: _StoryTeams(match: match)),
+              Container(
+                width: 1,
+                height: 58,
+                margin: const EdgeInsets.symmetric(horizontal: 10),
+                color: context.surfaces.border,
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _ScenarioLabel(color: accent),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      reading,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Wrap(
+                      spacing: AppSpacing.xs,
+                      runSpacing: AppSpacing.xs,
+                      children: [
+                        for (final chip in chips.take(2))
+                          _EvidenceMiniChip(label: chip),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              OutlinedButton(
+                onPressed: onTap,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: accent,
+                  side: BorderSide(color: accent),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(34, 34),
+                ),
+                child: const Icon(Icons.chevron_right_rounded, size: 20),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StoryTeams extends StatelessWidget {
+  const _StoryTeams({required this.match});
+
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _StoryTeamLine(team: match.homeTeam),
+        const SizedBox(height: 6),
+        _StoryTeamLine(team: match.awayTeam),
+      ],
+    );
+  }
+}
+
+class _StoryTeamLine extends StatelessWidget {
+  const _StoryTeamLine({required this.team});
+
+  final TeamInfo team;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SportsAssetBadge(
+          size: 21,
+          imageUrl: team.logoUrl,
+          fallbackLabel: team.name,
+          borderRadius: AppRadius.chip,
+          padding: 1,
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Expanded(
+          child: Text(
+            team.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w900),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ScenarioLabel extends StatelessWidget {
+  const _ScenarioLabel({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+        border: Border.all(color: color.withValues(alpha: 0.8)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        child: Text(
+          'SCÉNARIO',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EvidenceMiniChip extends StatelessWidget {
+  const _EvidenceMiniChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.surfaces.backgroundSecondary.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: context.textColors.secondary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AllMatchesDenseSection extends StatelessWidget {
+  const _AllMatchesDenseSection({
+    required this.title,
+    required this.emptySubtitle,
+    required this.initiallyExpanded,
+    required this.groups,
+    required this.onOpenMatch,
+  });
+
+  final String title;
+  final String emptySubtitle;
+  final bool initiallyExpanded;
+  final List<_ScoresCompetitionGroup> groups;
+  final ValueChanged<MatchBoardItem> onOpenMatch;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.format_list_bulleted_rounded,
+              color: context.brand.accent,
+              size: 21,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                title,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.tune_rounded, size: 18),
+              label: const Text('Filtres'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (groups.isEmpty)
+          _ScoresEmptyPanel(title: 'Aucune rencontre', subtitle: emptySubtitle)
+        else
+          for (final group in groups) ...[
+            _DenseCompetitionSection(
+              group: group,
+              initiallyExpanded: initiallyExpanded,
+              onOpenMatch: onOpenMatch,
+            ),
+            const SizedBox(height: 10),
+          ],
+      ],
+    );
+  }
+}
+
+class _DenseCompetitionSection extends StatefulWidget {
+  const _DenseCompetitionSection({
+    required this.group,
+    required this.initiallyExpanded,
+    required this.onOpenMatch,
+  });
+
+  final _ScoresCompetitionGroup group;
+  final bool initiallyExpanded;
+  final ValueChanged<MatchBoardItem> onOpenMatch;
+
+  @override
+  State<_DenseCompetitionSection> createState() =>
+      _DenseCompetitionSectionState();
+}
+
+class _DenseCompetitionSectionState extends State<_DenseCompetitionSection> {
+  late bool _isExpanded = widget.initiallyExpanded;
+
+  @override
+  void didUpdateWidget(covariant _DenseCompetitionSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.group.competition.id != widget.group.competition.id ||
+        oldWidget.initiallyExpanded != widget.initiallyExpanded) {
+      _isExpanded = widget.initiallyExpanded;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.surfaces.surface.withValues(alpha: 0.58),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: context.surfaces.border),
+      ),
+      child: Column(
+        children: [
+          Material(
+            color: AppColors.transparent,
+            child: InkWell(
+              onTap: () => setState(() => _isExpanded = !_isExpanded),
+              borderRadius: BorderRadius.circular(AppRadius.card),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 9, 10, 8),
+                child: Row(
+                  children: [
+                    SportsAssetBadge(
+                      size: 24,
+                      imageUrl: widget.group.competition.logoUrl,
+                      fallbackLabel: widget.group.competition.name,
+                      backgroundColor: AppColors.transparent,
+                      icon: Icons.emoji_events_rounded,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        widget.group.competition.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                    Text(
+                      '${widget.group.matches.length} match${widget.group.matches.length > 1 ? 's' : ''}',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: context.textColors.secondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    AnimatedRotation(
+                      turns: _isExpanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 180),
+                      child: Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: context.textColors.secondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox(width: double.infinity),
+            secondChild: Column(
+              children: [
+                for (
+                  var index = 0;
+                  index < widget.group.matches.length;
+                  index++
+                ) ...[
+                  Divider(height: 1, color: context.surfaces.border),
+                  _DenseMatchRow(
+                    match: widget.group.matches[index],
+                    onTap: () =>
+                        widget.onOpenMatch(widget.group.matches[index]),
+                  ),
+                ],
+              ],
+            ),
+            crossFadeState: _isExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 180),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DenseMatchRow extends StatelessWidget {
+  const _DenseMatchRow({required this.match, required this.onTap});
+
+  final MatchBoardItem match;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final reading = _compactReadingLabel(match);
+
+    return Material(
+      color: AppColors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 46,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _fixtureTime(match.fixture),
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: context.brand.accent,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      _statusLabel(match.fixture.status),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: context.textColors.secondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(width: 1, height: 40, color: context.surfaces.border),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  children: [
+                    _DenseTeamLine(team: match.homeTeam),
+                    const SizedBox(height: AppSpacing.xs),
+                    _DenseTeamLine(team: match.awayTeam),
+                  ],
+                ),
+              ),
+              if (reading != null) ...[
+                const SizedBox(width: 6),
+                _CompactReadingBadge(label: reading),
+              ],
+              const SizedBox(width: 4),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: context.textColors.secondary,
+                size: 22,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DenseTeamLine extends StatelessWidget {
+  const _DenseTeamLine({required this.team});
+
+  final TeamInfo team;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SportsAssetBadge(
+          size: 20,
+          imageUrl: team.logoUrl,
+          fallbackLabel: team.name,
+          borderRadius: AppRadius.chip,
+          padding: 1,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            team.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CompactReadingBadge extends StatelessWidget {
+  const _CompactReadingBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.brand.accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+        border: Border.all(color: context.brand.accent.withValues(alpha: 0.72)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.radar_rounded, size: 13, color: context.brand.accent),
+            const SizedBox(width: 4),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 66),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: context.brand.accent,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickDockClosedButton extends StatelessWidget {
+  const _QuickDockClosedButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.surfaces.surface.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: context.brand.accent.withValues(alpha: 0.36)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Material(
+        color: AppColors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(18),
+          child: SizedBox(
+            width: 52,
+            height: 44,
+            child: Center(child: LectorBrandMark(size: 30)),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickDockSheetAction extends StatelessWidget {
+  const _QuickDockSheetAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ActionChip(
+      avatar: Icon(icon, size: 18),
+      label: Text(label),
+      onPressed: onTap,
+    );
+  }
+}
+
+class _ScoresEmptyPanel extends StatelessWidget {
+  const _ScoresEmptyPanel({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.surfaces.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: context.surfaces.border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Row(
+          children: [
+            Icon(
+              Icons.info_outline_rounded,
+              color: context.textColors.secondary,
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    subtitle,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: context.textColors.secondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScoresCompetitionGroupBuilder {
+  _ScoresCompetitionGroupBuilder(this.competition);
+
+  final CompetitionInfo competition;
+  final List<MatchBoardItem> matches = [];
+
+  _ScoresCompetitionGroup build() {
+    return _ScoresCompetitionGroup(
+      competition: competition,
+      matches: [...matches]..sort(_ScoresRedesignHome._compareMatches),
+    );
+  }
+}
+
+class _ScoresCompetitionGroup {
+  const _ScoresCompetitionGroup({
+    required this.competition,
+    required this.matches,
+  });
+
+  final CompetitionInfo competition;
+  final List<MatchBoardItem> matches;
+}
+
+Color _readingColor(BuildContext context, int rank) {
+  return switch (rank) {
+    2 => const Color(0xFF7A3CFF),
+    3 => const Color(0xFFF3B83F),
+    _ => context.brand.accent,
+  };
+}
+
+String _readingTitle(MatchBoardItem match) {
+  final title = match.thesis?.title.trim();
+  if (title != null && title.isNotEmpty) {
+    return _freeReadingCopy(title);
+  }
+  final signal = match.signals.isEmpty ? null : match.signals.first.title;
+  if (signal != null && signal.trim().isNotEmpty) {
+    return _freeReadingCopy(signal);
+  }
+  return 'Match à suivre';
+}
+
+String? _compactReadingLabel(MatchBoardItem match) {
+  if (match.thesis == null && match.signals.isEmpty) {
+    return null;
+  }
+  final title = _readingTitle(match).toLowerCase();
+  if (title.contains('ouvert')) {
+    return 'Ouvert';
+  }
+  if (title.contains('domination') || title.contains('favori')) {
+    return 'Domination';
+  }
+  if (title.contains('contrôle') || title.contains('controle')) {
+    return 'Contrôle';
+  }
+  if (title.contains('fermé') || title.contains('ferme')) {
+    return 'Fermé';
+  }
+  return 'Lecture';
+}
+
+List<String> _readingChips(MatchBoardItem match) {
+  final thesis = match.thesis;
+  if (thesis != null) {
+    final argumentLabels = thesis.arguments
+        .where((argument) => argument.family != CopilotArgumentFamily.market)
+        .map((argument) => CopilotArgumentPresenter(argument).headline)
+        .map(_shortEvidenceLabel)
+        .where((label) => label.isNotEmpty)
+        .toList();
+    if (argumentLabels.isNotEmpty) {
+      return argumentLabels.take(2).toList(growable: false);
+    }
+
+    final evidence = thesis.supportingEvidence
+        .map((item) => _shortEvidenceLabel(item.label))
+        .where((label) => label.isNotEmpty)
+        .toList();
+    if (evidence.isNotEmpty) {
+      return evidence.take(2).toList(growable: false);
+    }
+  }
+
+  final proofs = match.signals
+      .expand((signal) => signal.proofs)
+      .map(_shortEvidenceLabel)
+      .where((label) => label.isNotEmpty)
+      .toList();
+  if (proofs.isNotEmpty) {
+    return proofs.take(2).toList(growable: false);
+  }
+
+  return const ['Contexte', 'Forme'];
+}
+
+String _freeReadingCopy(String value) {
+  return value
+      .replaceAll('Marché recommandé', 'Lecture recommandée')
+      .replaceAll('marché recommandé', 'lecture recommandée')
+      .replaceAll('Cote', 'Signal')
+      .replaceAll('cote', 'signal');
+}
+
+String _shortEvidenceLabel(String value) {
+  final normalized = _freeReadingCopy(value).trim();
+  final lower = normalized.toLowerCase();
+  if (lower.contains('classement') || lower.contains('écart')) {
+    return 'Classement';
+  }
+  if (lower.contains('forme') || lower.contains('série')) {
+    return 'Forme';
+  }
+  if (lower.contains('domicile')) {
+    return 'Domicile';
+  }
+  if (lower.contains('extérieur') || lower.contains('deplacement')) {
+    return 'Extérieur';
+  }
+  if (lower.contains('attaque') || lower.contains('but')) {
+    return 'Attaque';
+  }
+  if (lower.contains('défense') || lower.contains('defense')) {
+    return 'Défense';
+  }
+  if (lower.contains('rythme') || lower.contains('ouvert')) {
+    return 'Rythme';
+  }
+  return normalized.length <= 18
+      ? normalized
+      : '${normalized.substring(0, 15)}...';
+}
+
+String _competitionShortLabel(String competitionName) {
+  final lower = competitionName.toLowerCase();
+  if (lower.contains('premier')) {
+    return 'PL';
+  }
+  if (lower.contains('liga')) {
+    return 'LALIGA';
+  }
+  if (lower.contains('champions')) {
+    return 'UCL';
+  }
+  if (lower.contains('bundes')) {
+    return 'BUNDES';
+  }
+  if (lower.contains('ligue 1')) {
+    return 'L1';
+  }
+  return competitionName.length <= 6
+      ? competitionName.toUpperCase()
+      : competitionName.substring(0, 3).toUpperCase();
+}
+
+String _fixtureTime(NormalizedFixture fixture) {
+  final kickoff = fixture.kickoff?.toLocal();
+  if (kickoff != null) {
+    return '${kickoff.hour.toString().padLeft(2, '0')}:${kickoff.minute.toString().padLeft(2, '0')}';
+  }
+  return fixture.kickoffLabel;
+}
+
+String _statusLabel(FixtureStatus status) {
+  return switch (status) {
+    FixtureStatus.scheduled => 'À venir',
+    FixtureStatus.live => 'En cours',
+    FixtureStatus.finished => 'Terminé',
+    FixtureStatus.postponed => 'Reporté',
+    FixtureStatus.cancelled => 'Annulé',
+  };
 }
 
 class _RepositoryLoadError extends StatelessWidget {
