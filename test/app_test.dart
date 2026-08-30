@@ -57,10 +57,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 8));
 
-    expect(find.text('Tous les matchs'), findsOneWidget);
+    expect(find.text('Ma sélection'), findsOneWidget);
     expect(find.text('Générateur'), findsOneWidget);
     expect(find.text('Live'), findsNothing);
-    expect(find.text('A suivre aujourd’hui'), findsNothing);
+    expect(find.text('A suivre aujourd’hui'), findsOneWidget);
     expect(find.text('Onboarding'), findsNothing);
   });
 
@@ -91,14 +91,14 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 8));
 
-    expect(find.text('Tous les matchs'), findsOneWidget);
-    expect(find.text('A suivre aujourd’hui'), findsNothing);
-
-    await tester.tap(find.text('Pour moi'));
-    await tester.pumpAndSettle();
-
     expect(find.text('Ma sélection'), findsOneWidget);
     expect(find.text('A suivre aujourd’hui'), findsOneWidget);
+
+    await tester.tap(find.text('Tous'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tous les matchs'), findsOneWidget);
+    expect(find.text('A suivre aujourd’hui'), findsNothing);
   });
 
   testWidgets('opens the ticket generator from the main mode control', (

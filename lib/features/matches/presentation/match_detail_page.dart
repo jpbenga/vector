@@ -119,9 +119,9 @@ class _LectorMatchBackground extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            const Color(0xFF02070A),
+            surfaces.shadow.withValues(alpha: 0.94),
             surfaces.background,
-            const Color(0xFF050A0E),
+            surfaces.backgroundSecondary,
           ],
         ),
       ),
@@ -153,13 +153,13 @@ class _LectorStadiumPainter extends CustomPainter {
       ..shader = RadialGradient(
         center: const Alignment(0, -0.78),
         radius: 0.86,
-        colors: [accent.withValues(alpha: 0.13), Colors.transparent],
+        colors: [accent.withValues(alpha: 0.13), AppColors.transparent],
       ).createShader(Offset.zero & size);
     canvas.drawRect(Offset.zero & size, glow);
 
     final standTop = size.height * 0.18;
     final standBottom = size.height * 0.38;
-    final standPaint = Paint()..color = const Color(0xFF0A151B);
+    final standPaint = Paint()..color = border.withValues(alpha: 0.22);
     final standPath = Path()
       ..moveTo(0, standTop + 44)
       ..quadraticBezierTo(
@@ -191,9 +191,9 @@ class _LectorStadiumPainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          const Color(0xFF0B2524).withValues(alpha: 0.62),
+          accent.withValues(alpha: 0.12),
           shadow.withValues(alpha: 0.18),
-          Colors.transparent,
+          AppColors.transparent,
         ],
       ).createShader(Rect.fromLTWH(0, pitchTop, size.width, size.height));
     canvas.drawRect(
@@ -327,7 +327,7 @@ class _LectorMatchHero extends StatelessWidget {
                 imageUrl: match.competition.logoUrl,
                 fallbackLabel: match.competition.name,
                 icon: Icons.emoji_events_outlined,
-                backgroundColor: Colors.transparent,
+                backgroundColor: AppColors.transparent,
                 padding: 1,
               ),
               const SizedBox(width: 10),
@@ -430,7 +430,7 @@ class _HeroTeamBlock extends StatelessWidget {
           size: 56,
           imageUrl: team.logoUrl,
           fallbackLabel: team.name,
-          backgroundColor: Colors.transparent,
+          backgroundColor: AppColors.transparent,
           padding: 1,
         ),
         const SizedBox(height: 7),
@@ -581,7 +581,7 @@ class _LectorRepereSection extends StatelessWidget {
                 icon: Icons.compare_arrows_rounded,
                 title: 'Match à suivre',
                 subtitle: _secondaryRepereSubtitle(match),
-                color: const Color(0xFF7A3CFF),
+                color: context.opportunities.levelGap,
               ),
             ),
           ],
@@ -621,7 +621,7 @@ class _LectorRepereCard extends StatelessWidget {
               height: 42,
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(AppRadius.odds),
               ),
               child: Icon(icon, color: color, size: 25),
             ),
@@ -1010,6 +1010,7 @@ class _FormDots extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final values = results.isEmpty ? const ['-', '-', '-', '-', '-'] : results;
+    final textColors = context.textColors;
 
     return Wrap(
       alignment: WrapAlignment.end,
@@ -1028,7 +1029,7 @@ class _FormDots extends StatelessWidget {
             child: Text(
               _formDotLabel(result),
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: Colors.white,
+                color: textColors.primary,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -1108,7 +1109,7 @@ class _RecentMatchLine extends StatelessWidget {
           size: 23,
           imageUrl: row.teamLogoUrl,
           fallbackLabel: row.teamName,
-          backgroundColor: Colors.transparent,
+          backgroundColor: AppColors.transparent,
           padding: 1,
         ),
         const SizedBox(width: 8),
@@ -1148,7 +1149,7 @@ class _RecentMatchLine extends StatelessWidget {
           size: 23,
           imageUrl: row.opponentLogoUrl,
           fallbackLabel: row.opponentName,
-          backgroundColor: Colors.transparent,
+          backgroundColor: AppColors.transparent,
           padding: 1,
         ),
       ],
@@ -1264,7 +1265,7 @@ class _MatchQuickDockButton extends StatelessWidget {
     final surfaces = context.surfaces;
 
     return Material(
-      color: Colors.transparent,
+      color: AppColors.transparent,
       child: InkWell(
         onTap: () => _showMatchDockSheet(context),
         borderRadius: BorderRadius.circular(22),

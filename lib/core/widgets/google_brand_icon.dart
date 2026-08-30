@@ -17,10 +17,10 @@ class GoogleBrandIcon extends StatelessWidget {
 }
 
 class _GoogleBrandIconPainter extends CustomPainter {
-  static const _blue = Color(0xFF4285F4);
-  static const _red = Color(0xFFEA4335);
-  static const _yellow = Color(0xFFFBBC05);
-  static const _green = Color(0xFF34A853);
+  static const _blue = Color.fromARGB(255, 66, 133, 244);
+  static const _red = Color.fromARGB(255, 234, 67, 53);
+  static const _yellow = Color.fromARGB(255, 251, 188, 5);
+  static const _green = Color.fromARGB(255, 52, 168, 83);
 
   @override
   void paint(Canvas canvas, Size size) {

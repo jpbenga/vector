@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/auth/supabase_auth_controller.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_components.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
@@ -251,14 +252,14 @@ class _ArrivalSecondaryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final surfaces = context.surfaces;
-    const violet = Color(0xFFB56CFF);
+    final violet = context.opportunities.levelGap;
 
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
         minimumSize: const Size.fromHeight(58),
         foregroundColor: violet,
-        side: const BorderSide(color: violet, width: 1.4),
+        side: BorderSide(color: violet, width: 1.4),
         backgroundColor: surfaces.surface.withValues(alpha: 0.2),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.control),
@@ -315,12 +316,12 @@ class _TodayMatchesPreview extends StatelessWidget {
           badgeColor: brand.accent,
         ),
         Divider(height: 12, color: surfaces.border),
-        const _PreviewMatchRow(
+        _PreviewMatchRow(
           homeLogoUrl: 'https://media.api-sports.io/football/teams/541.png',
           awayLogoUrl: 'https://media.api-sports.io/football/teams/157.png',
           label: 'Real Madrid - Bayern',
           badge: 'Domination attendue',
-          badgeColor: Color(0xFFB56CFF),
+          badgeColor: context.opportunities.levelGap,
         ),
         Divider(height: 12, color: surfaces.border),
         _PreviewMatchRow(
@@ -382,7 +383,7 @@ class _PreviewMatchRow extends StatelessWidget {
                   size: 34,
                   imageUrl: homeLogoUrl,
                   fallbackLabel: label,
-                  backgroundColor: Colors.transparent,
+                  backgroundColor: AppColors.transparent,
                 ),
                 Positioned(
                   left: 30,
@@ -390,7 +391,7 @@ class _PreviewMatchRow extends StatelessWidget {
                     size: 34,
                     imageUrl: awayLogoUrl,
                     fallbackLabel: label,
-                    backgroundColor: Colors.transparent,
+                    backgroundColor: AppColors.transparent,
                   ),
                 ),
               ],
@@ -608,7 +609,7 @@ class _StadiumArrivalBackground extends StatelessWidget {
                 center: const Alignment(0, -0.16),
                 radius: 0.84,
                 colors: [
-                  Colors.transparent,
+                  AppColors.transparent,
                   surfaces.shadow.withValues(alpha: 0.46),
                 ],
               ),

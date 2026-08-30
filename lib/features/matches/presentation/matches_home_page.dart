@@ -69,7 +69,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
   bool _isSettlingSavedTickets = false;
   String? _lastTicketSettlementSignature;
   DateTime _selectedScoresDate = _todayDate();
-  _ScoresRedesignMode _scoresMode = _ScoresRedesignMode.all;
+  _ScoresRedesignMode _scoresMode = _ScoresRedesignMode.forMe;
 
   @override
   void initState() {
@@ -1694,11 +1694,11 @@ class _QuickDockClosedButton extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: context.surfaces.surface.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(color: context.brand.accent.withValues(alpha: 0.36)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.35),
+            color: context.surfaces.shadow.withValues(alpha: 0.35),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
@@ -1708,7 +1708,7 @@ class _QuickDockClosedButton extends StatelessWidget {
         color: AppColors.transparent,
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AppRadius.card),
           child: SizedBox(
             width: 52,
             height: 44,
@@ -1817,8 +1817,8 @@ class _ScoresCompetitionGroup {
 
 Color _readingColor(BuildContext context, int rank) {
   return switch (rank) {
-    2 => const Color(0xFF7A3CFF),
-    3 => const Color(0xFFF3B83F),
+    2 => context.opportunities.levelGap,
+    3 => context.opportunities.credibleOutsider,
     _ => context.brand.accent,
   };
 }
