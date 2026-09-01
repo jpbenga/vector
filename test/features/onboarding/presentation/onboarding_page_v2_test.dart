@@ -376,7 +376,7 @@ Future<void> _reachStep(WidgetTester tester, int step) async {
   if (step <= 3) {
     return;
   }
-  await _tapText(tester, 'Favoris solides');
+  await _tapText(tester, 'Dominations attendues');
   await tester.tap(find.text('Continuer'));
   await tester.pumpAndSettle();
 }

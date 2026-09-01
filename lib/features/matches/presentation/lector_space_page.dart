@@ -5,6 +5,7 @@ import '../../../app/theme/app_theme.dart';
 import '../../../core/auth/supabase_auth_controller.dart';
 import '../../../core/di/service_locator.dart';
 import '../../../core/identity/identity_controller.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -990,7 +991,7 @@ class _CompactSpaceRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final foreground = color ?? context.textColors.secondary;
     return Material(
-      color: Colors.transparent,
+      color: AppColors.transparent,
       child: InkWell(
         onTap: onTap,
         child: Padding(
@@ -1047,7 +1048,7 @@ class _LectorCard extends StatelessWidget {
     }
 
     return Material(
-      color: Colors.transparent,
+      color: AppColors.transparent,
       child: Ink(
         decoration: decoration,
         child: InkWell(

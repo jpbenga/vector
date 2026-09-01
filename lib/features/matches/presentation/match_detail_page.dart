@@ -2669,7 +2669,7 @@ class _LectorFormDotsRow extends StatelessWidget {
             child: Text(
               _lectorFormResultLabel(result),
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: Colors.white,
+                color: context.textColors.primary,
                 fontSize: 10,
                 fontWeight: FontWeight.w900,
               ),
@@ -2839,6 +2839,7 @@ class _LectorFormChartCard extends StatelessWidget {
               color: color,
               gridColor: context.surfaces.border,
               textColor: textColors.secondary,
+              pointTextColor: textColors.primary,
             ),
           ),
         ),
@@ -2853,12 +2854,14 @@ class _LectorFormChartPainter extends CustomPainter {
     required this.color,
     required this.gridColor,
     required this.textColor,
+    required this.pointTextColor,
   });
 
   final List<int> values;
   final Color color;
   final Color gridColor;
   final Color textColor;
+  final Color pointTextColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -2921,7 +2924,7 @@ class _LectorFormChartPainter extends CustomPainter {
         canvas,
         '${displayValues[index]}',
         Offset(points[index].dx - 4, points[index].dy - 19),
-        Colors.white,
+        pointTextColor,
         weight: FontWeight.w900,
       );
       _paintChartText(
@@ -2955,7 +2958,8 @@ class _LectorFormChartPainter extends CustomPainter {
     return values != oldDelegate.values ||
         color != oldDelegate.color ||
         gridColor != oldDelegate.gridColor ||
-        textColor != oldDelegate.textColor;
+        textColor != oldDelegate.textColor ||
+        pointTextColor != oldDelegate.pointTextColor;
   }
 }
 
@@ -3251,7 +3255,7 @@ class _LectorTinyResultBadge extends StatelessWidget {
       child: Text(
         _lectorFormResultLabel(result),
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: Colors.white,
+          color: context.textColors.primary,
           fontSize: 9,
           fontWeight: FontWeight.w900,
         ),
@@ -3844,7 +3848,7 @@ class _ScenarioReadingsSheet extends StatelessWidget {
             height: 5,
             decoration: BoxDecoration(
               color: textColors.secondary.withValues(alpha: 0.72),
-              borderRadius: BorderRadius.circular(999),
+              borderRadius: BorderRadius.circular(AppRadius.chip),
             ),
           ),
           Padding(
@@ -4081,7 +4085,7 @@ class _ScenarioImpactPill extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
         border: Border.all(color: color.withValues(alpha: 0.42)),
       ),
       child: Padding(
@@ -4386,7 +4390,7 @@ class _ScenarioFormDots extends StatelessWidget {
             child: Text(
               _lectorFormResultLabel(result),
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: Colors.white,
+                color: context.textColors.primary,
                 fontSize: 9,
                 fontWeight: FontWeight.w900,
               ),

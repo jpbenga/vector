@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -537,7 +538,7 @@ class _CountryGroupSection extends StatelessWidget {
     return Column(
       children: [
         Material(
-          color: Colors.transparent,
+          color: AppColors.transparent,
           child: InkWell(
             onTap: onToggleCountry,
             child: Padding(
@@ -653,7 +654,7 @@ class _CompetitionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.transparent,
+      color: AppColors.transparent,
       child: InkWell(
         key: ValueKey('lector-competition-${competition.id}'),
         onTap: onTap,
@@ -719,7 +720,7 @@ class _SelectionMark extends StatelessWidget {
       width: 26,
       height: 26,
       decoration: BoxDecoration(
-        color: isSelected ? accent : Colors.transparent,
+        color: isSelected ? accent : AppColors.transparent,
         borderRadius: BorderRadius.circular(AppRadius.control),
         border: Border.all(
           color: isSelected ? accent : context.surfaces.border,
@@ -758,7 +759,7 @@ class _ShowMoreRow extends StatelessWidget {
         ? 'Réduire'
         : 'Afficher $hiddenCount autre${hiddenCount > 1 ? 's' : ''}';
     return Material(
-      color: Colors.transparent,
+      color: AppColors.transparent,
       child: InkWell(
         onTap: onTap,
         child: Padding(

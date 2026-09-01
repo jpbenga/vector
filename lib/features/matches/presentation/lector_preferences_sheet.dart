@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -109,8 +110,8 @@ Future<TicketStrategySheetResult?> showTicketStrategyManagementSheet({
     context: context,
     isScrollControlled: true,
     showDragHandle: false,
-    backgroundColor: Colors.transparent,
-    barrierColor: Colors.black.withValues(alpha: 0.36),
+    backgroundColor: AppColors.transparent,
+    barrierColor: context.surfaces.scrim.withValues(alpha: 0.36),
     builder: (context) => _TicketStrategyEditorSheet(
       strategy: strategy,
       rank: rank,
@@ -1532,7 +1533,7 @@ class _DeleteStrategyConfirmation extends StatelessWidget {
                               onPressed: onConfirm,
                               style: FilledButton.styleFrom(
                                 backgroundColor: context.semantic.error,
-                                foregroundColor: Colors.white,
+                                foregroundColor: context.surfaces.background,
                               ),
                               child: const Text('Supprimer'),
                             ),
