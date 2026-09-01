@@ -84,10 +84,7 @@ class SavedMatchFavoritesStore {
     }
   }
 
-  Future<void> _saveLocal(
-    IdentityScope scope,
-    Set<String> favoriteIds,
-  ) async {
+  Future<void> _saveLocal(IdentityScope scope, Set<String> favoriteIds) async {
     await _scopedPersistence.write(
       scope,
       ScopedDataKeys.matchFavorites,

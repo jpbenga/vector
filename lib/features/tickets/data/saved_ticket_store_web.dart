@@ -152,11 +152,7 @@ class SavedTicketStore {
     final encoded = Uri.encodeComponent(
       jsonEncode([for (final ticket in normalized) ticket.toJson()]),
     );
-    await _scopedPersistence.write(
-      scope,
-      ScopedDataKeys.savedTickets,
-      encoded,
-    );
+    await _scopedPersistence.write(scope, ScopedDataKeys.savedTickets, encoded);
   }
 
   SupabaseClient _accountClient() {

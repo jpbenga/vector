@@ -93,9 +93,8 @@ class _CopilotFlowPageState extends State<CopilotFlowPage> {
       );
     }
 
-    final isSignedIn = _identityController?.isAccount ??
-        _authController?.isSignedIn ??
-        false;
+    final isSignedIn =
+        _identityController?.isAccount ?? _authController?.isSignedIn ?? false;
     if (!_hasCompletedAuthEntry && !isSignedIn) {
       return AuthEntryPage(
         controller: _authController,

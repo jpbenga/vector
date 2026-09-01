@@ -29,8 +29,8 @@ class AuthMenuButton extends StatelessWidget {
       builder: (context, _) {
         if (!controller.isSignedIn && showGuestLabel) {
           return Tooltip(
-              message: 'Invité - se connecter',
-              child: TextButton.icon(
+            message: 'Invité - se connecter',
+            child: TextButton.icon(
               onPressed: () =>
                   _showAuthSheet(context, controller, identityController),
               icon: const Icon(Icons.person_outline_rounded),

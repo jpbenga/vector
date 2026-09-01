@@ -1443,19 +1443,13 @@ class _DisconnectedAuthSheetState extends State<_DisconnectedAuthSheet> {
                 email: email,
                 password: password,
               ) ??
-              controller.signUpWithPassword(
-                email: email,
-                password: password,
-              );
+              controller.signUpWithPassword(email: email, password: password);
         }
         return widget.identityController?.signInWithPassword(
               email: email,
               password: password,
             ) ??
-            controller.signInWithPassword(
-            email: email,
-            password: password,
-          );
+            controller.signInWithPassword(email: email, password: password);
       },
       successMessageWhenStillSignedOut: _isCreatingAccount
           ? 'Compte créé. Vérifiez votre e-mail si une confirmation est demandée.'
@@ -4118,10 +4112,7 @@ class _ChampionshipsByCountryViewState
     setState(() {
       _toggleSetItem(_favoriteIds, favoriteId);
     });
-    _favoriteStore.save(
-      scope: widget.identityScope,
-      favoriteIds: _favoriteIds,
-    );
+    _favoriteStore.save(scope: widget.identityScope, favoriteIds: _favoriteIds);
   }
 
   Future<void> _refreshCurrentDate() async {

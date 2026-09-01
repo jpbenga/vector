@@ -40,10 +40,7 @@ class GuestAccountMigrationService {
     if (profile != null) {
       await profileStore.save(scope: accountScope, profile: profile);
     }
-    await ticketStrategyStore.save(
-      scope: accountScope,
-      strategies: strategies,
-    );
+    await ticketStrategyStore.save(scope: accountScope, strategies: strategies);
     await favoriteStore.save(scope: accountScope, favoriteIds: favoriteIds);
     await ticketStore.saveAll(scope: accountScope, tickets: tickets);
   }

@@ -28,10 +28,7 @@ class SupabaseTicketStrategyRepository {
   }
 
   Future<void> saveAll(List<TicketStrategy> strategies) async {
-    await _client
-        .from('ticket_strategies')
-        .delete()
-        .eq('user_id', _userId);
+    await _client.from('ticket_strategies').delete().eq('user_id', _userId);
 
     if (strategies.isEmpty) {
       return;

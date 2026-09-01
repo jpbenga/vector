@@ -26,10 +26,7 @@ class SupabaseMatchFavoritesRepository {
   }
 
   Future<void> save(Set<String> favoriteIds) async {
-    await _client
-        .from('match_favorites')
-        .delete()
-        .eq('user_id', _userId);
+    await _client.from('match_favorites').delete().eq('user_id', _userId);
 
     if (favoriteIds.isEmpty) {
       return;

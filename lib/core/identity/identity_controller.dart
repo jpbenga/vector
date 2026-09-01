@@ -158,7 +158,8 @@ class IdentityController extends ChangeNotifier {
     try {
       await _authController.signOut();
     } finally {
-      final guestId = await _deviceIdentityStore.currentOrRotateConsumedGuestId();
+      final guestId = await _deviceIdentityStore
+          .currentOrRotateConsumedGuestId();
       _isVoluntaryLogout = false;
       _activateGuest(guestId);
     }
@@ -171,7 +172,8 @@ class IdentityController extends ChangeNotifier {
         await _authController.signOut();
       }
     } finally {
-      final guestId = await _deviceIdentityStore.currentOrRotateConsumedGuestId();
+      final guestId = await _deviceIdentityStore
+          .currentOrRotateConsumedGuestId();
       _isVoluntaryLogout = false;
       _activateGuest(guestId);
     }

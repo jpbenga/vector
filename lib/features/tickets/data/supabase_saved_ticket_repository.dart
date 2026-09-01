@@ -50,10 +50,7 @@ class SupabaseSavedTicketRepository {
         .from('saved_ticket_selections')
         .delete()
         .eq('user_id', _userId);
-    await _client
-        .from('saved_tickets')
-        .delete()
-        .eq('user_id', _userId);
+    await _client.from('saved_tickets').delete().eq('user_id', _userId);
 
     if (tickets.isEmpty) {
       return;

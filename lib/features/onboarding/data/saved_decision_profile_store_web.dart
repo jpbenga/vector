@@ -33,10 +33,7 @@ class SavedDecisionProfileStore {
       );
       final remoteProfile = await remoteRepository.load();
       if (remoteProfile == null) {
-        await _scopedPersistence.delete(
-          scope,
-          ScopedDataKeys.decisionProfile,
-        );
+        await _scopedPersistence.delete(scope, ScopedDataKeys.decisionProfile);
         return null;
       }
 
