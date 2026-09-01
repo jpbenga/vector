@@ -4,17 +4,16 @@ import '../../../core/identity/identity_scope.dart';
 
 class SupabaseMatchFavoritesRepository {
   SupabaseMatchFavoritesRepository({
-    required SupabaseClient client,
+    required this.client,
     required IdentityScope scope,
   }) : assert(scope.isAccount),
-       _client = client,
        _userId = scope.id;
 
-  final SupabaseClient _client;
+  final SupabaseClient client;
   final String _userId;
 
   Future<Set<String>> load() async {
-    final rows = await _client
+    final rows = await client
         .from('match_favorites')
         .select('match_id')
         .eq('user_id', _userId);
@@ -26,13 +25,13 @@ class SupabaseMatchFavoritesRepository {
   }
 
   Future<void> save(Set<String> favoriteIds) async {
-    await _client.from('match_favorites').delete().eq('user_id', _userId);
+    await client.from('match_favorites').delete().eq('user_id', _userId);
 
     if (favoriteIds.isEmpty) {
       return;
     }
 
-    await _client.from('match_favorites').insert([
+    await client.from('match_favorites').insert([
       for (final id in favoriteIds) {'user_id': _userId, 'match_id': id},
     ]);
   }

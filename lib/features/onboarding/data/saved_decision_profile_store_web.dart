@@ -12,13 +12,12 @@ import '../domain/decision_profile.dart';
 import 'supabase_decision_profile_repository.dart';
 
 class SavedDecisionProfileStore {
-  const SavedDecisionProfileStore({ScopedPersistence? persistence})
-    : _persistence = persistence;
+  const SavedDecisionProfileStore({this.persistence});
 
   static const legacyStorageKey = 'vector.saved_decision_profile.v1';
   static const legacyCookieKey = 'vector_saved_decision_profile_v1';
 
-  final ScopedPersistence? _persistence;
+  final ScopedPersistence? persistence;
 
   Future<DecisionProfile?> load({required IdentityScope scope}) async {
     _ensureUserOwned(scope);
@@ -68,7 +67,7 @@ class SavedDecisionProfileStore {
   }
 
   ScopedPersistence get _scopedPersistence =>
-      _persistence ?? const ScopedPersistence();
+      persistence ?? const ScopedPersistence();
 
   Future<DecisionProfile?> _loadLocal(IdentityScope scope) async {
     final raw = await _scopedPersistence.read(

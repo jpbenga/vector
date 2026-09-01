@@ -11,12 +11,11 @@ import '../../../core/supabase/supabase_initializer.dart';
 import 'supabase_match_favorites_repository.dart';
 
 class SavedMatchFavoritesStore {
-  const SavedMatchFavoritesStore({ScopedPersistence? persistence})
-    : _persistence = persistence;
+  const SavedMatchFavoritesStore({this.persistence});
 
   static const legacyStorageKey = 'vector.match_explorer_favorites.v1';
 
-  final ScopedPersistence? _persistence;
+  final ScopedPersistence? persistence;
 
   Future<Set<String>> load({required IdentityScope scope}) async {
     _ensureUserOwned(scope);
@@ -61,7 +60,7 @@ class SavedMatchFavoritesStore {
   }
 
   ScopedPersistence get _scopedPersistence =>
-      _persistence ?? const ScopedPersistence();
+      persistence ?? const ScopedPersistence();
 
   Future<Set<String>> _loadLocal(IdentityScope scope) async {
     final raw = await _scopedPersistence.read(

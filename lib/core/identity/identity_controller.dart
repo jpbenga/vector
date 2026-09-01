@@ -20,17 +20,14 @@ enum IdentityStatus {
 
 class IdentityController extends ChangeNotifier {
   IdentityController({
-    required SupabaseAuthController authController,
-    DeviceIdentityStore deviceIdentityStore = const DeviceIdentityStore(),
-    GuestAccountMigrationService migrationService =
-        const GuestAccountMigrationService(),
-  }) : _authController = authController,
-       _deviceIdentityStore = deviceIdentityStore,
-       _migrationService = migrationService;
+    required this.authController,
+    this.deviceIdentityStore = const DeviceIdentityStore(),
+    this.migrationService = const GuestAccountMigrationService(),
+  });
 
-  final SupabaseAuthController _authController;
-  final DeviceIdentityStore _deviceIdentityStore;
-  final GuestAccountMigrationService _migrationService;
+  final SupabaseAuthController authController;
+  final DeviceIdentityStore deviceIdentityStore;
+  final GuestAccountMigrationService migrationService;
 
   IdentityStatus _status = IdentityStatus.resolving;
   IdentityScope? _scope;
@@ -54,7 +51,7 @@ class IdentityController extends ChangeNotifier {
       return;
     }
     _started = true;
-    _authController.addListener(_handleAuthChange);
+    authController.addListener(_handleAuthChange);
     await _resolveInitialScope();
   }
 
@@ -80,11 +77,8 @@ class IdentityController extends ChangeNotifier {
   }) async {
     _setStatus(IdentityStatus.authenticating);
     try {
-      await _authController.signInWithPassword(
-        email: email,
-        password: password,
-      );
-      final user = _authController.user;
+      await authController.signInWithPassword(email: email, password: password);
+      final user = authController.user;
       if (user == null) {
         _setStatus(IdentityStatus.authFailed);
         return;
@@ -103,11 +97,8 @@ class IdentityController extends ChangeNotifier {
     final guestScope = _scope?.isGuest == true ? _scope : null;
     _setStatus(IdentityStatus.creatingAccount);
     try {
-      await _authController.signUpWithPassword(
-        email: email,
-        password: password,
-      );
-      final user = _authController.user;
+      await authController.signUpWithPassword(email: email, password: password);
+      final user = authController.user;
       if (user == null) {
         _setStatus(IdentityStatus.authFailed);
         return;
@@ -116,11 +107,11 @@ class IdentityController extends ChangeNotifier {
       final accountScope = IdentityScope.account(user.id);
       if (guestScope != null) {
         _setStatus(IdentityStatus.migratingGuestToNewAccount);
-        await _migrationService.migrateGuestToNewAccount(
+        await migrationService.migrateGuestToNewAccount(
           guestScope: guestScope,
           accountScope: accountScope,
         );
-        await _deviceIdentityStore.markGuestConsumed(
+        await deviceIdentityStore.markGuestConsumed(
           guestId: guestScope.id,
           accountUserId: user.id,
         );
@@ -135,8 +126,8 @@ class IdentityController extends ChangeNotifier {
   Future<void> signInWithGoogle() async {
     _setStatus(IdentityStatus.authenticating);
     try {
-      await _authController.signInWithGoogle();
-      final user = _authController.user;
+      await authController.signInWithGoogle();
+      final user = authController.user;
       if (user != null) {
         _activateAccount(user.id);
       } else {
@@ -156,9 +147,9 @@ class IdentityController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _authController.signOut();
+      await authController.signOut();
     } finally {
-      final guestId = await _deviceIdentityStore
+      final guestId = await deviceIdentityStore
           .currentOrRotateConsumedGuestId();
       _isVoluntaryLogout = false;
       _activateGuest(guestId);
@@ -168,11 +159,11 @@ class IdentityController extends ChangeNotifier {
   Future<void> continueWithoutAccountFromReauth() async {
     _isVoluntaryLogout = true;
     try {
-      if (_authController.isSignedIn) {
-        await _authController.signOut();
+      if (authController.isSignedIn) {
+        await authController.signOut();
       }
     } finally {
-      final guestId = await _deviceIdentityStore
+      final guestId = await deviceIdentityStore
           .currentOrRotateConsumedGuestId();
       _isVoluntaryLogout = false;
       _activateGuest(guestId);
@@ -180,13 +171,13 @@ class IdentityController extends ChangeNotifier {
   }
 
   Future<void> _resolveInitialScope() async {
-    final user = _authController.user;
+    final user = authController.user;
     if (user != null) {
       _activateAccount(user.id);
       return;
     }
 
-    final guestId = await _deviceIdentityStore.currentOrRotateConsumedGuestId();
+    final guestId = await deviceIdentityStore.currentOrRotateConsumedGuestId();
     _activateGuest(guestId);
   }
 
@@ -195,7 +186,7 @@ class IdentityController extends ChangeNotifier {
       return;
     }
 
-    final user = _authController.user;
+    final user = authController.user;
     if (user != null) {
       if (_scope != IdentityScope.account(user.id)) {
         _activateAccount(user.id);
@@ -214,7 +205,7 @@ class IdentityController extends ChangeNotifier {
   }
 
   Future<void> _restoreGuestAfterAuthFailure() async {
-    final guestId = await _deviceIdentityStore.currentOrRotateConsumedGuestId();
+    final guestId = await deviceIdentityStore.currentOrRotateConsumedGuestId();
     _activateGuest(guestId);
   }
 
@@ -245,7 +236,7 @@ class IdentityController extends ChangeNotifier {
   @override
   void dispose() {
     if (_started) {
-      _authController.removeListener(_handleAuthChange);
+      authController.removeListener(_handleAuthChange);
     }
     super.dispose();
   }

@@ -3,6 +3,7 @@ import 'package:copilot/app/view/copilot_flow_page.dart';
 import 'package:copilot/core/config/app_config.dart';
 import 'package:copilot/core/config/app_environment.dart';
 import 'package:copilot/core/di/service_locator.dart';
+import 'package:copilot/core/identity/identity_scope.dart';
 import 'package:copilot/core/theme/app_theme.dart';
 import 'package:copilot/features/matches/data/match_feed_repository.dart';
 import 'package:copilot/features/onboarding/data/saved_decision_profile_store.dart';
@@ -303,12 +304,15 @@ void main() {
 
 class _ProfileStoreWithExistingProfile implements SavedDecisionProfileStore {
   @override
-  Future<DecisionProfile?> load() async {
+  Future<DecisionProfile?> load({required IdentityScope scope}) async {
     return const DecisionProfile(onboardingVersion: '2.0', answers: []);
   }
 
   @override
-  Future<void> save(DecisionProfile profile) async {}
+  Future<void> save({
+    required IdentityScope scope,
+    required DecisionProfile profile,
+  }) async {}
 }
 
 class _CapturingProfileStore implements SavedDecisionProfileStore {
@@ -318,12 +322,15 @@ class _CapturingProfileStore implements SavedDecisionProfileStore {
   DecisionProfile? savedProfile;
 
   @override
-  Future<DecisionProfile?> load() async {
+  Future<DecisionProfile?> load({required IdentityScope scope}) async {
     return _profile;
   }
 
   @override
-  Future<void> save(DecisionProfile profile) async {
+  Future<void> save({
+    required IdentityScope scope,
+    required DecisionProfile profile,
+  }) async {
     _profile = profile;
     savedProfile = profile;
   }
@@ -331,20 +338,28 @@ class _CapturingProfileStore implements SavedDecisionProfileStore {
 
 class _EmptyTicketStrategyStore implements SavedTicketStrategyStore {
   @override
-  Future<List<TicketStrategy>> load() async => const [];
+  Future<List<TicketStrategy>> load({required IdentityScope scope}) async =>
+      const [];
 
   @override
-  Future<void> save(List<TicketStrategy> strategies) async {}
+  Future<void> save({
+    required IdentityScope scope,
+    required List<TicketStrategy> strategies,
+  }) async {}
 }
 
 class _CapturingTicketStrategyStore implements SavedTicketStrategyStore {
   List<TicketStrategy> savedStrategies = const [];
 
   @override
-  Future<List<TicketStrategy>> load() async => const [];
+  Future<List<TicketStrategy>> load({required IdentityScope scope}) async =>
+      const [];
 
   @override
-  Future<void> save(List<TicketStrategy> strategies) async {
+  Future<void> save({
+    required IdentityScope scope,
+    required List<TicketStrategy> strategies,
+  }) async {
     savedStrategies = strategies;
   }
 }

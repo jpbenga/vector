@@ -12,13 +12,12 @@ import '../domain/ticket_strategy.dart';
 import 'supabase_ticket_strategy_repository.dart';
 
 class SavedTicketStrategyStore {
-  const SavedTicketStrategyStore({ScopedPersistence? persistence})
-    : _persistence = persistence;
+  const SavedTicketStrategyStore({this.persistence});
 
   static const legacyStorageKey = 'vector.saved_ticket_strategies.v1';
   static const legacyCookieKey = 'vector_saved_ticket_strategies_v1';
 
-  final ScopedPersistence? _persistence;
+  final ScopedPersistence? persistence;
 
   Future<List<TicketStrategy>> load({required IdentityScope scope}) async {
     _ensureUserOwned(scope);
@@ -63,7 +62,7 @@ class SavedTicketStrategyStore {
   }
 
   ScopedPersistence get _scopedPersistence =>
-      _persistence ?? const ScopedPersistence();
+      persistence ?? const ScopedPersistence();
 
   Future<List<TicketStrategy>> _loadLocal(IdentityScope scope) async {
     final raw = await _scopedPersistence.read(

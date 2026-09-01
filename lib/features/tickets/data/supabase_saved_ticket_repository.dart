@@ -5,22 +5,21 @@ import '../domain/saved_ticket.dart';
 
 class SupabaseSavedTicketRepository {
   SupabaseSavedTicketRepository({
-    required SupabaseClient client,
+    required this.client,
     required IdentityScope scope,
   }) : assert(scope.isAccount),
-       _client = client,
        _userId = scope.id;
 
-  final SupabaseClient _client;
+  final SupabaseClient client;
   final String _userId;
 
   Future<List<SavedTicket>> load() async {
-    final ticketRows = await _client
+    final ticketRows = await client
         .from('saved_tickets')
         .select()
         .eq('user_id', _userId)
         .order('created_at', ascending: false);
-    final selectionRows = await _client
+    final selectionRows = await client
         .from('saved_ticket_selections')
         .select()
         .eq('user_id', _userId)
@@ -46,17 +45,17 @@ class SupabaseSavedTicketRepository {
   }
 
   Future<void> saveAll(List<SavedTicket> tickets) async {
-    await _client
+    await client
         .from('saved_ticket_selections')
         .delete()
         .eq('user_id', _userId);
-    await _client.from('saved_tickets').delete().eq('user_id', _userId);
+    await client.from('saved_tickets').delete().eq('user_id', _userId);
 
     if (tickets.isEmpty) {
       return;
     }
 
-    await _client.from('saved_tickets').insert([
+    await client.from('saved_tickets').insert([
       for (final ticket in tickets)
         savedTicketToSupabaseRow(ticket, userId: _userId),
     ]);
@@ -68,17 +67,17 @@ class SupabaseSavedTicketRepository {
       return;
     }
 
-    await _client.from('saved_ticket_selections').insert(selectionRows);
+    await client.from('saved_ticket_selections').insert(selectionRows);
   }
 
   Future<void> upsert(SavedTicket ticket) async {
-    await _client
+    await client
         .from('saved_tickets')
         .upsert(
           savedTicketToSupabaseRow(ticket, userId: _userId),
           onConflict: 'user_id,id',
         );
-    await _client
+    await client
         .from('saved_ticket_selections')
         .delete()
         .eq('user_id', _userId)
@@ -88,13 +87,13 @@ class SupabaseSavedTicketRepository {
       return;
     }
 
-    await _client
+    await client
         .from('saved_ticket_selections')
         .insert(savedTicketSelectionRows(ticket, userId: _userId));
   }
 
   Future<void> delete(String ticketId) async {
-    await _client
+    await client
         .from('saved_tickets')
         .delete()
         .eq('user_id', _userId)

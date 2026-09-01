@@ -7,17 +7,16 @@ import '../domain/profile_compiler.dart';
 
 class SupabaseDecisionProfileRepository {
   SupabaseDecisionProfileRepository({
-    required SupabaseClient client,
+    required this.client,
     required IdentityScope scope,
   }) : assert(scope.isAccount),
-       _client = client,
        _userId = scope.id;
 
-  final SupabaseClient _client;
+  final SupabaseClient client;
   final String _userId;
 
   Future<DecisionProfile?> load() async {
-    final row = await _client
+    final row = await client
         .from('profiles')
         .select('decision_profile')
         .eq('user_id', _userId)
@@ -37,7 +36,7 @@ class SupabaseDecisionProfileRepository {
 
   Future<void> save(DecisionProfile profile) async {
     final compiledProfile = const ProfileCompiler().compile(profile);
-    final existing = await _client
+    final existing = await client
         .from('profiles')
         .select('id')
         .eq('user_id', _userId)
@@ -56,11 +55,11 @@ class SupabaseDecisionProfileRepository {
 
     final profileId = existing?['id']?.toString();
     if (profileId == null || profileId.isEmpty) {
-      await _client.from('profiles').insert(row);
+      await client.from('profiles').insert(row);
       return;
     }
 
-    await _client
+    await client
         .from('profiles')
         .update(row)
         .eq('user_id', _userId)

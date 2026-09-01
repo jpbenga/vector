@@ -6,17 +6,16 @@ import '../domain/ticket_strategy.dart';
 
 class SupabaseTicketStrategyRepository {
   SupabaseTicketStrategyRepository({
-    required SupabaseClient client,
+    required this.client,
     required IdentityScope scope,
   }) : assert(scope.isAccount),
-       _client = client,
        _userId = scope.id;
 
-  final SupabaseClient _client;
+  final SupabaseClient client;
   final String _userId;
 
   Future<List<TicketStrategy>> load() async {
-    final rows = await _client
+    final rows = await client
         .from('ticket_strategies')
         .select()
         .eq('user_id', _userId)
@@ -28,13 +27,13 @@ class SupabaseTicketStrategyRepository {
   }
 
   Future<void> saveAll(List<TicketStrategy> strategies) async {
-    await _client.from('ticket_strategies').delete().eq('user_id', _userId);
+    await client.from('ticket_strategies').delete().eq('user_id', _userId);
 
     if (strategies.isEmpty) {
       return;
     }
 
-    await _client.from('ticket_strategies').insert([
+    await client.from('ticket_strategies').insert([
       for (final strategy in strategies)
         ticketStrategyToSupabaseRow(strategy, userId: _userId),
     ]);
