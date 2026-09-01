@@ -509,6 +509,25 @@ class AppComponentColors extends ThemeExtension<AppComponentColors> {
 enum AppReadingBadgeVariant { simple, combined, soft }
 
 @immutable
+class AppOpportunityVisualIdentity {
+  const AppOpportunityVisualIdentity({
+    required this.id,
+    required this.icon,
+    required this.style,
+  });
+
+  final String id;
+  final IconData icon;
+  final AppReadingFamilyStyle style;
+
+  Color get color => style.color;
+
+  AppReadingBadgeStyle badgeFor(AppReadingBadgeVariant variant) {
+    return style.badgeFor(variant);
+  }
+}
+
+@immutable
 class AppReadingBadgeStyle {
   const AppReadingBadgeStyle({
     required this.foreground,
@@ -769,21 +788,144 @@ class AppOpportunityPalette extends ThemeExtension<AppOpportunityPalette> {
     return familyForThesisId(id).color;
   }
 
-  AppReadingFamilyStyle familyForThesisId(String id) {
-    return switch (id) {
-      'solid_favorite' || 'home_strength' => solidFavoriteStyle,
+  AppOpportunityVisualIdentity scenarioIdentityForProfileId(String id) {
+    return AppOpportunityVisualIdentity(
+      id: id,
+      icon: iconForProfileId(id),
+      style: familyForProfileId(id),
+    );
+  }
+
+  AppOpportunityVisualIdentity readingIdentityForId(String id) {
+    return AppOpportunityVisualIdentity(
+      id: id,
+      icon: iconForReadingId(id),
+      style: familyForThesisId(id),
+    );
+  }
+
+  AppReadingFamilyStyle familyForProfileId(String id) {
+    return switch (_canonicalOpportunityId(id)) {
+      'solid_favorite' => solidFavoriteStyle,
+      'struggling_team' => strugglingTeamStyle,
+      'offensive_match' => openMatchStyle,
+      'defensive_match' => closedMatchStyle,
+      'ranking_gap' => levelGapStyle,
+      'credible_outsider' => credibleOutsiderStyle,
+      'fragile_defense' => fragileDefenseStyle,
+      'prolific_attack' => prolificAttackStyle,
+      'positive_series' => positiveStreakStyle,
+      'negative_series' => negativeStreakStyle,
+      _ => prolificAttackStyle,
+    };
+  }
+
+  IconData iconForProfileId(String id) {
+    return switch (_canonicalOpportunityId(id)) {
+      'solid_favorite' => Icons.bar_chart_rounded,
+      'struggling_team' => Icons.warning_amber_rounded,
+      'offensive_match' => Icons.compare_arrows_rounded,
+      'defensive_match' => Icons.shield_outlined,
+      'ranking_gap' => Icons.trip_origin_rounded,
+      'credible_outsider' => Icons.star_rounded,
+      'fragile_defense' => Icons.security_update_warning_rounded,
+      'prolific_attack' => Icons.bolt_rounded,
+      'positive_series' => Icons.show_chart_rounded,
+      'negative_series' => Icons.trending_down_rounded,
+      _ => Icons.track_changes_rounded,
+    };
+  }
+
+  IconData iconForReadingId(String id) {
+    return switch (_canonicalOpportunityId(id)) {
+      'solid_favorite' ||
+      'expected_domination' ||
+      'favorite_with_protection' ||
+      'controlled_favorite' ||
+      'cautious_double_chance' => Icons.trending_up_rounded,
       'open_match' ||
       'offensive_match' ||
-      'open_match_profile' => openMatchStyle,
-      'closed_match' || 'closed_match_profile' => closedMatchStyle,
+      'open_match_profile' ||
+      'convergent_open_match' ||
+      'both_sides_can_score' => Icons.compare_arrows_rounded,
+      'closed_match' ||
+      'closed_match_profile' ||
+      'convergent_closed_match' => Icons.shield_outlined,
       'level_gap' ||
       'ranking_gap' ||
       'ranking_superiority' ||
-      'structural_level_gap' => levelGapStyle,
+      'structural_level_gap' ||
+      'balanced_hierarchy' => Icons.trip_origin_rounded,
+      'credible_outsider' || 'market_favorite' => Icons.star_rounded,
+      'fragile_defense' ||
+      'defensive_weakness' ||
+      'contradiction' ||
+      'conflicting_signals' => Icons.security_update_warning_rounded,
+      'prolific_attack' ||
+      'strong_attack' ||
+      'xg_creation' ||
+      'high_xg_creation' ||
+      'frequent_over_25' ||
+      'frequent_btts' => Icons.bolt_rounded,
+      'positive_streak' ||
+      'strong_recent_form' ||
+      'positive_form' ||
+      'improving_form' => Icons.show_chart_rounded,
+      'negative_streak' ||
+      'weak_recent_form' ||
+      'declining_form' ||
+      'scoring_difficulty' ||
+      'low_xg_creation' ||
+      'offensive_underperformance' ||
+      'team_better_than_results' ||
+      'misleading_result' => Icons.trending_down_rounded,
+      'team_in_difficulty' ||
+      'team_in_serious_difficulty' ||
+      'poor_overall_performance' ||
+      'solid_defense' ||
+      'frequent_under_25' ||
+      'high_xg_conceded' ||
+      'offensive_overperformance' ||
+      'defensive_overperformance' ||
+      'defensive_underperformance' ||
+      'team_worse_than_results' ||
+      'avoid_match' ||
+      'insufficient_data' ||
+      'post_match_xg_rejected' => Icons.warning_amber_rounded,
+      _ => Icons.auto_awesome_rounded,
+    };
+  }
+
+  AppReadingFamilyStyle familyForThesisId(String id) {
+    return switch (_canonicalOpportunityId(id)) {
+      'solid_favorite' ||
+      'home_strength' ||
+      'expected_domination' ||
+      'cautious_double_chance' ||
+      'favorite_with_protection' ||
+      'controlled_favorite' => solidFavoriteStyle,
+      'open_match' ||
+      'offensive_match' ||
+      'open_match_profile' ||
+      'open_match_confirmed' ||
+      'open_match_rhythm' ||
+      'convergent_open_match' ||
+      'both_sides_can_score' => openMatchStyle,
+      'closed_match' ||
+      'closed_match_profile' ||
+      'closed_match_rhythm' ||
+      'convergent_closed_match' => closedMatchStyle,
+      'level_gap' ||
+      'ranking_gap' ||
+      'ranking_superiority' ||
+      'structural_level_gap' ||
+      'balanced_hierarchy' => levelGapStyle,
       'credible_outsider' || 'market_favorite' => credibleOutsiderStyle,
       'fragile_defense' ||
       'defensive_weakness' ||
-      'contradiction' => fragileDefenseStyle,
+      'contradiction' ||
+      'conflicting_signals' ||
+      'one_sided_scoring' => fragileDefenseStyle,
       'prolific_attack' ||
       'strong_attack' ||
       'xg_creation' ||
@@ -798,13 +940,28 @@ class AppOpportunityPalette extends ThemeExtension<AppOpportunityPalette> {
       'declining_form' ||
       'scoring_difficulty' ||
       'low_xg_creation' ||
-      'offensive_underperformance' => negativeStreakStyle,
+      'home_away_mismatch' ||
+      'strong_home_team' ||
+      'weak_home_team' ||
+      'strong_away_team' ||
+      'weak_away_team' ||
+      'offensive_underperformance' ||
+      'team_better_than_results' ||
+      'misleading_result' => negativeStreakStyle,
       'team_in_difficulty' ||
+      'team_in_serious_difficulty' ||
       'poor_overall_performance' ||
       'solid_defense' ||
+      'frequent_clean_sheet' ||
       'frequent_under_25' ||
       'high_xg_conceded' ||
-      'offensive_overperformance' => strugglingTeamStyle,
+      'offensive_overperformance' ||
+      'defensive_overperformance' ||
+      'defensive_underperformance' ||
+      'team_worse_than_results' ||
+      'avoid_match' ||
+      'insufficient_data' ||
+      'post_match_xg_rejected' => strugglingTeamStyle,
       _ => prolificAttackStyle,
     };
   }
@@ -883,6 +1040,179 @@ class AppOpportunityPalette extends ThemeExtension<AppOpportunityPalette> {
   }
 }
 
+@immutable
+class AppStrategyVisualStyle {
+  const AppStrategyVisualStyle({required this.icon, required this.family});
+
+  final IconData icon;
+  final AppReadingFamilyStyle family;
+
+  Color get color => family.color;
+
+  AppReadingBadgeStyle badgeFor(AppReadingBadgeVariant variant) {
+    return family.badgeFor(variant);
+  }
+
+  AppStrategyVisualStyle lerp(AppStrategyVisualStyle other, double t) {
+    return AppStrategyVisualStyle(
+      icon: t < 0.5 ? icon : other.icon,
+      family: family.lerp(other.family, t),
+    );
+  }
+}
+
+@immutable
+class AppStrategyPalette extends ThemeExtension<AppStrategyPalette> {
+  const AppStrategyPalette({
+    required this.violetStyle,
+    required this.amberStyle,
+    required this.blueStyle,
+    required this.greenStyle,
+  });
+
+  final AppStrategyVisualStyle violetStyle;
+  final AppStrategyVisualStyle amberStyle;
+  final AppStrategyVisualStyle blueStyle;
+  final AppStrategyVisualStyle greenStyle;
+
+  static final vectorDark = AppStrategyPalette.fromColors(
+    surface: AppColors.surface,
+    surfaceHover: AppColors.surfaceHover,
+    violet: AppOpportunityColors.levelGap,
+    amber: AppOpportunityColors.openMatch,
+    blue: AppOpportunityColors.closedMatch,
+    green: AppOpportunityColors.solidFavorite,
+  );
+
+  static final dark = vectorDark;
+
+  static final vectorLight = AppStrategyPalette.fromColors(
+    surface: AppLightColors.surface,
+    surfaceHover: AppLightColors.surfaceHover,
+    violet: AppLightOpportunityColors.levelGap,
+    amber: AppLightOpportunityColors.openMatch,
+    blue: AppLightOpportunityColors.closedMatch,
+    green: AppLightOpportunityColors.solidFavorite,
+  );
+
+  static final gold = AppStrategyPalette.fromColors(
+    surface: AppGoldColors.surface,
+    surfaceHover: AppGoldColors.surfaceHover,
+    violet: AppGoldOpportunityColors.levelGap,
+    amber: AppGoldOpportunityColors.openMatch,
+    blue: AppGoldOpportunityColors.closedMatch,
+    green: AppGoldOpportunityColors.solidFavorite,
+  );
+
+  static final aurora = AppStrategyPalette.fromColors(
+    surface: AppAuroraColors.surface,
+    surfaceHover: AppAuroraColors.surfaceHover,
+    violet: AppAuroraOpportunityColors.levelGap,
+    amber: AppAuroraOpportunityColors.openMatch,
+    blue: AppAuroraOpportunityColors.closedMatch,
+    green: AppAuroraOpportunityColors.solidFavorite,
+  );
+
+  factory AppStrategyPalette.fromColors({
+    required Color surface,
+    required Color surfaceHover,
+    required Color violet,
+    required Color amber,
+    required Color blue,
+    required Color green,
+  }) {
+    AppReadingFamilyStyle family(Color color) {
+      return AppReadingFamilyStyle.fromColor(
+        color: color,
+        surface: surface,
+        surfaceHover: surfaceHover,
+      );
+    }
+
+    return AppStrategyPalette(
+      violetStyle: AppStrategyVisualStyle(
+        icon: Icons.bar_chart_rounded,
+        family: family(violet),
+      ),
+      amberStyle: AppStrategyVisualStyle(
+        icon: Icons.warning_amber_rounded,
+        family: family(amber),
+      ),
+      blueStyle: AppStrategyVisualStyle(
+        icon: Icons.track_changes_rounded,
+        family: family(blue),
+      ),
+      greenStyle: AppStrategyVisualStyle(
+        icon: Icons.star_rounded,
+        family: family(green),
+      ),
+    );
+  }
+
+  AppStrategyVisualStyle styleForIndex(int index) {
+    return switch (index % 4) {
+      0 => violetStyle,
+      1 => amberStyle,
+      2 => blueStyle,
+      _ => greenStyle,
+    };
+  }
+
+  @override
+  AppStrategyPalette copyWith({
+    AppStrategyVisualStyle? violetStyle,
+    AppStrategyVisualStyle? amberStyle,
+    AppStrategyVisualStyle? blueStyle,
+    AppStrategyVisualStyle? greenStyle,
+  }) {
+    return AppStrategyPalette(
+      violetStyle: violetStyle ?? this.violetStyle,
+      amberStyle: amberStyle ?? this.amberStyle,
+      blueStyle: blueStyle ?? this.blueStyle,
+      greenStyle: greenStyle ?? this.greenStyle,
+    );
+  }
+
+  @override
+  AppStrategyPalette lerp(ThemeExtension<AppStrategyPalette>? other, double t) {
+    if (other is! AppStrategyPalette) return this;
+    return AppStrategyPalette(
+      violetStyle: violetStyle.lerp(other.violetStyle, t),
+      amberStyle: amberStyle.lerp(other.amberStyle, t),
+      blueStyle: blueStyle.lerp(other.blueStyle, t),
+      greenStyle: greenStyle.lerp(other.greenStyle, t),
+    );
+  }
+}
+
+String _canonicalOpportunityId(String id) {
+  if (id.startsWith('market_favorite_')) {
+    return 'market_favorite';
+  }
+  if (id.startsWith('ranking_gap_')) {
+    return 'ranking_gap';
+  }
+  if (id.startsWith('poor_performance_')) {
+    return 'poor_overall_performance';
+  }
+  if (id.startsWith('fragile_defense_')) {
+    return 'fragile_defense';
+  }
+  if (id.startsWith('strong_attack_')) {
+    return 'strong_attack';
+  }
+  if (id.startsWith('strong_form_')) {
+    return 'strong_recent_form';
+  }
+  if (id.startsWith('weak_form_')) {
+    return 'weak_recent_form';
+  }
+  if (id.startsWith('contradiction_')) {
+    return 'contradiction';
+  }
+  return id;
+}
+
 extension AppThemeComponents on BuildContext {
   AppBrandPalette get brand {
     return Theme.of(this).extension<AppBrandPalette>() ??
@@ -912,5 +1242,10 @@ extension AppThemeComponents on BuildContext {
   AppOpportunityPalette get opportunities {
     return Theme.of(this).extension<AppOpportunityPalette>() ??
         AppOpportunityPalette.vectorDark;
+  }
+
+  AppStrategyPalette get strategies {
+    return Theme.of(this).extension<AppStrategyPalette>() ??
+        AppStrategyPalette.vectorDark;
   }
 }

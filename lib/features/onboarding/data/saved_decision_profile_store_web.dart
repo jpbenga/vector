@@ -1,70 +1,83 @@
-// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
-
 import 'dart:convert';
-import 'dart:html' as html;
 
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../core/supabase/supabase_user_scope.dart';
+import '../../../core/di/service_locator.dart';
+import '../../../core/identity/identity_scope.dart';
+import '../../../core/identity/scoped_data_keys.dart';
+import '../../../core/identity/scoped_persistence.dart';
+import '../../../core/supabase/supabase_initializer.dart';
 import '../domain/decision_profile.dart';
-import 'local_remote_profile_sync.dart';
 import 'supabase_decision_profile_repository.dart';
 
 class SavedDecisionProfileStore {
-  const SavedDecisionProfileStore();
+  const SavedDecisionProfileStore({ScopedPersistence? persistence})
+    : _persistence = persistence;
 
-  static const _storageKey = 'vector.saved_decision_profile.v1';
-  static const _cookieKey = 'vector_saved_decision_profile_v1';
+  static const legacyStorageKey = 'vector.saved_decision_profile.v1';
+  static const legacyCookieKey = 'vector_saved_decision_profile_v1';
 
-  Future<DecisionProfile?> load() async {
-    final localProfile = _loadLocal();
-    final scope = SupabaseUserScope.current();
-    if (scope == null) {
-      return localProfile;
+  final ScopedPersistence? _persistence;
+
+  Future<DecisionProfile?> load({required IdentityScope scope}) async {
+    _ensureUserOwned(scope);
+    if (scope.isGuest) {
+      return _loadLocal(scope);
     }
 
     try {
-      final remoteRepository = SupabaseDecisionProfileRepository(scope);
-      final remoteProfile = await remoteRepository.load();
-      final resolvedProfile = resolveSyncedDecisionProfile(
-        localProfile: localProfile,
-        remoteProfile: remoteProfile,
+      final remoteRepository = SupabaseDecisionProfileRepository(
+        client: _accountClient(),
+        scope: scope,
       );
-      if (resolvedProfile == null) {
+      final remoteProfile = await remoteRepository.load();
+      if (remoteProfile == null) {
+        await _scopedPersistence.delete(
+          scope,
+          ScopedDataKeys.decisionProfile,
+        );
         return null;
       }
 
-      if (!decisionProfilesEqual(remoteProfile, resolvedProfile)) {
-        await remoteRepository.save(resolvedProfile);
-      }
-      if (!decisionProfilesEqual(localProfile, resolvedProfile)) {
-        _saveLocal(resolvedProfile);
-      }
-
-      return resolvedProfile;
+      await _saveLocal(scope, remoteProfile);
+      return remoteProfile;
     } on Object catch (error) {
-      debugPrint('Remote decision profile sync failed: $error');
-      return localProfile;
+      debugPrint('Remote decision profile load failed: $error');
+      return _loadLocal(scope);
     }
   }
 
-  Future<void> save(DecisionProfile profile) async {
-    _saveLocal(profile);
-    final scope = SupabaseUserScope.current();
-    if (scope == null) {
+  Future<void> save({
+    required IdentityScope scope,
+    required DecisionProfile profile,
+  }) async {
+    _ensureUserOwned(scope);
+    if (scope.isGuest) {
+      await _saveLocal(scope, profile);
       return;
     }
 
     try {
-      await SupabaseDecisionProfileRepository(scope).save(profile);
+      await SupabaseDecisionProfileRepository(
+        client: _accountClient(),
+        scope: scope,
+      ).save(profile);
+      await _saveLocal(scope, profile);
     } on Object catch (error) {
       debugPrint('Remote decision profile save failed: $error');
-      // Local persistence remains the fallback in dev/offline mode.
+      rethrow;
     }
   }
 
-  DecisionProfile? _loadLocal() {
-    final raw = html.window.localStorage[_storageKey] ?? _cookieValue();
+  ScopedPersistence get _scopedPersistence =>
+      _persistence ?? const ScopedPersistence();
+
+  Future<DecisionProfile?> _loadLocal(IdentityScope scope) async {
+    final raw = await _scopedPersistence.read(
+      scope,
+      ScopedDataKeys.decisionProfile,
+    );
     if (raw == null || raw.isEmpty) {
       return null;
     }
@@ -81,27 +94,26 @@ class SavedDecisionProfileStore {
     }
   }
 
-  void _saveLocal(DecisionProfile profile) {
+  Future<void> _saveLocal(IdentityScope scope, DecisionProfile profile) async {
     final encoded = Uri.encodeComponent(jsonEncode(profile.toJson()));
-    html.window.localStorage[_storageKey] = encoded;
-    html.document.cookie =
-        '$_cookieKey=$encoded; path=/; max-age=31536000; SameSite=Lax';
+    await _scopedPersistence.write(
+      scope,
+      ScopedDataKeys.decisionProfile,
+      encoded,
+    );
   }
 
-  String? _cookieValue() {
-    final cookies = html.document.cookie?.split(';') ?? const [];
-    for (final cookie in cookies) {
-      final separator = cookie.indexOf('=');
-      if (separator == -1) {
-        continue;
-      }
-
-      final key = cookie.substring(0, separator).trim();
-      if (key == _cookieKey) {
-        return cookie.substring(separator + 1).trim();
-      }
+  SupabaseClient _accountClient() {
+    final client = getIt<SupabaseInitializer>().client;
+    if (client == null) {
+      throw StateError('Supabase is not configured.');
     }
+    return client;
+  }
 
-    return null;
+  void _ensureUserOwned(IdentityScope scope) {
+    if (!scope.isUserOwned) {
+      throw ArgumentError.value(scope, 'scope', 'Must be guest or account.');
+    }
   }
 }

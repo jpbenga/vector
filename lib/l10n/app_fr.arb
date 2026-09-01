@@ -20,7 +20,7 @@
   "cancelButton": "Annuler",
   "skipOnboardingButton": "Passer",
   "skipOnboardingTitle": "Utiliser une configuration par défaut ?",
-  "skipOnboardingMessage": "Sans onboarding, Copilot appliquera une configuration générale qui ne sera pas personnalisée à votre manière de décider.",
+  "skipOnboardingMessage": "Sans onboarding, Lector appliquera une configuration générale qui ne sera pas personnalisée à votre manière de décider.",
   "keepOnboardingButton": "Continuer l’onboarding",
   "useDefaultProfileButton": "Utiliser le profil par défaut",
   "reviewProfileButton": "Voir mon profil",
@@ -41,7 +41,7 @@
   },
   "profileSummaryEyebrow": "PROFIL DE DÉCISION",
   "profileSummaryTitle": "Votre profil",
-  "profileSummarySubtitle": "Vérifiez que Copilot a correctement compris votre manière de décider.",
+  "profileSummarySubtitle": "Vérifiez que Lector a correctement compris votre manière de décider.",
   "confirmProfileButton": "Valider et voir les matchs",
   "savedProfileDialogTitle": "Profil sauvegardé",
   "savedProfileDialogMessage": "Un profil de décision existe déjà sur cet appareil. Voulez-vous l’utiliser pour cette session de développement ?",
@@ -69,7 +69,7 @@
       }
     }
   },
-  "allMatchesSubtitle": "Aucune rencontre n’est masquée. Copilot priorise, il ne supprime pas.",
+  "allMatchesSubtitle": "Aucune rencontre n’est masquée. Lector priorise, il ne supprime pas.",
   "championshipsByCountryTitle": "Championnats par pays",
   "championshipsByCountrySubtitle": "Parcourez les compétitions, puis ouvrez un championnat pour voir son détail.",
   "todayChip": "Aujourd’hui",
@@ -146,7 +146,7 @@
     }
   },
   "matchDetailTitle": "Détail rencontre",
-  "copilotReadingTitle": "Lecture Copilot",
+  "copilotReadingTitle": "Lecture Lector",
   "notRecommendedLabel": "Non recommandé",
   "noCopilotSignalsMessage": "Aucune lecture personnalisée n’est disponible pour cette rencontre.",
   "availableMarketsTitle": "Marchés disponibles",

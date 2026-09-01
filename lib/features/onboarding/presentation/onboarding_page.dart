@@ -999,9 +999,9 @@ class _OpportunityProfileCardsView extends StatelessWidget {
       children: [
         for (final profile in OpportunityProfileCatalog.values)
           _SelectableSetupCard(
-            title: _profileTitle(profile.id),
-            subtitle: _profileDescription(profile.id),
-            icon: _profileIcon(profile.id),
+            title: profile.displayLabel,
+            subtitle: profile.description,
+            icon: context.opportunities.iconForProfileId(profile.id),
             badge: profile.isSupported ? null : 'À venir',
             isSelected: selectedOptionIds.contains(profile.id),
             isEnabled: profile.isSupported,
@@ -1025,64 +1025,6 @@ class _OpportunityProfileCardsView extends StatelessWidget {
     } else {
       onChanged([...selectedOptionIds, optionId]);
     }
-  }
-
-  String _profileDescription(String id) {
-    return switch (id) {
-      'solid_favorite' =>
-        'Supériorité soutenue par classement, dynamique, attaque, défense et contexte.',
-      'struggling_team' =>
-        'Mauvais résultats, faible création offensive et fragilité défensive.',
-      'offensive_match' =>
-        'Attaques, défenses et xG convergent vers un scénario favorable aux buts.',
-      'defensive_match' =>
-        'Défenses, faible création offensive et historiques suggèrent peu de buts.',
-      'ranking_gap' =>
-        'Plusieurs indicateurs montrent une différence structurelle entre les équipes.',
-      'credible_outsider' =>
-        'Équipe moins attendue, mais soutenue par forme, contexte ou fragilité adverse.',
-      'fragile_defense' =>
-        'Défenses qui encaissent beaucoup ou concèdent des occasions dangereuses.',
-      'prolific_attack' =>
-        'Attaques qui marquent ou produisent régulièrement des occasions de qualité.',
-      'positive_series' =>
-        'Bonnes séries, avec indication si les xG les confirment ou les fragilisent.',
-      'negative_series' =>
-        'Mauvaises dynamiques, en distinguant difficultés réelles et scores trompeurs.',
-      _ => 'Profil d’opportunité suivi par Copilot.',
-    };
-  }
-
-  String _profileTitle(String id) {
-    return switch (id) {
-      'solid_favorite' => 'Favoris solides',
-      'struggling_team' => 'Équipes en difficulté',
-      'offensive_match' => 'Matchs ouverts',
-      'defensive_match' => 'Matchs fermés',
-      'ranking_gap' => 'Écarts de niveau',
-      'credible_outsider' => 'Outsiders crédibles',
-      'fragile_defense' => 'Défenses fragiles',
-      'prolific_attack' => 'Attaques prolifiques',
-      'positive_series' => 'Séries positives',
-      'negative_series' => 'Séries négatives',
-      _ => id,
-    };
-  }
-
-  IconData _profileIcon(String id) {
-    return switch (id) {
-      'solid_favorite' => Icons.shield_outlined,
-      'struggling_team' => Icons.trending_down_rounded,
-      'offensive_match' => Icons.local_fire_department_outlined,
-      'defensive_match' => Icons.lock_outline_rounded,
-      'ranking_gap' => Icons.balance_rounded,
-      'credible_outsider' => Icons.rocket_launch_outlined,
-      'fragile_defense' => Icons.security_update_warning_outlined,
-      'prolific_attack' => Icons.bolt_outlined,
-      'positive_series' => Icons.show_chart_rounded,
-      'negative_series' => Icons.stacked_line_chart_rounded,
-      _ => Icons.track_changes_rounded,
-    };
   }
 }
 
@@ -1958,7 +1900,7 @@ class _TicketStrategyDialogState extends State<_TicketStrategyDialog> {
         ? 'à partir de ${_minimumIndividualOdds?.toStringAsFixed(2) ?? '—'}'
         : 'entre ${_minimumIndividualOdds?.toStringAsFixed(2) ?? '—'} et ${individualMaximum.toStringAsFixed(2)}';
 
-    return 'Avec $name, Copilot cherchera des tickets de $_selectionRangePhrase. '
+    return 'Avec $name, Lector cherchera des tickets de $_selectionRangePhrase. '
         'Les picks devront avoir une cote individuelle $individualRange, '
         'pour une cote totale $totalRange.';
   }
@@ -2552,7 +2494,7 @@ class _OnboardingCompletedScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        'Copilot va maintenant rechercher les meilleures opportunités selon vos préférences.',
+                        'Lector va maintenant rechercher les meilleures opportunités selon vos préférences.',
                         textAlign: TextAlign.center,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: colorScheme.onSurfaceVariant,

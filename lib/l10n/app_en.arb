@@ -20,7 +20,7 @@
   "cancelButton": "Cancel",
   "skipOnboardingButton": "Skip",
   "skipOnboardingTitle": "Use a default configuration?",
-  "skipOnboardingMessage": "Without onboarding, Copilot will apply a general configuration that is not personalized to how you make decisions.",
+  "skipOnboardingMessage": "Without onboarding, Lector will apply a general configuration that is not personalized to how you make decisions.",
   "keepOnboardingButton": "Continue onboarding",
   "useDefaultProfileButton": "Use default profile",
   "reviewProfileButton": "Review my profile",
@@ -41,7 +41,7 @@
   },
   "profileSummaryEyebrow": "DECISION PROFILE",
   "profileSummaryTitle": "Your profile",
-  "profileSummarySubtitle": "Check that Copilot understood how you make decisions.",
+  "profileSummarySubtitle": "Check that Lector understood how you make decisions.",
   "confirmProfileButton": "Confirm and view matches",
   "savedProfileDialogTitle": "Saved profile",
   "savedProfileDialogMessage": "A decision profile already exists on this device. Do you want to use it for this development session?",
@@ -69,7 +69,7 @@
       }
     }
   },
-  "allMatchesSubtitle": "No match is hidden. Copilot prioritizes, it does not remove.",
+  "allMatchesSubtitle": "No match is hidden. Lector prioritizes, it does not remove.",
   "championshipsByCountryTitle": "Competitions by country",
   "championshipsByCountrySubtitle": "Browse competitions, then open one to see its details.",
   "todayChip": "Today",
@@ -146,7 +146,7 @@
     }
   },
   "matchDetailTitle": "Match detail",
-  "copilotReadingTitle": "Copilot reading",
+  "copilotReadingTitle": "Lector reading",
   "notRecommendedLabel": "Not recommended",
   "noCopilotSignalsMessage": "No personalized reading is available for this match.",
   "availableMarketsTitle": "Available markets",

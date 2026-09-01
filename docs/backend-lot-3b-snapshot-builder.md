@@ -165,6 +165,19 @@ snapshot_id + source + endpoint + query_hash
 Cette table constitue la provenance exploitable pour l'audit et les futures
 analyses IA.
 
+### Caches API en erreur
+
+Le builder ne doit pas transformer en snapshot une reponse API-Football qui
+contient un champ JSON `errors` non vide. API-Football peut signaler certaines
+erreurs de plan, saison ou compte avec un statut HTTP 200 ; ces reponses restent
+utiles pour l'audit du cache, mais elles ne sont pas des sources valides pour le
+front.
+
+Si aucune famille utile n'est presente dans le build (`fixtures`, `odds`,
+`standings`, `team_statistics`, `recent_league_matches`, `expected_goals`), la
+fonction renvoie une erreur et refuse d'inserer une ligne dans
+`match_feed_snapshots`.
+
 ## Immutabilite et idempotence
 
 Les tables du Lot 3A restent append-only.
@@ -220,6 +233,9 @@ Avant de brancher le front sur les snapshots distants :
 4. verifier les fixtures indexees dans `match_feed_snapshot_fixtures` ;
 5. verifier la provenance dans `match_feed_snapshot_sources` ;
 6. relancer la meme commande et verifier `reused: true`.
+
+Si les caches contiennent uniquement des erreurs API-Football ou si le build est
+totalement vide, aucune ligne `match_feed_snapshots` ne doit etre publiee.
 
 Validation initiale effectuee le 2026-08-11 :
 

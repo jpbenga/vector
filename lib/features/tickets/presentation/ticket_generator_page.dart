@@ -27,6 +27,7 @@ class TicketGeneratorPage extends StatefulWidget {
     this.savedTickets = const [],
     this.manualTicketsOpenRequest = 0,
     required this.onEditStrategies,
+    required this.onCreateManualTicket,
     required this.onOpenOpportunity,
     required this.onSaveTicket,
     required this.onDeleteSavedTicket,
@@ -39,6 +40,7 @@ class TicketGeneratorPage extends StatefulWidget {
   final List<SavedTicket> savedTickets;
   final int manualTicketsOpenRequest;
   final VoidCallback onEditStrategies;
+  final VoidCallback onCreateManualTicket;
   final ValueChanged<Opportunity> onOpenOpportunity;
   final ValueChanged<SavedTicket> onSaveTicket;
   final ValueChanged<String> onDeleteSavedTicket;
@@ -77,7 +79,7 @@ class _TicketGeneratorPageState extends State<TicketGeneratorPage> {
     final copilotTickets = result.tickets;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 120),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 120),
       children: [
         Center(
           child: ConstrainedBox(
@@ -87,9 +89,10 @@ class _TicketGeneratorPageState extends State<TicketGeneratorPage> {
               children: [
                 _TicketsHeader(
                   onHistory: _openHistory,
+                  onRefresh: _refreshProposals,
                   onSettings: widget.onEditStrategies,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
                 _TicketOriginTabs(
                   selectedTab: _selectedTab,
                   copilotCount: copilotTickets.length,
@@ -110,7 +113,7 @@ class _TicketGeneratorPageState extends State<TicketGeneratorPage> {
                     });
                   },
                 ),
-                const SizedBox(height: 22),
+                const SizedBox(height: 14),
                 _TicketTabContent(
                   selectedTab: _selectedTab,
                   result: result,
@@ -123,10 +126,10 @@ class _TicketGeneratorPageState extends State<TicketGeneratorPage> {
                   onOpenOpportunity: widget.onOpenOpportunity,
                   onSaveTicket: widget.onSaveTicket,
                 ),
-                const SizedBox(height: 14),
-                _HowItWorksCard(onTap: _showHowItWorks),
-                const SizedBox(height: 14),
-                _RefreshProposalsRow(onRefresh: _refreshProposals),
+                const SizedBox(height: 12),
+                _CreateManualTicketCta(onTap: widget.onCreateManualTicket),
+                const SizedBox(height: 10),
+                _HowItWorksLink(onTap: _showHowItWorks),
               ],
             ),
           ),
@@ -1303,7 +1306,7 @@ const _readingExplanations = [
     shortDescription:
         'Différence significative de niveau entre les deux équipes.',
     description:
-        'Copilot compare la hiérarchie sportive disponible : classement, points, différence de buts et volume de matchs joués.',
+        'Lector compare la hiérarchie sportive disponible : classement, points, différence de buts et volume de matchs joués.',
     indicators: [
       'Classement',
       'Points',
@@ -1360,7 +1363,7 @@ const _readingExplanations = [
     title: 'xG offensifs élevés',
     shortDescription: 'La création d’occasions de qualité est supérieure.',
     description:
-        'Copilot utilise uniquement des xG historiques capturés avant match. Les xG servent à nuancer les résultats réels.',
+        'Lector utilise uniquement des xG historiques capturés avant match. Les xG servent à nuancer les résultats réels.',
     indicators: ['xG pour', 'xG contre', 'Divergence buts/xG'],
     notMeaning:
         'Les xG ne sont pas des xG futurs. Ils décrivent ce qui s’est déjà produit.',
@@ -1447,38 +1450,29 @@ const _combinedReadingExplanations = [
 ];
 
 class _TicketsHeader extends StatelessWidget {
-  const _TicketsHeader({required this.onHistory, required this.onSettings});
+  const _TicketsHeader({
+    required this.onHistory,
+    required this.onRefresh,
+    required this.onSettings,
+  });
 
   final VoidCallback onHistory;
+  final VoidCallback onRefresh;
   final VoidCallback onSettings;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Générateur de tickets',
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Copilot prépare des tickets selon votre profil et les lectures combinées du moment.',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                  height: 1.35,
-                ),
-              ),
-            ],
+          child: Text(
+            'Mes tickets',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ),
         const SizedBox(width: 12),
@@ -1487,7 +1481,13 @@ class _TicketsHeader extends StatelessWidget {
           label: 'Historique',
           onTap: onHistory,
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
+        _HeaderAction(
+          icon: Icons.refresh_rounded,
+          label: 'Recalculer',
+          onTap: onRefresh,
+        ),
+        const SizedBox(width: 8),
         _HeaderAction(
           icon: Icons.settings_rounded,
           label: 'Paramètres',
@@ -1516,26 +1516,18 @@ class _HeaderAction extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(40),
       onTap: onTap,
-      child: Column(
-        children: [
-          OutlinedButton(
-            onPressed: onTap,
-            style: OutlinedButton.styleFrom(
-              shape: const CircleBorder(),
-              padding: const EdgeInsets.all(14),
-              side: BorderSide(color: colorScheme.outlineVariant),
-            ),
-            child: Icon(icon, color: colorScheme.onSurface),
+      child: Tooltip(
+        message: label,
+        child: OutlinedButton(
+          onPressed: onTap,
+          style: OutlinedButton.styleFrom(
+            shape: const CircleBorder(),
+            padding: const EdgeInsets.all(12),
+            minimumSize: const Size.square(46),
+            side: BorderSide(color: colorScheme.outlineVariant),
           ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
+          child: Icon(icon, color: colorScheme.onSurface, size: 22),
+        ),
       ),
     );
   }
@@ -1565,21 +1557,21 @@ class _TicketOriginTabs extends StatelessWidget {
           _TicketOriginTabData(
             tab: _TicketTab.copilot,
             icon: Icons.auto_awesome_rounded,
-            label: 'Propositions Copilot',
-            compactLabel: 'Copilot',
+            label: 'Proposés par Lector',
+            compactLabel: 'Lector',
             count: copilotCount,
           ),
           _TicketOriginTabData(
             tab: _TicketTab.edited,
             icon: Icons.edit_rounded,
-            label: 'Mes modifications',
+            label: 'Modifiés',
             compactLabel: 'Modifiés',
             count: editedCount,
           ),
           _TicketOriginTabData(
             tab: _TicketTab.manual,
             icon: Icons.person_outline_rounded,
-            label: 'Mes tickets',
+            label: 'Manuels',
             compactLabel: 'Manuels',
             count: manualCount,
           ),
@@ -1757,7 +1749,7 @@ class _TicketTabContent extends StatelessWidget {
                 icon: Icons.edit_note_rounded,
                 title: 'Aucun ticket modifié',
                 message:
-                    'Vous n’avez encore modifié aucune proposition Copilot.',
+                    'Vous n’avez encore modifié aucune proposition Lector.',
               )
             : _SavedTicketsList(
                 title: 'Mes tickets modifiés',
@@ -1826,7 +1818,7 @@ class _CopilotProposalsList extends StatelessWidget {
         icon: Icons.tune_rounded,
         title: 'Profil incomplet',
         message:
-            'Complétez votre profil pour que Copilot puisse rechercher des lectures combinées et construire vos tickets.',
+            'Complétez votre profil pour que Lector puisse rechercher des lectures combinées et construire vos tickets.',
         actionLabel: 'Compléter mon profil',
         onAction: onEditStrategies,
       );
@@ -1837,7 +1829,7 @@ class _CopilotProposalsList extends StatelessWidget {
         icon: Icons.rule_rounded,
         title: 'Aucune stratégie active',
         message:
-            'Créez ou activez une stratégie pour permettre à Copilot de générer des tickets.',
+            'Créez ou activez une stratégie pour permettre à Lector de générer des tickets.',
         actionLabel: 'Gérer mes stratégies',
         onAction: onEditStrategies,
       );
@@ -1855,13 +1847,6 @@ class _CopilotProposalsList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Propositions d’aujourd’hui',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 12),
         for (final strategyResult in result.strategies)
           for (final ticket in strategyResult.tickets)
             _GeneratedTicketCard(
@@ -1935,9 +1920,10 @@ class _GeneratedTicketCard extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final accent = _strategyAccent(context, strategy);
     final keyReadings = _keyReadings();
+    final convergentReadingCount = _convergentReadingCount();
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.only(bottom: 12),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainer,
@@ -1949,7 +1935,7 @@ class _GeneratedTicketCard extends StatelessWidget {
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1958,34 +1944,31 @@ class _GeneratedTicketCard extends StatelessWidget {
                 strategy: strategy,
                 accent: accent,
               ),
-              const SizedBox(height: 12),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHigh.withValues(
-                    alpha: 0.28,
-                  ),
-                  borderRadius: BorderRadius.circular(AppRadius.input),
-                  border: Border.all(color: colorScheme.outlineVariant),
-                ),
-                child: Column(
-                  children: [
-                    for (final pick in ticket.picks)
-                      _GeneratedPickRow(
-                        pick: pick,
-                        accent: accent,
-                        opportunity: opportunityForMatchId(pick.matchId),
-                        onOpenOpportunity: onOpenOpportunity,
-                      ),
+              const SizedBox(height: 8),
+              Column(
+                children: [
+                  for (final entry in ticket.picks.indexed) ...[
+                    _GeneratedPickRow(
+                      pick: entry.$2,
+                      accent: accent,
+                      opportunity: opportunityForMatchId(entry.$2.matchId),
+                      onOpenOpportunity: onOpenOpportunity,
+                    ),
+                    if (entry.$1 != ticket.picks.length - 1)
+                      Divider(height: 1, color: colorScheme.outlineVariant),
                   ],
+                ],
+              ),
+              if (convergentReadingCount > 0) ...[
+                const SizedBox(height: 10),
+                _TicketReadingsFooter(
+                  readingCount: convergentReadingCount,
+                  hasDetails: keyReadings.isNotEmpty,
+                  accent: accent,
+                  isExpanded: isExpanded,
+                  onToggleExpanded: onToggleExpanded,
                 ),
-              ),
-              const SizedBox(height: 12),
-              _TicketReadingsFooter(
-                readings: keyReadings,
-                accent: accent,
-                isExpanded: isExpanded,
-                onToggleExpanded: onToggleExpanded,
-              ),
+              ],
               const SizedBox(height: 10),
               _GeneratedTicketActions(
                 accent: accent,
@@ -2051,12 +2034,31 @@ class _GeneratedTicketCard extends StatelessWidget {
     return labels.take(4).toList(growable: false);
   }
 
+  int _convergentReadingCount() {
+    final readingKeys = <String>{};
+
+    for (final pick in ticket.picks) {
+      final opportunity = opportunityForMatchId(pick.matchId);
+      if (opportunity == null) {
+        continue;
+      }
+
+      for (final reading in opportunity.supportingReadings) {
+        readingKeys.add(
+          '${pick.matchId}|${reading.id}|${reading.subjectTeamId}',
+        );
+      }
+    }
+
+    return readingKeys.length;
+  }
+
   void _saveCopilotTicket(BuildContext context) {
     final now = DateTime.now().toUtc();
     onSaveTicket(SavedTicket.fromGenerated(ticket: ticket, savedAt: now));
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('Ticket Copilot enregistré.')));
+    ).showSnackBar(const SnackBar(content: Text('Ticket Lector enregistré.')));
   }
 
   Future<void> _openModifiedTicketSheet(BuildContext context) async {
@@ -2084,21 +2086,21 @@ class _GeneratedTicketCard extends StatelessWidget {
   String _readingShortLabel(FootballReading reading) {
     return switch (reading.id) {
       'ranking_superiority' => 'Domination attendue',
-      'structural_level_gap' => 'Ecart structurel',
-      'positive_streak' => 'Serie positive',
-      'negative_streak' => 'Serie negative',
+      'structural_level_gap' => 'Écart structurel',
+      'positive_streak' => 'Série positive',
+      'negative_streak' => 'Série négative',
       'improving_form' => 'Forme en hausse',
       'declining_form' => 'Forme en baisse',
-      'strong_home_team' => 'Solide a domicile',
-      'weak_away_team' => 'Faible a l’exterieur',
-      'home_away_mismatch' => 'Avantage domicile/exterieur',
-      'prolific_attack' || 'attack_in_form' => 'Creation offensive elevee',
-      'fragile_defense' || 'high_xg_conceded' => 'Defense fragile',
-      'solid_defense' => 'Defense solide',
+      'strong_home_team' => 'Solide à domicile',
+      'weak_away_team' => 'Faible à l’extérieur',
+      'home_away_mismatch' => 'Avantage domicile/extérieur',
+      'prolific_attack' || 'attack_in_form' => 'Création offensive élevée',
+      'fragile_defense' || 'high_xg_conceded' => 'Défense fragile',
+      'solid_defense' => 'Défense solide',
       'open_match_profile' || 'frequent_over_25' => 'Match ouvert',
-      'closed_match_profile' || 'frequent_under_25' => 'Match ferme',
-      'frequent_btts' => 'BTTS recurrent',
-      'high_xg_creation' => 'xG offensifs eleves',
+      'closed_match_profile' || 'frequent_under_25' => 'Match fermé',
+      'frequent_btts' => 'BTTS récurrent',
+      'high_xg_creation' => 'xG offensifs élevés',
       'low_xg_creation' => 'xG offensifs faibles',
       _ => reading.evidence.isEmpty ? reading.id : reading.evidence.first.label,
     };
@@ -2261,7 +2263,7 @@ class _ModifyGeneratedTicketSheetState
               ),
               const SizedBox(height: 10),
               Text(
-                'Ajustez une proposition Copilot en retirant une sélection ou en choisissant un autre marché compatible.',
+                'Ajustez une proposition Lector en retirant une sélection ou en choisissant un autre marché compatible.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -2531,7 +2533,7 @@ class _ModifyGeneratedTicketSheetState
         picks: retainedPicks,
         savedAt: widget.existingTicket?.createdAt ?? now,
         source: SavedTicketSource.copilotModified,
-        name: 'Ticket Copilot modifié',
+        name: 'Ticket Lector modifié',
         modificationSummary: parts.join(' · '),
         modificationDetails: _modificationDetails(),
       ),
@@ -3100,8 +3102,8 @@ class _OriginBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = switch (origin) {
-      TicketOrigin.copilotGenerated => 'Généré par Copilot',
-      TicketOrigin.copilotEdited => 'Copilot modifié',
+      TicketOrigin.copilotGenerated => 'Créé par Lector',
+      TicketOrigin.copilotEdited => 'Modifié',
       TicketOrigin.manual => 'Créé manuellement',
     };
 
@@ -3242,53 +3244,29 @@ class _GeneratedPickRow extends StatelessWidget {
             ? null
             : () => onOpenOpportunity(opportunity!),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           child: Row(
             children: [
-              SportsAssetBadge(
-                size: 28,
-                imageUrl: opportunity?.competition.logoUrl,
-                fallbackLabel: pick.competitionName,
-                borderRadius: 5,
-                icon: Icons.emoji_events_rounded,
-              ),
-              const SizedBox(width: 10),
+              SizedBox(width: 44, child: _PickTimeMeta(pick: pick)),
+              const SizedBox(width: 6),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      pick.competitionName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${pick.homeTeam} — ${pick.awayTeam}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
+                child: _PickTeams(
+                  pick: pick,
+                  homeLogoUrl: opportunity?.homeTeam.logoUrl,
+                  awayLogoUrl: opportunity?.awayTeam.logoUrl,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               SizedBox(
-                width: 92,
+                width: 72,
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: _MarketBadge(label: _marketLabel(pick)),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               SizedBox(
-                width: 76,
+                width: 54,
                 child: Text(
                   _selectionLabel(pick),
                   maxLines: 1,
@@ -3300,9 +3278,9 @@ class _GeneratedPickRow extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               SizedBox(
-                width: 48,
+                width: 42,
                 child: Text(
                   pick.odds.toStringAsFixed(2),
                   textAlign: TextAlign.right,
@@ -3319,67 +3297,197 @@ class _GeneratedPickRow extends StatelessWidget {
     );
   }
 
-  String _marketLabel(GeneratedTicketPick pick) {
-    final market = pick.marketLabel.toLowerCase();
-    if (market.contains('double chance')) {
-      return 'Double chance';
-    }
-    if (market.contains('both') || market.contains('deux équipes')) {
-      return 'BTTS';
-    }
-    if (market.contains('result') || market.contains('résultat')) {
-      return 'Résultat';
-    }
-    if (market.contains('plus') ||
-        market.contains('moins') ||
-        market.contains('over') ||
-        market.contains('under')) {
-      return 'Total buts';
-    }
+  String _marketLabel(GeneratedTicketPick pick) =>
+      _marketLabelFor(pick.marketLabel);
 
-    return pick.marketLabel;
+  String _selectionLabel(GeneratedTicketPick pick) =>
+      _selectionLabelFor(pick.selectionLabel);
+}
+
+class _PickTimeMeta extends StatelessWidget {
+  const _PickTimeMeta({required this.pick});
+
+  final GeneratedTicketPick pick;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _pickTimeLabel(pick),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelLarge?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          _shortCompetitionLabel(pick.competitionName),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PickTeams extends StatelessWidget {
+  const _PickTeams({
+    required this.pick,
+    required this.homeLogoUrl,
+    required this.awayLogoUrl,
+  });
+
+  final GeneratedTicketPick pick;
+  final String? homeLogoUrl;
+  final String? awayLogoUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _PickTeamLine(name: pick.homeTeam, logoUrl: homeLogoUrl),
+        const SizedBox(height: 3),
+        _PickTeamLine(name: pick.awayTeam, logoUrl: awayLogoUrl),
+      ],
+    );
+  }
+}
+
+class _PickTeamLine extends StatelessWidget {
+  const _PickTeamLine({required this.name, required this.logoUrl});
+
+  final String name;
+  final String? logoUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SportsAssetBadge(
+          size: 19,
+          imageUrl: logoUrl,
+          fallbackLabel: name,
+          borderRadius: AppRadius.chip,
+          padding: 1,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w900),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _pickTimeLabel(GeneratedTicketPick pick) {
+  final kickoff = pick.kickoff?.toLocal();
+  if (kickoff != null) {
+    return '${kickoff.hour.toString().padLeft(2, '0')}:${kickoff.minute.toString().padLeft(2, '0')}';
+  }
+  return pick.kickoffLabel.trim().isEmpty ? '--:--' : pick.kickoffLabel;
+}
+
+String _shortCompetitionLabel(String competitionName) {
+  final lower = competitionName.toLowerCase();
+  if (lower.contains('premier')) {
+    return 'PL';
+  }
+  if (lower.contains('liga')) {
+    return 'LALIGA';
+  }
+  if (lower.contains('champions')) {
+    return 'UCL';
+  }
+  if (lower.contains('bundes')) {
+    return 'BUNDES';
+  }
+  if (lower.contains('ligue 1')) {
+    return 'L1';
+  }
+  return competitionName.length <= 6
+      ? competitionName.toUpperCase()
+      : competitionName.substring(0, 3).toUpperCase();
+}
+
+String _marketLabelFor(String marketLabel) {
+  final market = marketLabel.toLowerCase();
+  if (market.contains('double chance')) {
+    return 'Double chance';
+  }
+  if (market.contains('both') || market.contains('deux équipes')) {
+    return 'BTTS';
+  }
+  if (market.contains('result') || market.contains('résultat')) {
+    return 'Résultat';
+  }
+  if (market.contains('plus') ||
+      market.contains('moins') ||
+      market.contains('over') ||
+      market.contains('under')) {
+    return 'Total buts';
   }
 
-  String _selectionLabel(GeneratedTicketPick pick) {
-    final selection = pick.selectionLabel.toLowerCase();
-    if (selection == 'home' || selection == 'domicile' || selection == '1') {
-      return pick.selectionLabel == '1' ? 'Domicile' : pick.selectionLabel;
-    }
-    if (selection == 'away' || selection == 'extérieur' || selection == '2') {
-      return pick.selectionLabel == '2' ? 'Extérieur' : pick.selectionLabel;
-    }
-    if (selection == 'draw' || selection == 'nul' || selection == 'n') {
-      return pick.selectionLabel == 'N' ? 'Nul' : pick.selectionLabel;
-    }
+  return marketLabel;
+}
 
-    return pick.selectionLabel;
+String _selectionLabelFor(String selectionLabel) {
+  final selection = selectionLabel.toLowerCase();
+  if (selection == 'home' || selection == 'domicile' || selection == '1') {
+    return selectionLabel == '1' ? 'Domicile' : selectionLabel;
   }
+  if (selection == 'away' || selection == 'extérieur' || selection == '2') {
+    return selectionLabel == '2' ? 'Extérieur' : selectionLabel;
+  }
+  if (selection == 'draw' || selection == 'nul' || selection == 'n') {
+    return selectionLabel == 'N' ? 'Nul' : selectionLabel;
+  }
+
+  return selectionLabel;
 }
 
 class _TicketReadingsFooter extends StatelessWidget {
   const _TicketReadingsFooter({
-    required this.readings,
+    required this.readingCount,
+    required this.hasDetails,
     required this.accent,
     required this.isExpanded,
     required this.onToggleExpanded,
   });
 
-  final List<String> readings;
+  final int readingCount;
+  final bool hasDetails;
   final Color accent;
   final bool isExpanded;
   final VoidCallback onToggleExpanded;
 
   @override
   Widget build(BuildContext context) {
-    final count = readings.length;
-    final label = count == 0
-        ? 'Lectures clés'
-        : '$count lecture${count > 1 ? 's' : ''} clé${count > 1 ? 's' : ''}';
+    final label = readingCount == 1
+        ? '1 lecture convergente'
+        : '$readingCount lectures convergentes';
 
     return Material(
       color: AppColors.transparent,
       child: InkWell(
-        onTap: readings.isEmpty ? null : onToggleExpanded,
+        onTap: hasDetails ? onToggleExpanded : null,
         borderRadius: BorderRadius.circular(AppRadius.input),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 2),
@@ -3394,7 +3502,7 @@ class _TicketReadingsFooter extends StatelessWidget {
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              if (readings.isNotEmpty) ...[
+              if (hasDetails) ...[
                 const SizedBox(width: 4),
                 Icon(
                   isExpanded
@@ -3512,13 +3620,14 @@ class _KeyReadingChip extends StatelessWidget {
   }
 }
 
-class _HowItWorksCard extends StatelessWidget {
-  const _HowItWorksCard({required this.onTap});
+class _CreateManualTicketCta extends StatelessWidget {
+  const _CreateManualTicketCta({required this.onTap});
 
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final colorScheme = Theme.of(context).colorScheme;
 
     return Material(
@@ -3531,38 +3640,46 @@ class _HowItWorksCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.card),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
           child: Row(
             children: [
               Icon(
-                Icons.lightbulb_outline_rounded,
+                Icons.auto_awesome_outlined,
                 color: colorScheme.primary,
-                size: 30,
+                size: 28,
               ),
-              const SizedBox(width: 13),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Comment ça fonctionne ?',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      'Créer un ticket personnalisé',
+                      style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w900,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Copilot applique vos stratégies aux opportunités exploitables.',
+                      'Choisissez vos matchs et marchés',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         color: colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded),
+              OutlinedButton(
+                onPressed: onTap,
+                style: OutlinedButton.styleFrom(
+                  shape: const CircleBorder(),
+                  padding: const EdgeInsets.all(12),
+                  minimumSize: const Size.square(46),
+                ),
+                child: const Icon(Icons.chevron_right_rounded),
+              ),
             ],
           ),
         ),
@@ -3571,20 +3688,17 @@ class _HowItWorksCard extends StatelessWidget {
   }
 }
 
-class _RefreshProposalsRow extends StatelessWidget {
-  const _RefreshProposalsRow({required this.onRefresh});
+class _HowItWorksLink extends StatelessWidget {
+  const _HowItWorksLink({required this.onTap});
 
-  final VoidCallback onRefresh;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: TextButton.icon(
-        onPressed: onRefresh,
-        icon: const Icon(Icons.refresh_rounded),
-        label: const Text('Nouvelles propositions'),
-      ),
+    return TextButton.icon(
+      onPressed: onTap,
+      icon: const Icon(Icons.info_outline_rounded, size: 18),
+      label: const Text('Comment Lector construit ces tickets'),
     );
   }
 }
@@ -3824,6 +3938,18 @@ class _SavedManualTicketCard extends StatelessWidget {
                     ),
                 ],
               ),
+              if (ticket.selections.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Column(
+                  children: [
+                    for (final entry in ticket.selections.indexed) ...[
+                      _SavedTicketSelectionRow(selection: entry.$2),
+                      if (entry.$1 != ticket.selections.length - 1)
+                        Divider(height: 1, color: colorScheme.outlineVariant),
+                    ],
+                  ],
+                ),
+              ],
               if (ticket.modificationSummary != null) ...[
                 const SizedBox(height: 12),
                 _ModificationTrace(
@@ -3835,6 +3961,122 @@ class _SavedManualTicketCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SavedTicketSelectionRow extends StatelessWidget {
+  const _SavedTicketSelectionRow({required this.selection});
+
+  final SavedTicketSelection selection;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 9),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 44,
+            child: Text(
+              _shortCompetitionLabel(selection.competitionName),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              children: [
+                _SavedSelectionTeamLine(
+                  name: selection.homeTeam,
+                  logoUrl: selection.homeLogoUrl,
+                ),
+                const SizedBox(height: 3),
+                _SavedSelectionTeamLine(
+                  name: selection.awayTeam,
+                  logoUrl: selection.awayLogoUrl,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          SizedBox(
+            width: 72,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: _MarketBadge(
+                label: _marketLabelFor(selection.marketLabel),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          SizedBox(
+            width: 54,
+            child: Text(
+              _selectionLabelFor(selection.selectionLabel),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          SizedBox(
+            width: 42,
+            child: Text(
+              selection.odds.toStringAsFixed(2),
+              textAlign: TextAlign.right,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.primary,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SavedSelectionTeamLine extends StatelessWidget {
+  const _SavedSelectionTeamLine({required this.name, required this.logoUrl});
+
+  final String name;
+  final String? logoUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SportsAssetBadge(
+          size: 18,
+          imageUrl: logoUrl,
+          fallbackLabel: name,
+          borderRadius: AppRadius.chip,
+          padding: 1,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w900),
+          ),
+        ),
+      ],
     );
   }
 }

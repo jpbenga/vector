@@ -1,17 +1,25 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../onboarding/domain/decision_profile_catalogs.dart';
-import '../../../core/supabase/supabase_user_scope.dart';
+import '../../../core/identity/identity_scope.dart';
 import '../domain/ticket_strategy.dart';
 
 class SupabaseTicketStrategyRepository {
-  const SupabaseTicketStrategyRepository(this._scope);
+  SupabaseTicketStrategyRepository({
+    required SupabaseClient client,
+    required IdentityScope scope,
+  }) : assert(scope.isAccount),
+       _client = client,
+       _userId = scope.id;
 
-  final SupabaseUserScope _scope;
+  final SupabaseClient _client;
+  final String _userId;
 
   Future<List<TicketStrategy>> load() async {
-    final rows = await _scope.client
+    final rows = await _client
         .from('ticket_strategies')
         .select()
-        .eq('user_id', _scope.userId)
+        .eq('user_id', _userId)
         .order('priority');
 
     return [
@@ -20,18 +28,18 @@ class SupabaseTicketStrategyRepository {
   }
 
   Future<void> saveAll(List<TicketStrategy> strategies) async {
-    await _scope.client
+    await _client
         .from('ticket_strategies')
         .delete()
-        .eq('user_id', _scope.userId);
+        .eq('user_id', _userId);
 
     if (strategies.isEmpty) {
       return;
     }
 
-    await _scope.client.from('ticket_strategies').insert([
+    await _client.from('ticket_strategies').insert([
       for (final strategy in strategies)
-        ticketStrategyToSupabaseRow(strategy, userId: _scope.userId),
+        ticketStrategyToSupabaseRow(strategy, userId: _userId),
     ]);
   }
 }

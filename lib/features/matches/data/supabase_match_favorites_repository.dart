@@ -1,15 +1,23 @@
-import '../../../core/supabase/supabase_user_scope.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../core/identity/identity_scope.dart';
 
 class SupabaseMatchFavoritesRepository {
-  const SupabaseMatchFavoritesRepository(this._scope);
+  SupabaseMatchFavoritesRepository({
+    required SupabaseClient client,
+    required IdentityScope scope,
+  }) : assert(scope.isAccount),
+       _client = client,
+       _userId = scope.id;
 
-  final SupabaseUserScope _scope;
+  final SupabaseClient _client;
+  final String _userId;
 
   Future<Set<String>> load() async {
-    final rows = await _scope.client
+    final rows = await _client
         .from('match_favorites')
         .select('match_id')
-        .eq('user_id', _scope.userId);
+        .eq('user_id', _userId);
 
     return {
       for (final row in rows)
@@ -18,17 +26,17 @@ class SupabaseMatchFavoritesRepository {
   }
 
   Future<void> save(Set<String> favoriteIds) async {
-    await _scope.client
+    await _client
         .from('match_favorites')
         .delete()
-        .eq('user_id', _scope.userId);
+        .eq('user_id', _userId);
 
     if (favoriteIds.isEmpty) {
       return;
     }
 
-    await _scope.client.from('match_favorites').insert([
-      for (final id in favoriteIds) {'user_id': _scope.userId, 'match_id': id},
+    await _client.from('match_favorites').insert([
+      for (final id in favoriteIds) {'user_id': _userId, 'match_id': id},
     ]);
   }
 }

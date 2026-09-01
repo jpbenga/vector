@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../../app/deck/lector_deck.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/theme/app_radius.dart';
@@ -13,6 +14,7 @@ import '../../opportunities/domain/opportunity.dart';
 import '../../tickets/domain/ticket_draft.dart';
 import '../../tickets/domain/saved_ticket.dart';
 import '../../tickets/domain/ticket_strategy.dart';
+import '../../tickets/presentation/ticket_builder_panel.dart';
 import '../domain/match_board_item.dart';
 import 'opportunity_decision_presenter.dart';
 import 'widgets/sports_asset_badge.dart';
@@ -31,6 +33,7 @@ class MatchDetailPage extends StatefulWidget {
     this.onTicketSaved,
     this.onViewSavedTickets,
     this.onOpenTicketSelection,
+    this.onOpenGenerator,
     super.key,
   });
 
@@ -43,6 +46,7 @@ class MatchDetailPage extends StatefulWidget {
   final ValueChanged<SavedTicket>? onTicketSaved;
   final VoidCallback? onViewSavedTickets;
   final ValueChanged<TicketDraftSelection>? onOpenTicketSelection;
+  final VoidCallback? onOpenGenerator;
 
   @override
   State<MatchDetailPage> createState() => _MatchDetailPageState();
@@ -50,11 +54,13 @@ class MatchDetailPage extends StatefulWidget {
 
 class _MatchDetailPageState extends State<MatchDetailPage> {
   int _selectedFreeTab = 0;
+  bool _isTicketPanelExpanded = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.surfaces.background,
+      bottomNavigationBar: _buildTicketPanel(),
       body: Stack(
         children: [
           const _LectorMatchBackground(),
@@ -70,9 +76,12 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                       ),
                       const SizedBox(height: 10),
                       _LectorMatchHero(match: widget.match),
-                      const SizedBox(height: 14),
-                      _LectorRepereSection(match: widget.match),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
+                      _LectorScenarioCard(
+                        match: widget.match,
+                        opportunity: widget.opportunity,
+                      ),
+                      const SizedBox(height: 12),
                       _LectorMatchTabBar(
                         selectedIndex: _selectedFreeTab,
                         onSelected: (index) {
@@ -84,24 +93,155 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                         match: widget.match,
                         selectedIndex: _selectedFreeTab,
                       ),
-                      const SizedBox(height: 10),
-                      _LectorRecentMatchesCard(match: widget.match),
-                      const SizedBox(height: 10),
-                      _LectorFollowCard(match: widget.match),
                     ],
                   ),
                 ),
               ],
             ),
           ),
-          const Positioned(
+          Positioned(
             left: 14,
-            bottom: 14,
-            child: _MatchQuickDockButton(),
+            bottom: 16 + MediaQuery.paddingOf(context).bottom,
+            child: _buildDeck(context),
           ),
         ],
       ),
     );
+  }
+
+  Widget? _buildTicketPanel() {
+    final ticketDraftListenable = widget.ticketDraftListenable;
+    if (ticketDraftListenable == null ||
+        widget.onRemoveTicketSelection == null ||
+        widget.onTicketSaved == null ||
+        widget.onViewSavedTickets == null) {
+      return null;
+    }
+
+    return ValueListenableBuilder<TicketDraft>(
+      valueListenable: ticketDraftListenable,
+      builder: (context, ticket, _) {
+        if (ticket.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return TicketBuilderPanel(
+          ticket: ticket,
+          strategies: widget.ticketStrategies,
+          isExpanded: _isTicketPanelExpanded,
+          onToggleExpanded: () {
+            setState(() {
+              _isTicketPanelExpanded = !_isTicketPanelExpanded;
+            });
+          },
+          onRemoveSelection: (selectionId) {
+            widget.onRemoveTicketSelection!(selectionId);
+            if (ticket.selectionCount <= 1) {
+              setState(() {
+                _isTicketPanelExpanded = false;
+              });
+            }
+          },
+          onTicketSaved: widget.onTicketSaved!,
+          onViewSavedTickets: widget.onViewSavedTickets!,
+          onOpenSelection: widget.onOpenTicketSelection,
+        );
+      },
+    );
+  }
+
+  Widget _buildDeck(BuildContext context) {
+    final ticketDraftListenable = widget.ticketDraftListenable;
+    if (ticketDraftListenable == null) {
+      return _deckForTicket(TicketDraft.empty);
+    }
+
+    return ValueListenableBuilder<TicketDraft>(
+      valueListenable: ticketDraftListenable,
+      builder: (context, ticket, _) => _deckForTicket(ticket),
+    );
+  }
+
+  Widget _deckForTicket(TicketDraft ticket) {
+    final ticketSelection = _recommendedTicketSelection();
+    final ticketState = _deckTicketState(ticket, ticketSelection);
+    final canOpenCurrentTicket = ticket.isNotEmpty && _canShowTicketPanel;
+
+    return LectorDeck(
+      maxWidth: MediaQuery.sizeOf(context).width - 28,
+      deckContext: LectorDeckContext(
+        scope: LectorDeckScope.matchDetail,
+        ticketState: ticketState,
+      ),
+      capabilities: LectorDeckCapabilities(
+        onAddToTicket:
+            ticketState == LectorDeckTicketState.canAdd &&
+                ticketSelection != null &&
+                widget.onToggleTicket != null
+            ? () => widget.onToggleTicket!(ticketSelection)
+            : null,
+        onRemoveFromTicket:
+            ticketState == LectorDeckTicketState.selected &&
+                ticketSelection != null &&
+                widget.onToggleTicket != null
+            ? () {
+                widget.onToggleTicket!(ticketSelection);
+                setState(() {
+                  _isTicketPanelExpanded = false;
+                });
+              }
+            : null,
+        onOpenCurrentTicket: canOpenCurrentTicket
+            ? () {
+                setState(() {
+                  _isTicketPanelExpanded = true;
+                });
+              }
+            : null,
+        onOpenReadings: () => _showScenarioReadingsSheet(context, widget.match),
+        onOpenGenerator: widget.onOpenGenerator,
+      ),
+    );
+  }
+
+  bool get _canShowTicketPanel {
+    return widget.ticketDraftListenable != null &&
+        widget.onRemoveTicketSelection != null &&
+        widget.onTicketSaved != null &&
+        widget.onViewSavedTickets != null;
+  }
+
+  TicketDraftSelection? _recommendedTicketSelection() {
+    if (widget.match.profileStatus == MatchProfileStatus.outOfProfile) {
+      return null;
+    }
+    final recommendedMarket =
+        widget.opportunity?.recommendedMarket ??
+        widget.match.thesis?.recommendedMarket;
+    if (recommendedMarket == null) {
+      return null;
+    }
+    return TicketDraftSelection.fromMatchSelection(
+      widget.match,
+      recommendedMarket.market,
+      recommendedMarket.selection,
+    );
+  }
+
+  LectorDeckTicketState _deckTicketState(
+    TicketDraft ticket,
+    TicketDraftSelection? ticketSelection,
+  ) {
+    if (ticketSelection == null || widget.onToggleTicket == null) {
+      return LectorDeckTicketState.unavailable;
+    }
+    if (ticket.contains(ticketSelection.id)) {
+      return LectorDeckTicketState.selected;
+    }
+    if (ticket.containsAnotherSelectionForMatch(ticketSelection)) {
+      return LectorDeckTicketState.blockedByAnotherSelection;
+    }
+    return LectorDeckTicketState.canAdd;
   }
 }
 
@@ -526,143 +666,333 @@ class _HeroStatusBlock extends StatelessWidget {
   }
 }
 
-class _LectorRepereSection extends StatelessWidget {
-  const _LectorRepereSection({required this.match});
+class _LectorScenarioCard extends StatelessWidget {
+  const _LectorScenarioCard({required this.match, this.opportunity});
 
   final MatchBoardItem match;
+  final Opportunity? opportunity;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final brand = context.brand;
     final textColors = context.textColors;
-    final primaryTitle = match.thesis?.title ?? _firstSignalTitle(match);
-    final primarySubtitle = match.thesis == null
-        ? 'Lecture disponible'
-        : '${match.thesis!.supportingEvidence.length.clamp(1, 3)} lectures';
+    final surfaces = context.surfaces;
+    final title = _scenarioTitle(match);
+    final count = _scenarioReadingCount(match);
+    final recommendedMarket = _scenarioRecommendedMarket(match, opportunity);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Repères Lector',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  color: textColors.primary,
-                  fontWeight: FontWeight.w900,
+    return Material(
+      color: AppColors.transparent,
+      child: InkWell(
+        onTap: () => _showScenarioReadingsSheet(context, match),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        child: _LectorGlassCard(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: brand.accent.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(AppRadius.odds),
+                    ),
+                    child: Icon(
+                      Icons.track_changes_rounded,
+                      color: brand.accent,
+                      size: 25,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title.toUpperCase(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: textColors.primary,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '$count lecture${count > 1 ? 's' : ''} convergent',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: brand.accent,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _ScenarioMiniDuel(match: match),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                _scenarioSummary(match),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: textColors.secondary,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ),
-            TextButton.icon(
-              onPressed: () =>
-                  _showComingSoon(context, 'Explication premium à brancher'),
-              icon: const Icon(Icons.lock_outline_rounded, size: 15),
-              label: const Text('Pourquoi ?'),
-              style: TextButton.styleFrom(foregroundColor: brand.accent),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        Row(
-          children: [
-            Expanded(
-              child: _LectorRepereCard(
-                icon: Icons.track_changes_rounded,
-                title: primaryTitle,
-                subtitle: primarySubtitle,
-                color: brand.accent,
+              const SizedBox(height: 9),
+              Divider(height: 1, color: surfaces.border),
+              const SizedBox(height: 7),
+              Row(
+                children: [
+                  if (_hasScenarioRecommendedPick(recommendedMarket))
+                    Expanded(
+                      flex: 3,
+                      child: _ScenarioRecommendedPick(
+                        match: match,
+                        recommendedMarket: recommendedMarket!,
+                      ),
+                    )
+                  else
+                    const Spacer(),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    flex: 2,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: () =>
+                              _showScenarioReadingsSheet(context, match),
+                          style: TextButton.styleFrom(
+                            minimumSize: const Size(0, 36),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            foregroundColor: brand.accent,
+                          ),
+                          label: Text(
+                            'Voir les $count lectures',
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: brand.accent,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          icon: const Icon(
+                            Icons.chevron_right_rounded,
+                            size: 20,
+                          ),
+                          iconAlignment: IconAlignment.end,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _LectorRepereCard(
-                icon: Icons.compare_arrows_rounded,
-                title: 'Match à suivre',
-                subtitle: _secondaryRepereSubtitle(match),
-                color: context.opportunities.levelGap,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ],
+      ),
     );
   }
 }
 
-class _LectorRepereCard extends StatelessWidget {
-  const _LectorRepereCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.color,
+class _ScenarioRecommendedPick extends StatelessWidget {
+  const _ScenarioRecommendedPick({
+    required this.match,
+    required this.recommendedMarket,
   });
 
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color color;
+  final MatchBoardItem match;
+  final RecommendedMarket recommendedMarket;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final surfaces = context.surfaces;
+    final brand = context.brand;
     final textColors = context.textColors;
+    final selection = recommendedMarket.selection;
+    final label = _scenarioRecommendedPickLabel(match, recommendedMarket);
 
-    return _LectorGlassCard(
-      padding: const EdgeInsets.all(10),
-      child: SizedBox(
-        height: 68,
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(AppRadius.odds),
-              ),
-              child: Icon(icon, color: color, size: 25),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: textColors.primary,
-                      fontWeight: FontWeight.w900,
-                      height: 1.1,
-                    ),
+    if (label == null) {
+      return const SizedBox.shrink();
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 64) {
+          return Align(
+            alignment: Alignment.centerLeft,
+            child: _ScenarioOddsBadge(odds: selection.odds),
+          );
+        }
+
+        if (constraints.maxWidth < 220) {
+          return Row(
+            children: [
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: brand.accent,
+                    fontWeight: FontWeight.w900,
+                    height: 1.1,
                   ),
-                  if (subtitle.isNotEmpty) ...[
-                    const SizedBox(height: 3),
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: color,
-                        fontWeight: FontWeight.w700,
-                      ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _ScenarioOddsBadge(odds: selection.odds),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Icon(Icons.trending_up_rounded, color: brand.accent, size: 20),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: 'Pronostic envisagé · ',
+                      style: TextStyle(color: textColors.secondary),
+                    ),
+                    TextSpan(
+                      text: label,
+                      style: TextStyle(color: brand.accent),
                     ),
                   ],
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  height: 1.1,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            _ScenarioOddsBadge(odds: selection.odds),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ScenarioOddsBadge extends StatelessWidget {
+  const _ScenarioOddsBadge({required this.odds});
+
+  final double odds;
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = context.brand;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: brand.accent.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+        border: Border.all(color: brand.accent.withValues(alpha: 0.18)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+        child: SizedBox(
+          width: 42,
+          child: Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                odds.toStringAsFixed(2),
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: brand.accent,
+                  fontWeight: FontWeight.w900,
+                  height: 1,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ScenarioMiniDuel extends StatelessWidget {
+  const _ScenarioMiniDuel({required this.match});
+
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) {
+    final homePoints = match.analysis.homeStanding?.points;
+    final awayPoints = match.analysis.awayStanding?.points;
+    final brand = context.brand;
+    final surfaces = context.surfaces;
+
+    final total = (homePoints ?? 0) + (awayPoints ?? 0);
+    final homeFlex = total <= 0
+        ? 1
+        : ((homePoints ?? 0) * 100).clamp(16, 84).toInt();
+    final awayFlex = total <= 0
+        ? 1
+        : ((awayPoints ?? 0) * 100).clamp(16, 84).toInt();
+
+    return SizedBox(
+      width: 104,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              SportsAssetBadge(
+                size: 22,
+                imageUrl: match.homeTeam.logoUrl,
+                fallbackLabel: match.homeTeam.name,
+                backgroundColor: AppColors.transparent,
+                padding: 1,
+              ),
+              const SizedBox(width: 8),
+              SportsAssetBadge(
+                size: 22,
+                imageUrl: match.awayTeam.logoUrl,
+                fallbackLabel: match.awayTeam.name,
+                backgroundColor: AppColors.transparent,
+                padding: 1,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.indicator),
+            child: SizedBox(
+              height: 6,
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: homeFlex,
+                    child: ColoredBox(color: brand.accent),
+                  ),
+                  Expanded(
+                    flex: awayFlex,
+                    child: ColoredBox(color: surfaces.border),
+                  ),
                 ],
               ),
             ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: surfaces.border.withValues(alpha: 0.95),
-              size: 22,
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -789,34 +1119,448 @@ class _LectorQuickContextCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final homeRank = _rankLabel(match.analysis.homeStanding);
-    final awayRank = _rankLabel(match.analysis.awayStanding);
-    final form = _bestFormResults(match);
-    final awayWins = _awayWinsLabel(match);
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final textColors = context.textColors;
+    final surfaces = context.surfaces;
+    final homeForm = _matchDetailLastFiveResults(
+      match.analysis.homeStatistics?.form ?? match.analysis.homeStanding?.form,
+    );
+    final awayForm = _matchDetailLastFiveResults(
+      match.analysis.awayStatistics?.form ?? match.analysis.awayStanding?.form,
+    );
 
-    return _LectorInfoCard(
-      title: 'Contexte rapide',
-      rows: [
-        _LectorInfoRow(
-          icon: Icons.bar_chart_rounded,
-          label: 'Classement',
-          trailing: [
-            TextSpan(text: '${match.homeTeam.name} $homeRank'),
-            const TextSpan(text: ' · '),
-            TextSpan(text: '${match.awayTeam.name} $awayRank'),
-          ],
+    return _LectorGlassCard(
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'CONTEXTE RAPIDE',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: textColors.primary,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Icon(
+                Icons.info_outline_rounded,
+                size: 15,
+                color: textColors.secondary,
+              ),
+            ],
+          ),
+          const SizedBox(height: 3),
+          Text(
+            'Les éléments clés à retenir en un coup d’œil.',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: textColors.secondary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _ContextComparisonRow(
+            icon: Icons.bar_chart_rounded,
+            label: 'CLASSEMENT',
+            home: _TeamMetricSummary(
+              logoUrl: match.homeTeam.logoUrl,
+              fallbackLabel: match.homeTeam.name,
+              value: _rankLabel(match.analysis.homeStanding),
+              detail: _pointsLabel(match.analysis.homeStanding),
+              accent: brand.accent,
+              alignRight: false,
+            ),
+            center: _ContextDeltaPill(
+              primary: _rankGapLabel(match),
+              secondary: _pointsGapLabel(match),
+            ),
+            away: _TeamMetricSummary(
+              logoUrl: match.awayTeam.logoUrl,
+              fallbackLabel: match.awayTeam.name,
+              value: _rankLabel(match.analysis.awayStanding),
+              detail: _pointsLabel(match.analysis.awayStanding),
+              accent: textColors.secondary,
+              alignRight: true,
+            ),
+          ),
+          Divider(height: 12, color: surfaces.border),
+          _ContextComparisonRow(
+            icon: Icons.monitor_heart_outlined,
+            label: 'FORME · 5 DERNIERS MATCHS',
+            home: _TeamFormSummary(results: homeForm),
+            center: _ContextDeltaPill(
+              primary: _formGapLabel(homeForm, awayForm),
+              secondary: 'sur les 5 derniers matchs',
+            ),
+            away: _TeamFormSummary(results: awayForm, alignRight: true),
+          ),
+          Divider(height: 12, color: surfaces.border),
+          _ContextComparisonRow(
+            icon: Icons.home_outlined,
+            label: 'DOMICILE / EXTÉRIEUR',
+            home: _HomeAwaySummary(
+              title: '${match.homeTeam.name} à domicile',
+              wins: match.analysis.homeStatistics?.winsHome,
+              draws: match.analysis.homeStatistics?.drawsHome,
+              losses: match.analysis.homeStatistics?.lossesHome,
+              played: match.analysis.homeStatistics?.playedHome,
+            ),
+            center: _ContextDeltaPill(
+              primary: _homeAwayGapLabel(match),
+              secondary: 'écart contextuel',
+            ),
+            away: _HomeAwaySummary(
+              title: '${match.awayTeam.name} à l’extérieur',
+              wins: match.analysis.awayStatistics?.winsAway,
+              draws: match.analysis.awayStatistics?.drawsAway,
+              losses: match.analysis.awayStatistics?.lossesAway,
+              played: match.analysis.awayStatistics?.playedAway,
+              alignRight: true,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(Icons.auto_awesome_rounded, size: 15, color: brand.accent),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Ces éléments contribuent à la lecture « ${_scenarioTitle(match)} »',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: textColors.secondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: textColors.secondary,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContextComparisonRow extends StatelessWidget {
+  const _ContextComparisonRow({
+    required this.icon,
+    required this.label,
+    required this.home,
+    required this.center,
+    required this.away,
+  });
+
+  final IconData icon;
+  final String label;
+  final Widget home;
+  final Widget center;
+  final Widget away;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final textColors = context.textColors;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: brand.accent, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: textColors.primary,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 7),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(child: home),
+              const SizedBox(width: 8),
+              SizedBox(width: 82, child: center),
+              const SizedBox(width: 8),
+              Expanded(child: away),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TeamMetricSummary extends StatelessWidget {
+  const _TeamMetricSummary({
+    required this.logoUrl,
+    required this.fallbackLabel,
+    required this.value,
+    required this.detail,
+    required this.accent,
+    required this.alignRight,
+  });
+
+  final String? logoUrl;
+  final String fallbackLabel;
+  final String value;
+  final String detail;
+  final Color accent;
+  final bool alignRight;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textColors = context.textColors;
+
+    return Row(
+      mainAxisAlignment: alignRight
+          ? MainAxisAlignment.end
+          : MainAxisAlignment.start,
+      children: [
+        if (!alignRight) ...[
+          SportsAssetBadge(
+            size: 28,
+            imageUrl: logoUrl,
+            fallbackLabel: fallbackLabel,
+            backgroundColor: AppColors.transparent,
+            padding: 1,
+          ),
+          const SizedBox(width: 8),
+        ],
+        Flexible(
+          child: Column(
+            crossAxisAlignment: alignRight
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: accent,
+                  fontWeight: FontWeight.w900,
+                  height: 1.05,
+                ),
+              ),
+              Text(
+                detail,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: textColors.primary,
+                  fontWeight: FontWeight.w700,
+                  height: 1.1,
+                ),
+              ),
+            ],
+          ),
         ),
-        _LectorInfoRow(
-          icon: Icons.monitor_heart_outlined,
-          label: 'Forme',
-          customTrailing: _FormDots(results: form),
-        ),
-        _LectorInfoRow(
-          icon: Icons.flight_takeoff_rounded,
-          label: 'Extérieur',
-          trailing: [TextSpan(text: awayWins)],
+        if (alignRight) ...[
+          const SizedBox(width: 8),
+          SportsAssetBadge(
+            size: 28,
+            imageUrl: logoUrl,
+            fallbackLabel: fallbackLabel,
+            backgroundColor: AppColors.transparent,
+            padding: 1,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _TeamFormSummary extends StatelessWidget {
+  const _TeamFormSummary({required this.results, this.alignRight = false});
+
+  final List<String> results;
+  final bool alignRight;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final textColors = context.textColors;
+    final points = _formPoints(results);
+
+    return Column(
+      crossAxisAlignment: alignRight
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: [
+        _FormDots(results: results),
+        const SizedBox(height: 4),
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: '$points',
+                style: TextStyle(color: brand.accent),
+              ),
+              const TextSpan(text: ' / 15 pts'),
+            ],
+          ),
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: textColors.primary,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ],
+    );
+  }
+}
+
+class _HomeAwaySummary extends StatelessWidget {
+  const _HomeAwaySummary({
+    required this.title,
+    required this.wins,
+    required this.draws,
+    required this.losses,
+    required this.played,
+    this.alignRight = false,
+  });
+
+  final String title;
+  final int? wins;
+  final int? draws;
+  final int? losses;
+  final int? played;
+  final bool alignRight;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final textColors = context.textColors;
+    final winCount = wins;
+    final drawCount = draws;
+    final lossCount = losses;
+    final playedCount = played;
+    final percent = _winPercentLabel(winCount, playedCount);
+
+    return Column(
+      crossAxisAlignment: alignRight
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: alignRight ? TextAlign.right : TextAlign.left,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: textColors.primary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: '${winCount ?? '-'} V',
+                style: TextStyle(color: brand.accent),
+              ),
+              TextSpan(
+                text: '  ${drawCount ?? '-'} N',
+                style: TextStyle(color: textColors.secondary),
+              ),
+              TextSpan(
+                text: '  ${lossCount ?? '-'} D',
+                style: TextStyle(color: context.semantic.error),
+              ),
+            ],
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: textColors.primary,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          percent,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: textColors.secondary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ContextDeltaPill extends StatelessWidget {
+  const _ContextDeltaPill({required this.primary, required this.secondary});
+
+  final String primary;
+  final String secondary;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final textColors = context.textColors;
+    final surfaces = context.surfaces;
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 46),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      decoration: BoxDecoration(
+        color: surfaces.surfaceHover.withValues(alpha: 0.48),
+        borderRadius: BorderRadius.circular(AppRadius.odds),
+        border: Border.all(color: surfaces.border),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            primary,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: brand.accent,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            secondary,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: textColors.secondary,
+              height: 1.1,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -828,24 +1572,732 @@ class _LectorStandingContextCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _LectorInfoCard(
-      title: 'Classement',
-      rows: [
-        _LectorInfoRow(
-          icon: Icons.shield_outlined,
-          label: match.homeTeam.name,
-          trailing: [
-            TextSpan(text: _standingSummary(match.analysis.homeStanding)),
-          ],
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final textColors = context.textColors;
+    final surfaces = context.surfaces;
+    final standings = _mobileStandingRows(match);
+
+    if (standings.isEmpty) {
+      return _LectorInfoCard(
+        title: 'Classement',
+        rows: [
+          _LectorInfoRow(
+            icon: Icons.info_outline_rounded,
+            label: 'Classement indisponible',
+            trailing: const [TextSpan(text: 'Snapshot incomplet')],
+          ),
+        ],
+      );
+    }
+
+    return _LectorGlassCard(
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.bar_chart_rounded, color: brand.accent, size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'CLASSEMENT',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: textColors.primary,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 3),
+          Text(
+            'Position, points et dynamique dans le championnat.',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: textColors.secondary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Divider(height: 1, color: surfaces.border),
+          const SizedBox(height: 10),
+          _StandingMatchSummary(match: match),
+          const SizedBox(height: 10),
+          Divider(height: 1, color: surfaces.border),
+          const SizedBox(height: 10),
+          _StandingTableHeaderTitle(match: match),
+          const SizedBox(height: 8),
+          _MobileStandingTable(match: match, standings: standings),
+          const SizedBox(height: 10),
+          _StandingInsightStrip(match: match),
+        ],
+      ),
+    );
+  }
+}
+
+class _StandingMatchSummary extends StatelessWidget {
+  const _StandingMatchSummary({required this.match});
+
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: _StandingTeamSummary(
+            team: match.homeTeam,
+            standing: match.analysis.homeStanding,
+            alignRight: false,
+          ),
         ),
-        _LectorInfoRow(
-          icon: Icons.shield_outlined,
-          label: match.awayTeam.name,
-          trailing: [
-            TextSpan(text: _standingSummary(match.analysis.awayStanding)),
-          ],
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 88,
+          child: _ContextDeltaPill(
+            primary: _rankGapLabel(match),
+            secondary: _pointsGapLabel(match),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _StandingTeamSummary(
+            team: match.awayTeam,
+            standing: match.analysis.awayStanding,
+            alignRight: true,
+          ),
         ),
       ],
+    );
+  }
+}
+
+class _StandingTeamSummary extends StatelessWidget {
+  const _StandingTeamSummary({
+    required this.team,
+    required this.standing,
+    required this.alignRight,
+  });
+
+  final TeamInfo team;
+  final TeamStandingSnapshot? standing;
+  final bool alignRight;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final textColors = context.textColors;
+
+    return Row(
+      textDirection: alignRight ? TextDirection.rtl : TextDirection.ltr,
+      children: [
+        SportsAssetBadge(
+          size: 32,
+          imageUrl: team.logoUrl,
+          fallbackLabel: team.name,
+          backgroundColor: AppColors.transparent,
+          padding: 1,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: alignRight
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
+            children: [
+              Text(
+                team.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: alignRight ? TextAlign.right : TextAlign.left,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: textColors.primary,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 1),
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: _rankLabel(standing),
+                      style: TextStyle(color: brand.accent),
+                    ),
+                    TextSpan(
+                      text: ' · ${_pointsLabel(standing)}',
+                      style: TextStyle(color: textColors.primary),
+                    ),
+                  ],
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: alignRight ? TextAlign.right : TextAlign.left,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 5),
+              _StandingRecordLine(standing: standing, alignRight: alignRight),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StandingRecordLine extends StatelessWidget {
+  const _StandingRecordLine({required this.standing, required this.alignRight});
+
+  final TeamStandingSnapshot? standing;
+  final bool alignRight;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final textColors = context.textColors;
+
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: 'V',
+            style: TextStyle(color: brand.accent),
+          ),
+          TextSpan(
+            text: ' · ',
+            style: TextStyle(color: textColors.secondary),
+          ),
+          TextSpan(
+            text: 'N',
+            style: TextStyle(color: textColors.secondary),
+          ),
+          TextSpan(
+            text: ' · ',
+            style: TextStyle(color: textColors.secondary),
+          ),
+          TextSpan(
+            text: 'D',
+            style: TextStyle(color: context.semantic.error),
+          ),
+          TextSpan(
+            text:
+                '\n${standing?.wins ?? '-'} · ${standing?.draws ?? '-'} · ${standing?.losses ?? '-'}',
+            style: TextStyle(color: textColors.primary),
+          ),
+        ],
+      ),
+      textAlign: alignRight ? TextAlign.right : TextAlign.left,
+      style: theme.textTheme.labelSmall?.copyWith(
+        height: 1.25,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+  }
+}
+
+class _StandingTableHeaderTitle extends StatelessWidget {
+  const _StandingTableHeaderTitle({required this.match});
+
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final textColors = context.textColors;
+
+    return Row(
+      children: [
+        Icon(Icons.emoji_events_outlined, color: brand.accent, size: 18),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'TOP 10 - ${match.competition.name.toUpperCase()}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: textColors.primary,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MobileStandingTable extends StatelessWidget {
+  const _MobileStandingTable({required this.match, required this.standings});
+
+  final MatchBoardItem match;
+  final List<TeamStandingSnapshot> standings;
+
+  @override
+  Widget build(BuildContext context) {
+    final surfaces = context.surfaces;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.control),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: surfaces.surfaceHover.withValues(alpha: 0.22),
+          border: Border.all(color: surfaces.border),
+          borderRadius: BorderRadius.circular(AppRadius.control),
+        ),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: 642,
+            child: Column(
+              children: [
+                const _MobileStandingRow.header(),
+                for (final standing in standings.take(10))
+                  _MobileStandingRow(
+                    standing: standing,
+                    team: _standingTeam(match, standing),
+                    highlight: _standingHighlight(match, standing),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MobileStandingRow extends StatelessWidget {
+  const _MobileStandingRow({
+    required this.standing,
+    required this.team,
+    required this.highlight,
+  }) : isHeader = false;
+
+  const _MobileStandingRow.header()
+    : standing = null,
+      team = null,
+      highlight = _StandingHighlight.none,
+      isHeader = true;
+
+  final TeamStandingSnapshot? standing;
+  final TeamInfo? team;
+  final _StandingHighlight highlight;
+  final bool isHeader;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final textColors = context.textColors;
+    final surfaces = context.surfaces;
+    final accent = switch (highlight) {
+      _StandingHighlight.home => brand.accent,
+      _StandingHighlight.away => context.opportunities.levelGap,
+      _StandingHighlight.none => surfaces.border,
+    };
+    final rowColor = isHeader
+        ? AppColors.transparent
+        : highlight == _StandingHighlight.none
+        ? AppColors.transparent
+        : accent.withValues(alpha: 0.11);
+    final borderColor = highlight == _StandingHighlight.none
+        ? surfaces.border.withValues(alpha: 0.62)
+        : accent.withValues(alpha: 0.82);
+    final textColor = isHeader
+        ? textColors.secondary
+        : highlight == _StandingHighlight.none
+        ? textColors.primary
+        : textColors.primary;
+
+    if (isHeader) {
+      return _MobileStandingRowShell(
+        backgroundColor: rowColor,
+        borderColor: borderColor,
+        child: Row(
+          children: [
+            _StandingTableCell(
+              '#',
+              width: 34,
+              color: textColor,
+              isHeader: true,
+            ),
+            _StandingTableCell(
+              'Équipe',
+              width: 164,
+              color: textColor,
+              isHeader: true,
+              alignment: Alignment.centerLeft,
+            ),
+            _StandingTableCell(
+              'J',
+              width: 36,
+              color: textColor,
+              isHeader: true,
+            ),
+            _StandingTableCell(
+              'V',
+              width: 34,
+              color: textColor,
+              isHeader: true,
+            ),
+            _StandingTableCell(
+              'N',
+              width: 34,
+              color: textColor,
+              isHeader: true,
+            ),
+            _StandingTableCell(
+              'D',
+              width: 34,
+              color: textColor,
+              isHeader: true,
+            ),
+            _StandingTableCell(
+              'BP',
+              width: 42,
+              color: textColor,
+              isHeader: true,
+            ),
+            _StandingTableCell(
+              'BC',
+              width: 42,
+              color: textColor,
+              isHeader: true,
+            ),
+            _StandingTableCell(
+              'Diff',
+              width: 50,
+              color: textColor,
+              isHeader: true,
+            ),
+            _StandingTableCell(
+              'Pts',
+              width: 44,
+              color: textColor,
+              isHeader: true,
+            ),
+            _StandingTableCell(
+              'Forme',
+              width: 114,
+              color: textColor,
+              isHeader: true,
+            ),
+          ],
+        ),
+      );
+    }
+
+    final row = standing!;
+
+    return _MobileStandingRowShell(
+      backgroundColor: rowColor,
+      borderColor: borderColor,
+      child: Row(
+        children: [
+          _StandingTableCell(_intValue(row.rank), width: 34, color: textColor),
+          SizedBox(
+            width: 164,
+            child: Row(
+              children: [
+                SportsAssetBadge(
+                  size: 20,
+                  imageUrl: team?.logoUrl,
+                  fallbackLabel: row.teamName,
+                  backgroundColor: AppColors.transparent,
+                  padding: 1,
+                ),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    row.teamName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: textColor,
+                      fontWeight: highlight == _StandingHighlight.none
+                          ? FontWeight.w700
+                          : FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _StandingTableCell(
+            _intValue(row.played),
+            width: 36,
+            color: textColor,
+          ),
+          _StandingTableCell(_intValue(row.wins), width: 34, color: textColor),
+          _StandingTableCell(_intValue(row.draws), width: 34, color: textColor),
+          _StandingTableCell(
+            _intValue(row.losses),
+            width: 34,
+            color: textColor,
+          ),
+          _StandingTableCell(
+            _intValue(row.goalsFor),
+            width: 42,
+            color: textColor,
+          ),
+          _StandingTableCell(
+            _intValue(row.goalsAgainst),
+            width: 42,
+            color: textColor,
+          ),
+          _StandingTableCell(
+            _signedValue(row.goalDiff),
+            width: 50,
+            color: _goalDiffColor(context, row.goalDiff),
+          ),
+          _StandingTableCell(
+            _intValue(row.points),
+            width: 44,
+            color: textColor,
+            bold: true,
+          ),
+          SizedBox(
+            width: 114,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: _StandingFormDots(
+                results: _matchDetailLastFiveResults(row.form),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MobileStandingRowShell extends StatelessWidget {
+  const _MobileStandingRowShell({
+    required this.child,
+    required this.backgroundColor,
+    required this.borderColor,
+  });
+
+  final Widget child;
+  final Color backgroundColor;
+  final Color borderColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        border: Border(bottom: BorderSide(color: borderColor)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+        child: child,
+      ),
+    );
+  }
+}
+
+class _StandingTableCell extends StatelessWidget {
+  const _StandingTableCell(
+    this.value, {
+    required this.width,
+    required this.color,
+    this.isHeader = false,
+    this.bold = false,
+    this.alignment = Alignment.center,
+  });
+
+  final String value;
+  final double width;
+  final Color color;
+  final bool isHeader;
+  final bool bold;
+  final Alignment alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return SizedBox(
+      width: width,
+      child: Align(
+        alignment: alignment,
+        child: Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: color,
+            fontWeight: isHeader || bold ? FontWeight.w900 : FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StandingFormDots extends StatelessWidget {
+  const _StandingFormDots({required this.results});
+
+  final List<String> results;
+
+  @override
+  Widget build(BuildContext context) {
+    final values = results.isEmpty ? const ['-', '-', '-', '-', '-'] : results;
+    final textColors = context.textColors;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final result in values.take(5)) ...[
+          Container(
+            width: 18,
+            height: 18,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: _formDotColor(context, result),
+              borderRadius: BorderRadius.circular(AppRadius.tight),
+            ),
+            child: Text(
+              _standingFormDotLabel(result),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: textColors.primary,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                height: 1,
+              ),
+            ),
+          ),
+          const SizedBox(width: 3),
+        ],
+      ],
+    );
+  }
+}
+
+class _StandingInsightStrip extends StatelessWidget {
+  const _StandingInsightStrip({required this.match});
+
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final compact = width < 430;
+    final children = [
+      _StandingInsightItem(
+        icon: Icons.emoji_events_rounded,
+        title: 'Course au titre',
+        text: _titleRaceText(match),
+      ),
+      _StandingInsightItem(
+        icon: Icons.trending_up_rounded,
+        title: 'Dynamique générale',
+        text: _standingDynamicText(match),
+      ),
+      _StandingInsightItem(
+        icon: Icons.info_outline_rounded,
+        title: 'Lecture Lector',
+        text: _standingReadingText(match),
+      ),
+    ];
+
+    if (compact) {
+      return Column(
+        children: [
+          for (var index = 0; index < children.length; index++) ...[
+            children[index],
+            if (index < children.length - 1) const SizedBox(height: 8),
+          ],
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var index = 0; index < children.length; index++) ...[
+          Expanded(child: children[index]),
+          if (index < children.length - 1) const SizedBox(width: 8),
+        ],
+      ],
+    );
+  }
+}
+
+class _StandingInsightItem extends StatelessWidget {
+  const _StandingInsightItem({
+    required this.icon,
+    required this.title,
+    required this.text,
+  });
+
+  final IconData icon;
+  final String title;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final textColors = context.textColors;
+    final surfaces = context.surfaces;
+
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: surfaces.surfaceHover.withValues(alpha: 0.26),
+        borderRadius: BorderRadius.circular(AppRadius.odds),
+        border: Border.all(color: surfaces.border.withValues(alpha: 0.7)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: brand.accent.withValues(alpha: 0.13),
+              borderRadius: BorderRadius.circular(AppRadius.tight),
+            ),
+            child: Icon(icon, color: brand.accent, size: 18),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: textColors.primary,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  text,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: textColors.secondary,
+                    height: 1.25,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -857,30 +2309,1011 @@ class _LectorFormContextCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _LectorInfoCard(
-      title: 'Forme',
-      rows: [
-        _LectorInfoRow(
-          icon: Icons.home_rounded,
-          label: match.homeTeam.name,
-          customTrailing: _FormDots(
-            results: _matchDetailLastFiveResults(
-              match.analysis.homeStatistics?.form ??
-                  match.analysis.homeStanding?.form,
+    final homeMatches = match.analysis.homeRecentLeagueMatches.take(5).toList();
+    final awayMatches = match.analysis.awayRecentLeagueMatches.take(5).toList();
+    final homeResults = _lectorFormResults(
+      recentMatches: homeMatches,
+      fallbackForm:
+          match.analysis.homeStatistics?.form ??
+          match.analysis.homeStanding?.form,
+    );
+    final awayResults = _lectorFormResults(
+      recentMatches: awayMatches,
+      fallbackForm:
+          match.analysis.awayStatistics?.form ??
+          match.analysis.awayStanding?.form,
+    );
+    final homeStats = _FormWindowStats.from(
+      recentMatches: homeMatches,
+      fallbackResults: homeResults,
+    );
+    final awayStats = _FormWindowStats.from(
+      recentMatches: awayMatches,
+      fallbackResults: awayResults,
+    );
+
+    return _LectorGlassCard(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _LectorFormHeading(),
+          const SizedBox(height: 12),
+          _LectorFormDuelSummary(
+            match: match,
+            homeResults: homeResults,
+            awayResults: awayResults,
+            homeStats: homeStats,
+            awayStats: awayStats,
+          ),
+          const SizedBox(height: 14),
+          _LectorFormEvolutionSection(
+            match: match,
+            homeResults: homeResults,
+            awayResults: awayResults,
+          ),
+          const SizedBox(height: 14),
+          _LectorRecentFormSection(
+            match: match,
+            homeMatches: homeMatches,
+            awayMatches: awayMatches,
+            homeResults: homeResults,
+            awayResults: awayResults,
+          ),
+          const SizedBox(height: 12),
+          _LectorFormTakeaway(
+            text: _lectorFormTakeawayText(
+              match: match,
+              homeStats: homeStats,
+              awayStats: awayStats,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LectorFormHeading extends StatelessWidget {
+  const _LectorFormHeading();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final textColors = context.textColors;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.trending_up_rounded, color: brand.accent, size: 23),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'FORME RÉCENTE',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: textColors.primary,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Les 5 derniers résultats disponibles.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: textColors.secondary,
+                  fontSize: 11,
+                  height: 1.25,
+                ),
+              ),
+            ],
+          ),
         ),
-        _LectorInfoRow(
-          icon: Icons.flight_takeoff_rounded,
-          label: match.awayTeam.name,
-          customTrailing: _FormDots(
-            results: _matchDetailLastFiveResults(
-              match.analysis.awayStatistics?.form ??
-                  match.analysis.awayStanding?.form,
+      ],
+    );
+  }
+}
+
+class _LectorFormDuelSummary extends StatelessWidget {
+  const _LectorFormDuelSummary({
+    required this.match,
+    required this.homeResults,
+    required this.awayResults,
+    required this.homeStats,
+    required this.awayStats,
+  });
+
+  final MatchBoardItem match;
+  final List<String> homeResults;
+  final List<String> awayResults;
+  final _FormWindowStats homeStats;
+  final _FormWindowStats awayStats;
+
+  @override
+  Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 390;
+    final homeCard = _LectorFormTeamCard(
+      team: match.homeTeam,
+      results: homeResults,
+      stats: homeStats,
+      accent: context.brand.accent,
+    );
+    final awayCard = _LectorFormTeamCard(
+      team: match.awayTeam,
+      results: awayResults,
+      stats: awayStats,
+      accent: context.opportunities.levelGap,
+      alignEnd: true,
+    );
+    final delta = _LectorFormDeltaPill(
+      homeStats: homeStats,
+      awayStats: awayStats,
+    );
+
+    if (compact) {
+      return Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: homeCard),
+              const SizedBox(width: 10),
+              delta,
+            ],
+          ),
+          const SizedBox(height: 10),
+          awayCard,
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: homeCard),
+        const SizedBox(width: 10),
+        delta,
+        const SizedBox(width: 10),
+        Expanded(child: awayCard),
+      ],
+    );
+  }
+}
+
+class _LectorFormTeamCard extends StatelessWidget {
+  const _LectorFormTeamCard({
+    required this.team,
+    required this.results,
+    required this.stats,
+    required this.accent,
+    this.alignEnd = false,
+  });
+
+  final TeamInfo team;
+  final List<String> results;
+  final _FormWindowStats stats;
+  final Color accent;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = context.surfaces;
+    final textColors = context.textColors;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: surfaces.surfaceHover.withValues(alpha: 0.34),
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        border: Border.all(color: surfaces.border.withValues(alpha: 0.78)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: alignEnd
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: alignEnd
+                  ? MainAxisAlignment.end
+                  : MainAxisAlignment.start,
+              children: [
+                if (!alignEnd) ...[
+                  SportsAssetBadge(
+                    size: 27,
+                    imageUrl: team.logoUrl,
+                    fallbackLabel: team.name,
+                    backgroundColor: AppColors.transparent,
+                    padding: 1,
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Flexible(
+                  child: Text(
+                    team.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: alignEnd ? TextAlign.right : TextAlign.left,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: textColors.primary,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                if (alignEnd) ...[
+                  const SizedBox(width: 8),
+                  SportsAssetBadge(
+                    size: 27,
+                    imageUrl: team.logoUrl,
+                    fallbackLabel: team.name,
+                    backgroundColor: AppColors.transparent,
+                    padding: 1,
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 9),
+            _LectorFormDotsRow(results: results, alignEnd: alignEnd),
+            const SizedBox(height: 8),
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: stats.hasResults ? '${stats.points}' : '-',
+                    style: TextStyle(
+                      color: accent,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  TextSpan(
+                    text: ' / 15 pts',
+                    style: TextStyle(
+                      color: textColors.secondary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+              style: theme.textTheme.bodyMedium?.copyWith(fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LectorFormDeltaPill extends StatelessWidget {
+  const _LectorFormDeltaPill({
+    required this.homeStats,
+    required this.awayStats,
+  });
+
+  final _FormWindowStats homeStats;
+  final _FormWindowStats awayStats;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = context.surfaces;
+    final textColors = context.textColors;
+    final brand = context.brand;
+    final gap = homeStats.hasResults && awayStats.hasResults
+        ? (homeStats.points - awayStats.points).abs()
+        : null;
+
+    return Container(
+      width: 70,
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 8),
+      decoration: BoxDecoration(
+        color: surfaces.surfaceHover.withValues(alpha: 0.48),
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        border: Border.all(color: surfaces.border),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            gap == null ? 'Écart' : '+$gap pts',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: brand.accent,
+              fontWeight: FontWeight.w900,
+              height: 1.05,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            'forme',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: textColors.secondary,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LectorFormDotsRow extends StatelessWidget {
+  const _LectorFormDotsRow({required this.results, this.alignEnd = false});
+
+  final List<String> results;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final values = results.isEmpty ? const ['-', '-', '-', '-', '-'] : results;
+
+    return Wrap(
+      alignment: alignEnd ? WrapAlignment.end : WrapAlignment.start,
+      spacing: 5,
+      runSpacing: 4,
+      children: [
+        for (final result in values.take(5))
+          Container(
+            width: 23,
+            height: 23,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _formDotColor(context, result),
+            ),
+            child: Text(
+              _lectorFormResultLabel(result),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _LectorFormEvolutionSection extends StatelessWidget {
+  const _LectorFormEvolutionSection({
+    required this.match,
+    required this.homeResults,
+    required this.awayResults,
+  });
+
+  final MatchBoardItem match;
+  final List<String> homeResults;
+  final List<String> awayResults;
+
+  @override
+  Widget build(BuildContext context) {
+    final textColors = context.textColors;
+    final surfaces = context.surfaces;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _LectorSubsectionTitle(
+          icon: Icons.show_chart_rounded,
+          title: 'ÉVOLUTION SUR LES 5 DERNIERS MATCHS',
+        ),
+        const SizedBox(height: 8),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final stack = constraints.maxWidth < 390;
+            if (stack) {
+              return Column(
+                children: [
+                  _LectorFormChartCard(
+                    teamName: match.homeTeam.name,
+                    results: homeResults,
+                    color: context.brand.accent,
+                  ),
+                  const SizedBox(height: 8),
+                  _LectorFormChartCard(
+                    teamName: match.awayTeam.name,
+                    results: awayResults,
+                    color: context.opportunities.levelGap,
+                  ),
+                ],
+              );
+            }
+
+            return Row(
+              children: [
+                Expanded(
+                  child: _LectorFormChartCard(
+                    teamName: match.homeTeam.name,
+                    results: homeResults,
+                    color: context.brand.accent,
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  height: 92,
+                  margin: const EdgeInsets.symmetric(horizontal: 10),
+                  color: surfaces.border,
+                ),
+                Expanded(
+                  child: _LectorFormChartCard(
+                    teamName: match.awayTeam.name,
+                    results: awayResults,
+                    color: context.opportunities.levelGap,
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+        if (homeResults.isEmpty || awayResults.isEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Certaines séries sont incomplètes dans le snapshot actuel.',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: textColors.secondary,
+              fontSize: 10,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _LectorSubsectionTitle extends StatelessWidget {
+  const _LectorSubsectionTitle({required this.icon, required this.title});
+
+  final IconData icon;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final textColors = context.textColors;
+
+    return Row(
+      children: [
+        Icon(icon, color: brand.accent, size: 19),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: textColors.primary,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0,
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _LectorFormChartCard extends StatelessWidget {
+  const _LectorFormChartCard({
+    required this.teamName,
+    required this.results,
+    required this.color,
+  });
+
+  final String teamName;
+  final List<String> results;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textColors = context.textColors;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          teamName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: textColors.primary,
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 5),
+        SizedBox(
+          height: 78,
+          width: double.infinity,
+          child: CustomPaint(
+            painter: _LectorFormChartPainter(
+              values: _formChartValues(results),
+              color: color,
+              gridColor: context.surfaces.border,
+              textColor: textColors.secondary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LectorFormChartPainter extends CustomPainter {
+  const _LectorFormChartPainter({
+    required this.values,
+    required this.color,
+    required this.gridColor,
+    required this.textColor,
+  });
+
+  final List<int> values;
+  final Color color;
+  final Color gridColor;
+  final Color textColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final chart = Rect.fromLTWH(24, 8, size.width - 28, size.height - 24);
+    final gridPaint = Paint()
+      ..color = gridColor.withValues(alpha: 0.72)
+      ..strokeWidth = 1;
+    for (final yValue in [0, 2, 4]) {
+      final y = chart.bottom - (yValue / 4) * chart.height;
+      canvas.drawLine(Offset(chart.left, y), Offset(chart.right, y), gridPaint);
+      _paintChartText(canvas, '$yValue', Offset(2, y - 7), textColor);
+    }
+
+    final axisPaint = Paint()
+      ..color = gridColor.withValues(alpha: 0.82)
+      ..strokeWidth = 1;
+    canvas.drawLine(
+      Offset(chart.left, chart.top),
+      Offset(chart.left, chart.bottom),
+      axisPaint,
+    );
+    canvas.drawLine(
+      Offset(chart.left, chart.bottom),
+      Offset(chart.right, chart.bottom),
+      axisPaint,
+    );
+
+    final displayValues = values.isEmpty
+        ? const [0, 0, 0, 0, 0]
+        : values.take(5).toList();
+    final step = displayValues.length <= 1
+        ? 0.0
+        : chart.width / (displayValues.length - 1);
+    final points = <Offset>[
+      for (var index = 0; index < displayValues.length; index++)
+        Offset(
+          chart.left + step * index,
+          chart.bottom - (displayValues[index] / 4) * chart.height,
+        ),
+    ];
+
+    if (points.length > 1) {
+      final path = Path()..moveTo(points.first.dx, points.first.dy);
+      for (final point in points.skip(1)) {
+        path.lineTo(point.dx, point.dy);
+      }
+      final linePaint = Paint()
+        ..color = color
+        ..strokeWidth = 2.4
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+      canvas.drawPath(path, linePaint);
+    }
+
+    final dotPaint = Paint()..color = color;
+    for (var index = 0; index < points.length; index++) {
+      canvas.drawCircle(points[index], 4.2, dotPaint);
+      _paintChartText(
+        canvas,
+        '${displayValues[index]}',
+        Offset(points[index].dx - 4, points[index].dy - 19),
+        Colors.white,
+        weight: FontWeight.w900,
+      );
+      _paintChartText(
+        canvas,
+        'J-${displayValues.length - index}',
+        Offset(points[index].dx - 10, chart.bottom + 5),
+        textColor,
+      );
+    }
+  }
+
+  void _paintChartText(
+    Canvas canvas,
+    String text,
+    Offset offset,
+    Color color, {
+    FontWeight weight = FontWeight.w700,
+  }) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(color: color, fontSize: 9, fontWeight: weight),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    painter.paint(canvas, offset);
+  }
+
+  @override
+  bool shouldRepaint(covariant _LectorFormChartPainter oldDelegate) {
+    return values != oldDelegate.values ||
+        color != oldDelegate.color ||
+        gridColor != oldDelegate.gridColor ||
+        textColor != oldDelegate.textColor;
+  }
+}
+
+class _LectorRecentFormSection extends StatelessWidget {
+  const _LectorRecentFormSection({
+    required this.match,
+    required this.homeMatches,
+    required this.awayMatches,
+    required this.homeResults,
+    required this.awayResults,
+  });
+
+  final MatchBoardItem match;
+  final List<TeamRecentMatchSnapshot> homeMatches;
+  final List<TeamRecentMatchSnapshot> awayMatches;
+  final List<String> homeResults;
+  final List<String> awayResults;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _LectorSubsectionTitle(
+          icon: Icons.calendar_month_rounded,
+          title: 'DERNIERS MATCHS',
+        ),
+        const SizedBox(height: 8),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final stack = constraints.maxWidth < 390;
+            if (stack) {
+              return Column(
+                children: [
+                  _LectorCompactRecentFormList(
+                    teamName: match.homeTeam.name,
+                    matches: homeMatches,
+                    fallbackResults: homeResults,
+                  ),
+                  const SizedBox(height: 8),
+                  _LectorCompactRecentFormList(
+                    teamName: match.awayTeam.name,
+                    matches: awayMatches,
+                    fallbackResults: awayResults,
+                  ),
+                ],
+              );
+            }
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _LectorCompactRecentFormList(
+                    teamName: match.homeTeam.name,
+                    matches: homeMatches,
+                    fallbackResults: homeResults,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _LectorCompactRecentFormList(
+                    teamName: match.awayTeam.name,
+                    matches: awayMatches,
+                    fallbackResults: awayResults,
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _LectorCompactRecentFormList extends StatelessWidget {
+  const _LectorCompactRecentFormList({
+    required this.teamName,
+    required this.matches,
+    required this.fallbackResults,
+  });
+
+  final String teamName;
+  final List<TeamRecentMatchSnapshot> matches;
+  final List<String> fallbackResults;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = context.surfaces;
+    final textColors = context.textColors;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          teamName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: textColors.primary,
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 6),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: surfaces.surfaceHover.withValues(alpha: 0.34),
+            borderRadius: BorderRadius.circular(AppRadius.input),
+            border: Border.all(color: surfaces.border.withValues(alpha: 0.75)),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.input),
+            child: Column(
+              children: [
+                if (matches.isNotEmpty)
+                  for (var index = 0; index < matches.take(5).length; index++)
+                    _LectorCompactRecentFormRow(
+                      match: matches[index],
+                      showDivider: index < matches.take(5).length - 1,
+                    )
+                else
+                  for (
+                    var index = 0;
+                    index < fallbackResults.take(5).length;
+                    index++
+                  )
+                    _LectorFallbackFormRow(
+                      result: fallbackResults[index],
+                      index: index,
+                      showDivider: index < fallbackResults.take(5).length - 1,
+                    ),
+                if (matches.isEmpty && fallbackResults.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(9),
+                    child: Text(
+                      'Résultats indisponibles.',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: textColors.secondary,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LectorCompactRecentFormRow extends StatelessWidget {
+  const _LectorCompactRecentFormRow({
+    required this.match,
+    required this.showDivider,
+  });
+
+  final TeamRecentMatchSnapshot match;
+  final bool showDivider;
+
+  @override
+  Widget build(BuildContext context) {
+    final surfaces = context.surfaces;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: showDivider
+            ? Border(
+                bottom: BorderSide(
+                  color: surfaces.border.withValues(alpha: 0.62),
+                ),
+              )
+            : null,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 28,
+              child: Text(
+                match.venue == RecentMatchVenue.home ? 'Dom.' : 'Ext.',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: context.textColors.secondary,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            SportsAssetBadge(
+              size: 19,
+              imageUrl: match.opponentLogoUrl,
+              fallbackLabel: match.opponentName,
+              backgroundColor: AppColors.transparent,
+              padding: 1,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                match.opponentName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: context.textColors.primary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              _recentScoreLabel(match),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: context.textColors.primary,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(width: 5),
+            _LectorTinyResultBadge(result: match.result),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LectorFallbackFormRow extends StatelessWidget {
+  const _LectorFallbackFormRow({
+    required this.result,
+    required this.index,
+    required this.showDivider,
+  });
+
+  final String result;
+  final int index;
+  final bool showDivider;
+
+  @override
+  Widget build(BuildContext context) {
+    final surfaces = context.surfaces;
+    final textColors = context.textColors;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: showDivider
+            ? Border(
+                bottom: BorderSide(
+                  color: surfaces.border.withValues(alpha: 0.62),
+                ),
+              )
+            : null,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Match J-${5 - index}',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: textColors.secondary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            _LectorTinyResultBadge(result: result),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LectorTinyResultBadge extends StatelessWidget {
+  const _LectorTinyResultBadge({required this.result});
+
+  final String result;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _formDotColor(context, result);
+
+    return Container(
+      width: 21,
+      height: 21,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+      child: Text(
+        _lectorFormResultLabel(result),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: Colors.white,
+          fontSize: 9,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _LectorFormTakeaway extends StatelessWidget {
+  const _LectorFormTakeaway({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = context.surfaces;
+    final textColors = context.textColors;
+    final accent = context.opportunities.levelGap;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: surfaces.surfaceHover.withValues(alpha: 0.34),
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        border: Border.all(color: surfaces.border.withValues(alpha: 0.75)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.auto_awesome_rounded, size: 19, color: accent),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'À RETENIR',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: accent,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    text,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: textColors.secondary,
+                      fontSize: 11,
+                      height: 1.3,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -951,13 +3384,11 @@ class _LectorInfoRow extends StatelessWidget {
     required this.icon,
     required this.label,
     this.trailing,
-    this.customTrailing,
   });
 
   final IconData icon;
   final String label;
   final List<TextSpan>? trailing;
-  final Widget? customTrailing;
 
   @override
   Widget build(BuildContext context) {
@@ -982,20 +3413,18 @@ class _LectorInfoRow extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Flexible(
-          child:
-              customTrailing ??
-              Text.rich(
-                TextSpan(
-                  children: trailing,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: brand.accent,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.right,
+          child: Text.rich(
+            TextSpan(
+              children: trailing,
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: brand.accent,
+                fontWeight: FontWeight.w800,
               ),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+          ),
         ),
       ],
     );
@@ -1256,54 +3685,6 @@ class _FollowActionRow extends StatelessWidget {
   }
 }
 
-class _MatchQuickDockButton extends StatelessWidget {
-  const _MatchQuickDockButton();
-
-  @override
-  Widget build(BuildContext context) {
-    final brand = context.brand;
-    final surfaces = context.surfaces;
-
-    return Material(
-      color: AppColors.transparent,
-      child: InkWell(
-        onTap: () => _showMatchDockSheet(context),
-        borderRadius: BorderRadius.circular(22),
-        child: Container(
-          height: 46,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: surfaces.surface.withValues(alpha: 0.88),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: brand.accent.withValues(alpha: 0.45)),
-            boxShadow: [
-              BoxShadow(
-                color: brand.accent.withValues(alpha: 0.18),
-                blurRadius: 22,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const _LectorDetailMark(size: 26),
-              const SizedBox(width: 7),
-              Text(
-                'Match',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: brand.accent,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _LectorGlassCard extends StatelessWidget {
   const _LectorGlassCard({
     required this.child,
@@ -1398,66 +3779,863 @@ void _showComingSoon(BuildContext context, String message) {
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }
 
-void _showMatchDockSheet(BuildContext context) {
-  final brand = context.brand;
-  final textColors = context.textColors;
-
+void _showScenarioReadingsSheet(BuildContext context, MatchBoardItem match) {
   showModalBottomSheet<void>(
     context: context,
-    showDragHandle: true,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: AppColors.transparent,
+    barrierColor: context.surfaces.scrim.withValues(alpha: 0.56),
     builder: (context) {
-      return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _DockSheetAction(
-                icon: Icons.article_outlined,
-                label: 'Lectures',
-                color: brand.accent,
-              ),
-              _DockSheetAction(
-                icon: Icons.bar_chart_rounded,
-                label: 'Stats',
-                color: textColors.primary,
-              ),
-              _DockSheetAction(
-                icon: Icons.star_border_rounded,
-                label: 'Favori',
-                color: textColors.primary,
-              ),
-            ],
-          ),
-        ),
+      return DraggableScrollableSheet(
+        expand: false,
+        minChildSize: 0.48,
+        initialChildSize: 0.76,
+        maxChildSize: 0.92,
+        builder: (context, scrollController) {
+          return _ScenarioReadingsSheet(
+            match: match,
+            scrollController: scrollController,
+          );
+        },
       );
     },
   );
 }
 
-class _DockSheetAction extends StatelessWidget {
-  const _DockSheetAction({
-    required this.icon,
-    required this.label,
-    required this.color,
+class _ScenarioReadingsSheet extends StatelessWidget {
+  const _ScenarioReadingsSheet({
+    required this.match,
+    required this.scrollController,
   });
 
+  final MatchBoardItem match;
+  final ScrollController scrollController;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = context.surfaces;
+    final textColors = context.textColors;
+    final count = _scenarioReadingCount(match);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: surfaces.surface.withValues(alpha: 0.97),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+        border: Border(
+          top: BorderSide(color: surfaces.border.withValues(alpha: 0.95)),
+          left: BorderSide(color: surfaces.border.withValues(alpha: 0.72)),
+          right: BorderSide(color: surfaces.border.withValues(alpha: 0.72)),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: surfaces.shadow.withValues(alpha: 0.38),
+            blurRadius: 34,
+            offset: const Offset(0, -12),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 8),
+          Container(
+            width: 52,
+            height: 5,
+            decoration: BoxDecoration(
+              color: textColors.secondary.withValues(alpha: 0.72),
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 10, 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'LES $count LECTURES',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: textColors.primary,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _scenarioSheetIntro(match),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: textColors.secondary,
+                          fontSize: 11,
+                          height: 1.3,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Fermer',
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: Icon(
+                    Icons.close_rounded,
+                    color: textColors.primary,
+                    size: 27,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 16),
+              children: [
+                _ScenarioSheetReadingCard(
+                  index: 1,
+                  icon: Icons.shield_outlined,
+                  title: 'Écart de niveau structurel',
+                  description: _scenarioStructuralDescription(match),
+                  impactLabel: 'Impact élevé',
+                  impactColor: context.opportunities.levelGap,
+                  child: _ScenarioStandingEvidence(match: match),
+                ),
+                const SizedBox(height: 10),
+                _ScenarioSheetReadingCard(
+                  index: 2,
+                  icon: Icons.trending_up_rounded,
+                  title: 'Dynamique récente supérieure',
+                  description: _scenarioFormDescription(match),
+                  impactLabel: 'Impact élevé',
+                  impactColor: context.opportunities.levelGap,
+                  child: _ScenarioFormEvidence(match: match),
+                ),
+                const SizedBox(height: 10),
+                _ScenarioSheetReadingCard(
+                  index: 3,
+                  icon: Icons.home_rounded,
+                  title: 'Avantage domicile / faiblesse extérieure',
+                  description: _scenarioHomeAwayDescription(match),
+                  impactLabel: 'Impact moyen',
+                  impactColor: context.semantic.warning,
+                  child: _ScenarioHomeAwayEvidence(match: match),
+                ),
+                const SizedBox(height: 10),
+                _ScenarioVigilanceCard(match: match),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 44,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      _showComingSoon(
+                        context,
+                        'Pont vers les preuves à brancher',
+                      );
+                    },
+                    iconAlignment: IconAlignment.end,
+                    icon: Icon(
+                      Icons.chevron_right_rounded,
+                      color: context.brand.accent,
+                      size: 20,
+                    ),
+                    label: Text(
+                      'Voir les preuves dans les données',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: context.brand.accent,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScenarioSheetReadingCard extends StatelessWidget {
+  const _ScenarioSheetReadingCard({
+    required this.index,
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.impactLabel,
+    required this.impactColor,
+    required this.child,
+  });
+
+  final int index;
   final IconData icon;
+  final String title;
+  final String description;
+  final String impactLabel;
+  final Color impactColor;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final surfaces = context.surfaces;
+    final textColors = context.textColors;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: surfaces.surfaceHover.withValues(alpha: 0.52),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: surfaces.border.withValues(alpha: 0.92)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(11),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Column(
+              children: [
+                Container(
+                  width: 27,
+                  height: 27,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: brand.accent.withValues(alpha: 0.82),
+                    ),
+                  ),
+                  child: Text(
+                    '$index',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: brand.accent,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Icon(icon, color: brand.accent, size: 27),
+              ],
+            ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: textColors.primary,
+                            fontWeight: FontWeight.w900,
+                            height: 1.1,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _ScenarioImpactPill(
+                        label: impactLabel,
+                        color: impactColor,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    description,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: textColors.secondary,
+                      fontSize: 11,
+                      height: 1.3,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  child,
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScenarioImpactPill extends StatelessWidget {
+  const _ScenarioImpactPill({required this.label, required this.color});
+
   final String label;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: () => Navigator.of(context).pop(),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.42)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: color,
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ScenarioStandingEvidence extends StatelessWidget {
+  const _ScenarioStandingEvidence({required this.match});
+
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _ScenarioStandingTeam(
+            team: match.homeTeam,
+            standing: match.analysis.homeStanding,
+          ),
+        ),
+        const SizedBox(width: 8),
+        _ScenarioCentralMetric(
+          primary: _rankGapLabel(match),
+          secondary: _pointsGapLabel(match),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _ScenarioStandingTeam(
+            team: match.awayTeam,
+            standing: match.analysis.awayStanding,
+            alignEnd: true,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ScenarioStandingTeam extends StatelessWidget {
+  const _ScenarioStandingTeam({
+    required this.team,
+    required this.standing,
+    this.alignEnd = false,
+  });
+
+  final TeamInfo team;
+  final TeamStandingSnapshot? standing;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textColors = context.textColors;
+    final brand = context.brand;
+
+    return Column(
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: [
+        SportsAssetBadge(
+          size: 31,
+          imageUrl: team.logoUrl,
+          fallbackLabel: team.name,
+          backgroundColor: AppColors.transparent,
+          padding: 1,
+        ),
+        const SizedBox(height: 5),
+        Text(
+          _rankLabel(standing),
+          style: theme.textTheme.titleSmall?.copyWith(
+            color: textColors.primary,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        Text(
+          _pointsLabel(standing),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: brand.accent,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ScenarioCentralMetric extends StatelessWidget {
+  const _ScenarioCentralMetric({
+    required this.primary,
+    required this.secondary,
+    this.icon,
+  });
+
+  final String primary;
+  final String secondary;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = context.surfaces;
+    final textColors = context.textColors;
+    final brand = context.brand;
+
+    return Container(
+      width: 96,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: surfaces.surface.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        border: Border.all(color: surfaces.border.withValues(alpha: 0.84)),
+      ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 28),
-          const SizedBox(height: 6),
-          Text(label, style: TextStyle(color: color)),
+          if (icon != null) ...[
+            Icon(icon, color: brand.accent, size: 18),
+            const SizedBox(height: 3),
+          ],
+          Text(
+            primary,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: brand.accent,
+              fontWeight: FontWeight.w900,
+              height: 1.08,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            secondary,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: textColors.secondary,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              height: 1.15,
+            ),
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _ScenarioFormEvidence extends StatelessWidget {
+  const _ScenarioFormEvidence({required this.match});
+
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) {
+    final homeResults = _lectorFormResults(
+      recentMatches: match.analysis.homeRecentLeagueMatches.take(5).toList(),
+      fallbackForm:
+          match.analysis.homeStatistics?.form ??
+          match.analysis.homeStanding?.form,
+    );
+    final awayResults = _lectorFormResults(
+      recentMatches: match.analysis.awayRecentLeagueMatches.take(5).toList(),
+      fallbackForm:
+          match.analysis.awayStatistics?.form ??
+          match.analysis.awayStanding?.form,
+    );
+
+    return Row(
+      children: [
+        Expanded(
+          child: _ScenarioFormSide(
+            team: match.homeTeam,
+            results: homeResults,
+            color: context.brand.accent,
+          ),
+        ),
+        const SizedBox(width: 8),
+        _ScenarioCentralMetric(
+          primary: _formGapLabel(homeResults, awayResults),
+          secondary: 'sur les 5 derniers matchs',
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _ScenarioFormSide(
+            team: match.awayTeam,
+            results: awayResults,
+            color: context.opportunities.levelGap,
+            alignEnd: true,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ScenarioFormSide extends StatelessWidget {
+  const _ScenarioFormSide({
+    required this.team,
+    required this.results,
+    required this.color,
+    this.alignEnd = false,
+  });
+
+  final TeamInfo team;
+  final List<String> results;
+  final Color color;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textColors = context.textColors;
+    final points = _formPoints(results);
+
+    return Column(
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: alignEnd
+              ? MainAxisAlignment.end
+              : MainAxisAlignment.start,
+          children: [
+            SportsAssetBadge(
+              size: 28,
+              imageUrl: team.logoUrl,
+              fallbackLabel: team.name,
+              backgroundColor: AppColors.transparent,
+              padding: 1,
+            ),
+          ],
+        ),
+        const SizedBox(height: 7),
+        _ScenarioFormDots(results: results, alignEnd: alignEnd),
+        const SizedBox(height: 6),
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: results.isEmpty ? '-' : '$points',
+                style: TextStyle(color: color, fontWeight: FontWeight.w900),
+              ),
+              TextSpan(
+                text: ' / 15 pts',
+                style: TextStyle(
+                  color: textColors.secondary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          style: theme.textTheme.labelSmall?.copyWith(fontSize: 10),
+          textAlign: alignEnd ? TextAlign.right : TextAlign.left,
+        ),
+      ],
+    );
+  }
+}
+
+class _ScenarioFormDots extends StatelessWidget {
+  const _ScenarioFormDots({required this.results, this.alignEnd = false});
+
+  final List<String> results;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final values = results.isEmpty ? const ['-', '-', '-', '-', '-'] : results;
+
+    return Wrap(
+      alignment: alignEnd ? WrapAlignment.end : WrapAlignment.start,
+      spacing: 4,
+      runSpacing: 4,
+      children: [
+        for (final result in values.take(5))
+          Container(
+            width: 22,
+            height: 22,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _formDotColor(context, result),
+            ),
+            child: Text(
+              _lectorFormResultLabel(result),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _ScenarioHomeAwayEvidence extends StatelessWidget {
+  const _ScenarioHomeAwayEvidence({required this.match});
+
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) {
+    final homeStats = match.analysis.homeStatistics;
+    final awayStats = match.analysis.awayStatistics;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _ScenarioHomeAwaySide(
+            title: '${match.homeTeam.name} à domicile',
+            wins: homeStats?.winsHome,
+            draws: homeStats?.drawsHome,
+            losses: homeStats?.lossesHome,
+            played: homeStats?.playedHome,
+          ),
+        ),
+        const SizedBox(width: 8),
+        _ScenarioCentralMetric(
+          primary: _homeAwayGapLabel(match),
+          secondary: 'dom. / ext.',
+          icon: Icons.bar_chart_rounded,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _ScenarioHomeAwaySide(
+            title: '${match.awayTeam.name} à l’extérieur',
+            wins: awayStats?.winsAway,
+            draws: awayStats?.drawsAway,
+            losses: awayStats?.lossesAway,
+            played: awayStats?.playedAway,
+            alignEnd: true,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ScenarioHomeAwaySide extends StatelessWidget {
+  const _ScenarioHomeAwaySide({
+    required this.title,
+    required this.wins,
+    required this.draws,
+    required this.losses,
+    required this.played,
+    this.alignEnd = false,
+  });
+
+  final String title;
+  final int? wins;
+  final int? draws;
+  final int? losses;
+  final int? played;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textColors = context.textColors;
+    final semantic = context.semantic;
+
+    TextSpan metric(String value, Color color) {
+      return TextSpan(
+        text: value,
+        style: TextStyle(color: color, fontWeight: FontWeight.w900),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: alignEnd ? TextAlign.right : TextAlign.left,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: textColors.secondary,
+            fontSize: 10,
+            height: 1.15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text.rich(
+          TextSpan(
+            children: [
+              metric('${_intValue(wins)} V', semantic.success),
+              TextSpan(
+                text: '  ',
+                style: TextStyle(color: textColors.secondary),
+              ),
+              metric('${_intValue(draws)} N', textColors.secondary),
+              TextSpan(
+                text: '  ',
+                style: TextStyle(color: textColors.secondary),
+              ),
+              metric('${_intValue(losses)} D', semantic.error),
+            ],
+          ),
+          textAlign: alignEnd ? TextAlign.right : TextAlign.left,
+          style: theme.textTheme.bodyMedium?.copyWith(fontSize: 12),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          _winPercentLabel(wins, played),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: alignEnd ? TextAlign.right : TextAlign.left,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: context.brand.accent,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ScenarioVigilanceCard extends StatelessWidget {
+  const _ScenarioVigilanceCard({required this.match});
+
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = context.surfaces;
+    final textColors = context.textColors;
+    final color = context.opportunities.levelGap;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        border: Border.all(color: surfaces.border.withValues(alpha: 0.75)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(11),
+        child: Row(
+          children: [
+            Icon(Icons.visibility_outlined, color: color, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'POINT DE VIGILANCE',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: color,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _scenarioVigilanceText(match),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: textColors.secondary,
+                      fontSize: 11,
+                      height: 1.3,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: textColors.secondary,
+              size: 22,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScenarioReadingLine extends StatelessWidget {
+  const _ScenarioReadingLine({
+    required this.index,
+    required this.label,
+    required this.color,
+  });
+
+  final int? index;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textColors = context.textColors;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 24,
+          height: 24,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            shape: BoxShape.circle,
+            border: Border.all(color: color.withValues(alpha: 0.55)),
+          ),
+          child: index == null
+              ? Icon(Icons.shield_outlined, color: color, size: 14)
+              : Text(
+                  '$index',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: textColors.primary,
+              height: 1.3,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1503,38 +4681,590 @@ String _firstSignalTitle(MatchBoardItem match) {
   return 'Lecture disponible';
 }
 
-String _secondaryRepereSubtitle(MatchBoardItem match) {
-  if (match.signals.length > 1) {
-    return match.signals[1].summary;
+String _scenarioTitle(MatchBoardItem match) {
+  final title = match.thesis?.title.trim();
+  if (title != null && title.isNotEmpty) {
+    return title;
   }
+  return _firstSignalTitle(match);
+}
+
+String _scenarioSummary(MatchBoardItem match) {
+  final summary = match.thesis?.summary.trim();
+  if (summary != null && summary.isNotEmpty) {
+    return summary;
+  }
+  if (match.signals.isNotEmpty && match.signals.first.summary.isNotEmpty) {
+    return match.signals.first.summary;
+  }
+  return 'Les premiers éléments disponibles donnent une lecture rapide de cette rencontre.';
+}
+
+int _scenarioReadingCount(MatchBoardItem match) {
+  final evidenceCount = match.thesis?.supportingEvidence.length ?? 0;
+  if (evidenceCount > 0) {
+    return evidenceCount.clamp(1, 3).toInt();
+  }
+  if (match.signals.isNotEmpty) {
+    return match.signals.length.clamp(1, 3).toInt();
+  }
+  return 1;
+}
+
+bool _hasScenarioRecommendedPick(RecommendedMarket? recommendedMarket) {
+  final selection = recommendedMarket?.selection;
+  if (selection == null) {
+    return false;
+  }
+
+  return selection.odds.isFinite && selection.odds > 0;
+}
+
+RecommendedMarket? _scenarioRecommendedMarket(
+  MatchBoardItem match,
+  Opportunity? opportunity,
+) {
+  final explicit =
+      opportunity?.recommendedMarket ?? match.thesis?.recommendedMarket;
+  if (_hasScenarioRecommendedPick(explicit)) {
+    return explicit;
+  }
+
+  final primary = match.primaryMarket;
+  if (!primary.odds.isFinite ||
+      primary.odds <= 0 ||
+      primary.id == 'market_unavailable') {
+    return null;
+  }
+
+  for (final market in match.availableMarkets) {
+    for (final selection in market.selections) {
+      if (_sameMarketSelection(selection, primary)) {
+        return RecommendedMarket(market: market, selection: selection);
+      }
+    }
+  }
+
+  return null;
+}
+
+bool _sameMarketSelection(MarketOdds left, MarketOdds right) {
+  if (left.id == right.id) {
+    return true;
+  }
+
+  final leftRaw = left.apiFootballValue?.trim().toLowerCase();
+  final rightRaw = right.apiFootballValue?.trim().toLowerCase();
+  return leftRaw != null &&
+      leftRaw.isNotEmpty &&
+      leftRaw == rightRaw &&
+      left.odds == right.odds;
+}
+
+String? _scenarioRecommendedPickLabel(
+  MatchBoardItem match,
+  RecommendedMarket recommendedMarket,
+) {
+  final market = recommendedMarket.market;
+  final selection = recommendedMarket.selection;
+  final rawValue = selection.apiFootballValue?.trim().toLowerCase();
+  final label = selection.label.trim();
+  final normalizedLabel = label.toLowerCase();
+
+  if (market.id == 'matchResult') {
+    if (_matchesSelection(rawValue, normalizedLabel, const [
+      'home',
+      'domicile',
+      '1',
+    ])) {
+      return '${match.homeTeam.name} gagne';
+    }
+    if (_matchesSelection(rawValue, normalizedLabel, const [
+      'draw',
+      'nul',
+      'x',
+    ])) {
+      return 'Match nul';
+    }
+    if (_matchesSelection(rawValue, normalizedLabel, const [
+      'away',
+      'extérieur',
+      'exterieur',
+      '2',
+    ])) {
+      return '${match.awayTeam.name} gagne';
+    }
+  }
+
+  if (market.id == 'doubleChance') {
+    if (_matchesSelection(rawValue, normalizedLabel, const [
+      'home/draw',
+      'home or draw',
+      '1x',
+    ])) {
+      return '${match.homeTeam.name} ou nul';
+    }
+    if (_matchesSelection(rawValue, normalizedLabel, const [
+      'home/away',
+      'home or away',
+      '12',
+    ])) {
+      return '${match.homeTeam.name} ou ${match.awayTeam.name}';
+    }
+    if (_matchesSelection(rawValue, normalizedLabel, const [
+      'draw/away',
+      'draw or away',
+      'x2',
+    ])) {
+      return '${match.awayTeam.name} ou nul';
+    }
+  }
+
+  if (market.id == 'bothTeamsScore') {
+    if (_matchesSelection(rawValue, normalizedLabel, const ['yes', 'oui'])) {
+      return 'Les deux équipes marquent';
+    }
+    if (_matchesSelection(rawValue, normalizedLabel, const ['no', 'non'])) {
+      return 'Les deux équipes ne marquent pas';
+    }
+  }
+
+  if (label.isNotEmpty) {
+    return label;
+  }
+
+  final marketLabel = market.label.trim();
+  return marketLabel.isEmpty ? null : marketLabel;
+}
+
+bool _matchesSelection(
+  String? rawValue,
+  String normalizedLabel,
+  List<String> expectedValues,
+) {
+  for (final expected in expectedValues) {
+    if (rawValue == expected || normalizedLabel == expected) {
+      return true;
+    }
+  }
+  return false;
+}
+
+List<ThesisEvidence> _scenarioEvidenceItems(MatchBoardItem match) {
+  final thesisEvidence = match.thesis?.supportingEvidence ?? const [];
+  if (thesisEvidence.isNotEmpty) {
+    return thesisEvidence.take(3).toList();
+  }
+  if (match.signals.isNotEmpty) {
+    return [
+      for (final signal in match.signals.take(3))
+        ThesisEvidence(label: signal.summary, tone: ThesisEvidenceTone.neutral),
+    ];
+  }
+  return const [
+    ThesisEvidence(
+      label: 'Les données principales de la rencontre sont disponibles.',
+      tone: ThesisEvidenceTone.neutral,
+    ),
+  ];
+}
+
+String _scenarioSheetIntro(MatchBoardItem match) {
+  final leader = _standingLeader(match);
+  final teamName = leader?.name ?? match.homeTeam.name;
+  return 'Pourquoi Lector anticipe une lecture « ${_scenarioTitle(match)} » autour de $teamName.';
+}
+
+String _scenarioStructuralDescription(MatchBoardItem match) {
+  final leader = _standingLeader(match);
+  if (leader == null) {
+    return 'Les indicateurs structurels donnent un premier repère sur le rapport de force.';
+  }
+  return '${leader.name} possède un avantage visible sur les indicateurs structurels.';
+}
+
+TeamInfo? _standingLeader(MatchBoardItem match) {
+  final home = match.analysis.homeStanding;
+  final away = match.analysis.awayStanding;
+  if (home == null || away == null) {
+    return null;
+  }
+  final homePoints = home.points;
+  final awayPoints = away.points;
+  if (homePoints != null && awayPoints != null && homePoints != awayPoints) {
+    return homePoints > awayPoints ? match.homeTeam : match.awayTeam;
+  }
+  final homeRank = home.rank;
+  final awayRank = away.rank;
+  if (homeRank != null && awayRank != null && homeRank != awayRank) {
+    return homeRank < awayRank ? match.homeTeam : match.awayTeam;
+  }
+  return null;
+}
+
+String _scenarioFormDescription(MatchBoardItem match) {
+  final homeResults = _lectorFormResults(
+    recentMatches: match.analysis.homeRecentLeagueMatches.take(5).toList(),
+    fallbackForm:
+        match.analysis.homeStatistics?.form ??
+        match.analysis.homeStanding?.form,
+  );
+  final awayResults = _lectorFormResults(
+    recentMatches: match.analysis.awayRecentLeagueMatches.take(5).toList(),
+    fallbackForm:
+        match.analysis.awayStatistics?.form ??
+        match.analysis.awayStanding?.form,
+  );
+  if (homeResults.isEmpty || awayResults.isEmpty) {
+    return 'La dynamique récente sera précisée quand les séries des deux équipes seront complètes.';
+  }
+  final homePoints = _formPoints(homeResults);
+  final awayPoints = _formPoints(awayResults);
+  if (homePoints == awayPoints) {
+    return 'Les deux équipes arrivent avec une dynamique récente comparable.';
+  }
+  final leader = homePoints > awayPoints
+      ? match.homeTeam.name
+      : match.awayTeam.name;
+  return '$leader arrive avec une meilleure forme sur les 5 derniers matchs.';
+}
+
+String _scenarioHomeAwayDescription(MatchBoardItem match) {
+  final homeRate = _winRate(
+    match.analysis.homeStatistics?.winsHome,
+    match.analysis.homeStatistics?.playedHome,
+  );
+  final awayRate = _winRate(
+    match.analysis.awayStatistics?.winsAway,
+    match.analysis.awayStatistics?.playedAway,
+  );
+  if (homeRate == null || awayRate == null) {
+    return 'Le contexte domicile / extérieur sera précisé quand les splits seront complets.';
+  }
+  if (homeRate > awayRate) {
+    return '${match.homeTeam.name} est plus solide à domicile que ${match.awayTeam.name} à l’extérieur.';
+  }
+  if (awayRate > homeRate) {
+    return '${match.awayTeam.name} voyage mieux que le rendement domicile adverse ne le suggère.';
+  }
+  return 'Le rendement domicile / extérieur reste équilibré sur les données disponibles.';
+}
+
+String _scenarioVigilanceText(MatchBoardItem match) {
+  final limits = match.thesis?.limits ?? const <ThesisEvidence>[];
+  if (limits.isNotEmpty) {
+    return limits.first.label;
+  }
+
+  final awayGoals = match.analysis.awayRecentLeagueMatches
+      .take(5)
+      .where((recent) => recent.goalsFor != null)
+      .fold<int>(0, (sum, recent) => sum + recent.goalsFor!);
+  if (awayGoals > 0) {
+    return '${match.awayTeam.name} reste capable de marquer ($awayGoals buts sur les 5 derniers matchs disponibles).';
+  }
+
+  return 'Cette lecture reste à confronter aux compositions et aux informations d’avant-match.';
+}
+
+String _pointsLabel(TeamStandingSnapshot? standing) {
+  final points = standing?.points;
+  if (points == null) {
+    return 'pts à confirmer';
+  }
+  return '$points pts';
+}
+
+String _rankGapLabel(MatchBoardItem match) {
+  final home = match.analysis.homeStanding?.rank;
+  final away = match.analysis.awayStanding?.rank;
+  if (home == null || away == null) {
+    return 'écart à confirmer';
+  }
+  final gap = (home - away).abs();
+  if (gap == 0) {
+    return 'même rang';
+  }
+  return '+$gap place${gap > 1 ? 's' : ''}';
+}
+
+String _pointsGapLabel(MatchBoardItem match) {
+  final home = match.analysis.homeStanding?.points;
+  final away = match.analysis.awayStanding?.points;
+  if (home == null || away == null) {
+    return 'points à confirmer';
+  }
+  final gap = (home - away).abs();
+  if (gap == 0) {
+    return 'même total';
+  }
+  return '+$gap pts';
+}
+
+int _formPoints(List<String> results) {
+  var total = 0;
+  for (final result in results.take(5)) {
+    final value = result.toUpperCase();
+    if (value == 'W' || value == 'V') {
+      total += 3;
+    } else if (value == 'D' || value == 'N') {
+      total += 1;
+    }
+  }
+  return total;
+}
+
+List<String> _lectorFormResults({
+  required List<TeamRecentMatchSnapshot> recentMatches,
+  required String? fallbackForm,
+}) {
+  final fromRecent = recentMatches
+      .map((match) => _normalizeResult(match.result))
+      .whereType<String>()
+      .take(5)
+      .toList(growable: false);
+  if (fromRecent.isNotEmpty) {
+    return fromRecent;
+  }
+  return _matchDetailLastFiveResults(fallbackForm);
+}
+
+List<int> _formChartValues(List<String> results) {
+  return results
+      .take(5)
+      .map((result) {
+        return switch (_normalizeResult(result)) {
+          'W' => 3,
+          'D' => 1,
+          'L' => 0,
+          _ => 0,
+        };
+      })
+      .toList(growable: false);
+}
+
+String _recentScoreLabel(TeamRecentMatchSnapshot match) {
+  if (match.goalsFor == null || match.goalsAgainst == null) {
+    return '-';
+  }
+  return '${match.goalsFor}-${match.goalsAgainst}';
+}
+
+String _lectorFormResultLabel(String result) {
+  return switch (_normalizeResult(result)) {
+    'W' => 'V',
+    'D' => 'N',
+    'L' => 'D',
+    _ => '-',
+  };
+}
+
+String _lectorFormTakeawayText({
+  required MatchBoardItem match,
+  required _FormWindowStats homeStats,
+  required _FormWindowStats awayStats,
+}) {
+  if (!homeStats.hasResults || !awayStats.hasResults) {
+    return 'La forme récente sera plus parlante dès que les deux séries seront complètes.';
+  }
+
+  if (homeStats.points == awayStats.points) {
+    return '${match.homeTeam.name} et ${match.awayTeam.name} arrivent avec une dynamique récente comparable.';
+  }
+
+  final strongerName = homeStats.points > awayStats.points
+      ? match.homeTeam.name
+      : match.awayTeam.name;
+  final weakerName = homeStats.points > awayStats.points
+      ? match.awayTeam.name
+      : match.homeTeam.name;
+  final strongerStats = homeStats.points > awayStats.points
+      ? homeStats
+      : awayStats;
+  final weakerStats = homeStats.points > awayStats.points
+      ? awayStats
+      : homeStats;
+  final gap = (strongerStats.points - weakerStats.points).abs();
+  final irregularNote = weakerStats.losses >= 2
+      ? ', tandis que $weakerName reste plus irrégulier'
+      : ' devant $weakerName';
+
+  return '$strongerName affiche la meilleure dynamique récente avec $gap pt${gap > 1 ? 's' : ''} d’avance sur les 5 derniers matchs$irregularNote.';
+}
+
+String _formGapLabel(List<String> homeResults, List<String> awayResults) {
+  final gap = (_formPoints(homeResults) - _formPoints(awayResults)).abs();
+  if (homeResults.isEmpty && awayResults.isEmpty) {
+    return 'forme à confirmer';
+  }
+  if (gap == 0) {
+    return 'forme proche';
+  }
+  return '+$gap pts';
+}
+
+String _homeAwayGapLabel(MatchBoardItem match) {
+  final homeRate = _winRate(
+    match.analysis.homeStatistics?.winsHome,
+    match.analysis.homeStatistics?.playedHome,
+  );
+  final awayRate = _winRate(
+    match.analysis.awayStatistics?.winsAway,
+    match.analysis.awayStatistics?.playedAway,
+  );
+  if (homeRate == null || awayRate == null) {
+    return 'à confirmer';
+  }
+  final gap = ((homeRate - awayRate).abs() * 100).round();
+  if (gap < 10) {
+    return 'écart faible';
+  }
+  if (gap < 25) {
+    return 'écart visible';
+  }
+  return 'écart marqué';
+}
+
+double? _winRate(int? wins, int? played) {
+  if (wins == null || played == null || played <= 0) {
+    return null;
+  }
+  return wins / played;
+}
+
+String _winPercentLabel(int? wins, int? played) {
+  final rate = _winRate(wins, played);
+  if (rate == null) {
+    return 'rendement à confirmer';
+  }
+  return '${(rate * 100).round()}% de victoires';
+}
+
+List<TeamStandingSnapshot> _mobileStandingRows(MatchBoardItem match) {
+  final fullTable = [...match.analysis.leagueStandings];
+  if (fullTable.isEmpty) {
+    final fallback = [
+      if (match.analysis.homeStanding != null) match.analysis.homeStanding!,
+      if (match.analysis.awayStanding != null) match.analysis.awayStanding!,
+    ];
+    fallback.sort((a, b) => (a.rank ?? 999).compareTo(b.rank ?? 999));
+    return fallback;
+  }
+
+  fullTable.sort((a, b) => (a.rank ?? 999).compareTo(b.rank ?? 999));
+  final rows = fullTable.take(10).toList();
+
+  void addIfMissing(TeamStandingSnapshot? standing) {
+    if (standing == null) {
+      return;
+    }
+    final alreadyVisible = rows.any((row) => _sameStandingTeam(row, standing));
+    if (!alreadyVisible) {
+      rows.add(standing);
+    }
+  }
+
+  addIfMissing(match.analysis.homeStanding);
+  addIfMissing(match.analysis.awayStanding);
+  rows.sort((a, b) => (a.rank ?? 999).compareTo(b.rank ?? 999));
+  return rows;
+}
+
+TeamInfo? _standingTeam(MatchBoardItem match, TeamStandingSnapshot standing) {
+  if (_isHomeStanding(match, standing)) {
+    return match.homeTeam;
+  }
+  if (_isAwayStanding(match, standing)) {
+    return match.awayTeam;
+  }
+  return null;
+}
+
+_StandingHighlight _standingHighlight(
+  MatchBoardItem match,
+  TeamStandingSnapshot standing,
+) {
+  if (_isHomeStanding(match, standing)) {
+    return _StandingHighlight.home;
+  }
+  if (_isAwayStanding(match, standing)) {
+    return _StandingHighlight.away;
+  }
+  return _StandingHighlight.none;
+}
+
+bool _isHomeStanding(MatchBoardItem match, TeamStandingSnapshot standing) {
+  return standing.teamId == match.homeTeam.apiFootballTeamId ||
+      standing.teamName == match.homeTeam.name;
+}
+
+bool _isAwayStanding(MatchBoardItem match, TeamStandingSnapshot standing) {
+  return standing.teamId == match.awayTeam.apiFootballTeamId ||
+      standing.teamName == match.awayTeam.name;
+}
+
+bool _sameStandingTeam(TeamStandingSnapshot a, TeamStandingSnapshot b) {
+  return a.teamId == b.teamId || a.teamName == b.teamName;
+}
+
+String _intValue(int? value) => value?.toString() ?? '-';
+
+String _signedValue(int? value) {
+  if (value == null) {
+    return '-';
+  }
+  return value > 0 ? '+$value' : '$value';
+}
+
+Color _goalDiffColor(BuildContext context, int? value) {
+  if (value == null || value == 0) {
+    return context.textColors.secondary;
+  }
+  return value > 0 ? context.brand.accent : context.semantic.error;
+}
+
+String _standingFormDotLabel(String result) {
+  final value = result.toUpperCase();
+  return switch (value) {
+    'W' => 'V',
+    'D' => 'N',
+    'L' => 'D',
+    '-' => '-',
+    _ => value.characters.take(1).toString(),
+  };
+}
+
+String _titleRaceText(MatchBoardItem match) {
+  final home = match.analysis.homeStanding;
+  if (home?.rank == 1 && home?.points != null) {
+    return '${match.homeTeam.name} en tête avec ${home!.points} pts.';
+  }
+  final away = match.analysis.awayStanding;
+  if (away?.rank == 1 && away?.points != null) {
+    return '${match.awayTeam.name} en tête avec ${away!.points} pts.';
+  }
+  return 'Les positions situent le contexte de la rencontre.';
+}
+
+String _standingDynamicText(MatchBoardItem match) {
   final homeRank = match.analysis.homeStanding?.rank;
   final awayRank = match.analysis.awayStanding?.rank;
-  if (homeRank != null && awayRank != null) {
-    return 'Écart de classement visible';
+  if (homeRank == null || awayRank == null) {
+    return 'Dynamique de championnat à confirmer.';
   }
-  return 'Contexte à surveiller';
+  final leader = homeRank < awayRank
+      ? match.homeTeam.name
+      : match.awayTeam.name;
+  final chasing = homeRank < awayRank
+      ? match.awayTeam.name
+      : match.homeTeam.name;
+  return '$leader est devant, $chasing doit combler l’écart.';
 }
 
-List<String> _bestFormResults(MatchBoardItem match) {
-  final home = _matchDetailLastFiveResults(
-    match.analysis.homeStatistics?.form ?? match.analysis.homeStanding?.form,
-  );
-  if (home.isNotEmpty) {
-    return home;
-  }
-  return _matchDetailLastFiveResults(
-    match.analysis.awayStatistics?.form ?? match.analysis.awayStanding?.form,
-  );
-}
-
-String _awayWinsLabel(MatchBoardItem match) {
-  final stats = match.analysis.awayStatistics;
-  final wins = stats?.winsAway;
-  final played = stats?.playedAway;
-  if (wins != null && played != null && played > 0) {
-    return '$wins victoire${wins > 1 ? 's' : ''} sur $played';
-  }
-  return 'Donnée à confirmer';
+String _standingReadingText(MatchBoardItem match) {
+  final rankGap = _rankGapLabel(match);
+  final pointsGap = _pointsGapLabel(match);
+  return '$rankGap et $pointsGap nourrissent la lecture « ${_scenarioTitle(match)} ».';
 }
 
 Color _formDotColor(BuildContext context, String result) {
@@ -5474,7 +9204,7 @@ class _MarketsSectionState extends State<_MarketsSection> {
                         Text(
                           isOutOfProfile
                               ? 'Cette compétition n’est pas dans votre profil.\nActivez-la pour recevoir des marchés adaptés.'
-                              : 'Copilot n’a pas trouvé de marché assez aligné avec cette lecture.',
+                              : 'Lector n’a pas trouvé de marché assez aligné avec cette lecture.',
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: colorScheme.onSurfaceVariant,

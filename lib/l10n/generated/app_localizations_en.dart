@@ -43,7 +43,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get skipOnboardingMessage =>
-      'Without onboarding, Copilot will apply a general configuration that is not personalized to how you make decisions.';
+      'Without onboarding, Lector will apply a general configuration that is not personalized to how you make decisions.';
 
   @override
   String get keepOnboardingButton => 'Continue onboarding';
@@ -88,7 +88,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileSummarySubtitle =>
-      'Check that Copilot understood how you make decisions.';
+      'Check that Lector understood how you make decisions.';
 
   @override
   String get confirmProfileButton => 'Confirm and view matches';
@@ -137,7 +137,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get allMatchesSubtitle =>
-      'No match is hidden. Copilot prioritizes, it does not remove.';
+      'No match is hidden. Lector prioritizes, it does not remove.';
 
   @override
   String get championshipsByCountryTitle => 'Competitions by country';
@@ -238,7 +238,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get matchDetailTitle => 'Match detail';
 
   @override
-  String get copilotReadingTitle => 'Copilot reading';
+  String get copilotReadingTitle => 'Lector reading';
 
   @override
   String get notRecommendedLabel => 'Not recommended';

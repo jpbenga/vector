@@ -46,7 +46,7 @@ class OpportunityDecisionPresenter {
     required List<MatchThesis> theses,
   }) {
     if (theses.isEmpty) {
-      return 'Copilot a détecté une situation à surveiller sur cette rencontre.';
+      return 'Lector a détecté une situation à surveiller sur cette rencontre.';
     }
 
     final arguments = theses.expand((thesis) => thesis.arguments).take(3);

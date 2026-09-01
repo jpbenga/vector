@@ -196,59 +196,90 @@ class _TicketPanelHeader extends StatelessWidget {
         onTap: onToggleExpanded,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
-          child: Row(
-            children: [
-              Icon(
-                isExpanded
-                    ? Icons.keyboard_arrow_down_rounded
-                    : Icons.keyboard_arrow_up_rounded,
-                color: colorScheme.onSurface,
-              ),
-              const SizedBox(width: 8),
-              const Icon(Icons.shopping_bag_outlined, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Mon ticket',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(width: 8),
-              _SelectionCountPill(count: ticket.selectionCount),
-              const Spacer(),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isCompact = constraints.maxWidth < 430;
+              return Row(
                 children: [
-                  Text(
-                    'Cote totale',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w700,
+                  Icon(
+                    isExpanded
+                        ? Icons.keyboard_arrow_down_rounded
+                        : Icons.keyboard_arrow_up_rounded,
+                    color: colorScheme.onSurface,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.shopping_bag_outlined, size: 20),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'Mon ticket',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _SelectionCountPill(count: ticket.selectionCount),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    ticket.totalOdds.toStringAsFixed(2),
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: colorScheme.primary,
-                      fontWeight: FontWeight.w900,
+                  if (!isCompact) ...[
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Cote totale',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          ticket.totalOdds.toStringAsFixed(2),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: colorScheme.primary,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: FilledButton(
+                      onPressed: onPrimaryAction,
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(0, 40),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              isExpanded
+                                  ? 'Valider le ticket'
+                                  : 'Voir le ticket',
+                            ),
+                            const SizedBox(width: 6),
+                            const Icon(Icons.chevron_right_rounded, size: 18),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(width: 14),
-              FilledButton(
-                onPressed: onPrimaryAction,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(isExpanded ? 'Valider le ticket' : 'Voir le ticket'),
-                    const SizedBox(width: 6),
-                    const Icon(Icons.chevron_right_rounded, size: 18),
-                  ],
-                ),
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),

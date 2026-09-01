@@ -1,108 +1,130 @@
-// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
-
 import 'dart:convert';
-import 'dart:html' as html;
 
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../core/supabase/supabase_user_scope.dart';
+import '../../../core/di/service_locator.dart';
+import '../../../core/identity/identity_scope.dart';
+import '../../../core/identity/scoped_data_keys.dart';
+import '../../../core/identity/scoped_persistence.dart';
+import '../../../core/supabase/supabase_initializer.dart';
 import '../domain/saved_ticket.dart';
-import 'local_remote_ticket_sync.dart';
 import 'supabase_saved_ticket_repository.dart';
 
 class SavedTicketStore {
-  const SavedTicketStore();
+  const SavedTicketStore({ScopedPersistence? persistence})
+    : _persistence = persistence;
 
-  static const _storageKey = 'vector.saved_tickets.v1';
-  static const _cookieKey = 'vector_saved_tickets_v1';
+  static const legacyStorageKey = 'vector.saved_tickets.v1';
+  static const legacyCookieKey = 'vector_saved_tickets_v1';
 
-  Future<List<SavedTicket>> load() async {
-    final localTickets = _loadLocal();
-    final scope = SupabaseUserScope.current();
-    if (scope == null) {
-      return localTickets;
+  final ScopedPersistence? _persistence;
+
+  Future<List<SavedTicket>> load({required IdentityScope scope}) async {
+    _ensureUserOwned(scope);
+    if (scope.isGuest) {
+      return _loadLocal(scope);
     }
 
     try {
-      final remoteRepository = SupabaseSavedTicketRepository(scope);
-      final remoteTickets = await remoteRepository.load();
-      final mergedTickets = mergeSavedTickets(
-        localTickets: localTickets,
-        remoteTickets: remoteTickets,
+      final remoteRepository = SupabaseSavedTicketRepository(
+        client: _accountClient(),
+        scope: scope,
       );
-      if (!savedTicketsEqual(remoteTickets, mergedTickets)) {
-        await remoteRepository.saveAll(mergedTickets);
-      }
-      if (!savedTicketsEqual(localTickets, mergedTickets)) {
-        _saveAllLocal(mergedTickets);
-      }
-
-      return mergedTickets;
+      final remoteTickets = await remoteRepository.load();
+      await _saveAllLocal(scope, remoteTickets);
+      return remoteTickets;
     } on Object catch (error) {
-      debugPrint('Remote saved ticket sync failed: $error');
-      return localTickets;
+      debugPrint('Remote saved ticket load failed: $error');
+      return _loadLocal(scope);
     }
   }
 
-  Future<void> saveAll(List<SavedTicket> tickets) async {
-    _saveAllLocal(tickets);
-    final scope = SupabaseUserScope.current();
-    if (scope == null) {
+  Future<void> saveAll({
+    required IdentityScope scope,
+    required List<SavedTicket> tickets,
+  }) async {
+    _ensureUserOwned(scope);
+    if (scope.isGuest) {
+      await _saveAllLocal(scope, tickets);
       return;
     }
 
     try {
-      await SupabaseSavedTicketRepository(scope).saveAll(tickets);
+      await SupabaseSavedTicketRepository(
+        client: _accountClient(),
+        scope: scope,
+      ).saveAll(tickets);
+      await _saveAllLocal(scope, tickets);
     } on Object catch (error) {
       debugPrint('Remote saved ticket saveAll failed: $error');
-      // Local persistence remains the fallback in dev/offline mode.
+      rethrow;
     }
   }
 
-  Future<void> upsert(SavedTicket ticket) async {
-    final tickets = await load();
+  Future<void> upsert({
+    required IdentityScope scope,
+    required SavedTicket ticket,
+  }) async {
+    _ensureUserOwned(scope);
+    final tickets = await load(scope: scope);
     final updated = [
       for (final savedTicket in tickets)
         if (savedTicket.id != ticket.id) savedTicket,
       ticket,
     ];
-    _saveAllLocal(updated);
-
-    final scope = SupabaseUserScope.current();
-    if (scope == null) {
+    if (scope.isGuest) {
+      await _saveAllLocal(scope, updated);
       return;
     }
 
     try {
-      await SupabaseSavedTicketRepository(scope).upsert(ticket);
+      await SupabaseSavedTicketRepository(
+        client: _accountClient(),
+        scope: scope,
+      ).upsert(ticket);
+      await _saveAllLocal(scope, updated);
     } on Object catch (error) {
       debugPrint('Remote saved ticket upsert failed: $error');
-      // Local persistence remains the fallback in dev/offline mode.
+      rethrow;
     }
   }
 
-  Future<void> delete(String ticketId) async {
-    final tickets = await load();
-    _saveAllLocal([
+  Future<void> delete({
+    required IdentityScope scope,
+    required String ticketId,
+  }) async {
+    _ensureUserOwned(scope);
+    final tickets = await load(scope: scope);
+    final updated = [
       for (final ticket in tickets)
         if (ticket.id != ticketId) ticket,
-    ]);
-
-    final scope = SupabaseUserScope.current();
-    if (scope == null) {
+    ];
+    if (scope.isGuest) {
+      await _saveAllLocal(scope, updated);
       return;
     }
 
     try {
-      await SupabaseSavedTicketRepository(scope).delete(ticketId);
+      await SupabaseSavedTicketRepository(
+        client: _accountClient(),
+        scope: scope,
+      ).delete(ticketId);
+      await _saveAllLocal(scope, updated);
     } on Object catch (error) {
       debugPrint('Remote saved ticket delete failed: $error');
-      // Local persistence remains the fallback in dev/offline mode.
+      rethrow;
     }
   }
 
-  List<SavedTicket> _loadLocal() {
-    final raw = html.window.localStorage[_storageKey] ?? _cookieValue();
+  ScopedPersistence get _scopedPersistence =>
+      _persistence ?? const ScopedPersistence();
+
+  Future<List<SavedTicket>> _loadLocal(IdentityScope scope) async {
+    final raw = await _scopedPersistence.read(
+      scope,
+      ScopedDataKeys.savedTickets,
+    );
     if (raw == null || raw.isEmpty) {
       return const [];
     }
@@ -121,32 +143,34 @@ class SavedTicketStore {
     }
   }
 
-  void _saveAllLocal(List<SavedTicket> tickets) {
+  Future<void> _saveAllLocal(
+    IdentityScope scope,
+    List<SavedTicket> tickets,
+  ) async {
     final normalized = [...tickets]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final encoded = Uri.encodeComponent(
       jsonEncode([for (final ticket in normalized) ticket.toJson()]),
     );
-    html.window.localStorage[_storageKey] = encoded;
-    html.document.cookie =
-        '$_cookieKey=$encoded; path=/; max-age=31536000; SameSite=Lax';
+    await _scopedPersistence.write(
+      scope,
+      ScopedDataKeys.savedTickets,
+      encoded,
+    );
   }
 
-  String? _cookieValue() {
-    final cookies = html.document.cookie?.split(';') ?? const [];
-    for (final cookie in cookies) {
-      final separator = cookie.indexOf('=');
-      if (separator == -1) {
-        continue;
-      }
-
-      final key = cookie.substring(0, separator).trim();
-      if (key == _cookieKey) {
-        return cookie.substring(separator + 1).trim();
-      }
+  SupabaseClient _accountClient() {
+    final client = getIt<SupabaseInitializer>().client;
+    if (client == null) {
+      throw StateError('Supabase is not configured.');
     }
+    return client;
+  }
 
-    return null;
+  void _ensureUserOwned(IdentityScope scope) {
+    if (!scope.isUserOwned) {
+      throw ArgumentError.value(scope, 'scope', 'Must be guest or account.');
+    }
   }
 }
 

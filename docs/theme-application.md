@@ -86,14 +86,15 @@ Chaque variante fournit les memes familles de tokens :
 - `AppTextPalette` : texte principal, secondaire, faible, desactive ;
 - `AppSemanticPalette` : success, warning, error, live, info ;
 - `AppComponentColors` : cotes, badges et composants specifiques ;
-- `AppOpportunityPalette` : familles metier des lectures/opportunites et styles complets de badges.
+- `AppOpportunityPalette` : familles metier des lectures/opportunites et styles complets de badges ;
+- `AppStrategyPalette` : alternance de presentation des strategies de tickets.
 
 Le builder generique `CopilotTheme._buildTheme(VectorThemeTokens tokens)` produit le `ThemeData` Flutter complet.
 
 Les composants doivent privilegier :
 
 - `Theme.of(context).colorScheme` pour les couleurs Flutter standard ;
-- `context.brand`, `context.surfaces`, `context.textColors`, `context.semantic`, `context.components`, `context.opportunities` pour les tokens produit.
+- `context.brand`, `context.surfaces`, `context.textColors`, `context.semantic`, `context.components`, `context.opportunities`, `context.strategies` pour les tokens produit.
 
 Le basculement manuel temporaire est centralise dans `appThemeController`.
 Il demarre volontairement en `Vector Dark` et permet de tester `Vector Light`, `Vector Gold` et `Vector Aurora` sans suivre le theme systeme.
@@ -135,6 +136,7 @@ Toute creation de composant visuel doit indiquer explicitement la famille de tok
 - `semantic` pour success/warning/error/live/info ;
 - `components` pour odds, badges et composants specifiques ;
 - `opportunities` pour les lectures metier.
+- `strategies` pour les accents de presentation des cartes de strategies.
 
 ## Palette Principale Sombre
 
@@ -236,6 +238,50 @@ Les badges doivent rester compacts, avec une bordure discrete si necessaire.
 
 Les profils d'opportunite ont une couleur propre, exposee via `AppOpportunityPalette`.
 
+`AppOpportunityPalette`, dans `lib/core/theme/app_components.dart`, est la
+source de verite pour l'identite visuelle des lectures, theses et scenarios
+Lector. Un widget ne doit pas creer de mapping local du type `id -> Color` ou
+`id -> IconData`.
+
+Pour afficher une lecture ou une these, utiliser :
+
+```dart
+final identity = context.opportunities.readingIdentityForId(readingId);
+final badge = identity.badgeFor(AppReadingBadgeVariant.simple);
+```
+
+Pour afficher un scenario/profil d'opportunite utilisateur, utiliser :
+
+```dart
+final identity = context.opportunities.scenarioIdentityForProfileId(profileId);
+final badge = identity.badgeFor(AppReadingBadgeVariant.combined);
+```
+
+Ces identites exposent au minimum :
+
+- `color` : couleur metier stable ;
+- `icon` : pictogramme metier stable ;
+- `style` / `badgeFor(...)` : styles derives pour badges et surfaces.
+
+Le turquoise Lector reste reserve aux actions, confirmations, navigation active
+et controles selectionnes. Les couleurs metier identifient le contenu
+footballistique : elles ne remplacent pas les couleurs d'interaction.
+
+Pour ajouter une nouvelle lecture ou these :
+
+- ajouter son id dans le moteur/catalogue metier concerne ;
+- ajouter son id ou sa normalisation dans `AppOpportunityPalette.familyForThesisId`
+  et `AppOpportunityPalette.iconForReadingId` ;
+- ajouter ou adapter les tests Design System couvrant la resolution visuelle.
+
+Pour ajouter un nouveau scenario utilisateur :
+
+- ajouter sa definition dans `OpportunityProfileCatalog` avec `displayLabel`,
+  `description` et `thesisIds` ;
+- ajouter son id dans `AppOpportunityPalette.familyForProfileId` et
+  `AppOpportunityPalette.iconForProfileId` ;
+- ne pas definir sa couleur ou son icone dans l'ecran qui l'affiche.
+
 | Profil | Token | Hex |
 | --- | --- | --- |
 | Favori solide | `solidFavorite` | `#38D97A` |
@@ -267,6 +313,39 @@ Regles :
 - La couleur de lecture aide a identifier une famille, pas a exprimer une probabilite.
 - Les lectures ne doivent pas afficher de pourcentage de confiance.
 - Le vocabulaire produit recommande est : lecture simple, lecture combinee, marche recommande.
+
+## Couleurs Des Strategies
+
+Les strategies de tickets n'ont pas d'identite metier par couleur. La couleur
+d'une carte de strategie sert uniquement a distinguer visuellement plusieurs
+configurations dans une liste.
+
+`AppStrategyPalette`, dans `lib/core/theme/app_components.dart`, centralise cette
+alternance de presentation. Un ecran ne doit pas definir localement un cycle de
+couleurs ni stocker une couleur sur `TicketStrategy`.
+
+Pour afficher une strategie dans une liste ordonnee :
+
+```dart
+final style = context.strategies.styleForIndex(index);
+```
+
+Le cycle actuel est :
+
+- index 0 : violet ;
+- index 1 : orange/ambre ;
+- index 2 : bleu ;
+- index 3 : vert ;
+- index 4 et suivants : repetition du meme cycle.
+
+Regles :
+
+- la couleur est determinee par l'ordre de presentation sauvegarde
+  (`TicketStrategy.priority`) ;
+- elle ne represente ni une qualite, ni un risque, ni un type de pari ;
+- le switch actif/inactif reste turquoise Lector via `context.brand.accent` ;
+- les valeurs de cotes restent formatees et colorees comme donnees de la carte,
+  sans indiquer qu'une cote est bonne ou mauvaise.
 
 ### Badges De Lectures
 
@@ -517,21 +596,21 @@ Echelle actuelle :
 
 | Style Flutter | Taille | Hauteur |
 | --- | ---: | ---: |
-| `displayLarge` | 57 | 1.12 |
-| `displayMedium` | 45 | 1.16 |
-| `displaySmall` | 36 | 1.22 |
-| `headlineLarge` | 32 | 1.25 |
-| `headlineMedium` | 28 | 1.28 |
-| `headlineSmall` | 24 | 1.32 |
-| `titleLarge` | 22 | 1.28 |
-| `titleMedium` | 16 | 1.35 |
-| `titleSmall` | 14 | 1.35 |
-| `bodyLarge` | 16 | 1.45 |
-| `bodyMedium` | 14 | 1.45 |
-| `bodySmall` | 12 | 1.42 |
-| `labelLarge` | 14 | 1.25 |
-| `labelMedium` | 12 | 1.25 |
-| `labelSmall` | 11 | 1.20 |
+| `displayLarge` | 54 | 1.12 |
+| `displayMedium` | 42 | 1.16 |
+| `displaySmall` | 34 | 1.20 |
+| `headlineLarge` | 30 | 1.24 |
+| `headlineMedium` | 26 | 1.26 |
+| `headlineSmall` | 22 | 1.30 |
+| `titleLarge` | 20 | 1.26 |
+| `titleMedium` | 15 | 1.32 |
+| `titleSmall` | 13 | 1.32 |
+| `bodyLarge` | 15 | 1.40 |
+| `bodyMedium` | 13 | 1.40 |
+| `bodySmall` | 11 | 1.35 |
+| `labelLarge` | 13 | 1.22 |
+| `labelMedium` | 11 | 1.22 |
+| `labelSmall` | 10 | 1.18 |
 
 Regles :
 
@@ -588,6 +667,83 @@ Anti-patterns :
 - empiler des paddings de `18` a `24` px dans un sous-ecran mobile ;
 - creer des tuiles qui affichent moins de 6 lignes utiles sur un ecran mobile courant.
 - grossir un composant pour donner une impression premium : la qualite vient de la hierarchie, pas de la taille.
+
+### Cas Specifique : Mon Espace
+
+`Mon espace` est un sous-ecran de reglage et de personnalisation. Il doit
+reprendre la densite de l'accueil scores et des panneaux de preferences, pas
+une echelle de landing page ou de profil hero.
+
+Regles obligatoires :
+
+- le padding lateral de la page reste entre `12` et `14` px ;
+- le titre `Mon espace` utilise `titleMedium` maximum ;
+- le texte d'introduction utilise `bodySmall`, jamais `bodyLarge` ;
+- les titres de sections utilisent `titleSmall`, jamais `headlineSmall` ;
+- les titres des cartes d'action utilisent `titleSmall` maximum ;
+- les descriptions de carte utilisent `bodySmall` ;
+- l'avatar de profil reste proche de `56` px, pas un grand avatar de page compte ;
+- les pictogrammes d'action restent autour de `20` a `24` px ;
+- les conteneurs d'icones d'action restent autour de `44` px ;
+- les lignes de compte/application gardent un padding vertical `AppSpacing.sm`
+  et une icone `20` px ;
+- si l'utilisateur est connecte, `Se deconnecter` doit rester accessible tout
+  en bas de `Mon espace`, integre comme derniere action de la section
+  `Application` ;
+- les espacements entre sections utilisent `AppSpacing.lg` maximum ;
+- aucun composant de cet ecran ne doit utiliser `display*`, `headline*` ou une
+  icone superieure a `28` px sans justification documentee dans la PR.
+
+Les sous-menus ouverts depuis `Mon espace` suivent la meme echelle :
+`Mes competitions`, `Mes scenarios` et `Mes strategies` sont des listes de
+reglage. Ils ne doivent pas reutiliser une composition de page profil, de
+dashboard hero ou de page marketing.
+
+Regles obligatoires pour ces sous-menus :
+
+- padding lateral de page entre `12` et `14` px ;
+- titre d'ecran en `titleMedium` maximum ;
+- description d'ecran en `bodySmall` ;
+- titres de sections en `titleSmall` maximum ;
+- champ de recherche compact avec padding vertical `AppSpacing.sm` maximum ;
+- badges compteurs autour de `34` px ;
+- lignes de selection autour de `48` a `56` px lorsque le contenu le permet ;
+- logos de competition autour de `28` a `32` px ;
+- conteneurs d'icones d'information ou de resume autour de `40` a `44` px ;
+- valeurs de cartes strategie en `titleMedium` maximum ;
+- les cartes de strategie listent `Selections`, `Cote par selection` et
+  `Cote totale` en colonnes sur mobile ; ne pas les empiler verticalement
+  sauf contrainte d'accessibilite explicite ;
+- switchs reduits visuellement lorsqu'ils apparaissent dans une liste dense ;
+- espacements entre sections en `AppSpacing.lg` maximum.
+
+### Bottom Sheet : Strategie
+
+Le bottom sheet ouvert depuis `Mes strategies` sert d'abord a consulter une
+configuration existante. Il ne doit pas s'ouvrir directement comme un grand
+formulaire administratif.
+
+Regles obligatoires :
+
+- conserver un vrai bottom sheet, avec handle discret et fermeture native ;
+- strategie existante : ouverture en synthese compacte, puis mode edition apres
+  action explicite `Modifier` ;
+- nouvelle strategie : ouverture directement en mode edition, sans action
+  `Supprimer` ;
+- l'en-tete affiche le rang, le nom reel, l'etat actif/inactif et le switch ;
+- le rang, l'icone et les accents identitaires utilisent
+  `context.strategies.styleForIndex(index)` ;
+- le turquoise Lector reste reserve au switch actif, au focus et aux actions de
+  validation ;
+- les valeurs affichees proviennent du vrai `TicketStrategy` :
+  selections, cote par selection, cote totale ;
+- la suppression demande toujours une confirmation destructive ;
+- la suppression persistante passe par la sauvegarde de la liste de strategies
+  mise a jour, pas par une suppression visuelle locale ;
+- tenir compte de `MediaQuery.viewInsets.bottom` et rendre le contenu scrollable
+  lorsque le clavier est ouvert ;
+- hauteur des CTA autour de `40` px, champs compacts et espacements majoritaires
+  en `AppSpacing.xs`.
 
 ## Rayons
 
@@ -792,6 +948,27 @@ Bottom navigation :
 - item inactif : `AppColors.textWeak` ;
 - type : fixed.
 
+Dock flottant Lector :
+
+- position fixe en bas a gauche, avec `SafeArea` et marge basse/laterale de
+  `14` a `16` px ;
+- etat ferme compact : environ `52` x `48` px, fond `surfaces.surface`,
+  contour `surfaces.border`, logo centre via `LectorBrandMark` ;
+- le logo utilise l'asset valide `assets/brand/ls-logo-mark-clean.png`, sans
+  recreation vectorielle locale ;
+- etat ouvert : expansion horizontale depuis le logo, capsule compacte, actions
+  principalement iconiques avec tooltips ;
+- largeur ouverte contrainte a la largeur disponible, sans masquer le contenu
+  important ni l'indicateur systeme bas ;
+- action active marquee par `brand.accent` et fond accent tres leger ;
+- animation d'ouverture/fermeture entre `200` et `300` ms, avec apparition
+  discrete par fade/scale/translation ;
+- fermeture apres selection, navigation ou tap exterieur ;
+- aucune surcouche sombre, aucun bottom sheet et aucun modal pour cette
+  navigation ;
+- aucune destination factice : ne pas ajouter `Recherche`, compteur ticket ou
+  action sans ecran/metier deja branche.
+
 Onglets :
 
 - actif : `AppColors.accent` ;
@@ -805,23 +982,29 @@ Regles :
 - La navigation mobile doit conserver les memes positions entre les ecrans principaux.
 - Les panels temporaires ne doivent pas ajouter une seconde navigation inferieure.
 
-### Selecteur De Theme
+### Header Et Apparence
 
-Le selecteur manuel temporaire de theme est affiche dans le header principal.
+Le header principal donne acces aux raccourcis structurants sans concentrer tous
+les reglages dans un meme bouton.
 
-Comportement :
+Structure attendue :
 
-- bouton iconique minimaliste ;
-- ouverture dans un petit overlay circulaire radial, pas dans une ligne horizontale ;
-- fermeture par tap exterieur ou selection d'un theme ;
-- animation discrete d'apparition/disparition par fondu et scale circulaire ;
-- changement effectif du theme apres l'animation de disparition.
+- logo Lector a gauche via `LectorBrandMark` ;
+- icone theme dediee pour alterner directement entre `Vector Dark` et
+  `Vector Light` ;
+- bouton identite/compte ouvrant le sous-menu compte ;
+- bouton roue ouvrant l'espace de parametres existant, sans recreer de panneau
+  `Parametres` parallele depuis l'accueil.
 
-Regles :
+Workflow theme :
 
-- le selecteur utilise uniquement `appThemeController` ;
-- les ecrans ne connaissent pas le nom de la variante active ;
-- aucun widget ne doit contenir de condition liee a `Vector Gold` ou `Vector Aurora` ;
+- le raccourci du header ne gere que sombre/clair ;
+- la selection complete des variantes de theme passe par
+  `Mon espace > Apparence` ;
+- le sous-menu `Apparence` utilise uniquement les variantes reellement exposees
+  par `appThemeController` ;
+- ne pas inventer un mode `Systeme` tant qu'il n'est pas supporte par le
+  controleur de theme ;
 - les couleurs du menu doivent provenir des ThemeExtensions du theme courant.
 
 ## Panels Et Bottom Sheets

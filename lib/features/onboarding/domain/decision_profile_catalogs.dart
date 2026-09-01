@@ -558,11 +558,15 @@ class OpportunityProfileDefinition {
   const OpportunityProfileDefinition({
     required this.id,
     required this.label,
+    required this.displayLabel,
+    required this.description,
     required this.thesisIds,
   });
 
   final String id;
   final String label;
+  final String displayLabel;
+  final String description;
   final List<String> thesisIds;
 
   bool get isSupported => thesisIds.isNotEmpty;
@@ -575,6 +579,9 @@ class OpportunityProfileCatalog {
     OpportunityProfileDefinition(
       id: 'solid_favorite',
       label: 'Favoris solides',
+      displayLabel: 'Dominations attendues',
+      description:
+          'Supériorité soutenue par classement, dynamique, attaque, défense et contexte.',
       thesisIds: [
         'solid_favorite',
         'cautious_double_chance',
@@ -586,11 +593,17 @@ class OpportunityProfileCatalog {
     OpportunityProfileDefinition(
       id: 'struggling_team',
       label: 'Equipes en difficulte',
+      displayLabel: 'Équipes en difficulté',
+      description:
+          'Mauvais résultats, faible création offensive et fragilité défensive.',
       thesisIds: ['team_in_serious_difficulty'],
     ),
     OpportunityProfileDefinition(
       id: 'offensive_match',
       label: 'Matchs ouverts',
+      displayLabel: 'Matchs ouverts',
+      description:
+          'Attaques, défenses et xG convergent vers un scénario favorable aux buts.',
       thesisIds: [
         'open_match',
         'convergent_open_match',
@@ -600,21 +613,33 @@ class OpportunityProfileCatalog {
     OpportunityProfileDefinition(
       id: 'defensive_match',
       label: 'Matchs fermes',
+      displayLabel: 'Matchs fermés',
+      description:
+          'Défenses, faible création offensive et historiques suggèrent peu de buts.',
       thesisIds: ['closed_match', 'convergent_closed_match'],
     ),
     OpportunityProfileDefinition(
       id: 'ranking_gap',
       label: 'Ecarts de niveau',
+      displayLabel: 'Écarts de niveau',
+      description:
+          'Plusieurs indicateurs montrent une différence structurelle entre les équipes.',
       thesisIds: ['level_gap', 'expected_domination', 'one_sided_scoring'],
     ),
     OpportunityProfileDefinition(
       id: 'credible_outsider',
       label: 'Outsiders credibles',
+      displayLabel: 'Outsiders crédibles',
+      description:
+          'Équipe moins attendue, mais soutenue par forme, contexte ou fragilité adverse.',
       thesisIds: ['credible_outsider'],
     ),
     OpportunityProfileDefinition(
       id: 'fragile_defense',
       label: 'Defenses fragiles',
+      displayLabel: 'Défenses fragiles',
+      description:
+          'Défenses qui encaissent beaucoup ou concèdent des occasions dangereuses.',
       thesisIds: [
         'convergent_open_match',
         'one_sided_scoring',
@@ -624,16 +649,25 @@ class OpportunityProfileCatalog {
     OpportunityProfileDefinition(
       id: 'prolific_attack',
       label: 'Attaques prolifiques',
+      displayLabel: 'Attaques prolifiques',
+      description:
+          'Attaques qui marquent ou produisent régulièrement des occasions de qualité.',
       thesisIds: ['both_sides_can_score', 'one_sided_scoring'],
     ),
     OpportunityProfileDefinition(
       id: 'positive_series',
       label: 'Series positives',
+      displayLabel: 'Séries positives',
+      description:
+          'Bonnes séries, avec indication si les xG les confirment ou les fragilisent.',
       thesisIds: ['team_worse_than_results', 'expected_domination'],
     ),
     OpportunityProfileDefinition(
       id: 'negative_series',
       label: 'Series negatives',
+      displayLabel: 'Séries négatives',
+      description:
+          'Mauvaises dynamiques, en distinguant difficultés réelles et scores trompeurs.',
       thesisIds: ['team_better_than_results', 'team_in_serious_difficulty'],
     ),
   ];

@@ -330,7 +330,7 @@ class SavedTicket {
       status: SavedTicketStatus.saved,
       createdAt: savedAt,
       updatedAt: savedAt,
-      name: name ?? 'Ticket Copilot',
+      name: name ?? 'Ticket Lector',
       selections: List.unmodifiable([
         for (final pick in retainedPicks)
           SavedTicketSelection(

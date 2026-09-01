@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../app/auth/auth_menu_button.dart';
-import '../../../app/theme/theme_variant_menu_button.dart';
+import '../../../app/deck/lector_deck.dart';
+import '../../../core/auth/supabase_auth_controller.dart';
 import '../../../core/di/service_locator.dart';
+import '../../../core/identity/identity_controller.dart';
+import '../../../core/identity/identity_scope.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_theme_controller.dart';
+import '../../../core/widgets/google_brand_icon.dart';
 import '../../../core/widgets/lector_brand_mark.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../onboarding/domain/compiled_decision_profile.dart';
@@ -18,14 +23,17 @@ import '../../tickets/data/saved_ticket_store.dart';
 import '../../tickets/domain/saved_ticket.dart';
 import '../../tickets/domain/ticket_settlement_engine.dart';
 import '../../tickets/domain/ticket_draft.dart';
+import '../../tickets/domain/ticket_generator.dart';
 import '../../tickets/domain/ticket_strategy.dart';
 import '../../tickets/presentation/ticket_builder_panel.dart';
 import '../../tickets/presentation/ticket_generator_page.dart';
+import '../../tickets/presentation/ticket_history_page.dart';
 import '../data/match_feed_repository.dart';
 import '../data/match_feed_repository_loader.dart';
 import '../data/saved_match_favorites_store.dart';
 import '../domain/match_board_item.dart';
 import 'lector_preferences_sheet.dart';
+import 'lector_space_page.dart';
 import 'match_detail_page.dart';
 import 'opportunity_decision_presenter.dart';
 import 'widgets/copilot_calendar.dart';
@@ -34,6 +42,7 @@ import 'widgets/sports_asset_badge.dart';
 class MatchesHomePage extends StatefulWidget {
   const MatchesHomePage({
     required this.profile,
+    required this.identityScope,
     required this.onEditProfile,
     required this.ticketStrategies,
     this.onProfileChanged,
@@ -43,6 +52,7 @@ class MatchesHomePage extends StatefulWidget {
   });
 
   final DecisionProfile profile;
+  final IdentityScope identityScope;
   final VoidCallback onEditProfile;
   final ProfilePreferenceSaver? onProfileChanged;
   final TicketStrategyPreferenceSaver? onTicketStrategiesChanged;
@@ -69,6 +79,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
   bool _isSettlingSavedTickets = false;
   String? _lastTicketSettlementSignature;
   DateTime _selectedScoresDate = _todayDate();
+  bool _hasUserSelectedScoresDate = false;
   _ScoresRedesignMode _scoresMode = _ScoresRedesignMode.forMe;
 
   @override
@@ -78,6 +89,19 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
         ? _loadRepository()
         : Future.value(widget.repositoryOverride);
     _loadSavedTickets();
+  }
+
+  @override
+  void didUpdateWidget(covariant MatchesHomePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.identityScope != widget.identityScope) {
+      _ticketDraft = TicketDraft.empty;
+      _ticketDraftNotifier.value = TicketDraft.empty;
+      _savedTickets = const [];
+      _isTicketPanelExpanded = false;
+      _lastTicketSettlementSignature = null;
+      _loadSavedTickets();
+    }
   }
 
   @override
@@ -121,10 +145,16 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             for (final match in allMatches)
               repository.analyzeFor(widget.profile, match),
           ];
+          final ticketGenerationResult = const TicketGenerator().generate(
+            opportunities: opportunities,
+            strategies: widget.ticketStrategies,
+            profile: compiledProfile,
+          );
           final effectiveSelectedDate = _resolvedScoresDate(
             selectedDate: _selectedScoresDate,
             matches: analyzedAllMatches,
             metadata: snapshotMetadata,
+            allowAutomaticFallback: !_hasUserSelectedScoresDate,
           );
           _latestOpportunities = opportunities;
           _latestAnalyzedMatches = analyzedAllMatches;
@@ -135,6 +165,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
 
           return _ScoresRedesignHome(
             profile: widget.profile,
+            identityScope: widget.identityScope,
             matches: analyzedAllMatches,
             personalizedMatches: [
               for (final opportunity in opportunities)
@@ -151,24 +182,28 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             onDateSelected: (date) {
               setState(() {
                 _selectedScoresDate = _dateOnly(date);
+                _hasUserSelectedScoresDate = true;
               });
             },
             onChooseDate: _chooseScoresDate,
             onOpenMatch: openAnalyzedMatch,
-            onOpenProfile: () => _showPreferenceSheet(context),
-            onOpenTheme: () => _showThemeAndAccountSheet(context),
-            onOpenDock: () => _showQuickDock(context),
+            onOpenProfile: () => _showAccountSheet(context),
+            onOpenTheme: _openLectorSpace,
+            hasGeneratorResults: ticketGenerationResult.tickets.isNotEmpty,
+            hasSavedTickets: _savedTickets.isNotEmpty,
+            hasActiveStrategies: widget.ticketStrategies.any(
+              (strategy) => strategy.isActive,
+            ),
+            onOpenTicketHistory: _openTicketHistorySheet,
+            onRecalculateTickets: _refreshTicketProposals,
+            onOpenStrategies: _openTicketStrategies,
             generator: TicketGeneratorPage(
               profile: compiledProfile,
               opportunities: opportunities,
               strategies: widget.ticketStrategies,
               savedTickets: _savedTickets,
-              onEditStrategies: () => showTicketBuilderPreferencesSheet(
-                context: context,
-                strategies: widget.ticketStrategies,
-                onTicketStrategiesChanged:
-                    widget.onTicketStrategiesChanged ?? (_) async {},
-              ),
+              onEditStrategies: _openTicketStrategies,
+              onCreateManualTicket: _startManualTicketFromGenerator,
               onOpenOpportunity: _openOpportunityDetails,
               onSaveTicket: _upsertSavedTicket,
               onDeleteSavedTicket: _deleteSavedTicket,
@@ -208,24 +243,33 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
 
     setState(() {
       _selectedScoresDate = _dateOnly(selected);
+      _hasUserSelectedScoresDate = true;
     });
   }
 
-  void _showThemeAndAccountSheet(BuildContext context) {
+  void _showAccountSheet(BuildContext context) {
+    final controller = getIt.isRegistered<SupabaseAuthController>()
+        ? getIt<SupabaseAuthController>()
+        : null;
+    final identityController = getIt.isRegistered<IdentityController>()
+        ? getIt<IdentityController>()
+        : null;
+
     showModalBottomSheet<void>(
       context: context,
-      showDragHandle: true,
+      showDragHandle: false,
+      isScrollControlled: true,
+      backgroundColor: context.surfaces.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
       builder: (context) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                ThemeVariantMenuButton(),
-                SizedBox(height: AppSpacing.sm),
-                AuthMenuButton(showGuestLabel: true),
-              ],
+            padding: const EdgeInsets.fromLTRB(14, 8, 14, 20),
+            child: _HeaderAccountSheet(
+              controller: controller,
+              identityController: identityController,
             ),
           ),
         );
@@ -233,76 +277,55 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
     );
   }
 
-  void _showPreferenceSheet(BuildContext context) {
-    showLectorPreferencesSheet(
+  void _openLectorSpace() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => LectorSpacePage(
+          profile: widget.profile,
+          ticketStrategies: widget.ticketStrategies,
+          onProfileChanged: widget.onProfileChanged ?? (_) async {},
+          onTicketStrategiesChanged:
+              widget.onTicketStrategiesChanged ?? (_) async {},
+        ),
+      ),
+    );
+  }
+
+  void _openTicketHistorySheet() {
+    showModalBottomSheet<void>(
       context: context,
-      profile: widget.profile,
-      ticketStrategies: widget.ticketStrategies,
-      onProfileChanged: widget.onProfileChanged ?? (_) async {},
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: TicketHistoryPage(
+            savedTickets: _savedTickets,
+            onTicketChanged: _upsertSavedTicket,
+            onTicketDeleted: _deleteSavedTicket,
+            onClose: () => Navigator.of(context).pop(),
+          ),
+        );
+      },
+    );
+  }
+
+  void _refreshTicketProposals() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Les propositions sont recalculées à partir des données disponibles.',
+        ),
+      ),
+    );
+    setState(() {});
+  }
+
+  void _openTicketStrategies() {
+    showTicketBuilderPreferencesSheet(
+      context: context,
+      strategies: widget.ticketStrategies,
       onTicketStrategiesChanged:
           widget.onTicketStrategiesChanged ?? (_) async {},
-    );
-  }
-
-  void _showQuickDock(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-            child: Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                _QuickDockSheetAction(
-                  icon: Icons.today_rounded,
-                  label: 'Aujourd’hui',
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    setState(() {
-                      _selectedScoresDate = _todayDate();
-                    });
-                  },
-                ),
-                _QuickDockSheetAction(
-                  icon: Icons.person_outline_rounded,
-                  label: 'Pour moi',
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    setState(() {
-                      _scoresMode = _ScoresRedesignMode.forMe;
-                    });
-                  },
-                ),
-                _QuickDockSheetAction(
-                  icon: Icons.auto_awesome_rounded,
-                  label: 'Générateur',
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    setState(() {
-                      _scoresMode = _ScoresRedesignMode.generator;
-                    });
-                  },
-                ),
-                _QuickDockSheetAction(
-                  icon: Icons.search_rounded,
-                  label: 'Recherche',
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('La recherche sera connectée ici.'),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 
@@ -336,8 +359,12 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
   }
 
   Future<void> _loadSavedTickets() async {
-    final tickets = await _savedTicketStore.load();
+    final scope = widget.identityScope;
+    final tickets = await _savedTicketStore.load(scope: scope);
     if (!mounted) {
+      return;
+    }
+    if (widget.identityScope != scope) {
       return;
     }
 
@@ -385,7 +412,10 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
       _savedTickets = settledTickets;
     });
     try {
-      await _savedTicketStore.saveAll(settledTickets);
+      await _savedTicketStore.saveAll(
+        scope: widget.identityScope,
+        tickets: settledTickets,
+      );
     } finally {
       _isSettlingSavedTickets = false;
     }
@@ -407,7 +437,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
       _ticketDraftNotifier.value = _ticketDraft;
       _isTicketPanelExpanded = false;
     });
-    _savedTicketStore.upsert(ticket);
+    _savedTicketStore.upsert(scope: widget.identityScope, ticket: ticket);
   }
 
   void _deleteSavedTicket(String ticketId) {
@@ -417,7 +447,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
           if (ticket.id != ticketId) ticket,
       ];
     });
-    _savedTicketStore.delete(ticketId);
+    _savedTicketStore.delete(scope: widget.identityScope, ticketId: ticketId);
   }
 
   String _ticketSettlementSignature(
@@ -463,6 +493,19 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
     });
   }
 
+  void _startManualTicketFromGenerator() {
+    setState(() {
+      _scoresMode = _ScoresRedesignMode.all;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Choisissez des sélections depuis les matchs pour créer votre ticket.',
+        ),
+      ),
+    );
+  }
+
   void _openMatchDetails(MatchBoardItem match) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -475,6 +518,10 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
           onTicketSaved: _upsertSavedTicket,
           onOpenTicketSelection: _openTicketSelectionDetails,
           onViewSavedTickets: () {
+            Navigator.of(context).maybePop();
+            _openTicketsTab();
+          },
+          onOpenGenerator: () {
             Navigator.of(context).maybePop();
             _openTicketsTab();
           },
@@ -496,6 +543,10 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
           onTicketSaved: _upsertSavedTicket,
           onOpenTicketSelection: _openTicketSelectionDetails,
           onViewSavedTickets: () {
+            Navigator.of(context).maybePop();
+            _openTicketsTab();
+          },
+          onOpenGenerator: () {
             Navigator.of(context).maybePop();
             _openTicketsTab();
           },
@@ -572,6 +623,14 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
 
 enum _ScoresRedesignMode { forMe, all, generator }
 
+LectorDeckScope _deckScopeForMode(_ScoresRedesignMode mode) {
+  return switch (mode) {
+    _ScoresRedesignMode.forMe => LectorDeckScope.forMe,
+    _ScoresRedesignMode.all => LectorDeckScope.all,
+    _ScoresRedesignMode.generator => LectorDeckScope.generator,
+  };
+}
+
 DateTime _todayDate() {
   final now = DateTime.now();
   return DateTime(now.year, now.month, now.day);
@@ -582,10 +641,95 @@ DateTime _dateOnly(DateTime date) {
   return DateTime(local.year, local.month, local.day);
 }
 
+String _initialsForUser(User? user) {
+  return _initialsForName(_displayNameForUser(user) ?? user?.email ?? 'LS');
+}
+
+String? _displayNameForUser(User? user) {
+  final metadata = user?.userMetadata;
+  for (final key in ['full_name', 'name', 'display_name']) {
+    final value = metadata?[key]?.toString().trim();
+    if (value != null && value.isNotEmpty) {
+      return value;
+    }
+  }
+  return null;
+}
+
+String _initialsForName(String value) {
+  final parts = value
+      .trim()
+      .split(RegExp(r'\s+|@'))
+      .where((part) => part.isNotEmpty)
+      .toList();
+  if (parts.length >= 2) {
+    return '${parts.first.characters.first}${parts.last.characters.first}'
+        .toUpperCase();
+  }
+  if (parts.isNotEmpty) {
+    return parts.first.characters.take(2).toString().toUpperCase();
+  }
+  return 'LS';
+}
+
+bool _hasGoogleIdentity(User? user) {
+  if (user == null) {
+    return false;
+  }
+  final provider = user.appMetadata['provider']?.toString().toLowerCase();
+  if (provider == 'google') {
+    return true;
+  }
+  return user.identities?.any(
+        (identity) => identity.provider.toLowerCase() == 'google',
+      ) ??
+      false;
+}
+
+String? _validateCredentials(String email, String password) {
+  if (!_looksLikeEmail(email)) {
+    return 'Saisissez une adresse e-mail valide.';
+  }
+  if (password.length < 6) {
+    return 'Le mot de passe doit contenir au moins 6 caractères.';
+  }
+  return null;
+}
+
+bool _looksLikeEmail(String value) {
+  return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value);
+}
+
+String _friendlyAuthError(Object error) {
+  if (error is AuthException) {
+    final message = error.message.toLowerCase();
+    if (message.contains('invalid login') ||
+        message.contains('invalid credentials') ||
+        message.contains('email not confirmed') ||
+        message.contains('password')) {
+      return 'Adresse e-mail ou mot de passe incorrect.';
+    }
+    if (message.contains('user not found') || message.contains('not found')) {
+      return 'Aucun compte ne correspond à cette adresse e-mail.';
+    }
+    if (message.contains('email')) {
+      return 'Vérifiez votre adresse e-mail puis réessayez.';
+    }
+    if (message.contains('network') || message.contains('timeout')) {
+      return 'La connexion réseau semble indisponible. Réessayez dans un instant.';
+    }
+  }
+  if (error is StateError) {
+    return 'Connexion indisponible dans cet environnement. Réessayez plus tard.';
+  }
+  return 'Connexion impossible pour le moment. Réessayez dans un instant.';
+}
+
 DateTime _resolvedScoresDate({
   required DateTime selectedDate,
   required List<MatchBoardItem> matches,
   required MatchFeedSnapshotMetadata? metadata,
+  required bool allowAutomaticFallback,
 }) {
   final selectedDay = _dateOnly(selectedDate);
   final hasMatchOnSelectedDate = matches.any((match) {
@@ -598,6 +742,10 @@ DateTime _resolvedScoresDate({
 
   final coversSelectedDate = metadata?.covers(selectedDay) ?? false;
   if (coversSelectedDate) {
+    return selectedDay;
+  }
+
+  if (!allowAutomaticFallback) {
     return selectedDay;
   }
 
@@ -623,6 +771,7 @@ bool _isSameCalendarDay(DateTime a, DateTime b) {
 class _ScoresRedesignHome extends StatelessWidget {
   const _ScoresRedesignHome({
     required this.profile,
+    required this.identityScope,
     required this.matches,
     required this.personalizedMatches,
     required this.snapshotMetadata,
@@ -634,11 +783,17 @@ class _ScoresRedesignHome extends StatelessWidget {
     required this.onOpenMatch,
     required this.onOpenProfile,
     required this.onOpenTheme,
-    required this.onOpenDock,
+    required this.hasGeneratorResults,
+    required this.hasSavedTickets,
+    required this.hasActiveStrategies,
+    required this.onOpenTicketHistory,
+    required this.onRecalculateTickets,
+    required this.onOpenStrategies,
     required this.generator,
   });
 
   final DecisionProfile profile;
+  final IdentityScope identityScope;
   final List<MatchBoardItem> matches;
   final List<MatchBoardItem> personalizedMatches;
   final MatchFeedSnapshotMetadata? snapshotMetadata;
@@ -650,7 +805,12 @@ class _ScoresRedesignHome extends StatelessWidget {
   final ValueChanged<MatchBoardItem> onOpenMatch;
   final VoidCallback onOpenProfile;
   final VoidCallback onOpenTheme;
-  final VoidCallback onOpenDock;
+  final bool hasGeneratorResults;
+  final bool hasSavedTickets;
+  final bool hasActiveStrategies;
+  final VoidCallback onOpenTicketHistory;
+  final VoidCallback onRecalculateTickets;
+  final VoidCallback onOpenStrategies;
   final Widget generator;
 
   @override
@@ -666,7 +826,7 @@ class _ScoresRedesignHome extends StatelessWidget {
     };
     final listSubtitle = switch (mode) {
       _ScoresRedesignMode.forMe =>
-        'Modifiez vos championnats ou vos lectures depuis Paramètres Lector.',
+        'Modifiez vos championnats ou vos scénarios depuis Mon espace.',
       _ScoresRedesignMode.all => 'Essayez un autre jour ou un autre mode.',
       _ScoresRedesignMode.generator =>
         'Configurez vos sélections depuis les paramètres Lector.',
@@ -744,7 +904,31 @@ class _ScoresRedesignHome extends StatelessWidget {
         Positioned(
           left: 14,
           bottom: 16 + MediaQuery.paddingOf(context).bottom,
-          child: _QuickDockClosedButton(onPressed: onOpenDock),
+          child: LectorDeck(
+            maxWidth: MediaQuery.sizeOf(context).width - 28,
+            deckContext: LectorDeckContext(
+              scope: _deckScopeForMode(mode),
+              selectedDate: selectedDate,
+              hasGeneratorResults: hasGeneratorResults,
+              hasSavedTickets: hasSavedTickets,
+              hasActiveStrategies: hasActiveStrategies,
+            ),
+            capabilities: LectorDeckCapabilities(
+              onOpenForMe: mode == _ScoresRedesignMode.forMe
+                  ? null
+                  : () => onModeChanged(_ScoresRedesignMode.forMe),
+              onOpenAll: mode == _ScoresRedesignMode.all
+                  ? null
+                  : () => onModeChanged(_ScoresRedesignMode.all),
+              onOpenGenerator: mode == _ScoresRedesignMode.generator
+                  ? null
+                  : () => onModeChanged(_ScoresRedesignMode.generator),
+              onGoToday: () => onDateSelected(_todayDate()),
+              onOpenTicketHistory: onOpenTicketHistory,
+              onRecalculate: onRecalculateTickets,
+              onOpenStrategies: onOpenStrategies,
+            ),
+          ),
         ),
       ],
     );
@@ -778,23 +962,12 @@ class _ScoresRedesignHome extends StatelessWidget {
   }
 
   List<MatchBoardItem> _forMeMatches(List<MatchBoardItem> dateMatches) {
-    if (_hasExplicitForMePreferences) {
-      return dateMatches.where(_matchesExplicitPreferences).toList();
-    }
-
     final personalizedForDate = _matchesForDate(personalizedMatches);
-    if (personalizedForDate.isNotEmpty) {
-      return personalizedForDate;
+    if (_hasExplicitForMePreferences) {
+      return personalizedForDate.where(_matchesExplicitPreferences).toList();
     }
 
-    final stories = _storyMatches(dateMatches);
-    if (stories.isNotEmpty) {
-      return stories;
-    }
-
-    return ([
-      ...dateMatches,
-    ]..sort(_compareMatches)).take(5).toList(growable: false);
+    return personalizedForDate;
   }
 
   bool get _hasExplicitForMePreferences {
@@ -916,28 +1089,989 @@ class _ScoresRedesignHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final controller = getIt.isRegistered<SupabaseAuthController>()
+        ? getIt<SupabaseAuthController>()
+        : null;
+
     return SafeArea(
       bottom: false,
       child: SizedBox(
-        height: 52,
+        height: 56,
+        child: Row(
+          children: [
+            const LectorBrandMark(size: 34),
+            const Spacer(),
+            const _HeaderThemeToggleButton(),
+            const SizedBox(width: AppSpacing.xs),
+            controller == null
+                ? _HeaderIdentityButton(
+                    icon: Icons.person_outline_rounded,
+                    tooltip: 'Connexion',
+                    onPressed: onOpenProfile,
+                  )
+                : ListenableBuilder(
+                    listenable: controller,
+                    builder: (context, _) {
+                      return _HeaderIdentityButton(
+                        label: controller.isSignedIn
+                            ? _initialsForUser(controller.user)
+                            : null,
+                        icon: controller.isSignedIn
+                            ? null
+                            : Icons.person_outline_rounded,
+                        tooltip: controller.isSignedIn ? 'Compte' : 'Connexion',
+                        onPressed: onOpenProfile,
+                      );
+                    },
+                  ),
+            const SizedBox(width: AppSpacing.xs),
+            IconButton(
+              tooltip: 'Paramètres',
+              onPressed: onOpenTheme,
+              icon: const Icon(Icons.settings_outlined, size: 25),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderThemeToggleButton extends StatelessWidget {
+  const _HeaderThemeToggleButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<AppThemeVariant>(
+      valueListenable: appThemeController,
+      builder: (context, variant, _) {
+        final isLight = variant == AppThemeVariant.vectorLight;
+        return IconButton(
+          tooltip: isLight ? 'Passer en thème sombre' : 'Passer en thème clair',
+          onPressed: appThemeController.toggleBrightness,
+          icon: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            transitionBuilder: (child, animation) {
+              return FadeTransition(
+                opacity: animation,
+                child: ScaleTransition(scale: animation, child: child),
+              );
+            },
+            child: Icon(
+              isLight ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+              key: ValueKey(isLight),
+              size: 24,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _HeaderIdentityButton extends StatelessWidget {
+  const _HeaderIdentityButton({
+    this.label,
+    this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final String? label;
+  final IconData? icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+        child: Container(
+          width: 42,
+          height: 42,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: context.surfaces.backgroundSecondary.withValues(alpha: 0.64),
+            border: Border.all(
+              color: context.brand.accent.withValues(alpha: 0.72),
+            ),
+          ),
+          child: label == null
+              ? Icon(
+                  icon ?? Icons.person_outline_rounded,
+                  color: context.brand.accent,
+                  size: 22,
+                )
+              : Text(
+                  label!,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: context.textColors.primary,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderAccountSheet extends StatelessWidget {
+  const _HeaderAccountSheet({
+    required this.controller,
+    required this.identityController,
+  });
+
+  final SupabaseAuthController? controller;
+  final IdentityController? identityController;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller ?? Listenable.merge([]),
+      builder: (context, _) {
+        if (controller?.isSignedIn ?? false) {
+          return _ConnectedAccountSheet(
+            controller: controller!,
+            identityController: identityController,
+          );
+        }
+        return _DisconnectedAuthSheet(
+          controller: controller,
+          identityController: identityController,
+        );
+      },
+    );
+  }
+}
+
+class _DisconnectedAuthSheet extends StatefulWidget {
+  const _DisconnectedAuthSheet({
+    required this.controller,
+    required this.identityController,
+  });
+
+  final SupabaseAuthController? controller;
+  final IdentityController? identityController;
+
+  @override
+  State<_DisconnectedAuthSheet> createState() => _DisconnectedAuthSheetState();
+}
+
+class _DisconnectedAuthSheetState extends State<_DisconnectedAuthSheet> {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  bool _isPasswordVisible = false;
+  bool _isLoading = false;
+  bool _isCreatingAccount = false;
+  String? _errorMessage;
+
+  bool get _isConfigured => widget.controller?.isConfigured ?? false;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController.addListener(_handleCredentialInputChanged);
+    _passwordController.addListener(_handleCredentialInputChanged);
+  }
+
+  @override
+  void dispose() {
+    _emailController.removeListener(_handleCredentialInputChanged);
+    _passwordController.removeListener(_handleCredentialInputChanged);
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _handleCredentialInputChanged() {
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.88,
+      ),
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(0, 0, 0, bottomInset),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _SheetTopBar(onClose: () => Navigator.of(context).pop()),
+            const SizedBox(height: AppSpacing.xs),
+            const _LoginVisualIdentity(),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              _isCreatingAccount ? 'Créer un compte' : 'Se connecter',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: context.textColors.primary,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Accédez à votre compte Lector\net synchronisez vos données.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: context.textColors.secondary,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _AuthTextField(
+              controller: _emailController,
+              icon: Icons.mail_outline_rounded,
+              hintText: 'Adresse e-mail',
+              keyboardType: TextInputType.emailAddress,
+              autofillHints: const [AutofillHints.email],
+              enabled: !_isLoading,
+              onChanged: (_) => _clearError(),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _AuthTextField(
+              controller: _passwordController,
+              icon: Icons.lock_outline_rounded,
+              hintText: 'Mot de passe',
+              obscureText: !_isPasswordVisible,
+              autofillHints: const [AutofillHints.password],
+              enabled: !_isLoading,
+              onChanged: (_) => _clearError(),
+              suffix: IconButton(
+                tooltip: _isPasswordVisible
+                    ? 'Masquer le mot de passe'
+                    : 'Afficher le mot de passe',
+                onPressed: _isLoading
+                    ? null
+                    : () => setState(() {
+                        _isPasswordVisible = !_isPasswordVisible;
+                      }),
+                icon: Icon(
+                  _isPasswordVisible
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  size: 20,
+                ),
+              ),
+            ),
+            if (_errorMessage != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              _AuthInlineMessage(message: _errorMessage!),
+            ],
+            if (!_isCreatingAccount) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: _isLoading ? null : _resetPassword,
+                  child: const Text('Mot de passe oublié ?'),
+                ),
+              ),
+            ] else
+              const SizedBox(height: AppSpacing.sm),
+            FilledButton(
+              onPressed: _canSubmit ? _submitPasswordAuth : null,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(46),
+              ),
+              child: _isLoading
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(
+                      _isCreatingAccount ? 'Créer le compte' : 'Se connecter',
+                    ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            const _AuthDivider(),
+            const SizedBox(height: AppSpacing.md),
+            _GoogleAuthButton(
+              enabled: _isConfigured && !_isLoading,
+              onPressed: _signInWithGoogle,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _AuthModeSwitch(
+              isCreatingAccount: _isCreatingAccount,
+              onPressed: _isLoading
+                  ? null
+                  : () => setState(() {
+                      _isCreatingAccount = !_isCreatingAccount;
+                      _errorMessage = null;
+                    }),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  bool get _canSubmit {
+    return _isConfigured &&
+        !_isLoading &&
+        _emailController.text.trim().isNotEmpty &&
+        _passwordController.text.isNotEmpty;
+  }
+
+  void _clearError() {
+    if (_errorMessage != null) {
+      setState(() => _errorMessage = null);
+    }
+  }
+
+  Future<void> _submitPasswordAuth() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    final validationError = _validateCredentials(email, password);
+    if (validationError != null) {
+      setState(() => _errorMessage = validationError);
+      return;
+    }
+
+    await _runAuthAction(
+      () {
+        final controller = widget.controller!;
+        if (_isCreatingAccount) {
+          return widget.identityController?.signUpWithPassword(
+                email: email,
+                password: password,
+              ) ??
+              controller.signUpWithPassword(
+                email: email,
+                password: password,
+              );
+        }
+        return widget.identityController?.signInWithPassword(
+              email: email,
+              password: password,
+            ) ??
+            controller.signInWithPassword(
+            email: email,
+            password: password,
+          );
+      },
+      successMessageWhenStillSignedOut: _isCreatingAccount
+          ? 'Compte créé. Vérifiez votre e-mail si une confirmation est demandée.'
+          : null,
+    );
+  }
+
+  Future<void> _signInWithGoogle() async {
+    await _runAuthAction(
+      () =>
+          widget.identityController?.signInWithGoogle() ??
+          widget.controller!.signInWithGoogle(),
+    );
+  }
+
+  Future<void> _resetPassword() async {
+    final email = _emailController.text.trim();
+    if (!_isConfigured) {
+      setState(() {
+        _errorMessage =
+            'Connexion indisponible dans cet environnement. Réessayez plus tard.';
+      });
+      return;
+    }
+    if (!_looksLikeEmail(email)) {
+      setState(() {
+        _errorMessage =
+            'Saisissez une adresse e-mail valide pour réinitialiser le mot de passe.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      await widget.controller!.resetPasswordForEmail(email);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Si ce compte existe, un e-mail de réinitialisation a été envoyé.',
+          ),
+        ),
+      );
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _errorMessage = _friendlyAuthError(error);
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _runAuthAction(
+    Future<void> Function() action, {
+    String? successMessageWhenStillSignedOut,
+  }) async {
+    if (!_isConfigured || _isLoading) {
+      setState(() {
+        _errorMessage =
+            'Connexion indisponible dans cet environnement. Réessayez plus tard.';
+      });
+      return;
+    }
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      await action();
+      if (mounted) {
+        if (successMessageWhenStillSignedOut != null &&
+            !(widget.controller?.isSignedIn ?? false)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(successMessageWhenStillSignedOut)),
+          );
+          return;
+        }
+        Navigator.of(context).pop();
+      }
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _errorMessage = _friendlyAuthError(error);
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+}
+
+class _ConnectedAccountSheet extends StatelessWidget {
+  const _ConnectedAccountSheet({
+    required this.controller,
+    required this.identityController,
+  });
+
+  final SupabaseAuthController controller;
+  final IdentityController? identityController;
+
+  @override
+  Widget build(BuildContext context) {
+    final user = controller.user;
+    final name = _displayNameForUser(user);
+    final email = user?.email;
+    final identityLabel = name ?? email ?? 'Compte Lector';
+    final isGoogleAccount = _hasGoogleIdentity(user);
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.82,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _SheetTopBar(onClose: () => Navigator.of(context).pop()),
+            const SizedBox(height: AppSpacing.sm),
+            Center(
+              child: _HeaderIdentityButton(
+                label: _initialsForName(identityLabel),
+                tooltip: 'Compte',
+                onPressed: () {},
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              name ?? 'Compte Lector',
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
+            ),
+            if (email != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                email,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.textColors.secondary,
+                ),
+              ),
+            ],
+            const SizedBox(height: AppSpacing.md),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: context.surfaces.backgroundSecondary,
+                borderRadius: BorderRadius.circular(AppRadius.input),
+                border: Border.all(color: context.surfaces.border),
+              ),
+              child: Column(
+                children: [
+                  _HeaderAccountRow(
+                    icon: Icons.person_outline_rounded,
+                    title: 'Mon profil',
+                    subtitle: 'Voir et modifier mes informations',
+                    onTap: () => _showUnavailable(
+                      context,
+                      'Aucun écran de profil détaillé n’est encore relié.',
+                    ),
+                  ),
+                  Divider(height: 1, color: context.surfaces.border),
+                  _HeaderAccountRow(
+                    icon: Icons.lock_outline_rounded,
+                    title: 'Sécurité',
+                    subtitle: 'Mot de passe et connexions',
+                    onTap: () => _showUnavailable(
+                      context,
+                      'Aucun écran de sécurité n’est encore relié.',
+                    ),
+                  ),
+                  Divider(height: 1, color: context.surfaces.border),
+                  _HeaderAccountRow(
+                    icon: Icons.devices_outlined,
+                    title: 'Appareils connectés',
+                    subtitle: 'Gérer vos sessions actives',
+                    onTap: () => _showUnavailable(
+                      context,
+                      'Aucun écran de sessions actives n’est encore relié.',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            if (isGoogleAccount) ...[
+              OutlinedButton.icon(
+                onPressed: () async {
+                  await (identityController?.signOut() ??
+                      controller.signOutFromGoogle());
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                  }
+                },
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(46),
+                  foregroundColor: context.textColors.primary,
+                  side: BorderSide(color: context.surfaces.border),
+                ),
+                icon: const GoogleBrandIcon(size: 19),
+                label: const Text('Se déconnecter de Google'),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+            OutlinedButton.icon(
+              onPressed: () async {
+                await (identityController?.signOut() ?? controller.signOut());
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                }
+              },
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(46),
+                foregroundColor: context.semantic.error,
+                side: BorderSide(color: context.semantic.error),
+              ),
+              icon: const Icon(Icons.logout_rounded),
+              label: const Text('Se déconnecter de Lector'),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              'Vos préférences et informations seront conservées sur cet appareil.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: context.textColors.secondary,
+                height: 1.35,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showUnavailable(BuildContext context, String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _SheetTopBar extends StatelessWidget {
+  const _SheetTopBar({required this.onClose});
+
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 34,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: context.textColors.secondary.withValues(alpha: 0.56),
+              borderRadius: BorderRadius.circular(AppRadius.chip),
+            ),
+            child: const SizedBox(width: 34, height: 4),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: IconButton(
+              tooltip: 'Fermer',
+              onPressed: onClose,
+              icon: const Icon(Icons.close_rounded, size: 24),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoginVisualIdentity extends StatelessWidget {
+  const _LoginVisualIdentity();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SizedBox(
+        width: 122,
+        height: 74,
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: IconButton(
-                tooltip: 'Menu',
-                onPressed: onOpenTheme,
-                icon: const Icon(Icons.menu_rounded, size: 27),
+            Positioned(
+              left: 8,
+              child: Container(
+                width: 62,
+                height: 62,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: context.brand.accent.withValues(alpha: 0.10),
+                  border: Border.all(
+                    color: context.brand.accent.withValues(alpha: 0.62),
+                  ),
+                ),
+                child: Icon(
+                  Icons.person_outline_rounded,
+                  color: context.brand.accent,
+                  size: 31,
+                ),
               ),
             ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: IconButton(
-                tooltip: 'Profil',
-                onPressed: onOpenProfile,
-                icon: const Icon(Icons.person_outline_rounded, size: 25),
+            Positioned(
+              right: 4,
+              top: 8,
+              child: Container(
+                width: 58,
+                height: 54,
+                padding: const EdgeInsets.all(AppSpacing.xs),
+                decoration: BoxDecoration(
+                  color: context.surfaces.backgroundSecondary,
+                  borderRadius: BorderRadius.circular(AppRadius.odds),
+                  border: Border.all(color: context.surfaces.border),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const LectorBrandMark(size: 18),
+                    const SizedBox(height: 4),
+                    _AuthVisualLine(width: 28),
+                    const SizedBox(height: 3),
+                    _AuthVisualLine(width: 20),
+                  ],
+                ),
               ),
+            ),
+            Positioned(
+              right: 12,
+              bottom: 8,
+              child: Container(
+                width: 25,
+                height: 25,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: context.brand.accent,
+                ),
+                child: Icon(
+                  Icons.sync_rounded,
+                  color: context.brand.onAccent,
+                  size: 15,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AuthVisualLine extends StatelessWidget {
+  const _AuthVisualLine({required this.width});
+
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.textColors.secondary.withValues(alpha: 0.26),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+      ),
+      child: SizedBox(width: width, height: 3),
+    );
+  }
+}
+
+class _AuthTextField extends StatelessWidget {
+  const _AuthTextField({
+    required this.controller,
+    required this.icon,
+    required this.hintText,
+    required this.enabled,
+    this.keyboardType,
+    this.autofillHints,
+    this.obscureText = false,
+    this.suffix,
+    this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final IconData icon;
+  final String hintText;
+  final bool enabled;
+  final TextInputType? keyboardType;
+  final Iterable<String>? autofillHints;
+  final bool obscureText;
+  final Widget? suffix;
+  final ValueChanged<String>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      enabled: enabled,
+      keyboardType: keyboardType,
+      autofillHints: autofillHints,
+      obscureText: obscureText,
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        hintText: hintText,
+        prefixIcon: Icon(icon, size: 20),
+        suffixIcon: suffix,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.sm,
+        ),
+      ),
+    );
+  }
+}
+
+class _AuthInlineMessage extends StatelessWidget {
+  const _AuthInlineMessage({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.semantic.error.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(AppRadius.odds),
+        border: Border.all(
+          color: context.semantic.error.withValues(alpha: 0.62),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.error_outline_rounded,
+              size: 18,
+              color: context.semantic.error,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Text(
+                message,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.semantic.error,
+                  height: 1.3,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AuthDivider extends StatelessWidget {
+  const _AuthDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(child: Divider(color: context.surfaces.border)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+          child: Text(
+            'ou',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: context.textColors.secondary,
+            ),
+          ),
+        ),
+        Expanded(child: Divider(color: context.surfaces.border)),
+      ],
+    );
+  }
+}
+
+class _GoogleAuthButton extends StatelessWidget {
+  const _GoogleAuthButton({required this.enabled, required this.onPressed});
+
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: enabled ? onPressed : null,
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(46),
+        foregroundColor: context.textColors.primary,
+      ),
+      child: const Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GoogleBrandIcon(size: 19),
+          SizedBox(width: AppSpacing.sm),
+          Text('Continuer avec Google'),
+        ],
+      ),
+    );
+  }
+}
+
+class _AuthModeSwitch extends StatelessWidget {
+  const _AuthModeSwitch({
+    required this.isCreatingAccount,
+    required this.onPressed,
+  });
+
+  final bool isCreatingAccount;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text(
+          isCreatingAccount ? 'Déjà un compte ? ' : 'Pas encore de compte ? ',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: context.textColors.secondary),
+        ),
+        TextButton(
+          onPressed: onPressed,
+          child: Text(isCreatingAccount ? 'Se connecter' : 'Créer un compte'),
+        ),
+      ],
+    );
+  }
+}
+
+class _HeaderAccountRow extends StatelessWidget {
+  const _HeaderAccountRow({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.odds),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: AppSpacing.xs,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: context.surfaces.backgroundSecondary,
+                border: Border.all(color: context.surfaces.border),
+              ),
+              child: Icon(icon, color: context.textColors.primary, size: 19),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.textColors.secondary,
+                        height: 1.2,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: context.textColors.secondary,
             ),
           ],
         ),
@@ -1094,15 +2228,15 @@ class _TodayStoriesSection extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'A suivre aujourd’hui',
+                    'À suivre aujourd’hui',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w900,
                     ),
                   ),
                   Text(
                     matches.isEmpty
-                        ? 'Aucune lecture claire sur cette date'
-                        : '${matches.length} matchs pour comprendre la journée',
+                        ? 'Aucun scénario personnalisé sur cette date'
+                        : 'Les 3 scénarios les plus forts pour votre profil',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: context.textColors.secondary,
                       fontWeight: FontWeight.w600,
@@ -1155,9 +2289,13 @@ class _TodayStoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final accent = _readingColor(context, rank);
+    final thesisId = match.thesis?.id ?? match.signals.firstOrNull?.id ?? '';
+    final scenarioBadge = context.opportunities.badgeFor(
+      thesisId,
+      variant: AppReadingBadgeVariant.combined,
+    );
     final reading = _readingTitle(match);
-    final chips = _readingChips(match);
+    final convergentReadingCount = _convergentReadingCount(match);
 
     return Material(
       color: context.surfaces.surface.withValues(alpha: 0.72),
@@ -1173,45 +2311,7 @@ class _TodayStoryCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Column(
-                children: [
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.16),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: accent),
-                    ),
-                    child: SizedBox.square(
-                      dimension: 26,
-                      child: Center(
-                        child: Text(
-                          '$rank',
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: accent,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    _competitionShortLabel(match.competition.name),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: context.textColors.secondary,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _fixtureTime(match.fixture),
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: context.textColors.secondary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
+              _StoryRankMeta(rank: rank, match: match),
               const SizedBox(width: 10),
               SizedBox(width: 104, child: _StoryTeams(match: match)),
               Container(
@@ -1224,43 +2324,93 @@ class _TodayStoryCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _ScenarioLabel(color: accent),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      reading,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
+                    _StoryScenarioPill(
+                      label: reading,
+                      style: scenarioBadge,
+                      icon: context.opportunities
+                          .readingIdentityForId(thesisId)
+                          .icon,
                     ),
                     const SizedBox(height: AppSpacing.xs),
-                    Wrap(
-                      spacing: AppSpacing.xs,
-                      runSpacing: AppSpacing.xs,
-                      children: [
-                        for (final chip in chips.take(2))
-                          _EvidenceMiniChip(label: chip),
-                      ],
+                    Text(
+                      _convergentReadingCountLabel(convergentReadingCount),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: context.textColors.secondary,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 6),
-              OutlinedButton(
+              IconButton.outlined(
                 onPressed: onTap,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: accent,
-                  side: BorderSide(color: accent),
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  minimumSize: const Size(34, 34),
+                tooltip: 'Voir l’analyse',
+                icon: Icon(
+                  Icons.chevron_right_rounded,
+                  color: scenarioBadge.foreground,
                 ),
-                child: const Icon(Icons.chevron_right_rounded, size: 20),
+                style: IconButton.styleFrom(
+                  side: BorderSide(color: scenarioBadge.border),
+                  backgroundColor: scenarioBadge.background,
+                ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _StoryRankMeta extends StatelessWidget {
+  const _StoryRankMeta({required this.rank, required this.match});
+
+  final int rank;
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: context.surfaces.backgroundSecondary,
+            shape: BoxShape.circle,
+            border: Border.all(color: context.surfaces.border),
+          ),
+          child: SizedBox.square(
+            dimension: 26,
+            child: Center(
+              child: Text(
+                '$rank',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: context.textColors.primary,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          _competitionShortLabel(match.competition.name),
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: context.textColors.secondary,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          _fixtureTime(match.fixture),
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: context.textColors.secondary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1315,55 +2465,44 @@ class _StoryTeamLine extends StatelessWidget {
   }
 }
 
-class _ScenarioLabel extends StatelessWidget {
-  const _ScenarioLabel({required this.color});
-
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadius.chip),
-        border: Border.all(color: color.withValues(alpha: 0.8)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        child: Text(
-          'SCÉNARIO',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: color,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _EvidenceMiniChip extends StatelessWidget {
-  const _EvidenceMiniChip({required this.label});
+class _StoryScenarioPill extends StatelessWidget {
+  const _StoryScenarioPill({
+    required this.label,
+    required this.style,
+    required this.icon,
+  });
 
   final String label;
+  final AppReadingBadgeStyle style;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: context.surfaces.backgroundSecondary.withValues(alpha: 0.82),
+        color: style.background,
         borderRadius: BorderRadius.circular(AppRadius.chip),
+        border: Border.all(color: style.border),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: context.textColors.secondary,
-            fontWeight: FontWeight.w700,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 15, color: style.iconColor),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: style.foreground,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1684,63 +2823,6 @@ class _CompactReadingBadge extends StatelessWidget {
   }
 }
 
-class _QuickDockClosedButton extends StatelessWidget {
-  const _QuickDockClosedButton({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.surfaces.surface.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: context.brand.accent.withValues(alpha: 0.36)),
-        boxShadow: [
-          BoxShadow(
-            color: context.surfaces.shadow.withValues(alpha: 0.35),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Material(
-        color: AppColors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          child: SizedBox(
-            width: 52,
-            height: 44,
-            child: Center(child: LectorBrandMark(size: 30)),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _QuickDockSheetAction extends StatelessWidget {
-  const _QuickDockSheetAction({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ActionChip(
-      avatar: Icon(icon, size: 18),
-      label: Text(label),
-      onPressed: onTap,
-    );
-  }
-}
-
 class _ScoresEmptyPanel extends StatelessWidget {
   const _ScoresEmptyPanel({required this.title, required this.subtitle});
 
@@ -1763,7 +2845,7 @@ class _ScoresEmptyPanel extends StatelessWidget {
               Icons.info_outline_rounded,
               color: context.textColors.secondary,
             ),
-            const SizedBox(width: AppSpacing.md),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1771,13 +2853,13 @@ class _ScoresEmptyPanel extends StatelessWidget {
                   Text(
                     title,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xs),
+                  const SizedBox(height: AppSpacing.xxs),
                   Text(
                     subtitle,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: context.textColors.secondary,
                     ),
                   ),
@@ -1815,14 +2897,6 @@ class _ScoresCompetitionGroup {
   final List<MatchBoardItem> matches;
 }
 
-Color _readingColor(BuildContext context, int rank) {
-  return switch (rank) {
-    2 => context.opportunities.levelGap,
-    3 => context.opportunities.credibleOutsider,
-    _ => context.brand.accent,
-  };
-}
-
 String _readingTitle(MatchBoardItem match) {
   final title = match.thesis?.title.trim();
   if (title != null && title.isNotEmpty) {
@@ -1855,38 +2929,28 @@ String? _compactReadingLabel(MatchBoardItem match) {
   return 'Lecture';
 }
 
-List<String> _readingChips(MatchBoardItem match) {
+int _convergentReadingCount(MatchBoardItem match) {
   final thesis = match.thesis;
   if (thesis != null) {
-    final argumentLabels = thesis.arguments
-        .where((argument) => argument.family != CopilotArgumentFamily.market)
-        .map((argument) => CopilotArgumentPresenter(argument).headline)
-        .map(_shortEvidenceLabel)
-        .where((label) => label.isNotEmpty)
-        .toList();
-    if (argumentLabels.isNotEmpty) {
-      return argumentLabels.take(2).toList(growable: false);
+    final supportingArguments = thesis.arguments.where((argument) {
+      return argument.family != CopilotArgumentFamily.market &&
+          argument.family != CopilotArgumentFamily.contradiction;
+    }).length;
+    if (supportingArguments > 0) {
+      return supportingArguments;
     }
-
-    final evidence = thesis.supportingEvidence
-        .map((item) => _shortEvidenceLabel(item.label))
-        .where((label) => label.isNotEmpty)
-        .toList();
-    if (evidence.isNotEmpty) {
-      return evidence.take(2).toList(growable: false);
+    if (thesis.supportingEvidence.isNotEmpty) {
+      return thesis.supportingEvidence.length;
     }
   }
+  return match.signals.length;
+}
 
-  final proofs = match.signals
-      .expand((signal) => signal.proofs)
-      .map(_shortEvidenceLabel)
-      .where((label) => label.isNotEmpty)
-      .toList();
-  if (proofs.isNotEmpty) {
-    return proofs.take(2).toList(growable: false);
+String _convergentReadingCountLabel(int count) {
+  if (count <= 0) {
+    return 'Lecture détectée';
   }
-
-  return const ['Contexte', 'Forme'];
+  return count == 1 ? '1 lecture convergente' : '$count lectures convergentes';
 }
 
 String _freeReadingCopy(String value) {
@@ -1895,35 +2959,6 @@ String _freeReadingCopy(String value) {
       .replaceAll('marché recommandé', 'lecture recommandée')
       .replaceAll('Cote', 'Signal')
       .replaceAll('cote', 'signal');
-}
-
-String _shortEvidenceLabel(String value) {
-  final normalized = _freeReadingCopy(value).trim();
-  final lower = normalized.toLowerCase();
-  if (lower.contains('classement') || lower.contains('écart')) {
-    return 'Classement';
-  }
-  if (lower.contains('forme') || lower.contains('série')) {
-    return 'Forme';
-  }
-  if (lower.contains('domicile')) {
-    return 'Domicile';
-  }
-  if (lower.contains('extérieur') || lower.contains('deplacement')) {
-    return 'Extérieur';
-  }
-  if (lower.contains('attaque') || lower.contains('but')) {
-    return 'Attaque';
-  }
-  if (lower.contains('défense') || lower.contains('defense')) {
-    return 'Défense';
-  }
-  if (lower.contains('rythme') || lower.contains('ouvert')) {
-    return 'Rythme';
-  }
-  return normalized.length <= 18
-      ? normalized
-      : '${normalized.substring(0, 15)}...';
 }
 
 String _competitionShortLabel(String competitionName) {
@@ -2494,6 +3529,7 @@ class _ChampionshipsByCountryView extends StatefulWidget {
     required this.matches,
     required this.snapshotMetadata,
     required this.compiledProfile,
+    required this.identityScope,
     required this.ticketDraft,
     required this.onToggleTicket,
     required this.onOpenMatch,
@@ -2502,6 +3538,7 @@ class _ChampionshipsByCountryView extends StatefulWidget {
   final List<MatchBoardItem> matches;
   final MatchFeedSnapshotMetadata? snapshotMetadata;
   final CompiledDecisionProfile compiledProfile;
+  final IdentityScope identityScope;
   final TicketDraft ticketDraft;
   final ValueChanged<TicketDraftSelection> onToggleTicket;
   final ValueChanged<MatchBoardItem> onOpenMatch;
@@ -2531,6 +3568,15 @@ class _ChampionshipsByCountryViewState
   void initState() {
     super.initState();
     _loadFavorites();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ChampionshipsByCountryView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.identityScope != widget.identityScope) {
+      _favoriteIds.clear();
+      _loadFavorites();
+    }
   }
 
   @override
@@ -3052,8 +4098,12 @@ class _ChampionshipsByCountryViewState
   }
 
   Future<void> _loadFavorites() async {
-    final saved = await _favoriteStore.load();
+    final scope = widget.identityScope;
+    final saved = await _favoriteStore.load(scope: scope);
     if (!mounted) {
+      return;
+    }
+    if (widget.identityScope != scope) {
       return;
     }
 
@@ -3068,7 +4118,10 @@ class _ChampionshipsByCountryViewState
     setState(() {
       _toggleSetItem(_favoriteIds, favoriteId);
     });
-    _favoriteStore.save(_favoriteIds);
+    _favoriteStore.save(
+      scope: widget.identityScope,
+      favoriteIds: _favoriteIds,
+    );
   }
 
   Future<void> _refreshCurrentDate() async {
@@ -4515,7 +5568,7 @@ class _AllMatchesFilterSheetState extends State<_AllMatchesFilterSheet> {
                 ],
               ),
               _FilterSection(
-                title: 'Informations Copilot',
+                title: 'Informations Lector',
                 children: [
                   _ChoiceChip<_CopilotInfoFilter>(
                     label: 'Tous les matchs',
@@ -4526,7 +5579,7 @@ class _AllMatchesFilterSheetState extends State<_AllMatchesFilterSheet> {
                     }),
                   ),
                   _ChoiceChip<_CopilotInfoFilter>(
-                    label: 'Avec lecture Copilot',
+                    label: 'Avec lecture Lector',
                     value: _CopilotInfoFilter.withReading,
                     groupValue: _draft.copilotInfo,
                     onSelected: (value) => setState(() {
@@ -4829,7 +5882,7 @@ class _ForMeFilters {
 }
 
 enum _ForMeSortOrder {
-  readingStrength('Lecture Copilot'),
+  readingStrength('Lecture Lector'),
   kickoff('Heure'),
   recommendedOdds('Cote');
 
@@ -5819,7 +6872,7 @@ class _ForMeIncompleteProfileDashboard extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Configurez vos préférences pour permettre à Copilot de rechercher les situations qui vous intéressent.',
+                  'Configurez vos préférences pour permettre à Lector de rechercher les situations qui vous intéressent.',
                   style: theme.textTheme.bodyLarge?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                     height: 1.45,
@@ -6455,7 +7508,7 @@ class _ForMeReadingLine extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Lecture Copilot',
+                'Lecture Lector',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.labelLarge?.copyWith(

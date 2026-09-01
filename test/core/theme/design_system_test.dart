@@ -4,6 +4,7 @@ import 'package:copilot/core/theme/app_colors.dart';
 import 'package:copilot/core/theme/app_components.dart';
 import 'package:copilot/core/theme/app_radius.dart';
 import 'package:copilot/core/theme/app_theme.dart';
+import 'package:copilot/features/onboarding/domain/decision_profile_catalogs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -150,6 +151,14 @@ void main() {
         aurora.extension<AppOpportunityPalette>()?.fragileDefense,
         AppAuroraOpportunityColors.fragileDefense,
       );
+      expect(
+        dark.extension<AppStrategyPalette>()?.styleForIndex(0).color,
+        AppOpportunityColors.levelGap,
+      );
+      expect(
+        light.extension<AppStrategyPalette>()?.styleForIndex(1).color,
+        AppLightOpportunityColors.openMatch,
+      );
     });
 
     test('resolve reading ids to compatible family colors', () {
@@ -159,6 +168,10 @@ void main() {
       expect(
         opportunities.byThesisId('open_match_profile'),
         opportunities.openMatch,
+      );
+      expect(
+        opportunities.byThesisId('expected_domination'),
+        opportunities.solidFavorite,
       );
       expect(opportunities.byThesisId('ranking_gap'), opportunities.levelGap);
       expect(
@@ -172,6 +185,43 @@ void main() {
       expect(
         opportunities.byThesisId('contradiction'),
         opportunities.fragileDefense,
+      );
+      expect(
+        opportunities.byThesisId('fragile_defense_home'),
+        opportunities.fragileDefense,
+      );
+      expect(
+        opportunities.byThesisId('market_favorite_away'),
+        opportunities.credibleOutsider,
+      );
+    });
+
+    test('resolve scenario visual identities from the central palette', () {
+      final opportunities = CopilotTheme.dark
+          .extension<AppOpportunityPalette>()!;
+
+      for (final scenario in OpportunityProfileCatalog.values) {
+        final identity = opportunities.scenarioIdentityForProfileId(
+          scenario.id,
+        );
+        expect(identity.id, scenario.id);
+        expect(
+          identity.color,
+          opportunities.familyForProfileId(scenario.id).color,
+        );
+        expect(
+          identity.badgeFor(AppReadingBadgeVariant.soft).foreground,
+          identity.color,
+        );
+      }
+
+      expect(
+        opportunities.scenarioIdentityForProfileId('ranking_gap').color,
+        opportunities.levelGap,
+      );
+      expect(
+        opportunities.scenarioIdentityForProfileId('credible_outsider').color,
+        opportunities.credibleOutsider,
       );
     });
 
@@ -196,6 +246,39 @@ void main() {
       expect(soft.foreground, opportunities.openMatch);
       expect(simple.background, isNot(combined.background));
       expect(combined.border, isNot(soft.border));
+    });
+
+    test('resolve strategy presentation styles deterministically', () {
+      final themes = [
+        CopilotTheme.dark,
+        CopilotTheme.light,
+        CopilotTheme.gold,
+        CopilotTheme.aurora,
+      ];
+
+      for (final theme in themes) {
+        final strategies = theme.extension<AppStrategyPalette>()!;
+        final firstCycle = [
+          strategies.styleForIndex(0).color,
+          strategies.styleForIndex(1).color,
+          strategies.styleForIndex(2).color,
+          strategies.styleForIndex(3).color,
+        ];
+
+        expect(firstCycle.toSet(), hasLength(4));
+        expect(strategies.styleForIndex(4).color, firstCycle[0]);
+        expect(
+          strategies.styleForIndex(5).icon,
+          strategies.styleForIndex(1).icon,
+        );
+        expect(
+          strategies
+              .styleForIndex(0)
+              .badgeFor(AppReadingBadgeVariant.soft)
+              .foreground,
+          strategies.styleForIndex(0).color,
+        );
+      }
     });
 
     test('keep reading badges readable in every theme variant', () {

@@ -738,7 +738,7 @@ class MatchInsightEngine {
       id: 'no_sufficient_thesis',
       title: 'Aucune thèse suffisante',
       summary:
-          'Copilot ne recommande aucun pari : les données disponibles ne soutiennent pas assez un scénario précis.',
+          'Lector ne recommande aucun pari : les données disponibles ne soutiennent pas assez un scénario précis.',
       status: MatchThesisStatus.notRecommended,
       confidence: 0,
       supportingEvidence: const [],

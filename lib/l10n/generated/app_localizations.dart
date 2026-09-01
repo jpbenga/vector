@@ -161,7 +161,7 @@ abstract class AppLocalizations {
   /// No description provided for @skipOnboardingMessage.
   ///
   /// In fr, this message translates to:
-  /// **'Sans onboarding, Copilot appliquera une configuration générale qui ne sera pas personnalisée à votre manière de décider.'**
+  /// **'Sans onboarding, Lector appliquera une configuration générale qui ne sera pas personnalisée à votre manière de décider.'**
   String get skipOnboardingMessage;
 
   /// No description provided for @keepOnboardingButton.
@@ -245,7 +245,7 @@ abstract class AppLocalizations {
   /// No description provided for @profileSummarySubtitle.
   ///
   /// In fr, this message translates to:
-  /// **'Vérifiez que Copilot a correctement compris votre manière de décider.'**
+  /// **'Vérifiez que Lector a correctement compris votre manière de décider.'**
   String get profileSummarySubtitle;
 
   /// No description provided for @confirmProfileButton.
@@ -329,7 +329,7 @@ abstract class AppLocalizations {
   /// No description provided for @allMatchesSubtitle.
   ///
   /// In fr, this message translates to:
-  /// **'Aucune rencontre n’est masquée. Copilot priorise, il ne supprime pas.'**
+  /// **'Aucune rencontre n’est masquée. Lector priorise, il ne supprime pas.'**
   String get allMatchesSubtitle;
 
   /// No description provided for @championshipsByCountryTitle.
@@ -503,7 +503,7 @@ abstract class AppLocalizations {
   /// No description provided for @copilotReadingTitle.
   ///
   /// In fr, this message translates to:
-  /// **'Lecture Copilot'**
+  /// **'Lecture Lector'**
   String get copilotReadingTitle;
 
   /// No description provided for @notRecommendedLabel.

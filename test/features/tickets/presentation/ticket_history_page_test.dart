@@ -19,7 +19,7 @@ void main() {
     expect(find.text('Gagnés'), findsWidgets);
     expect(find.text('Perdus'), findsWidgets);
     expect(find.text('Mise totale'), findsOneWidget);
-    expect(find.text('Ticket Copilot'), findsOneWidget);
+    expect(find.text('Ticket Lector'), findsOneWidget);
     expect(find.text('Ticket manuel'), findsWidgets);
     expect(find.text('Lecture principale : Favori solide'), findsOneWidget);
     expect(find.text('Créé manuellement'), findsOneWidget);
@@ -28,7 +28,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Ticket manuel'), findsWidgets);
-    expect(find.text('Ticket Copilot'), findsNothing);
+    expect(find.text('Ticket Lector'), findsNothing);
 
     await tester.tap(find.text('Modifiés'));
     await tester.pumpAndSettle();
@@ -81,7 +81,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(deletedTicketId, 'copilot-1');
-    expect(find.text('Ticket Copilot'), findsNothing);
+    expect(find.text('Ticket Lector'), findsNothing);
   });
 
   testWidgets(
@@ -254,7 +254,7 @@ Future<void> _pumpHistory(
                 status: SavedTicketStatus.saved,
                 createdAt: now,
                 updatedAt: now,
-                name: 'Ticket Copilot',
+                name: 'Ticket Lector',
                 strategyName: 'Prudente',
                 mainCombinedReadingLabel: 'Favori solide',
                 totalOdds: 1.42,

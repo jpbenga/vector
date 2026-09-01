@@ -88,6 +88,22 @@ throttle volontaire entre appels API-Football.
 
 La cle API-Football reste uniquement dans les secrets Supabase.
 
+## Erreurs API-Football
+
+API-Football peut repondre en HTTP 200 tout en signalant une erreur metier dans
+le champ JSON `errors`, par exemple un compte suspendu ou un plan sans acces a
+la saison demandee.
+
+`api-football-sync` doit traiter ces payloads comme des echecs, pas comme des
+reponses vides valides. La reponse reste cachee pour audit, mais le run passe en
+`failed` et `build-match-feed-snapshot` ne doit pas publier un snapshot issu de
+ces caches.
+
+Si toutes les familles utiles du snapshot sont vides (`fixtures`, `odds`,
+`standings`, `team_statistics`, `recent_league_matches`, `expected_goals`), le
+builder renvoie une erreur et refuse d'inserer une ligne dans
+`match_feed_snapshots`.
+
 Important : le scope complet MVP ne doit pas etre execute dans un seul appel
 `daily-football-sync`.
 
@@ -339,6 +355,10 @@ Validation attendue :
 - des lignes dans `api_football_cached_responses` ;
 - un nouveau snapshot dans `match_feed_snapshots` ;
 - `database_size_ratio` renseigne.
+
+Si API-Football renvoie une erreur dans `errors`, la validation attendue devient
+un echec explicite du run. Un snapshot vide ne doit pas etre publie comme
+`ok`.
 
 ## Invocation manuelle du scope complet par lots
 

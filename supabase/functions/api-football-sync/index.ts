@@ -564,8 +564,59 @@ async function fetchAndCache(
     );
   }
 
+  const apiErrors = apiFootballErrorMessages(body as JsonObject);
+  if (apiErrors.length > 0) {
+    await delay(options.requestDelayMs);
+    throw new Error(
+      `API-Football error for ${options.endpoint}: ${apiErrors.join("; ")}`,
+    );
+  }
+
   await delay(options.requestDelayMs);
   return { body: body as JsonObject, fetchedAt: fetchedAtIso };
+}
+
+function apiFootballErrorMessages(payload: JsonObject): string[] {
+  const errors = payload.errors;
+  if (errors === null || errors === undefined) {
+    return [];
+  }
+
+  if (Array.isArray(errors)) {
+    return errors.map(errorMessageValue).filter(isNonEmptyString);
+  }
+
+  if (typeof errors === "string") {
+    return errors.trim() === "" ? [] : [errors.trim()];
+  }
+
+  if (typeof errors === "object") {
+    return Object.entries(errors as Record<string, unknown>)
+      .map(([key, value]) => {
+        const message = errorMessageValue(value);
+        return message === "" ? key : `${key}: ${message}`;
+      })
+      .filter(isNonEmptyString);
+  }
+
+  return [];
+}
+
+function errorMessageValue(value: unknown): string {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  if (Array.isArray(value)) {
+    return value.map(errorMessageValue).filter(isNonEmptyString).join(", ");
+  }
+  if (value !== null && value !== undefined && typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return "";
+}
+
+function isNonEmptyString(value: string): boolean {
+  return value.trim() !== "";
 }
 
 function delay(milliseconds: number): Promise<void> {

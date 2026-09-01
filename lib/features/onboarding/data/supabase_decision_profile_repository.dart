@@ -1,18 +1,26 @@
-import '../../../core/supabase/supabase_user_scope.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../core/identity/identity_scope.dart';
 import '../domain/compiled_decision_profile.dart';
 import '../domain/decision_profile.dart';
 import '../domain/profile_compiler.dart';
 
 class SupabaseDecisionProfileRepository {
-  const SupabaseDecisionProfileRepository(this._scope);
+  SupabaseDecisionProfileRepository({
+    required SupabaseClient client,
+    required IdentityScope scope,
+  }) : assert(scope.isAccount),
+       _client = client,
+       _userId = scope.id;
 
-  final SupabaseUserScope _scope;
+  final SupabaseClient _client;
+  final String _userId;
 
   Future<DecisionProfile?> load() async {
-    final row = await _scope.client
+    final row = await _client
         .from('profiles')
         .select('decision_profile')
-        .eq('user_id', _scope.userId)
+        .eq('user_id', _userId)
         .eq('is_active', true)
         .maybeSingle();
 
@@ -29,14 +37,14 @@ class SupabaseDecisionProfileRepository {
 
   Future<void> save(DecisionProfile profile) async {
     final compiledProfile = const ProfileCompiler().compile(profile);
-    final existing = await _scope.client
+    final existing = await _client
         .from('profiles')
         .select('id')
-        .eq('user_id', _scope.userId)
+        .eq('user_id', _userId)
         .eq('is_active', true)
         .maybeSingle();
     final row = {
-      'user_id': _scope.userId,
+      'user_id': _userId,
       'is_active': true,
       'profile_schema_version': compiledProfile.profileSchemaVersion,
       'onboarding_version': profile.onboardingVersion,
@@ -48,14 +56,14 @@ class SupabaseDecisionProfileRepository {
 
     final profileId = existing?['id']?.toString();
     if (profileId == null || profileId.isEmpty) {
-      await _scope.client.from('profiles').insert(row);
+      await _client.from('profiles').insert(row);
       return;
     }
 
-    await _scope.client
+    await _client
         .from('profiles')
         .update(row)
-        .eq('user_id', _scope.userId)
+        .eq('user_id', _userId)
         .eq('id', profileId);
   }
 }

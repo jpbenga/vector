@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/auth/supabase_auth_controller.dart';
+import '../../core/identity/identity_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_components.dart';
 import '../../core/theme/app_radius.dart';
@@ -16,10 +17,12 @@ class AuthEntryPage extends StatefulWidget {
   const AuthEntryPage({
     required this.controller,
     required this.onContinueLocal,
+    this.identityController,
     super.key,
   });
 
   final SupabaseAuthController? controller;
+  final IdentityController? identityController;
   final VoidCallback onContinueLocal;
 
   @override
@@ -75,7 +78,8 @@ class _AuthEntryPageState extends State<AuthEntryPage> {
 
     setState(() => _isStartingGoogle = true);
     try {
-      await controller.signInWithGoogle();
+      await (widget.identityController?.signInWithGoogle() ??
+          controller.signInWithGoogle());
     } on Object catch (error) {
       if (!mounted) {
         return;

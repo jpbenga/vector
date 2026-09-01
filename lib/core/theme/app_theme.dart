@@ -15,6 +15,7 @@ class VectorThemeTokens {
     required this.semantic,
     required this.components,
     required this.opportunities,
+    required this.strategies,
   });
 
   final Brightness brightness;
@@ -24,6 +25,7 @@ class VectorThemeTokens {
   final AppSemanticPalette semantic;
   final AppComponentColors components;
   final AppOpportunityPalette opportunities;
+  final AppStrategyPalette strategies;
 
   static final vectorDark = VectorThemeTokens(
     brightness: Brightness.dark,
@@ -33,6 +35,7 @@ class VectorThemeTokens {
     semantic: AppSemanticPalette.vectorDark,
     components: AppComponentColors.vectorDark,
     opportunities: AppOpportunityPalette.vectorDark,
+    strategies: AppStrategyPalette.vectorDark,
   );
 
   static final vectorLight = VectorThemeTokens(
@@ -43,6 +46,7 @@ class VectorThemeTokens {
     semantic: AppSemanticPalette.vectorLight,
     components: AppComponentColors.vectorLight,
     opportunities: AppOpportunityPalette.vectorLight,
+    strategies: AppStrategyPalette.vectorLight,
   );
 
   static final gold = VectorThemeTokens(
@@ -53,6 +57,7 @@ class VectorThemeTokens {
     semantic: AppSemanticPalette.gold,
     components: AppComponentColors.gold,
     opportunities: AppOpportunityPalette.gold,
+    strategies: AppStrategyPalette.gold,
   );
 
   static final aurora = VectorThemeTokens(
@@ -63,6 +68,7 @@ class VectorThemeTokens {
     semantic: AppSemanticPalette.aurora,
     components: AppComponentColors.aurora,
     opportunities: AppOpportunityPalette.aurora,
+    strategies: AppStrategyPalette.aurora,
   );
 }
 
@@ -138,6 +144,7 @@ class CopilotTheme {
         tokens.semantic,
         tokens.components,
         tokens.opportunities,
+        tokens.strategies,
       ],
       appBarTheme: AppBarTheme(
         centerTitle: false,

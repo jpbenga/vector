@@ -1,6 +1,15 @@
+import 'package:copilot/core/auth/supabase_auth_controller.dart';
+import 'package:copilot/core/config/app_config.dart';
+import 'package:copilot/core/config/app_environment.dart';
+import 'package:copilot/core/di/service_locator.dart';
+import 'package:copilot/core/identity/identity_scope.dart';
+import 'package:copilot/core/supabase/supabase_initializer.dart';
 import 'package:copilot/core/theme/app_theme.dart';
+import 'package:copilot/core/theme/app_theme_controller.dart';
 import 'package:copilot/features/matches/data/match_feed_repository.dart';
 import 'package:copilot/features/matches/domain/match_board_item.dart';
+import 'package:copilot/features/matches/presentation/lector_space_page.dart';
+import 'package:copilot/features/matches/presentation/lector_strategies_page.dart';
 import 'package:copilot/features/matches/presentation/matches_home_page.dart';
 import 'package:copilot/features/onboarding/domain/decision_profile.dart';
 import 'package:copilot/features/onboarding/domain/decision_profile_catalogs.dart';
@@ -11,6 +20,7 @@ import 'package:copilot/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
   group('MatchesHomePage redesign', () {
@@ -27,7 +37,20 @@ void main() {
                 kickoff: _relativeKickoff(0, hour: 20),
               ),
               retainedTheses: [
-                _thesis(id: 'open_match', title: 'Match ouvert'),
+                _thesis(
+                  id: 'open_match',
+                  title: 'Match ouvert',
+                  arguments: [
+                    _argument('structural_level_gap'),
+                    _argument('ranking_superiority'),
+                    _argument(
+                      'positive_streak',
+                      type: CopilotArgumentType.strongRecentForm,
+                      family: CopilotArgumentFamily.form,
+                      evidenceAction: CopilotEvidenceAction.form,
+                    ),
+                  ],
+                ),
               ],
             ),
           ],
@@ -42,10 +65,15 @@ void main() {
         ),
       );
 
-      expect(find.text('A suivre aujourd’hui'), findsOneWidget);
+      expect(find.text('À suivre aujourd’hui'), findsOneWidget);
       expect(find.text('Ma sélection'), findsOneWidget);
       expect(find.text('Chelsea'), findsWidgets);
       expect(find.text('Tottenham'), findsWidgets);
+      expect(find.text('Match ouvert'), findsOneWidget);
+      expect(find.text('3 lectures convergentes'), findsOneWidget);
+      expect(find.text('Écart de niveau structurel'), findsNothing);
+      expect(find.text('Avantage au classement'), findsNothing);
+      expect(find.text('Dynamique positive'), findsNothing);
       expect(find.text('Tous les matchs'), findsNothing);
     });
 
@@ -91,7 +119,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Tous les matchs'), findsOneWidget);
-      expect(find.text('A suivre aujourd’hui'), findsNothing);
+      expect(find.text('À suivre aujourd’hui'), findsNothing);
       expect(find.text('Premier League'), findsOneWidget);
       for (final crossFade in tester.widgetList<AnimatedCrossFade>(
         find.byType(AnimatedCrossFade),
@@ -104,6 +132,50 @@ void main() {
 
       expect(find.text('Arsenal'), findsOneWidget);
       expect(find.text('Liverpool'), findsOneWidget);
+    });
+
+    testWidgets('keeps a manually selected date outside the snapshot window', (
+      tester,
+    ) async {
+      final today = _dayOnly(DateTime.now());
+      final previousDay = DateTime(today.year, today.month, today.day - 1);
+
+      await _pumpPage(
+        tester,
+        repository: _FakeMatchFeedRepository(
+          metadata: MatchFeedSnapshotMetadata(
+            source: 'test',
+            capturedAt: DateTime.now(),
+            timezone: 'Europe/Paris',
+            matchCount: 1,
+            windowStart: today,
+            windowEnd: DateTime(today.year, today.month, today.day + 3),
+          ),
+          opportunities: [
+            _opportunity(
+              match: _match(
+                id: 'today-match',
+                homeName: 'Nice',
+                awayName: 'Lille',
+                kickoff: _relativeKickoff(0, hour: 20),
+              ),
+              retainedTheses: [
+                _thesis(id: 'open_match', title: 'Match ouvert'),
+              ],
+            ),
+          ],
+        ),
+      );
+
+      await tester.tap(find.text(_calendarLabel(previousDay)));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining(
+          'Aucune donnée snapshot pour le ${_shortDateLabel(previousDay)}',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('opens the redesigned match detail from For me', (
@@ -136,10 +208,19 @@ void main() {
       await tester.tap(find.text('Bodo/Glimt').first);
       await tester.pumpAndSettle();
 
-      expect(find.text('Repères Lector'), findsOneWidget);
-      expect(find.text('Contexte rapide'), findsOneWidget);
-      expect(find.text('Derniers matchs'), findsOneWidget);
+      expect(find.text('DOMINATION ATTENDUE'), findsOneWidget);
+      expect(find.text('CONTEXTE RAPIDE'), findsOneWidget);
       expect(find.text('Avant-match'), findsWidgets);
+
+      await tester.tap(find.text('Classement'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Position, points et dynamique dans le championnat.'),
+        findsOneWidget,
+      );
+      expect(find.text('Bodo/Glimt'), findsWidgets);
+      expect(find.text('Rosenborg'), findsWidgets);
     });
 
     testWidgets('opens match detail from a folded All matches league', (
@@ -173,7 +254,7 @@ void main() {
       await tester.tap(find.text('Paris SG'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Repères Lector'), findsOneWidget);
+      expect(find.text('LECTURE DISPONIBLE'), findsOneWidget);
       expect(find.text('Paris SG'), findsWidgets);
       expect(find.text('Dortmund'), findsWidgets);
     });
@@ -203,27 +284,573 @@ void main() {
       await tester.tap(find.text('Générateur'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Générateur de tickets'), findsOneWidget);
+      expect(find.text('Mes tickets'), findsOneWidget);
       expect(find.text('Tous les matchs'), findsNothing);
     });
 
-    testWidgets('opens Lector preferences instead of onboarding', (
+    testWidgets('opens generator from the compact floating Lector dock', (
       tester,
     ) async {
+      await _pumpPage(
+        tester,
+        strategies: [_strategy()],
+        repository: _FakeMatchFeedRepository(opportunities: const []),
+      );
+
+      expect(
+        find.byKey(const ValueKey('lector-floating-dock')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('lector-floating-dock-Générateur')),
+        findsNothing,
+      );
+      expect(find.text('Recherche'), findsNothing);
+      expect(find.byType(ActionChip), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('lector-floating-dock-logo')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('lector-floating-dock-Générateur')),
+        findsOneWidget,
+      );
+      expect(find.text('Recherche'), findsNothing);
+      expect(find.byType(ActionChip), findsNothing);
+
+      await tester.tap(
+        find.byKey(const ValueKey('lector-floating-dock-Générateur')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mes tickets'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('lector-floating-dock-Générateur')),
+        findsNothing,
+      );
+    });
+
+    testWidgets(
+      'match detail deck adds then opens the current ticket locally',
+      (tester) async {
+        final market = _doubleChanceMarket();
+        final recommendedMarket = RecommendedMarket(
+          market: market,
+          selection: market.selections.first,
+        );
+
+        await _pumpPage(
+          tester,
+          strategies: [_strategy()],
+          repository: _FakeMatchFeedRepository(
+            opportunities: [
+              _opportunity(
+                match: _match(
+                  id: 'bodo-rosenborg',
+                  homeName: 'Bodo/Glimt',
+                  awayName: 'Rosenborg',
+                  competitionName: 'Eliteserien',
+                  kickoff: _relativeKickoff(0, hour: 14),
+                  analysis: _analysisData(
+                    homeName: 'Bodo/Glimt',
+                    awayName: 'Rosenborg',
+                  ),
+                ),
+                retainedTheses: [
+                  _thesis(
+                    id: 'level_gap',
+                    title: 'Domination attendue',
+                    status: MatchThesisStatus.recommended,
+                    recommendedMarket: recommendedMarket,
+                  ),
+                ],
+                recommendedMarket: recommendedMarket,
+              ),
+            ],
+          ),
+        );
+
+        await tester.tap(find.text('Bodo/Glimt').first);
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byWidgetPredicate((widget) {
+            if (widget is! Text) {
+              return false;
+            }
+            return widget.data == 'Bodo/Glimt ou nul' ||
+                widget.textSpan?.toPlainText() ==
+                    'Pronostic envisagé · Bodo/Glimt ou nul';
+          }),
+          findsOneWidget,
+        );
+        expect(find.text('1.42'), findsOneWidget);
+
+        await tester.tap(
+          find.byKey(const ValueKey('lector-floating-dock-logo')),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey('lector-floating-dock-Ajouter au ticket')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('lector-floating-dock-Voir mon ticket')),
+          findsNothing,
+        );
+
+        await tester.tap(
+          find.byKey(const ValueKey('lector-floating-dock-Ajouter au ticket')),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Mon ticket'), findsOneWidget);
+        expect(find.text('Voir le ticket'), findsOneWidget);
+
+        await tester.tap(
+          find.byKey(const ValueKey('lector-floating-dock-logo')),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey('lector-floating-dock-Voir mon ticket')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('lector-floating-dock-Retirer')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('lector-floating-dock-Générateur')),
+          findsNothing,
+        );
+
+        await tester.tap(
+          find.byKey(const ValueKey('lector-floating-dock-Voir mon ticket')),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Valider le ticket'), findsOneWidget);
+        expect(find.text('1X (Double chance)'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'opens Lector space and appearance submenu instead of onboarding',
+      (tester) async {
+        await _pumpPage(
+          tester,
+          repository: _FakeMatchFeedRepository(opportunities: const []),
+        );
+
+        await tester.tap(find.byTooltip('Paramètres'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Mon espace'), findsOneWidget);
+        expect(find.text('Mes compétitions'), findsOneWidget);
+        expect(find.text('Mes scénarios'), findsOneWidget);
+        expect(find.text('Mes stratégies'), findsOneWidget);
+        expect(find.text('Onboarding'), findsNothing);
+
+        await tester.scrollUntilVisible(find.text('Apparence'), 300);
+        await tester.pumpAndSettle();
+        expect(find.text('Apparence'), findsOneWidget);
+
+        await tester.tap(find.text('Apparence'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Choisir un thème'), findsOneWidget);
+        expect(
+          find.text('Sélectionnez le thème qui vous convient.'),
+          findsOneWidget,
+        );
+        expect(find.text('Dark'), findsOneWidget);
+        expect(find.text('Light'), findsOneWidget);
+        expect(find.text('Système'), findsNothing);
+        expect(
+          find.byKey(const ValueKey('appearance-theme-vectorDark')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('appearance-theme-preview-vectorDark')),
+          findsOneWidget,
+        );
+
+        await tester.tap(
+          find.byKey(const ValueKey('appearance-theme-vectorLight')),
+        );
+        await tester.pumpAndSettle();
+
+        expect(appThemeController.variant, AppThemeVariant.vectorLight);
+      },
+    );
+
+    testWidgets('toggles light and dark directly from the header', (
+      tester,
+    ) async {
+      appThemeController.select(AppThemeVariant.vectorDark);
+      addTearDown(() {
+        appThemeController.select(AppThemeVariant.vectorDark);
+      });
+
       await _pumpPage(
         tester,
         repository: _FakeMatchFeedRepository(opportunities: const []),
       );
 
-      await tester.tap(find.byTooltip('Profil'));
+      await tester.tap(find.byTooltip('Passer en thème clair'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Paramètres Lector'), findsOneWidget);
-      expect(find.text('Championnats'), findsWidgets);
-      expect(find.text('Lectures'), findsWidgets);
-      expect(find.text('Ticket builder'), findsWidgets);
-      expect(find.text('Onboarding'), findsNothing);
+      expect(appThemeController.variant, AppThemeVariant.vectorLight);
+
+      await tester.tap(find.byTooltip('Passer en thème sombre'));
+      await tester.pumpAndSettle();
+
+      expect(appThemeController.variant, AppThemeVariant.vectorDark);
     });
+
+    testWidgets(
+      'opens a sign-in sheet when the header auth action is signed out',
+      (tester) async {
+        final authController = _SignedOutAuthController();
+        await getIt.reset();
+        getIt.registerSingleton<SupabaseAuthController>(authController);
+        addTearDown(getIt.reset);
+
+        await _pumpPage(
+          tester,
+          repository: _FakeMatchFeedRepository(opportunities: const []),
+        );
+
+        expect(find.byTooltip('Connexion'), findsOneWidget);
+
+        await tester.tap(find.byTooltip('Connexion'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Se connecter'), findsWidgets);
+        expect(find.text('Adresse e-mail'), findsOneWidget);
+        expect(find.text('Mot de passe'), findsOneWidget);
+        expect(find.text('Continuer avec Google'), findsOneWidget);
+        expect(find.text('Pas encore de compte ? '), findsOneWidget);
+        expect(find.text('Mon profil'), findsNothing);
+        expect(find.text('Sécurité'), findsNothing);
+        expect(find.text('Appareils connectés'), findsNothing);
+
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Adresse e-mail'),
+          'julien@example.com',
+        );
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Mot de passe'),
+          'secret123',
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(FilledButton, 'Se connecter'));
+        await tester.pumpAndSettle();
+
+        expect(authController.passwordSignInEmail, 'julien@example.com');
+      },
+    );
+
+    testWidgets(
+      'opens an account sheet when the header auth action is signed in',
+      (tester) async {
+        final authController = _SignedInAuthController(
+          user: _user(
+            email: 'julien.bernard@example.com',
+            fullName: 'Julien Bernard',
+            provider: 'google',
+          ),
+        );
+        await getIt.reset();
+        getIt.registerSingleton<SupabaseAuthController>(authController);
+        addTearDown(getIt.reset);
+
+        await _pumpPage(
+          tester,
+          repository: _FakeMatchFeedRepository(opportunities: const []),
+        );
+
+        expect(find.text('JB'), findsOneWidget);
+        expect(find.byTooltip('Compte'), findsOneWidget);
+
+        await tester.tap(find.byTooltip('Compte'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Julien Bernard'), findsOneWidget);
+        expect(find.text('julien.bernard@example.com'), findsOneWidget);
+        expect(find.text('Mon profil'), findsOneWidget);
+        expect(find.text('Sécurité'), findsOneWidget);
+        expect(find.text('Appareils connectés'), findsOneWidget);
+        expect(find.text('Se déconnecter de Google'), findsOneWidget);
+        expect(find.text('Se déconnecter de Lector'), findsOneWidget);
+        expect(find.text('Adresse e-mail'), findsNothing);
+        expect(find.text('Mot de passe'), findsNothing);
+
+        await tester.tap(find.text('Se déconnecter de Google'));
+        await tester.pumpAndSettle();
+
+        expect(authController.didSignOutFromGoogle, isTrue);
+        expect(authController.didSignOut, isTrue);
+      },
+    );
+
+    testWidgets('does not show Google sign out for a non-Google account', (
+      tester,
+    ) async {
+      final authController = _SignedInAuthController(
+        user: _user(
+          email: 'julien.bernard@example.com',
+          fullName: 'Julien Bernard',
+        ),
+      );
+      await getIt.reset();
+      getIt.registerSingleton<SupabaseAuthController>(authController);
+      addTearDown(getIt.reset);
+
+      await _pumpPage(
+        tester,
+        repository: _FakeMatchFeedRepository(opportunities: const []),
+      );
+
+      await tester.tap(find.byTooltip('Compte'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Se déconnecter de Google'), findsNothing);
+      expect(find.text('Se déconnecter de Lector'), findsOneWidget);
+
+      await tester.tap(find.text('Se déconnecter de Lector'));
+      await tester.pumpAndSettle();
+
+      expect(authController.didSignOut, isTrue);
+    });
+
+    testWidgets('shows sign out at the bottom of Lector space when signed in', (
+      tester,
+    ) async {
+      final authController = _SignedInAuthController(
+        user: _user(email: 'julien.bernard@example.com'),
+      );
+      await getIt.reset();
+      getIt.registerSingleton<SupabaseAuthController>(authController);
+      addTearDown(getIt.reset);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: CopilotTheme.dark.copyWith(
+            splashFactory: NoSplash.splashFactory,
+          ),
+          home: LectorSpacePage(
+            profile: _completedProfile(),
+            ticketStrategies: const [],
+            onProfileChanged: (_) async {},
+            onTicketStrategiesChanged: (_) async {},
+          ),
+        ),
+      );
+
+      await tester.drag(find.byType(ListView), const Offset(0, -420));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Se déconnecter'), findsOneWidget);
+
+      await tester.tap(find.text('Se déconnecter'));
+      await tester.pumpAndSettle();
+
+      expect(authController.didSignOut, isTrue);
+    });
+
+    testWidgets('keeps Lector strategy cards compact on mobile', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final strategies = [
+        _strategy().copyWith(id: 'strategy-1', name: 'Nouvelle stratégie'),
+        _strategy().copyWith(
+          id: 'strategy-2',
+          name: 'jackpot',
+          minimumSelections: 4,
+          maximumSelections: 7,
+          minimumIndividualOdds: 1.20,
+          maximumIndividualOdds: null,
+          clearsMaximumIndividualOdds: true,
+          minimumTotalOdds: 8,
+          maximumTotalOdds: 15,
+        ),
+        _strategy().copyWith(
+          id: 'strategy-3',
+          name: 'Vercel',
+          minimumSelections: 7,
+          maximumSelections: 12,
+          minimumIndividualOdds: 1.50,
+          maximumIndividualOdds: 6,
+          minimumTotalOdds: 10,
+          maximumTotalOdds: null,
+          clearsMaximumTotalOdds: true,
+        ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: CopilotTheme.dark.copyWith(
+            splashFactory: NoSplash.splashFactory,
+          ),
+          home: LectorStrategiesPage(
+            strategies: strategies,
+            onTicketStrategiesChanged: (_) async {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      for (final strategy in strategies) {
+        final cardBox = tester.renderObject<RenderBox>(
+          find.byKey(ValueKey('lector-strategy-card-${strategy.id}')),
+        );
+        expect(cardBox.size.height, lessThanOrEqualTo(118));
+      }
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
+      'opens an existing strategy as a compact summary before editing',
+      (tester) async {
+        final strategy = _strategy().copyWith(
+          id: 'strategy-summary',
+          name: 'Nouvelle stratégie',
+          minimumSelections: 2,
+          maximumSelections: 3,
+          minimumIndividualOdds: 1.50,
+          maximumIndividualOdds: 2.19,
+          minimumTotalOdds: 2.50,
+          maximumTotalOdds: 3.10,
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: CopilotTheme.dark.copyWith(
+              splashFactory: NoSplash.splashFactory,
+            ),
+            home: LectorStrategiesPage(
+              strategies: [strategy],
+              onTicketStrategiesChanged: (_) async {},
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Nouvelle stratégie').first);
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const ValueKey('strategy-summary')), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('ticket-strategy-name-field')),
+          findsNothing,
+        );
+        expect(find.text('Sélections'), findsWidgets);
+        expect(find.text('2 – 3'), findsWidgets);
+        expect(find.text('1,50 – 2,19'), findsWidgets);
+        expect(find.text('2,50 – 3,10'), findsWidgets);
+        expect(find.text('Modifier'), findsOneWidget);
+
+        await tester.tap(find.text('Modifier'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey('ticket-strategy-name-field')),
+          findsOneWidget,
+        );
+        expect(find.text('Valider les modifications'), findsOneWidget);
+      },
+    );
+
+    testWidgets('confirms and persists strategy deletion from the sheet', (
+      tester,
+    ) async {
+      final strategies = [
+        _strategy().copyWith(id: 'strategy-delete', name: 'À supprimer'),
+        _strategy().copyWith(id: 'strategy-keep', name: 'À garder'),
+      ];
+      var savedStrategies = <TicketStrategy>[];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: CopilotTheme.dark.copyWith(
+            splashFactory: NoSplash.splashFactory,
+          ),
+          home: LectorStrategiesPage(
+            strategies: strategies,
+            onTicketStrategiesChanged: (next) async {
+              savedStrategies = next;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('À supprimer').first);
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey('delete-ticket-strategy-button')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Supprimer cette stratégie ?'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey('confirm-delete-ticket-strategy-button')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(savedStrategies, hasLength(1));
+      expect(savedStrategies.single.id, 'strategy-keep');
+      expect(find.text('À supprimer'), findsNothing);
+      expect(find.text('À garder'), findsOneWidget);
+    });
+
+    testWidgets(
+      'persists active state changes from the strategy sheet header',
+      (tester) async {
+        final strategy = _strategy().copyWith(
+          id: 'strategy-toggle',
+          name: 'À désactiver',
+          isActive: true,
+        );
+        var savedStrategies = <TicketStrategy>[];
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: CopilotTheme.dark.copyWith(
+              splashFactory: NoSplash.splashFactory,
+            ),
+            home: LectorStrategiesPage(
+              strategies: [strategy],
+              onTicketStrategiesChanged: (next) async {
+                savedStrategies = next;
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('À désactiver').first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(Switch).last);
+        await tester.pumpAndSettle();
+
+        expect(savedStrategies, hasLength(1));
+        expect(savedStrategies.single.id, 'strategy-toggle');
+        expect(savedStrategies.single.isActive, isFalse);
+        expect(find.text('Inactif'), findsOneWidget);
+      },
+    );
   });
 }
 
@@ -254,6 +881,7 @@ Future<void> _pumpPage(
       theme: CopilotTheme.dark.copyWith(splashFactory: NoSplash.splashFactory),
       home: MatchesHomePage(
         profile: profile ?? _completedProfile(),
+        identityScope: const IdentityScope.guest('test-guest'),
         ticketStrategies: strategies,
         repositoryOverride: repository,
         onEditProfile: () {},
@@ -311,6 +939,7 @@ MatchThesis _thesis({
   required String title,
   MatchThesisStatus status = MatchThesisStatus.watchlist,
   RecommendedMarket? recommendedMarket,
+  List<CopilotArgument> arguments = const [],
 }) {
   return MatchThesis(
     id: id,
@@ -326,8 +955,26 @@ MatchThesis _thesis({
     ],
     limits: const [],
     profileReasons: const [],
-    arguments: const [],
+    arguments: arguments,
     recommendedMarket: recommendedMarket,
+  );
+}
+
+CopilotArgument _argument(
+  String readingId, {
+  CopilotArgumentType type = CopilotArgumentType.rankingGap,
+  CopilotArgumentFamily family = CopilotArgumentFamily.hierarchy,
+  CopilotEvidenceAction evidenceAction = CopilotEvidenceAction.standings,
+}) {
+  return CopilotArgument(
+    id: '${readingId}_test-team',
+    type: type,
+    family: family,
+    severity: CopilotArgumentSeverity.strong,
+    subjectName: 'Chelsea',
+    parameters: {'readingId': readingId},
+    evidence: const [],
+    evidenceAction: evidenceAction,
   );
 }
 
@@ -429,6 +1076,18 @@ DateTime _relativeKickoff(int dayOffset, {required int hour}) {
   return DateTime(now.year, now.month, now.day + dayOffset, hour);
 }
 
+DateTime _dayOnly(DateTime date) {
+  return DateTime(date.year, date.month, date.day);
+}
+
+String _calendarLabel(DateTime date) {
+  return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}';
+}
+
+String _shortDateLabel(DateTime date) {
+  return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}';
+}
+
 MatchMarket _doubleChanceMarket() {
   return const MatchMarket(
     id: 'doubleChance',
@@ -470,16 +1129,21 @@ TicketStrategy _strategy() {
 }
 
 class _FakeMatchFeedRepository implements MatchFeedRepository {
-  const _FakeMatchFeedRepository({required this.opportunities, this.matches});
+  const _FakeMatchFeedRepository({
+    required this.opportunities,
+    this.matches,
+    this.metadata,
+  });
 
   final List<Opportunity> opportunities;
   final List<MatchBoardItem>? matches;
+  final MatchFeedSnapshotMetadata? metadata;
 
   @override
   MatchDataSourceMode get mode => MatchDataSourceMode.demo;
 
   @override
-  MatchFeedSnapshotMetadata? get snapshotMetadata => null;
+  MatchFeedSnapshotMetadata? get snapshotMetadata => metadata;
 
   @override
   List<MatchBoardItem> allMatches() {
@@ -507,4 +1171,122 @@ class _FakeMatchFeedRepository implements MatchFeedRepository {
   List<MatchBoardItem> personalizedFor(DecisionProfile profile) {
     throw StateError('For me consumes opportunitiesFor directly.');
   }
+}
+
+class _SignedOutAuthController extends SupabaseAuthController {
+  _SignedOutAuthController()
+    : super(
+        SupabaseInitializer(
+          const AppConfig(
+            environment: AppEnvironment.development,
+            supabaseUrl: null,
+            supabaseAnonKey: null,
+          ),
+        ),
+        const AppConfig(
+          environment: AppEnvironment.development,
+          supabaseUrl: null,
+          supabaseAnonKey: null,
+        ),
+      );
+
+  String? passwordSignInEmail;
+  bool didStartGoogle = false;
+
+  @override
+  bool get isConfigured => true;
+
+  @override
+  bool get isSignedIn => false;
+
+  @override
+  User? get user => null;
+
+  @override
+  Future<void> signInWithPassword({
+    required String email,
+    required String password,
+  }) async {
+    passwordSignInEmail = email;
+  }
+
+  @override
+  Future<void> signUpWithPassword({
+    required String email,
+    required String password,
+  }) async {}
+
+  @override
+  Future<void> signInWithGoogle() async {
+    didStartGoogle = true;
+  }
+}
+
+class _SignedInAuthController extends SupabaseAuthController {
+  _SignedInAuthController({required User user}) : this._(user);
+
+  _SignedInAuthController._(this._user)
+    : super(
+        SupabaseInitializer(
+          const AppConfig(
+            environment: AppEnvironment.development,
+            supabaseUrl: null,
+            supabaseAnonKey: null,
+          ),
+        ),
+        const AppConfig(
+          environment: AppEnvironment.development,
+          supabaseUrl: null,
+          supabaseAnonKey: null,
+        ),
+      );
+
+  final User _user;
+  bool didSignOut = false;
+  bool didSignOutFromGoogle = false;
+
+  @override
+  bool get isConfigured => true;
+
+  @override
+  User? get user => didSignOut ? null : _user;
+
+  @override
+  bool get isSignedIn => !didSignOut;
+
+  @override
+  Future<void> signOut() async {
+    didSignOut = true;
+    notifyListeners();
+  }
+
+  @override
+  Future<void> signOutFromGoogle() async {
+    didSignOutFromGoogle = true;
+    await signOut();
+  }
+}
+
+User _user({required String email, String? fullName, String? provider}) {
+  return User(
+    id: 'user-test-id',
+    appMetadata: provider == null ? const {} : {'provider': provider},
+    userMetadata: fullName == null ? null : {'full_name': fullName},
+    aud: 'authenticated',
+    email: email,
+    identities: provider == null
+        ? null
+        : [
+            UserIdentity(
+              id: 'identity-test-id',
+              userId: 'user-test-id',
+              identityData: const {},
+              identityId: 'identity-test-id',
+              provider: provider,
+              createdAt: DateTime(2026).toIso8601String(),
+              lastSignInAt: DateTime(2026).toIso8601String(),
+            ),
+          ],
+    createdAt: DateTime(2026).toIso8601String(),
+  );
 }

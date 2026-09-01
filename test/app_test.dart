@@ -60,7 +60,7 @@ void main() {
     expect(find.text('Ma sélection'), findsOneWidget);
     expect(find.text('Générateur'), findsOneWidget);
     expect(find.text('Live'), findsNothing);
-    expect(find.text('A suivre aujourd’hui'), findsOneWidget);
+    expect(find.text('À suivre aujourd’hui'), findsOneWidget);
     expect(find.text('Onboarding'), findsNothing);
   });
 
@@ -92,13 +92,13 @@ void main() {
     await tester.pump(const Duration(seconds: 8));
 
     expect(find.text('Ma sélection'), findsOneWidget);
-    expect(find.text('A suivre aujourd’hui'), findsOneWidget);
+    expect(find.text('À suivre aujourd’hui'), findsOneWidget);
 
     await tester.tap(find.text('Tous'));
     await tester.pumpAndSettle();
 
     expect(find.text('Tous les matchs'), findsOneWidget);
-    expect(find.text('A suivre aujourd’hui'), findsNothing);
+    expect(find.text('À suivre aujourd’hui'), findsNothing);
   });
 
   testWidgets('opens the ticket generator from the main mode control', (
@@ -130,7 +130,7 @@ void main() {
     await tester.tap(find.text('Générateur'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Générateur de tickets'), findsOneWidget);
+    expect(find.text('Mes tickets'), findsOneWidget);
     expect(find.text('Tous les matchs'), findsNothing);
     expect(find.text('Live'), findsNothing);
   });
@@ -195,20 +195,60 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 8));
 
-    await tester.tap(find.byTooltip('Profil'));
+    await tester.tap(find.byTooltip('Paramètres'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Paramètres Lector'), findsOneWidget);
+    expect(find.text('Mon espace'), findsOneWidget);
+    expect(find.text('Mes compétitions'), findsOneWidget);
     expect(find.text('Onboarding'), findsNothing);
 
-    await tester.tap(find.text('Championnats').last);
+    await tester.tap(find.text('Mes compétitions').last);
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Choisissez les championnats que vous souhaitez suivre.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Vos compétitions suivies apparaissent en premier.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Parcourir et ajouter d’autres compétitions.'),
+      findsOneWidget,
+    );
+
+    await tester.enterText(find.byType(TextField).last, 'Premier League');
     await tester.pumpAndSettle();
     await tester.tap(find.text('Premier League').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Enregistrer').last);
-    await tester.pumpAndSettle();
 
     expect(profileStore.savedProfile?.optionIdsFor('competitions'), ['39']);
+
+    await tester.tap(find.byTooltip('Retour'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Mes scénarios').last);
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Choisissez les situations de match que Lector doit rechercher pour vous.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Ils alimentent vos opportunités dans Pour moi.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Ces scénarios sont prioritaires pour Lector.'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Dominations attendues').last);
+    await tester.pumpAndSettle();
+
+    expect(profileStore.savedProfile?.optionIdsFor('opportunity_profiles'), [
+      'solid_favorite',
+    ]);
     expect(find.text('Onboarding'), findsNothing);
   });
 
@@ -239,17 +279,20 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 8));
 
-    await tester.tap(find.byTooltip('Profil'));
+    await tester.tap(find.byTooltip('Paramètres'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Ticket builder').last);
+    expect(find.text('Mon espace'), findsOneWidget);
+    await tester.tap(find.text('Mes stratégies').last);
     await tester.pumpAndSettle();
+    expect(
+      find.text('Vos différentes configurations de tickets.'),
+      findsOneWidget,
+    );
     await tester.tap(
       find.byKey(const ValueKey('create-ticket-strategy-button')),
     );
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('save-ticket-strategy-button')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Enregistrer').last);
     await tester.pumpAndSettle();
 
     expect(strategyStore.savedStrategies, hasLength(1));

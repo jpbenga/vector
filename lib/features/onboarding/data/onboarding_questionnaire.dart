@@ -17,8 +17,8 @@ class OnboardingQuestionnaire {
         en: 'Followed competitions',
       ),
       subtitle: const LocalizedLabel(
-        fr: 'Sélectionnez les compétitions dans lesquelles Copilot doit rechercher des opportunités.',
-        en: 'Select the competitions where Copilot should search for opportunities.',
+        fr: 'Sélectionnez les compétitions dans lesquelles Lector doit rechercher des opportunités.',
+        en: 'Select the competitions where Lector should search for opportunities.',
       ),
       type: OnboardingQuestionType.multiSelect,
       options: [

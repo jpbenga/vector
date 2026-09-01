@@ -46,8 +46,52 @@ class SupabaseAuthController extends ChangeNotifier {
     return _signInWithProvider(OAuthProvider.google);
   }
 
+  Future<void> signInWithPassword({
+    required String email,
+    required String password,
+  }) async {
+    final client = _client;
+    if (client == null) {
+      throw StateError('Supabase is not configured.');
+    }
+
+    final response = await client.auth.signInWithPassword(
+      email: email,
+      password: password,
+    );
+    _user = response.session?.user ?? client.auth.currentUser;
+    notifyListeners();
+  }
+
+  Future<void> signUpWithPassword({
+    required String email,
+    required String password,
+  }) async {
+    final client = _client;
+    if (client == null) {
+      throw StateError('Supabase is not configured.');
+    }
+
+    final response = await client.auth.signUp(email: email, password: password);
+    _user = response.session?.user ?? client.auth.currentUser;
+    notifyListeners();
+  }
+
+  Future<void> resetPasswordForEmail(String email) async {
+    final client = _client;
+    if (client == null) {
+      throw StateError('Supabase is not configured.');
+    }
+
+    await client.auth.resetPasswordForEmail(email, redirectTo: _redirectTo);
+  }
+
   Future<void> signInWithApple() {
     return _signInWithProvider(OAuthProvider.apple);
+  }
+
+  Future<void> signOutFromGoogle() {
+    return signOut();
   }
 
   Future<void> signOut() async {

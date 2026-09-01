@@ -45,6 +45,12 @@ class AppThemeController extends ValueNotifier<AppThemeVariant> {
     value = variants[nextIndex];
   }
 
+  void toggleBrightness() {
+    value = value == AppThemeVariant.vectorLight
+        ? AppThemeVariant.vectorDark
+        : AppThemeVariant.vectorLight;
+  }
+
   void select(AppThemeVariant variant) {
     value = variant;
   }

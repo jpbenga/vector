@@ -32,6 +32,9 @@ void main() {
           ).readAsStringSync() +
           File(
             'supabase/migrations/20260816120000_backend_expand_active_league_scope.sql',
+          ).readAsStringSync() +
+          File(
+            'supabase/migrations/20260831120000_backend_reject_empty_api_football_snapshots.sql',
           ).readAsStringSync();
     });
 
@@ -91,10 +94,24 @@ void main() {
       expect(docs, contains('coverage.fixtures.start'));
       expect(docs, contains('coverage.fixtures.end'));
       expect(docs, contains('season_by_league'));
+      expect(docs, contains('API-Football peut repondre en HTTP 200'));
       expect(docs, contains('une saison API-Football `2027`'));
       expect(docs, contains('une collecte par ligue'));
       expect(docs, contains('un snapshot par ligue'));
       expect(docs, contains('force_rebuild: true'));
+    });
+
+    test('rejects API-Football error payloads and empty publications', () {
+      expect(apiSync, contains('apiFootballErrorMessages'));
+      expect(apiSync, contains('API-Football error for'));
+      expect(apiSync, contains('payload.errors'));
+      expect(snapshotBuilder, contains('Cached API-Football response for'));
+      expect(snapshotBuilder, contains('emptySnapshotPublicationError'));
+      expect(
+        snapshotBuilder,
+        contains('Refusing to publish an empty match feed snapshot.'),
+      );
+      expect(observabilityMigration, contains('empty_snapshot'));
     });
 
     test('exposes service-role observability for all MVP leagues', () {

@@ -1,64 +1,73 @@
-// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
-
 import 'dart:convert';
-import 'dart:html' as html;
 
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../core/supabase/supabase_user_scope.dart';
-import 'local_remote_favorites_sync.dart';
+import '../../../core/di/service_locator.dart';
+import '../../../core/identity/identity_scope.dart';
+import '../../../core/identity/scoped_data_keys.dart';
+import '../../../core/identity/scoped_persistence.dart';
+import '../../../core/supabase/supabase_initializer.dart';
 import 'supabase_match_favorites_repository.dart';
 
 class SavedMatchFavoritesStore {
-  const SavedMatchFavoritesStore();
+  const SavedMatchFavoritesStore({ScopedPersistence? persistence})
+    : _persistence = persistence;
 
-  static const _storageKey = 'vector.match_explorer_favorites.v1';
+  static const legacyStorageKey = 'vector.match_explorer_favorites.v1';
 
-  Future<Set<String>> load() async {
-    final localFavorites = _loadLocal();
-    final scope = SupabaseUserScope.current();
-    if (scope == null) {
-      return localFavorites;
+  final ScopedPersistence? _persistence;
+
+  Future<Set<String>> load({required IdentityScope scope}) async {
+    _ensureUserOwned(scope);
+    if (scope.isGuest) {
+      return _loadLocal(scope);
     }
 
     try {
-      final remoteRepository = SupabaseMatchFavoritesRepository(scope);
-      final remoteFavorites = await remoteRepository.load();
-      final mergedFavorites = mergeMatchFavoriteIds(
-        localFavoriteIds: localFavorites,
-        remoteFavoriteIds: remoteFavorites,
+      final remoteRepository = SupabaseMatchFavoritesRepository(
+        client: _accountClient(),
+        scope: scope,
       );
-      if (!_setEquals(remoteFavorites, mergedFavorites)) {
-        await remoteRepository.save(mergedFavorites);
-      }
-      if (!_setEquals(localFavorites, mergedFavorites)) {
-        _saveLocal(mergedFavorites);
-      }
-
-      return mergedFavorites;
+      final remoteFavorites = await remoteRepository.load();
+      await _saveLocal(scope, remoteFavorites);
+      return remoteFavorites;
     } on Object catch (error) {
-      debugPrint('Remote match favorites sync failed: $error');
-      return localFavorites;
+      debugPrint('Remote match favorites load failed: $error');
+      return _loadLocal(scope);
     }
   }
 
-  Future<void> save(Set<String> favoriteIds) async {
-    _saveLocal(favoriteIds);
-    final scope = SupabaseUserScope.current();
-    if (scope == null) {
+  Future<void> save({
+    required IdentityScope scope,
+    required Set<String> favoriteIds,
+  }) async {
+    _ensureUserOwned(scope);
+    if (scope.isGuest) {
+      await _saveLocal(scope, favoriteIds);
       return;
     }
 
     try {
-      await SupabaseMatchFavoritesRepository(scope).save(favoriteIds);
+      await SupabaseMatchFavoritesRepository(
+        client: _accountClient(),
+        scope: scope,
+      ).save(favoriteIds);
+      await _saveLocal(scope, favoriteIds);
     } on Object catch (error) {
       debugPrint('Remote match favorites save failed: $error');
-      // Local persistence remains the fallback in dev/offline mode.
+      rethrow;
     }
   }
 
-  Set<String> _loadLocal() {
-    final raw = html.window.localStorage[_storageKey];
+  ScopedPersistence get _scopedPersistence =>
+      _persistence ?? const ScopedPersistence();
+
+  Future<Set<String>> _loadLocal(IdentityScope scope) async {
+    final raw = await _scopedPersistence.read(
+      scope,
+      ScopedDataKeys.matchFavorites,
+    );
     if (raw == null || raw.isEmpty) {
       return const {};
     }
@@ -75,13 +84,28 @@ class SavedMatchFavoritesStore {
     }
   }
 
-  void _saveLocal(Set<String> favoriteIds) {
-    html.window.localStorage[_storageKey] = Uri.encodeComponent(
-      jsonEncode(favoriteIds.toList()..sort()),
+  Future<void> _saveLocal(
+    IdentityScope scope,
+    Set<String> favoriteIds,
+  ) async {
+    await _scopedPersistence.write(
+      scope,
+      ScopedDataKeys.matchFavorites,
+      Uri.encodeComponent(jsonEncode(favoriteIds.toList()..sort())),
     );
   }
-}
 
-bool _setEquals(Set<String> first, Set<String> second) {
-  return first.length == second.length && first.containsAll(second);
+  SupabaseClient _accountClient() {
+    final client = getIt<SupabaseInitializer>().client;
+    if (client == null) {
+      throw StateError('Supabase is not configured.');
+    }
+    return client;
+  }
+
+  void _ensureUserOwned(IdentityScope scope) {
+    if (!scope.isUserOwned) {
+      throw ArgumentError.value(scope, 'scope', 'Must be guest or account.');
+    }
+  }
 }

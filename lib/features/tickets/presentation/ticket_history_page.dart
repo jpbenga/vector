@@ -455,7 +455,7 @@ class _HistoryFilters extends StatelessWidget {
   String _sourceLabel(TicketHistorySource source) {
     return switch (source) {
       TicketHistorySource.all => 'Tous',
-      TicketHistorySource.copilot => 'Copilot',
+      TicketHistorySource.copilot => 'Lector',
       TicketHistorySource.edited => 'Modifiés',
       TicketHistorySource.manual => 'Manuels',
     };
@@ -1730,7 +1730,7 @@ class _HistoryEmptyState extends StatelessWidget {
     return switch (source) {
       TicketHistorySource.edited => 'Aucun ticket modifié',
       TicketHistorySource.manual => 'Aucun ticket manuel',
-      TicketHistorySource.copilot => 'Aucun ticket Copilot',
+      TicketHistorySource.copilot => 'Aucun ticket Lector',
       TicketHistorySource.all => 'Aucun ticket dans l’historique',
     };
   }
@@ -1814,8 +1814,8 @@ class _HistoryTicketEntry {
       return name;
     }
     return switch (ticket.source) {
-      SavedTicketSource.copilot => 'Ticket Copilot',
-      SavedTicketSource.copilotModified => 'Ticket Copilot modifié',
+      SavedTicketSource.copilot => 'Ticket Lector',
+      SavedTicketSource.copilotModified => 'Ticket Lector modifié',
       SavedTicketSource.manual => 'Ticket manuel',
     };
   }

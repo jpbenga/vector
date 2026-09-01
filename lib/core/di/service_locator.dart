@@ -2,6 +2,7 @@ import 'package:get_it/get_it.dart';
 
 import '../auth/supabase_auth_controller.dart';
 import '../config/app_config.dart';
+import '../identity/identity_controller.dart';
 import '../supabase/supabase_initializer.dart';
 import '../../features/matches/data/match_feed_repository_loader.dart';
 
@@ -17,6 +18,9 @@ Future<void> configureDependencies(AppConfig config) async {
     )
     ..registerLazySingleton<SupabaseAuthController>(
       () => SupabaseAuthController(getIt<SupabaseInitializer>(), config),
+    )
+    ..registerLazySingleton<IdentityController>(
+      () => IdentityController(authController: getIt<SupabaseAuthController>()),
     )
     ..registerLazySingleton<MatchFeedRepositoryLoader>(
       () => MatchFeedRepositoryLoader(

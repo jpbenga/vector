@@ -1,21 +1,29 @@
-import '../../../core/supabase/supabase_user_scope.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../core/identity/identity_scope.dart';
 import '../domain/saved_ticket.dart';
 
 class SupabaseSavedTicketRepository {
-  const SupabaseSavedTicketRepository(this._scope);
+  SupabaseSavedTicketRepository({
+    required SupabaseClient client,
+    required IdentityScope scope,
+  }) : assert(scope.isAccount),
+       _client = client,
+       _userId = scope.id;
 
-  final SupabaseUserScope _scope;
+  final SupabaseClient _client;
+  final String _userId;
 
   Future<List<SavedTicket>> load() async {
-    final ticketRows = await _scope.client
+    final ticketRows = await _client
         .from('saved_tickets')
         .select()
-        .eq('user_id', _scope.userId)
+        .eq('user_id', _userId)
         .order('created_at', ascending: false);
-    final selectionRows = await _scope.client
+    final selectionRows = await _client
         .from('saved_ticket_selections')
         .select()
-        .eq('user_id', _scope.userId)
+        .eq('user_id', _userId)
         .order('position');
     final selectionsByTicket = <String, List<Map<String, Object?>>>{};
     for (final row in selectionRows) {
@@ -38,61 +46,61 @@ class SupabaseSavedTicketRepository {
   }
 
   Future<void> saveAll(List<SavedTicket> tickets) async {
-    await _scope.client
+    await _client
         .from('saved_ticket_selections')
         .delete()
-        .eq('user_id', _scope.userId);
-    await _scope.client
+        .eq('user_id', _userId);
+    await _client
         .from('saved_tickets')
         .delete()
-        .eq('user_id', _scope.userId);
+        .eq('user_id', _userId);
 
     if (tickets.isEmpty) {
       return;
     }
 
-    await _scope.client.from('saved_tickets').insert([
+    await _client.from('saved_tickets').insert([
       for (final ticket in tickets)
-        savedTicketToSupabaseRow(ticket, userId: _scope.userId),
+        savedTicketToSupabaseRow(ticket, userId: _userId),
     ]);
     final selectionRows = [
       for (final ticket in tickets)
-        ...savedTicketSelectionRows(ticket, userId: _scope.userId),
+        ...savedTicketSelectionRows(ticket, userId: _userId),
     ];
     if (selectionRows.isEmpty) {
       return;
     }
 
-    await _scope.client.from('saved_ticket_selections').insert(selectionRows);
+    await _client.from('saved_ticket_selections').insert(selectionRows);
   }
 
   Future<void> upsert(SavedTicket ticket) async {
-    await _scope.client
+    await _client
         .from('saved_tickets')
         .upsert(
-          savedTicketToSupabaseRow(ticket, userId: _scope.userId),
+          savedTicketToSupabaseRow(ticket, userId: _userId),
           onConflict: 'user_id,id',
         );
-    await _scope.client
+    await _client
         .from('saved_ticket_selections')
         .delete()
-        .eq('user_id', _scope.userId)
+        .eq('user_id', _userId)
         .eq('ticket_id', ticket.id);
 
     if (ticket.selections.isEmpty) {
       return;
     }
 
-    await _scope.client
+    await _client
         .from('saved_ticket_selections')
-        .insert(savedTicketSelectionRows(ticket, userId: _scope.userId));
+        .insert(savedTicketSelectionRows(ticket, userId: _userId));
   }
 
   Future<void> delete(String ticketId) async {
-    await _scope.client
+    await _client
         .from('saved_tickets')
         .delete()
-        .eq('user_id', _scope.userId)
+        .eq('user_id', _userId)
         .eq('id', ticketId);
   }
 }

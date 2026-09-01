@@ -116,6 +116,17 @@ Deno.serve(async (request) => {
       fixtureIndex,
       sourceRows: build.sourceRows,
     });
+    const emptySnapshotError = emptySnapshotPublicationError(summary);
+    if (emptySnapshotError !== null) {
+      return jsonResponse(
+        {
+          ok: false,
+          error: emptySnapshotError,
+          summary,
+        },
+        422,
+      );
+    }
     const syncRunIds = uniqueStrings(
       build.sourceRows
         .map((row) => stringValue(row.sync_run_id))
@@ -494,7 +505,22 @@ async function cachedResponsesFor({
     prefer: "return=representation",
   });
 
-  return rows.map(normalizeCachedRow);
+  const normalizedRows = rows.map(normalizeCachedRow);
+  const errorRows = normalizedRows.filter((row) =>
+    apiFootballErrorMessages(row.response_body).length > 0
+  );
+  if (errorRows.length > 0 && errorRows.length === normalizedRows.length) {
+    const message = apiFootballErrorMessages(errorRows[0].response_body).join(
+      "; ",
+    );
+    throw new Error(
+      `Cached API-Football response for ${endpoint} contains API errors: ${message}`,
+    );
+  }
+
+  return normalizedRows.filter((row) =>
+    apiFootballErrorMessages(row.response_body).length === 0
+  );
 }
 
 async function findExistingSnapshot({
@@ -741,6 +767,21 @@ function coverageSummary({
         .length,
     },
   };
+}
+
+function emptySnapshotPublicationError(summary: JsonObject): string | null {
+  const hasUsableData = [
+    "fixtures",
+    "odds",
+    "standings",
+    "team_statistics",
+    "recent_league_matches",
+    "expected_goals",
+  ].some((key) => (numberValue(summary[key]) ?? 0) > 0);
+
+  return hasUsableData
+    ? null
+    : "Refusing to publish an empty match feed snapshot.";
 }
 
 function provenanceSummary({
@@ -1077,6 +1118,49 @@ function flatResponseItems(rows: CachedRawResponse[]): JsonObject[] {
     }
   }
   return values;
+}
+
+function apiFootballErrorMessages(payload: JsonObject): string[] {
+  const errors = payload.errors;
+  if (errors === null || errors === undefined) {
+    return [];
+  }
+
+  if (Array.isArray(errors)) {
+    return errors.map(errorMessageValue).filter(isNonEmptyString);
+  }
+
+  if (typeof errors === "string") {
+    return errors.trim() === "" ? [] : [errors.trim()];
+  }
+
+  if (typeof errors === "object") {
+    return Object.entries(errors as Record<string, unknown>)
+      .map(([key, value]) => {
+        const message = errorMessageValue(value);
+        return message === "" ? key : `${key}: ${message}`;
+      })
+      .filter(isNonEmptyString);
+  }
+
+  return [];
+}
+
+function errorMessageValue(value: unknown): string {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  if (Array.isArray(value)) {
+    return value.map(errorMessageValue).filter(isNonEmptyString).join(", ");
+  }
+  if (value !== null && value !== undefined && typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return "";
+}
+
+function isNonEmptyString(value: string): boolean {
+  return value.trim() !== "";
 }
 
 function teamStatisticsRequests(

@@ -1,66 +1,75 @@
-// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
-
 import 'dart:convert';
-import 'dart:html' as html;
 
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../core/supabase/supabase_user_scope.dart';
+import '../../../core/di/service_locator.dart';
+import '../../../core/identity/identity_scope.dart';
+import '../../../core/identity/scoped_data_keys.dart';
+import '../../../core/identity/scoped_persistence.dart';
+import '../../../core/supabase/supabase_initializer.dart';
 import '../domain/ticket_strategy.dart';
-import 'local_remote_ticket_sync.dart';
 import 'supabase_ticket_strategy_repository.dart';
 
 class SavedTicketStrategyStore {
-  const SavedTicketStrategyStore();
+  const SavedTicketStrategyStore({ScopedPersistence? persistence})
+    : _persistence = persistence;
 
-  static const _storageKey = 'vector.saved_ticket_strategies.v1';
-  static const _cookieKey = 'vector_saved_ticket_strategies_v1';
+  static const legacyStorageKey = 'vector.saved_ticket_strategies.v1';
+  static const legacyCookieKey = 'vector_saved_ticket_strategies_v1';
 
-  Future<List<TicketStrategy>> load() async {
-    final localStrategies = _loadLocal();
-    final scope = SupabaseUserScope.current();
-    if (scope == null) {
-      return localStrategies;
+  final ScopedPersistence? _persistence;
+
+  Future<List<TicketStrategy>> load({required IdentityScope scope}) async {
+    _ensureUserOwned(scope);
+    if (scope.isGuest) {
+      return _loadLocal(scope);
     }
 
     try {
-      final remoteRepository = SupabaseTicketStrategyRepository(scope);
-      final remoteStrategies = await remoteRepository.load();
-      final mergedStrategies = mergeTicketStrategies(
-        localStrategies: localStrategies,
-        remoteStrategies: remoteStrategies,
+      final remoteRepository = SupabaseTicketStrategyRepository(
+        client: _accountClient(),
+        scope: scope,
       );
-      if (!ticketStrategiesEqual(remoteStrategies, mergedStrategies)) {
-        await remoteRepository.saveAll(mergedStrategies);
-      }
-      if (!ticketStrategiesEqual(localStrategies, mergedStrategies)) {
-        _saveLocal(mergedStrategies);
-      }
-
-      return mergedStrategies;
+      final remoteStrategies = await remoteRepository.load();
+      await _saveLocal(scope, remoteStrategies);
+      return remoteStrategies;
     } on Object catch (error) {
-      debugPrint('Remote ticket strategy sync failed: $error');
-      return localStrategies;
+      debugPrint('Remote ticket strategy load failed: $error');
+      return _loadLocal(scope);
     }
   }
 
-  Future<void> save(List<TicketStrategy> strategies) async {
-    _saveLocal(strategies);
-    final scope = SupabaseUserScope.current();
-    if (scope == null) {
+  Future<void> save({
+    required IdentityScope scope,
+    required List<TicketStrategy> strategies,
+  }) async {
+    _ensureUserOwned(scope);
+    if (scope.isGuest) {
+      await _saveLocal(scope, strategies);
       return;
     }
 
     try {
-      await SupabaseTicketStrategyRepository(scope).saveAll(strategies);
+      await SupabaseTicketStrategyRepository(
+        client: _accountClient(),
+        scope: scope,
+      ).saveAll(strategies);
+      await _saveLocal(scope, strategies);
     } on Object catch (error) {
       debugPrint('Remote ticket strategy save failed: $error');
-      // Local persistence remains the fallback in dev/offline mode.
+      rethrow;
     }
   }
 
-  List<TicketStrategy> _loadLocal() {
-    final raw = html.window.localStorage[_storageKey] ?? _cookieValue();
+  ScopedPersistence get _scopedPersistence =>
+      _persistence ?? const ScopedPersistence();
+
+  Future<List<TicketStrategy>> _loadLocal(IdentityScope scope) async {
+    final raw = await _scopedPersistence.read(
+      scope,
+      ScopedDataKeys.ticketStrategies,
+    );
     if (raw == null || raw.isEmpty) {
       return const [];
     }
@@ -80,30 +89,32 @@ class SavedTicketStrategyStore {
     }
   }
 
-  void _saveLocal(List<TicketStrategy> strategies) {
+  Future<void> _saveLocal(
+    IdentityScope scope,
+    List<TicketStrategy> strategies,
+  ) async {
     final encoded = Uri.encodeComponent(
       jsonEncode([for (final strategy in strategies) strategy.toJson()]),
     );
-    html.window.localStorage[_storageKey] = encoded;
-    html.document.cookie =
-        '$_cookieKey=$encoded; path=/; max-age=31536000; SameSite=Lax';
+    await _scopedPersistence.write(
+      scope,
+      ScopedDataKeys.ticketStrategies,
+      encoded,
+    );
   }
 
-  String? _cookieValue() {
-    final cookies = html.document.cookie?.split(';') ?? const [];
-    for (final cookie in cookies) {
-      final separator = cookie.indexOf('=');
-      if (separator == -1) {
-        continue;
-      }
-
-      final key = cookie.substring(0, separator).trim();
-      if (key == _cookieKey) {
-        return cookie.substring(separator + 1).trim();
-      }
+  SupabaseClient _accountClient() {
+    final client = getIt<SupabaseInitializer>().client;
+    if (client == null) {
+      throw StateError('Supabase is not configured.');
     }
+    return client;
+  }
 
-    return null;
+  void _ensureUserOwned(IdentityScope scope) {
+    if (!scope.isUserOwned) {
+      throw ArgumentError.value(scope, 'scope', 'Must be guest or account.');
+    }
   }
 }
 

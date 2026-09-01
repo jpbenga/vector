@@ -20,106 +20,12 @@ class _PreferenceScale {
   static const editorHeightFactor = 0.84;
   static const rowRadius = AppRadius.odds;
   static const rowGap = AppSpacing.xxs;
-  static const sectionGap = AppSpacing.sm;
   static const compactButtonHeight = 40.0;
   static const logoSize = 28.0;
   static const iconSize = 20.0;
   static const switchScale = 0.78;
 
   const _PreferenceScale._();
-}
-
-Future<void> showLectorPreferencesSheet({
-  required BuildContext context,
-  required DecisionProfile profile,
-  required List<TicketStrategy> ticketStrategies,
-  required ProfilePreferenceSaver onProfileChanged,
-  required TicketStrategyPreferenceSaver onTicketStrategiesChanged,
-}) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    builder: (sheetContext) {
-      return SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            _PreferenceScale.sheetHorizontalPadding,
-            4,
-            _PreferenceScale.sheetHorizontalPadding,
-            _PreferenceScale.sheetBottomPadding,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Paramètres Lector',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                'Ces choix pilotent directement votre écran Pour moi.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: context.textColors.secondary,
-                ),
-              ),
-              const SizedBox(height: _PreferenceScale.sectionGap),
-              _PreferenceSheetAction(
-                icon: Icons.emoji_events_outlined,
-                title: 'Championnats',
-                subtitle: _selectionSummary(
-                  count: _selectedCompetitionIds(profile).length,
-                  emptyLabel: 'Aucun filtre actif',
-                ),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  showCompetitionPreferencesSheet(
-                    context: context,
-                    profile: profile,
-                    onProfileChanged: onProfileChanged,
-                  );
-                },
-              ),
-              _PreferenceSheetAction(
-                icon: Icons.auto_stories_outlined,
-                title: 'Lectures',
-                subtitle: _selectionSummary(
-                  count: profile.optionIdsFor('opportunity_profiles').length,
-                  emptyLabel: 'Tous les repères lisibles',
-                ),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  showReadingPreferencesSheet(
-                    context: context,
-                    profile: profile,
-                    onProfileChanged: onProfileChanged,
-                  );
-                },
-              ),
-              _PreferenceSheetAction(
-                icon: Icons.confirmation_number_outlined,
-                title: 'Ticket builder',
-                subtitle: ticketStrategies.isEmpty
-                    ? 'Aucune configuration active'
-                    : '${ticketStrategies.where((strategy) => strategy.isActive).length}/${ticketStrategies.length} actives',
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  showTicketBuilderPreferencesSheet(
-                    context: context,
-                    strategies: ticketStrategies,
-                    onTicketStrategiesChanged: onTicketStrategiesChanged,
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      );
-    },
-  );
 }
 
 Future<void> showCompetitionPreferencesSheet({
@@ -173,6 +79,75 @@ Future<void> showTicketBuilderPreferencesSheet({
         onTicketStrategiesChanged: onTicketStrategiesChanged,
       );
     },
+  );
+}
+
+Future<TicketStrategy?> showTicketStrategyEditorSheet({
+  required BuildContext context,
+  required TicketStrategy strategy,
+}) {
+  return showTicketStrategyManagementSheet(
+    context: context,
+    strategy: strategy,
+    rank: strategy.priority,
+    style: context.strategies.styleForIndex(
+      (strategy.priority - 1).clamp(0, 999),
+    ),
+    canDelete: false,
+  ).then((result) => result?.strategy);
+}
+
+Future<TicketStrategySheetResult?> showTicketStrategyManagementSheet({
+  required BuildContext context,
+  required TicketStrategy strategy,
+  required int rank,
+  required AppStrategyVisualStyle style,
+  bool isNew = false,
+  bool canDelete = true,
+}) {
+  return showModalBottomSheet<TicketStrategySheetResult>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: false,
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black.withValues(alpha: 0.36),
+    builder: (context) => _TicketStrategyEditorSheet(
+      strategy: strategy,
+      rank: rank,
+      style: style,
+      isNew: isNew,
+      canDelete: canDelete,
+    ),
+  );
+}
+
+class TicketStrategySheetResult {
+  const TicketStrategySheetResult.saved(this.strategy) : isDeleted = false;
+
+  const TicketStrategySheetResult.deleted() : strategy = null, isDeleted = true;
+
+  final TicketStrategy? strategy;
+  final bool isDeleted;
+}
+
+TicketStrategy createTicketStrategyDraft({required int index}) {
+  final now = DateTime.now().toUtc();
+  return TicketStrategy(
+    schemaVersion: TicketStrategy.currentSchemaVersion,
+    id: 'strategy-${now.microsecondsSinceEpoch}',
+    userId: 'local-user',
+    name: 'Configuration $index',
+    isActive: true,
+    pickTypes: const [PickType.prudent, PickType.normal],
+    minimumIndividualOdds: 1.20,
+    maximumIndividualOdds: 2.19,
+    minimumSelections: 2,
+    maximumSelections: 3,
+    minimumTotalOdds: 2.00,
+    maximumTotalOdds: 3.00,
+    priority: index,
+    createdAt: now,
+    updatedAt: now,
   );
 }
 
@@ -339,9 +314,9 @@ class _ReadingPreferencesEditorState extends State<_ReadingPreferencesEditor> {
     final profiles = OpportunityProfileCatalog.values;
 
     return _PreferenceEditorScaffold(
-      title: 'Lectures préférées',
+      title: 'Mes scénarios',
       subtitle:
-          'Choisissez les repères que Lector doit prioriser dans Pour moi.',
+          'Choisissez les situations de match que Lector doit rechercher pour vous.',
       isSaving: _isSaving,
       selectedCount: _selectedIds.length,
       onClear: _selectedIds.isEmpty
@@ -360,9 +335,9 @@ class _ReadingPreferencesEditorState extends State<_ReadingPreferencesEditor> {
           final isSelected = _selectedIds.contains(profile.id);
 
           return _PreferenceToggleTile(
-            icon: Icons.auto_stories_outlined,
-            title: _readingLabel(profile),
-            subtitle: '${profile.thesisIds.length} scénarios associés',
+            icon: context.opportunities.iconForProfileId(profile.id),
+            title: profile.displayLabel,
+            subtitle: profile.description,
             isSelected: isSelected,
             onChanged: (value) {
               setState(() {
@@ -425,9 +400,8 @@ class _TicketBuilderPreferencesEditorState
   @override
   Widget build(BuildContext context) {
     return _PreferenceEditorScaffold(
-      title: 'Ticket builder',
-      subtitle:
-          'Créez et ajustez vos configurations sans repasser par l’onboarding.',
+      title: 'Mes stratégies',
+      subtitle: 'Définissez comment Lector construit vos tickets.',
       isSaving: _isSaving,
       selectedCount: _strategies.where((strategy) => strategy.isActive).length,
       onClear: null,
@@ -445,16 +419,16 @@ class _TicketBuilderPreferencesEditorState
               visualDensity: VisualDensity.compact,
             ),
             icon: const Icon(Icons.add_rounded),
-            label: const Text('Créer une configuration'),
+            label: const Text('Créer une stratégie'),
           ),
           const SizedBox(height: AppSpacing.xs),
           Expanded(
             child: _strategies.isEmpty
                 ? const _PreferenceEmptyState(
                     icon: Icons.confirmation_number_outlined,
-                    title: 'Aucune configuration',
+                    title: 'Aucune stratégie',
                     subtitle:
-                        'Créez une première configuration pour personnaliser le ticket builder.',
+                        'Créez une première stratégie pour personnaliser vos tickets.',
                   )
                 : ListView.separated(
                     padding: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -507,34 +481,11 @@ class _TicketBuilderPreferencesEditorState
   }
 
   Future<TicketStrategy?> _openStrategyEditor(TicketStrategy strategy) {
-    return showModalBottomSheet<TicketStrategy>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) => _TicketStrategyEditorSheet(strategy: strategy),
-    );
+    return showTicketStrategyEditorSheet(context: context, strategy: strategy);
   }
 
   TicketStrategy _newStrategyDraft() {
-    final now = DateTime.now().toUtc();
-    final index = _strategies.length + 1;
-    return TicketStrategy(
-      schemaVersion: TicketStrategy.currentSchemaVersion,
-      id: 'strategy-${now.microsecondsSinceEpoch}',
-      userId: 'local-user',
-      name: 'Configuration $index',
-      isActive: true,
-      pickTypes: const [PickType.prudent, PickType.normal],
-      minimumIndividualOdds: 1.20,
-      maximumIndividualOdds: 2.19,
-      minimumSelections: 2,
-      maximumSelections: 3,
-      minimumTotalOdds: 2.00,
-      maximumTotalOdds: 3.00,
-      priority: index,
-      createdAt: now,
-      updatedAt: now,
-    );
+    return createTicketStrategyDraft(index: _strategies.length + 1);
   }
 
   Future<void> _save() async {
@@ -636,9 +587,19 @@ class _TicketStrategyTile extends StatelessWidget {
 }
 
 class _TicketStrategyEditorSheet extends StatefulWidget {
-  const _TicketStrategyEditorSheet({required this.strategy});
+  const _TicketStrategyEditorSheet({
+    required this.strategy,
+    required this.rank,
+    required this.style,
+    required this.isNew,
+    required this.canDelete,
+  });
 
   final TicketStrategy strategy;
+  final int rank;
+  final AppStrategyVisualStyle style;
+  final bool isNew;
+  final bool canDelete;
 
   @override
   State<_TicketStrategyEditorSheet> createState() =>
@@ -647,6 +608,7 @@ class _TicketStrategyEditorSheet extends StatefulWidget {
 
 class _TicketStrategyEditorSheetState
     extends State<_TicketStrategyEditorSheet> {
+  late final DraggableScrollableController _sheetController;
   late final TextEditingController _nameController;
   late final TextEditingController _minimumIndividualController;
   late final TextEditingController _maximumIndividualController;
@@ -655,10 +617,13 @@ class _TicketStrategyEditorSheetState
   late final TextEditingController _minimumTotalController;
   late final TextEditingController _maximumTotalController;
   late bool _isActive;
+  late bool _isEditing;
+  bool _isConfirmingDelete = false;
 
   @override
   void initState() {
     super.initState();
+    _sheetController = DraggableScrollableController();
     final strategy = widget.strategy;
     _nameController = TextEditingController(text: strategy.name);
     _minimumIndividualController = TextEditingController(
@@ -680,10 +645,12 @@ class _TicketStrategyEditorSheetState
       text: strategy.maximumTotalOdds?.toStringAsFixed(2) ?? '',
     );
     _isActive = strategy.isActive;
+    _isEditing = widget.isNew;
   }
 
   @override
   void dispose() {
+    _sheetController.dispose();
     _nameController.dispose();
     _minimumIndividualController.dispose();
     _maximumIndividualController.dispose();
@@ -697,168 +664,169 @@ class _TicketStrategyEditorSheetState
   @override
   Widget build(BuildContext context) {
     final validationMessage = _validationMessage;
+    final viewInsets = MediaQuery.viewInsetsOf(context).bottom;
+    final isKeyboardOpen = viewInsets > 0;
 
     return SafeArea(
-      child: FractionallySizedBox(
-        heightFactor: _PreferenceScale.editorHeightFactor,
-        child: Padding(
-          padding: EdgeInsets.only(
-            left: _PreferenceScale.sheetHorizontalPadding,
-            right: _PreferenceScale.sheetHorizontalPadding,
-            bottom:
-                _PreferenceScale.sheetBottomPadding +
-                MediaQuery.viewInsetsOf(context).bottom,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Configuration',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                  Transform.scale(
-                    scale: _PreferenceScale.switchScale,
-                    child: Switch(
-                      value: _isActive,
-                      onChanged: (value) {
-                        setState(() {
-                          _isActive = value;
-                        });
-                      },
-                    ),
-                  ),
-                ],
+      top: false,
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.only(bottom: viewInsets),
+        child: DraggableScrollableSheet(
+          controller: _sheetController,
+          expand: false,
+          initialChildSize: widget.isNew ? 0.82 : 0.44,
+          minChildSize: 0.34,
+          maxChildSize: isKeyboardOpen ? 0.94 : 0.88,
+          builder: (context, scrollController) {
+            return ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(AppRadius.card),
               ),
-              const SizedBox(height: AppSpacing.xs),
-              Expanded(
-                child: ListView(
+              child: Material(
+                color: context.surfaces.surface.withValues(alpha: 0.98),
+                child: Stack(
                   children: [
-                    TextField(
-                      key: const ValueKey('ticket-strategy-name-field'),
-                      controller: _nameController,
-                      onChanged: (_) => setState(() {}),
-                      style: Theme.of(context).textTheme.bodySmall,
-                      textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
-                        labelText: 'Nom',
-                        hintText: 'Ex. Configuration week-end',
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 9,
-                        ),
+                    ListView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.fromLTRB(
+                        _PreferenceScale.sheetHorizontalPadding,
+                        8,
+                        _PreferenceScale.sheetHorizontalPadding,
+                        _PreferenceScale.sheetBottomPadding,
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    _StrategyEditorSection(
-                      title: 'Sélections',
                       children: [
-                        _NumberField(
-                          controller: _minimumSelectionsController,
-                          label: 'Minimum',
-                          onChanged: (_) => setState(() {}),
+                        const _SheetHandle(),
+                        const SizedBox(height: AppSpacing.xs),
+                        _StrategySheetHeader(
+                          rank: widget.rank,
+                          strategy: _draft,
+                          style: widget.style,
+                          onToggleActive: (value) {
+                            setState(() {
+                              _isActive = value;
+                            });
+                            if (!_isEditing && !widget.isNew) {
+                              Navigator.of(
+                                context,
+                              ).pop(TicketStrategySheetResult.saved(_draft));
+                            }
+                          },
                         ),
-                        _NumberField(
-                          controller: _maximumSelectionsController,
-                          label: 'Maximum',
-                          onChanged: (_) => setState(() {}),
+                        const SizedBox(height: AppSpacing.sm),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 240),
+                          switchInCurve: Curves.easeOutCubic,
+                          switchOutCurve: Curves.easeInCubic,
+                          child: _isEditing
+                              ? _StrategyEditingContent(
+                                  key: const ValueKey('strategy-editing'),
+                                  nameController: _nameController,
+                                  minimumSelectionsController:
+                                      _minimumSelectionsController,
+                                  maximumSelectionsController:
+                                      _maximumSelectionsController,
+                                  minimumIndividualController:
+                                      _minimumIndividualController,
+                                  maximumIndividualController:
+                                      _maximumIndividualController,
+                                  minimumTotalController:
+                                      _minimumTotalController,
+                                  maximumTotalController:
+                                      _maximumTotalController,
+                                  validationMessage: validationMessage,
+                                  summary: _summary,
+                                  canDelete: widget.canDelete,
+                                  isNew: widget.isNew,
+                                  onChanged: (_) => setState(() {}),
+                                  onDelete: _askDeleteConfirmation,
+                                  onSubmit: validationMessage == null
+                                      ? _submit
+                                      : null,
+                                )
+                              : _StrategyReadOnlyContent(
+                                  key: const ValueKey('strategy-summary'),
+                                  strategy: _draft,
+                                  style: widget.style,
+                                  canDelete: widget.canDelete,
+                                  onEdit: _enterEditMode,
+                                  onDelete: _askDeleteConfirmation,
+                                ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    _StrategyEditorSection(
-                      title: 'Valeur individuelle',
-                      children: [
-                        _NumberField(
-                          controller: _minimumIndividualController,
-                          label: 'Minimum',
-                          decimal: true,
-                          onChanged: (_) => setState(() {}),
-                        ),
-                        _NumberField(
-                          controller: _maximumIndividualController,
-                          label: 'Maximum',
-                          hintText: 'Ouverte',
-                          decimal: true,
-                          onChanged: (_) => setState(() {}),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    _StrategyEditorSection(
-                      title: 'Valeur totale',
-                      children: [
-                        _NumberField(
-                          controller: _minimumTotalController,
-                          label: 'Minimum',
-                          decimal: true,
-                          onChanged: (_) => setState(() {}),
-                        ),
-                        _NumberField(
-                          controller: _maximumTotalController,
-                          label: 'Maximum',
-                          hintText: 'Ouverte',
-                          decimal: true,
-                          onChanged: (_) => setState(() {}),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    if (validationMessage != null)
-                      Text(
-                        validationMessage,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: context.semantic.error,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      )
-                    else
-                      Text(
-                        _summary,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: context.textColors.secondary,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    if (_isConfirmingDelete)
+                      _DeleteStrategyConfirmation(
+                        onCancel: () {
+                          setState(() {
+                            _isConfirmingDelete = false;
+                          });
+                        },
+                        onConfirm: _delete,
                       ),
                   ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.sm),
-              SizedBox(
-                height: _PreferenceScale.compactButtonHeight,
-                child: FilledButton(
-                  key: const ValueKey('save-ticket-strategy-button'),
-                  onPressed: validationMessage == null ? _submit : null,
-                  child: const Text('Valider la configuration'),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
   }
 
+  void _enterEditMode() {
+    setState(() {
+      _isEditing = true;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_sheetController.isAttached) {
+        _sheetController.animateTo(
+          0.82,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
+  }
+
+  void _askDeleteConfirmation() {
+    if (!widget.canDelete) {
+      return;
+    }
+    setState(() {
+      _isConfirmingDelete = true;
+    });
+  }
+
+  void _delete() {
+    Navigator.of(context).pop(const TicketStrategySheetResult.deleted());
+  }
+
   String get _summary {
-    return 'Configuration active sur $_selectionRangeLabel avec une valeur individuelle ${_minimumIndividualOdds?.toStringAsFixed(2) ?? '-'}-${_maximumIndividualOdds?.toStringAsFixed(2) ?? '+'}.';
+    return 'Cette stratégie génère des tickets avec $_selectionRangeLabel, une cote par sélection ${_oddsSummary(_minimumIndividualOdds, _maximumIndividualOdds)} et une cote totale ${_oddsSummary(_minimumTotalOdds, _maximumTotalOdds)}.';
   }
 
   String get _selectionRangeLabel {
     final min = _minimumSelections;
     final max = _maximumSelections;
     if (min == null || max == null) {
-      return 'les sélections';
+      return 'les sélections configurées';
     }
     if (min == max) {
       return '$min sélection${min > 1 ? 's' : ''}';
     }
     return '$min à $max sélections';
+  }
+
+  String _oddsSummary(double? minimum, double? maximum) {
+    if (minimum == null) {
+      return maximum == null ? 'configurée' : 'jusqu’à ${_formatOdds(maximum)}';
+    }
+    if (maximum == null) {
+      return 'à partir de ${_formatOdds(minimum)}';
+    }
+    return 'entre ${_formatOdds(minimum)} et ${_formatOdds(maximum)}';
   }
 
   String? get _validationMessage {
@@ -937,7 +905,649 @@ class _TicketStrategyEditorSheetState
   }
 
   void _submit() {
-    Navigator.of(context).pop(_draft);
+    Navigator.of(context).pop(TicketStrategySheetResult.saved(_draft));
+  }
+}
+
+class _SheetHandle extends StatelessWidget {
+  const _SheetHandle();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: context.textColors.secondary.withValues(alpha: 0.72),
+          borderRadius: BorderRadius.circular(AppRadius.chip),
+        ),
+        child: const SizedBox(width: 32, height: 4),
+      ),
+    );
+  }
+}
+
+class _StrategySheetHeader extends StatelessWidget {
+  const _StrategySheetHeader({
+    required this.rank,
+    required this.strategy,
+    required this.style,
+    required this.onToggleActive,
+  });
+
+  final int rank;
+  final TicketStrategy strategy;
+  final AppStrategyVisualStyle style;
+  final ValueChanged<bool> onToggleActive;
+
+  @override
+  Widget build(BuildContext context) {
+    final isActive = strategy.isActive;
+    return Row(
+      children: [
+        _SheetRankBadge(rank: rank, color: style.color),
+        const SizedBox(width: AppSpacing.sm),
+        _SheetIconBadge(icon: style.icon, color: style.color),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text(
+            _strategyName(strategy),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Text(
+          isActive ? 'Activée' : 'Inactive',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: isActive
+                ? context.brand.accent
+                : context.textColors.secondary,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        Transform.scale(
+          scale: _PreferenceScale.switchScale,
+          child: Switch(
+            value: isActive,
+            onChanged: onToggleActive,
+            activeThumbColor: context.brand.accent,
+            activeTrackColor: context.brand.accent.withValues(alpha: 0.48),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SheetRankBadge extends StatelessWidget {
+  const _SheetRankBadge({required this.rank, required this.color});
+
+  final int rank;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 28,
+      height: 28,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color.withValues(alpha: 0.08),
+        border: Border.all(color: color, width: 1.4),
+      ),
+      child: Text(
+        '$rank',
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _SheetIconBadge extends StatelessWidget {
+  const _SheetIconBadge({required this.icon, required this.color});
+
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 30,
+      height: 30,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        color: color.withValues(alpha: 0.14),
+      ),
+      child: Icon(icon, color: color, size: 17),
+    );
+  }
+}
+
+class _StrategyReadOnlyContent extends StatelessWidget {
+  const _StrategyReadOnlyContent({
+    super.key,
+    required this.strategy,
+    required this.style,
+    required this.canDelete,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final TicketStrategy strategy;
+  final AppStrategyVisualStyle style;
+  final bool canDelete;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey('ticket-strategy-summary-mode'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: context.surfaces.backgroundSecondary.withValues(alpha: 0.72),
+            borderRadius: BorderRadius.circular(AppRadius.odds),
+            border: Border.all(color: context.surfaces.border),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
+            child: Column(
+              children: [
+                _StrategySummaryLine(
+                  icon: Icons.bar_chart_rounded,
+                  label: 'Sélections',
+                  value: _selectionRange(strategy),
+                  color: style.color,
+                ),
+                Divider(height: 1, color: context.surfaces.border),
+                _StrategySummaryLine(
+                  icon: Icons.confirmation_number_outlined,
+                  label: 'Cote par sélection',
+                  value: _oddsRange(
+                    strategy.minimumIndividualOdds,
+                    strategy.maximumIndividualOdds,
+                  ),
+                  color: style.color,
+                ),
+                Divider(height: 1, color: context.surfaces.border),
+                _StrategySummaryLine(
+                  icon: Icons.request_quote_outlined,
+                  label: 'Cote totale',
+                  value: _oddsRange(
+                    strategy.minimumTotalOdds,
+                    strategy.maximumTotalOdds,
+                  ),
+                  color: style.color,
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        _StrategySheetActions(
+          canDelete: canDelete,
+          primaryLabel: 'Modifier',
+          primaryIcon: Icons.edit_rounded,
+          onPrimary: onEdit,
+          onDelete: onDelete,
+        ),
+      ],
+    );
+  }
+}
+
+class _StrategySummaryLine extends StatelessWidget {
+  const _StrategySummaryLine({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 39,
+      child: Row(
+        children: [
+          _SheetIconBadge(icon: icon, color: context.textColors.secondary),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: context.textColors.secondary,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StrategyEditingContent extends StatelessWidget {
+  const _StrategyEditingContent({
+    super.key,
+    required this.nameController,
+    required this.minimumSelectionsController,
+    required this.maximumSelectionsController,
+    required this.minimumIndividualController,
+    required this.maximumIndividualController,
+    required this.minimumTotalController,
+    required this.maximumTotalController,
+    required this.validationMessage,
+    required this.summary,
+    required this.canDelete,
+    required this.isNew,
+    required this.onChanged,
+    required this.onDelete,
+    required this.onSubmit,
+  });
+
+  final TextEditingController nameController;
+  final TextEditingController minimumSelectionsController;
+  final TextEditingController maximumSelectionsController;
+  final TextEditingController minimumIndividualController;
+  final TextEditingController maximumIndividualController;
+  final TextEditingController minimumTotalController;
+  final TextEditingController maximumTotalController;
+  final String? validationMessage;
+  final String summary;
+  final bool canDelete;
+  final bool isNew;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onDelete;
+  final VoidCallback? onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    final error = validationMessage;
+    return Column(
+      key: const ValueKey('ticket-strategy-edit-mode'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _EditorGroup(
+          title: 'Configuration',
+          child: TextField(
+            key: const ValueKey('ticket-strategy-name-field'),
+            controller: nameController,
+            onChanged: onChanged,
+            style: Theme.of(context).textTheme.bodySmall,
+            textInputAction: TextInputAction.next,
+            decoration: InputDecoration(
+              labelText: 'Nom de la stratégie',
+              hintText: 'Ex. Configuration week-end',
+              suffixIcon: nameController.text.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: 'Effacer',
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      onPressed: () {
+                        nameController.clear();
+                        onChanged('');
+                      },
+                    ),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 9,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        _StrategyEditorSection(
+          title: 'Sélections',
+          children: [
+            _NumberField(
+              controller: minimumSelectionsController,
+              label: 'Minimum',
+              onChanged: onChanged,
+            ),
+            _NumberField(
+              controller: maximumSelectionsController,
+              label: 'Maximum',
+              onChanged: onChanged,
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        _StrategyEditorSection(
+          title: 'Cote par sélection',
+          children: [
+            _NumberField(
+              controller: minimumIndividualController,
+              label: 'Minimum',
+              decimal: true,
+              onChanged: onChanged,
+            ),
+            _NumberField(
+              controller: maximumIndividualController,
+              label: 'Maximum',
+              hintText: 'Ouverte',
+              decimal: true,
+              onChanged: onChanged,
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        _StrategyEditorSection(
+          title: 'Cote totale',
+          children: [
+            _NumberField(
+              controller: minimumTotalController,
+              label: 'Minimum',
+              decimal: true,
+              onChanged: onChanged,
+            ),
+            _NumberField(
+              controller: maximumTotalController,
+              label: 'Maximum',
+              hintText: 'Ouverte',
+              decimal: true,
+              onChanged: onChanged,
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 180),
+          child: error != null
+              ? _SheetMessage(
+                  key: const ValueKey('strategy-validation-error'),
+                  icon: Icons.error_outline_rounded,
+                  color: context.semantic.error,
+                  text: error,
+                )
+              : _SheetMessage(
+                  key: const ValueKey('strategy-validation-summary'),
+                  icon: Icons.auto_awesome_rounded,
+                  color: context.textColors.secondary,
+                  text: summary,
+                ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        _StrategySheetActions(
+          canDelete: canDelete,
+          primaryLabel: isNew
+              ? 'Créer la stratégie'
+              : 'Valider les modifications',
+          primaryIcon: Icons.check_rounded,
+          onPrimary: onSubmit,
+          onDelete: onDelete,
+        ),
+      ],
+    );
+  }
+}
+
+class _EditorGroup extends StatelessWidget {
+  const _EditorGroup({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.surfaces.backgroundSecondary.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(_PreferenceScale.rowRadius),
+        border: Border.all(color: context.surfaces.border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xs,
+          AppSpacing.xxs,
+          AppSpacing.xs,
+          AppSpacing.xs,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: context.textColors.secondary,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xxs),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SheetMessage extends StatelessWidget {
+  const _SheetMessage({
+    super.key,
+    required this.icon,
+    required this.color,
+    required this.text,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: AppSpacing.xs),
+        Expanded(
+          child: Text(
+            text,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w800,
+              height: 1.25,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StrategySheetActions extends StatelessWidget {
+  const _StrategySheetActions({
+    required this.canDelete,
+    required this.primaryLabel,
+    required this.primaryIcon,
+    required this.onPrimary,
+    required this.onDelete,
+  });
+
+  final bool canDelete;
+  final String primaryLabel;
+  final IconData primaryIcon;
+  final VoidCallback? onPrimary;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = SizedBox(
+      height: _PreferenceScale.compactButtonHeight,
+      child: FilledButton.icon(
+        key: const ValueKey('save-ticket-strategy-button'),
+        onPressed: onPrimary,
+        icon: Icon(primaryIcon, size: 16),
+        label: Text(primaryLabel),
+      ),
+    );
+
+    if (!canDelete) {
+      return primary;
+    }
+
+    return Row(
+      children: [
+        Expanded(
+          child: SizedBox(
+            height: _PreferenceScale.compactButtonHeight,
+            child: OutlinedButton.icon(
+              key: const ValueKey('delete-ticket-strategy-button'),
+              onPressed: onDelete,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: context.semantic.error,
+                side: BorderSide(
+                  color: context.semantic.error.withValues(alpha: 0.70),
+                ),
+              ),
+              icon: const Icon(Icons.delete_outline_rounded, size: 16),
+              label: const Text('Supprimer la stratégie'),
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Expanded(child: primary),
+      ],
+    );
+  }
+}
+
+class _DeleteStrategyConfirmation extends StatelessWidget {
+  const _DeleteStrategyConfirmation({
+    required this.onCancel,
+    required this.onConfirm,
+  });
+
+  final VoidCallback onCancel;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: ColoredBox(
+        color: context.surfaces.shadow.withValues(alpha: 0.58),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 280),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: context.surfaces.surface,
+                borderRadius: BorderRadius.circular(AppRadius.card),
+                border: Border.all(color: context.surfaces.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: context.surfaces.shadow.withValues(alpha: 0.36),
+                    blurRadius: 24,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: context.semantic.error.withValues(alpha: 0.85),
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.warning_amber_rounded,
+                        size: 20,
+                        color: context.semantic.error,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'Supprimer cette stratégie ?',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'Cette action est irréversible. La stratégie sera supprimée de vos configurations.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.textColors.secondary,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: _PreferenceScale.compactButtonHeight,
+                            child: OutlinedButton(
+                              onPressed: onCancel,
+                              child: const Text('Annuler'),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Expanded(
+                          child: SizedBox(
+                            height: _PreferenceScale.compactButtonHeight,
+                            child: FilledButton(
+                              key: const ValueKey(
+                                'confirm-delete-ticket-strategy-button',
+                              ),
+                              onPressed: onConfirm,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: context.semantic.error,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Supprimer'),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -1276,85 +1886,6 @@ class _PreferenceEmptyState extends StatelessWidget {
   }
 }
 
-class _PreferenceSheetAction extends StatelessWidget {
-  const _PreferenceSheetAction({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: _PreferenceScale.rowGap),
-      child: Material(
-        color: context.surfaces.backgroundSecondary,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(_PreferenceScale.rowRadius),
-          side: BorderSide(color: context.surfaces.border),
-        ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(_PreferenceScale.rowRadius),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: _PreferenceScale.rowHorizontalPadding,
-              vertical: _PreferenceScale.rowVerticalPadding,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  size: _PreferenceScale.iconSize,
-                  color: context.brand.accent,
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 1),
-                      Text(
-                        subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: context.textColors.secondary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  size: 20,
-                  color: context.textColors.secondary,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 Set<String> _selectedCompetitionIds(DecisionProfile profile) {
   return {
     for (final id in profile.optionIdsFor('competitions'))
@@ -1363,16 +1894,32 @@ Set<String> _selectedCompetitionIds(DecisionProfile profile) {
   };
 }
 
-String _selectionSummary({required int count, required String emptyLabel}) {
-  if (count == 0) {
-    return emptyLabel;
-  }
+String _strategyName(TicketStrategy strategy) {
+  final name = strategy.name.trim();
+  return name.isEmpty ? 'Configuration' : name;
+}
 
-  if (count == 1) {
-    return '1 sélection active';
+String _selectionRange(TicketStrategy strategy) {
+  if (strategy.minimumSelections == strategy.maximumSelections) {
+    return '${strategy.minimumSelections}';
   }
+  return '${strategy.minimumSelections} – ${strategy.maximumSelections}';
+}
 
-  return '$count sélections actives';
+String _oddsRange(double minimum, double? maximum) {
+  final min = _formatOdds(minimum);
+  if (maximum == null) {
+    return '$min+';
+  }
+  final max = _formatOdds(maximum);
+  if (min == max) {
+    return min;
+  }
+  return '$min – $max';
+}
+
+String _formatOdds(double value) {
+  return value.toStringAsFixed(2).replaceAll('.', ',');
 }
 
 double? _doubleValue(String value) {
@@ -1386,20 +1933,4 @@ double? _nullableDoubleValue(String value) {
   }
 
   return double.tryParse(normalized);
-}
-
-String _readingLabel(OpportunityProfileDefinition profile) {
-  return switch (profile.id) {
-    'solid_favorite' => 'Dominations attendues',
-    'struggling_team' => 'Équipes en difficulté',
-    'offensive_match' => 'Matchs ouverts',
-    'defensive_match' => 'Matchs fermés',
-    'ranking_gap' => 'Écarts de niveau',
-    'credible_outsider' => 'Outsiders crédibles',
-    'fragile_defense' => 'Défenses fragiles',
-    'prolific_attack' => 'Attaques prolifiques',
-    'positive_series' => 'Séries positives',
-    'negative_series' => 'Séries négatives',
-    _ => profile.label,
-  };
 }

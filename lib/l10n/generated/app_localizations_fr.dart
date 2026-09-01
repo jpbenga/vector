@@ -43,7 +43,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get skipOnboardingMessage =>
-      'Sans onboarding, Copilot appliquera une configuration générale qui ne sera pas personnalisée à votre manière de décider.';
+      'Sans onboarding, Lector appliquera une configuration générale qui ne sera pas personnalisée à votre manière de décider.';
 
   @override
   String get keepOnboardingButton => 'Continuer l’onboarding';
@@ -88,7 +88,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get profileSummarySubtitle =>
-      'Vérifiez que Copilot a correctement compris votre manière de décider.';
+      'Vérifiez que Lector a correctement compris votre manière de décider.';
 
   @override
   String get confirmProfileButton => 'Valider et voir les matchs';
@@ -137,7 +137,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get allMatchesSubtitle =>
-      'Aucune rencontre n’est masquée. Copilot priorise, il ne supprime pas.';
+      'Aucune rencontre n’est masquée. Lector priorise, il ne supprime pas.';
 
   @override
   String get championshipsByCountryTitle => 'Championnats par pays';
@@ -238,7 +238,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get matchDetailTitle => 'Détail rencontre';
 
   @override
-  String get copilotReadingTitle => 'Lecture Copilot';
+  String get copilotReadingTitle => 'Lecture Lector';
 
   @override
   String get notRecommendedLabel => 'Non recommandé';

@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/auth/supabase_auth_controller.dart';
 import '../../core/di/service_locator.dart';
+import '../../core/identity/identity_controller.dart';
 import '../../core/theme/app_components.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
@@ -20,14 +21,18 @@ class AuthMenuButton extends StatelessWidget {
     }
 
     final controller = getIt<SupabaseAuthController>();
+    final identityController = getIt.isRegistered<IdentityController>()
+        ? getIt<IdentityController>()
+        : null;
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
         if (!controller.isSignedIn && showGuestLabel) {
           return Tooltip(
-            message: 'Invité - se connecter',
-            child: TextButton.icon(
-              onPressed: () => _showAuthSheet(context, controller),
+              message: 'Invité - se connecter',
+              child: TextButton.icon(
+              onPressed: () =>
+                  _showAuthSheet(context, controller, identityController),
               icon: const Icon(Icons.person_outline_rounded),
               label: const Text('Se connecter'),
             ),
@@ -41,28 +46,40 @@ class AuthMenuButton extends StatelessWidget {
           tooltip: controller.isSignedIn
               ? 'Compte synchronisé'
               : 'Connexion et synchronisation',
-          onPressed: () => _showAuthSheet(context, controller),
+          onPressed: () =>
+              _showAuthSheet(context, controller, identityController),
           icon: Icon(icon),
         );
       },
     );
   }
 
-  void _showAuthSheet(BuildContext context, SupabaseAuthController controller) {
+  void _showAuthSheet(
+    BuildContext context,
+    SupabaseAuthController controller,
+    IdentityController? identityController,
+  ) {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
       backgroundColor: context.surfaces.surface,
-      builder: (context) => _AuthSheet(controller: controller),
+      builder: (context) => _AuthSheet(
+        controller: controller,
+        identityController: identityController,
+      ),
     );
   }
 }
 
 class _AuthSheet extends StatelessWidget {
-  const _AuthSheet({required this.controller});
+  const _AuthSheet({
+    required this.controller,
+    required this.identityController,
+  });
 
   final SupabaseAuthController controller;
+  final IdentityController? identityController;
 
   @override
   Widget build(BuildContext context) {
@@ -162,8 +179,11 @@ class _AuthSheet extends StatelessWidget {
                     leading: const GoogleBrandIcon(size: 19),
                     label: 'Continuer avec Google',
                     enabled: controller.isConfigured,
-                    onPressed: () =>
-                        _signIn(context, controller.signInWithGoogle),
+                    onPressed: () => _signIn(
+                      context,
+                      identityController?.signInWithGoogle ??
+                          controller.signInWithGoogle,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   _AuthProviderButton(
@@ -190,7 +210,8 @@ class _AuthSheet extends StatelessWidget {
                 ] else ...[
                   FilledButton.icon(
                     onPressed: () async {
-                      await controller.signOut();
+                      await (identityController?.signOut() ??
+                          controller.signOut());
                       if (context.mounted) {
                         Navigator.of(context).pop();
                       }
