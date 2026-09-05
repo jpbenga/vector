@@ -130,6 +130,16 @@ class _LectorSpacePageState extends State<LectorSpacePage> {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 _SpaceActionCard(
+                  icon: Icons.sports_score_outlined,
+                  title: 'Mes marchés',
+                  subtitle:
+                      'Choisissez les marchés que Lector peut recommander.',
+                  count: _selectedMarketCount(_profile),
+                  color: context.semantic.success,
+                  onTap: () => _openMarkets(context),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _SpaceActionCard(
                   icon: Icons.confirmation_number_outlined,
                   title: 'Mes stratégies',
                   subtitle: 'Définissez comment Lector construit vos tickets.',
@@ -238,6 +248,14 @@ class _LectorSpacePageState extends State<LectorSpacePage> {
     );
   }
 
+  void _openMarkets(BuildContext context) {
+    showMarketPreferencesSheet(
+      context: context,
+      profile: _profile,
+      onProfileChanged: _handleProfileChanged,
+    );
+  }
+
   void _openStrategies(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -250,13 +268,10 @@ class _LectorSpacePageState extends State<LectorSpacePage> {
   }
 
   Future<void> _handleProfileChanged(DecisionProfile profile) async {
-    await widget.onProfileChanged(profile);
-    if (!mounted) {
-      return;
-    }
     setState(() {
       _profile = profile;
     });
+    await widget.onProfileChanged(profile);
   }
 
   Future<void> _handleTicketStrategiesChanged(
@@ -1071,6 +1086,10 @@ int _selectedCompetitionCount(DecisionProfile profile) {
 
 int _selectedScenarioCount(DecisionProfile profile) {
   return profile.optionIdsFor('opportunity_profiles').toSet().length;
+}
+
+int _selectedMarketCount(DecisionProfile profile) {
+  return profile.optionIdsFor('markets').toSet().length;
 }
 
 int _activeStrategyCount(List<TicketStrategy> strategies) {

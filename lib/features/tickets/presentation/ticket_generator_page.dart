@@ -26,6 +26,7 @@ class TicketGeneratorPage extends StatefulWidget {
     required this.strategies,
     this.savedTickets = const [],
     this.manualTicketsOpenRequest = 0,
+    required this.onEditProfile,
     required this.onEditStrategies,
     required this.onCreateManualTicket,
     required this.onOpenOpportunity,
@@ -39,6 +40,7 @@ class TicketGeneratorPage extends StatefulWidget {
   final List<TicketStrategy> strategies;
   final List<SavedTicket> savedTickets;
   final int manualTicketsOpenRequest;
+  final VoidCallback onEditProfile;
   final VoidCallback onEditStrategies;
   final VoidCallback onCreateManualTicket;
   final ValueChanged<Opportunity> onOpenOpportunity;
@@ -77,6 +79,9 @@ class _TicketGeneratorPageState extends State<TicketGeneratorPage> {
       profile: widget.profile,
     );
     final copilotTickets = result.tickets;
+    final activeStrategies = widget.strategies
+        .where((strategy) => strategy.isActive)
+        .toList(growable: false);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 120),
@@ -119,7 +124,11 @@ class _TicketGeneratorPageState extends State<TicketGeneratorPage> {
                   result: result,
                   expandedTicketIds: _expandedTicketIds,
                   onToggleTicketExpanded: _toggleTicketExpanded,
+                  onEditProfile: widget.onEditProfile,
                   onEditStrategies: widget.onEditStrategies,
+                  activeStrategyName: activeStrategies.isEmpty
+                      ? null
+                      : activeStrategies.first.name,
                   savedTickets: widget.savedTickets,
                   opportunities: widget.opportunities,
                   opportunityForMatchId: _opportunityForMatchId,
@@ -1711,7 +1720,9 @@ class _TicketTabContent extends StatelessWidget {
     required this.result,
     required this.expandedTicketIds,
     required this.onToggleTicketExpanded,
+    required this.onEditProfile,
     required this.onEditStrategies,
+    required this.activeStrategyName,
     required this.savedTickets,
     required this.opportunities,
     required this.opportunityForMatchId,
@@ -1723,7 +1734,9 @@ class _TicketTabContent extends StatelessWidget {
   final TicketGenerationResult result;
   final Set<String> expandedTicketIds;
   final ValueChanged<String> onToggleTicketExpanded;
+  final VoidCallback onEditProfile;
   final VoidCallback onEditStrategies;
+  final String? activeStrategyName;
   final List<SavedTicket> savedTickets;
   final List<Opportunity> opportunities;
   final Opportunity? Function(String matchId) opportunityForMatchId;
@@ -1737,7 +1750,9 @@ class _TicketTabContent extends StatelessWidget {
         result: result,
         expandedTicketIds: expandedTicketIds,
         onToggleTicketExpanded: onToggleTicketExpanded,
+        onEditProfile: onEditProfile,
         onEditStrategies: onEditStrategies,
+        activeStrategyName: activeStrategyName,
         opportunityForMatchId: opportunityForMatchId,
         opportunities: opportunities,
         onOpenOpportunity: onOpenOpportunity,
@@ -1795,7 +1810,9 @@ class _CopilotProposalsList extends StatelessWidget {
     required this.result,
     required this.expandedTicketIds,
     required this.onToggleTicketExpanded,
+    required this.onEditProfile,
     required this.onEditStrategies,
+    required this.activeStrategyName,
     required this.opportunityForMatchId,
     required this.opportunities,
     required this.onOpenOpportunity,
@@ -1805,7 +1822,9 @@ class _CopilotProposalsList extends StatelessWidget {
   final TicketGenerationResult result;
   final Set<String> expandedTicketIds;
   final ValueChanged<String> onToggleTicketExpanded;
+  final VoidCallback onEditProfile;
   final VoidCallback onEditStrategies;
+  final String? activeStrategyName;
   final Opportunity? Function(String matchId) opportunityForMatchId;
   final List<Opportunity> opportunities;
   final ValueChanged<Opportunity> onOpenOpportunity;
@@ -1814,13 +1833,16 @@ class _CopilotProposalsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (result.status == TicketGenerationStatus.profileIncomplete) {
+      final activeStrategyMessage = activeStrategyName == null
+          ? ''
+          : ' Votre stratégie $activeStrategyName est active.';
       return _EmptyState(
         icon: Icons.tune_rounded,
-        title: 'Profil incomplet',
+        title: 'Préférences de lecture incomplètes',
         message:
-            'Complétez votre profil pour que Lector puisse rechercher des lectures combinées et construire vos tickets.',
-        actionLabel: 'Compléter mon profil',
-        onAction: onEditStrategies,
+            '$activeStrategyMessage Ajoutez vos compétitions, lectures et marchés pour fournir des sélections à Lector.',
+        actionLabel: 'Configurer mes préférences',
+        onAction: onEditProfile,
       );
     }
 

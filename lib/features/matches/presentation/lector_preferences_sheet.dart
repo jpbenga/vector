@@ -65,6 +65,24 @@ Future<void> showReadingPreferencesSheet({
   );
 }
 
+Future<void> showMarketPreferencesSheet({
+  required BuildContext context,
+  required DecisionProfile profile,
+  required ProfilePreferenceSaver onProfileChanged,
+}) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (context) {
+      return _MarketPreferencesEditor(
+        profile: profile,
+        onProfileChanged: onProfileChanged,
+      );
+    },
+  );
+}
+
 Future<void> showTicketBuilderPreferencesSheet({
   required BuildContext context,
   required List<TicketStrategy> strategies,
@@ -372,6 +390,149 @@ class _ReadingPreferencesEditorState extends State<_ReadingPreferencesEditor> {
     Navigator.of(context).pop();
   }
 }
+
+class _MarketPreferencesEditor extends StatefulWidget {
+  const _MarketPreferencesEditor({
+    required this.profile,
+    required this.onProfileChanged,
+  });
+
+  final DecisionProfile profile;
+  final ProfilePreferenceSaver onProfileChanged;
+
+  @override
+  State<_MarketPreferencesEditor> createState() =>
+      _MarketPreferencesEditorState();
+}
+
+class _MarketPreferencesEditorState extends State<_MarketPreferencesEditor> {
+  late Set<String> _selectedIds;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIds = widget.profile.optionIdsFor('markets').toSet();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _PreferenceEditorScaffold(
+      title: 'Marchés autorisés',
+      subtitle: 'Lector ne recommande que les marchés que vous activez ici.',
+      isSaving: _isSaving,
+      selectedCount: _selectedIds.length,
+      onClear: _selectedIds.isEmpty ? null : () => setState(_selectedIds.clear),
+      onSave: _save,
+      child: ListView.separated(
+        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+        itemCount: _marketOptions.length,
+        separatorBuilder: (_, _) =>
+            const SizedBox(height: _PreferenceScale.rowGap),
+        itemBuilder: (context, index) {
+          final option = _marketOptions[index];
+          return _PreferenceToggleTile(
+            icon: option.icon,
+            title: option.label,
+            subtitle: option.description,
+            isSelected: _selectedIds.contains(option.id),
+            onChanged: (value) {
+              setState(() {
+                if (value) {
+                  _selectedIds.add(option.id);
+                } else {
+                  _selectedIds.remove(option.id);
+                }
+              });
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _save() async {
+    setState(() {
+      _isSaving = true;
+    });
+    await widget.onProfileChanged(
+      widget.profile.withOptionIds('markets', [
+        for (final option in _marketOptions)
+          if (_selectedIds.contains(option.id)) option.id,
+      ]),
+    );
+    if (!mounted) {
+      return;
+    }
+    Navigator.of(context).pop();
+  }
+}
+
+class _MarketPreferenceOption {
+  const _MarketPreferenceOption({
+    required this.id,
+    required this.label,
+    required this.description,
+    required this.icon,
+  });
+
+  final String id;
+  final String label;
+  final String description;
+  final IconData icon;
+}
+
+const _marketOptions = [
+  _MarketPreferenceOption(
+    id: 'match_result',
+    label: 'Résultat du match',
+    description:
+        'Victoire de l’équipe à domicile, nul ou victoire à l’extérieur.',
+    icon: Icons.emoji_events_outlined,
+  ),
+  _MarketPreferenceOption(
+    id: 'double_chance',
+    label: 'Double chance',
+    description: 'Deux issues couvertes pour un scénario plus protégé.',
+    icon: Icons.shield_outlined,
+  ),
+  _MarketPreferenceOption(
+    id: 'goals_over_under',
+    label: 'Total de buts',
+    description: 'Scénarios ouverts ou fermés sur le nombre de buts.',
+    icon: Icons.sports_soccer_outlined,
+  ),
+  _MarketPreferenceOption(
+    id: 'both_teams_score',
+    label: 'Les deux équipes marquent',
+    description: 'Lecture offensive favorable aux buts des deux équipes.',
+    icon: Icons.swap_horiz_rounded,
+  ),
+  _MarketPreferenceOption(
+    id: 'team_scores',
+    label: 'Buts d’une équipe',
+    description: 'Total de buts d’une équipe dans le match.',
+    icon: Icons.query_stats_rounded,
+  ),
+  _MarketPreferenceOption(
+    id: 'corners',
+    label: 'Corners',
+    description: 'Marchés de total de corners.',
+    icon: Icons.turn_right_rounded,
+  ),
+  _MarketPreferenceOption(
+    id: 'cards',
+    label: 'Cartons',
+    description: 'Marchés de total de cartons.',
+    icon: Icons.style_outlined,
+  ),
+  _MarketPreferenceOption(
+    id: 'player_scorer',
+    label: 'Buteur',
+    description: 'Marchés individuels lorsqu’ils sont disponibles.',
+    icon: Icons.person_outline_rounded,
+  ),
+];
 
 class _TicketBuilderPreferencesEditor extends StatefulWidget {
   const _TicketBuilderPreferencesEditor({

@@ -3,10 +3,14 @@ import 'dart:convert';
 import 'package:copilot/core/config/app_config.dart';
 import 'package:copilot/core/config/app_environment.dart';
 import 'package:copilot/core/supabase/supabase_initializer.dart';
+import 'package:copilot/features/matches/data/api_football_match_adapter.dart';
 import 'package:copilot/features/matches/data/match_feed_repository.dart';
 import 'package:copilot/features/matches/data/match_feed_repository_loader.dart';
 import 'package:copilot/features/matches/data/supabase_match_feed_snapshot_repository.dart';
+import 'package:copilot/features/matches/domain/football_analyzer.dart';
+import 'package:copilot/features/matches/domain/football_reading.dart';
 import 'package:copilot/features/matches/domain/match_board_item.dart';
+import 'package:copilot/features/matches/domain/opportunity_engine_v2.dart';
 import 'package:copilot/features/onboarding/domain/decision_profile.dart';
 import 'package:copilot/features/onboarding/domain/onboarding_answer.dart';
 import 'package:flutter/services.dart';
@@ -126,6 +130,207 @@ void main() {
     });
   });
 
+  group('SnapshotMatchFeedRepository personalization', () {
+    test('applies first saved preferences immediately to Pour moi', () {
+      final analyzer = _CountingFootballAnalyzer({
+        'fixture-domination': _dominationReadings(),
+        'fixture-open': _openMatchReadings('fixture-open'),
+      });
+      final repository = _personalizationRepository(analyzer);
+
+      expect(repository.personalizedFor(_emptyProfile()), isEmpty);
+      expect(analyzer.calls, 2);
+
+      final matches = repository.personalizedFor(
+        _profile(markets: ['double_chance'], profiles: ['ranking_gap']),
+      );
+
+      expect(matches.map((match) => match.id), ['fixture-domination']);
+      expect(matches.single.thesis?.id, 'expected_domination');
+      expect(analyzer.calls, 2);
+    });
+
+    test('applies preference modifications immediately', () {
+      final analyzer = _CountingFootballAnalyzer({
+        'fixture-domination': _dominationReadings(),
+        'fixture-open': _openMatchReadings('fixture-open'),
+      });
+      final repository = _personalizationRepository(analyzer);
+
+      final rankingOnly = repository.personalizedFor(
+        _profile(markets: ['double_chance'], profiles: ['ranking_gap']),
+      );
+      final offensiveOnly = repository.personalizedFor(
+        _profile(markets: ['goals_over_under'], profiles: ['offensive_match']),
+      );
+
+      expect(rankingOnly.map((match) => match.id), ['fixture-domination']);
+      expect(offensiveOnly.map((match) => match.id), ['fixture-open']);
+      expect(offensiveOnly.single.thesis?.id, 'convergent_open_match');
+      expect(analyzer.calls, 2);
+    });
+
+    test(
+      'keeps reading-only matches in Pour moi without creating opportunities',
+      () {
+        final analyzer = _CountingFootballAnalyzer({
+          'fixture-domination': _dominationReadings(),
+          'fixture-open': _openMatchReadings('fixture-open'),
+          'fixture-form': [
+            _reading(
+              'positive_streak',
+              'home-form',
+              side: ReadingSubjectSide.home,
+              kind: ReadingEvidenceKind.form,
+            ),
+          ],
+        });
+        final repository = _personalizationRepository(
+          analyzer,
+          extraMatches: [
+            _personalizationMatch(
+              fixtureId: 'fixture-form',
+              homeTeamId: 'home-form',
+              awayTeamId: 'away-form',
+              markets: const [],
+            ),
+          ],
+        );
+        final profile = _profile(
+          markets: ['double_chance'],
+          profiles: ['positive_series'],
+        );
+
+        final opportunities = repository.opportunitiesFor(profile);
+        final matches = repository.personalizedFor(profile);
+
+        expect(
+          opportunities.map((opportunity) => opportunity.matchId),
+          isNot(contains('fixture-form')),
+        );
+        expect(matches.map((match) => match.id), contains('fixture-form'));
+        final readingOnlyMatch = matches.singleWhere(
+          (match) => match.id == 'fixture-form',
+        );
+        expect(readingOnlyMatch.thesis, isNull);
+        expect(readingOnlyMatch.signals.single.id, 'positive_streak');
+        expect(readingOnlyMatch.compatibility, greaterThan(0));
+        expect(analyzer.calls, 3);
+      },
+    );
+
+    test(
+      'does not require market preferences to show reading-only matches',
+      () {
+        final analyzer = _CountingFootballAnalyzer({
+          'fixture-domination': _dominationReadings(),
+          'fixture-open': _openMatchReadings('fixture-open'),
+          'fixture-form': [
+            _reading(
+              'positive_streak',
+              'home-form',
+              side: ReadingSubjectSide.home,
+              kind: ReadingEvidenceKind.form,
+            ),
+          ],
+        });
+        final repository = _personalizationRepository(
+          analyzer,
+          extraMatches: [
+            _personalizationMatch(
+              fixtureId: 'fixture-form',
+              homeTeamId: 'home-form',
+              awayTeamId: 'away-form',
+              markets: const [],
+            ),
+          ],
+        );
+        final profile = _profile(
+          markets: const [],
+          profiles: ['positive_series'],
+        );
+
+        final opportunities = repository.opportunitiesFor(profile);
+        final matches = repository.personalizedFor(profile);
+
+        expect(opportunities, isEmpty);
+        expect(matches.map((match) => match.id), contains('fixture-form'));
+        final readingOnlyMatch = matches.singleWhere(
+          (match) => match.id == 'fixture-form',
+        );
+        expect(readingOnlyMatch.thesis, isNull);
+        expect(readingOnlyMatch.signals.single.id, 'positive_streak');
+      },
+    );
+
+    test('removes matches that only matched a deleted preference', () {
+      final analyzer = _CountingFootballAnalyzer({
+        'fixture-domination': _dominationReadings(),
+        'fixture-open': _openMatchReadings('fixture-open'),
+      });
+      final repository = _personalizationRepository(analyzer);
+
+      final beforeRemoval = repository.personalizedFor(
+        _profile(
+          markets: ['double_chance', 'goals_over_under'],
+          profiles: ['ranking_gap', 'offensive_match'],
+        ),
+      );
+      final afterRemoval = repository.personalizedFor(
+        _profile(markets: ['goals_over_under'], profiles: ['offensive_match']),
+      );
+
+      expect(
+        beforeRemoval.map((match) => match.id),
+        containsAll(['fixture-domination', 'fixture-open']),
+      );
+      expect(afterRemoval.map((match) => match.id), ['fixture-open']);
+      expect(analyzer.calls, 2);
+    });
+
+    test('does not run new football analysis on preference-only changes', () {
+      final analyzer = _CountingFootballAnalyzer({
+        'fixture-domination': _dominationReadings(),
+        'fixture-open': _openMatchReadings('fixture-open'),
+      });
+      final repository = _personalizationRepository(analyzer);
+
+      expect(analyzer.calls, 2);
+
+      repository.opportunitiesFor(
+        _profile(markets: ['double_chance'], profiles: ['ranking_gap']),
+      );
+      repository.opportunitiesFor(
+        _profile(markets: ['goals_over_under'], profiles: ['offensive_match']),
+      );
+      repository.analyzeFor(
+        _profile(markets: ['double_chance'], profiles: ['ranking_gap']),
+        repository.allMatches().first,
+      );
+
+      expect(analyzer.calls, 2);
+    });
+
+    test('keeps saved preferences applied after profile reload', () {
+      final analyzer = _CountingFootballAnalyzer({
+        'fixture-domination': _dominationReadings(),
+        'fixture-open': _openMatchReadings('fixture-open'),
+      });
+      final repository = _personalizationRepository(analyzer);
+      final saved = _profile(
+        markets: ['goals_over_under'],
+        profiles: ['offensive_match'],
+      );
+      final reloaded = DecisionProfile.fromJson(saved.toJson());
+
+      final matches = repository.personalizedFor(reloaded);
+
+      expect(matches.map((match) => match.id), ['fixture-open']);
+      expect(matches.single.thesis?.id, 'convergent_open_match');
+      expect(analyzer.calls, 2);
+    });
+  });
+
   group('MatchFeedRepositoryLoader', () {
     test('loads the remote Supabase snapshot first in auto mode', () async {
       final remote = _FakeRemoteSnapshotDataSource(
@@ -230,6 +435,231 @@ void main() {
       expect(repository.snapshotMetadata?.windowStart, DateTime(2026, 7, 30));
     });
   });
+}
+
+SnapshotMatchFeedRepository _personalizationRepository(
+  _CountingFootballAnalyzer analyzer, {
+  List<MatchBoardItem> extraMatches = const [],
+}) {
+  return SnapshotMatchFeedRepository(
+    snapshot: _intelligenceSnapshot(),
+    adapter: _StaticMatchAdapter([
+      _personalizationMatch(
+        fixtureId: 'fixture-domination',
+        homeTeamId: 'home-domination',
+        awayTeamId: 'away-domination',
+        markets: const [
+          MatchMarket(
+            id: 'doubleChance',
+            label: 'Double chance',
+            selections: [
+              MarketOdds(
+                id: 'double_chance_1x',
+                label: '1X',
+                odds: 1.42,
+                apiFootballValue: 'Home/Draw',
+              ),
+            ],
+          ),
+        ],
+      ),
+      _personalizationMatch(
+        fixtureId: 'fixture-open',
+        homeTeamId: 'home-open',
+        awayTeamId: 'away-open',
+        markets: const [
+          MatchMarket(
+            id: 'goalsTotal',
+            label: 'Over / Under buts',
+            selections: [
+              MarketOdds(
+                id: 'over_2_5',
+                label: 'Over 2.5',
+                odds: 1.74,
+                apiFootballValue: 'Over 2.5',
+              ),
+            ],
+          ),
+        ],
+      ),
+      ...extraMatches,
+    ]),
+    opportunityEngine: OpportunityEngineV2(analyzer: analyzer),
+  );
+}
+
+DecisionProfile _emptyProfile() {
+  return const DecisionProfile(onboardingVersion: 'test', answers: []);
+}
+
+DecisionProfile _profile({
+  required List<String> markets,
+  required List<String> profiles,
+}) {
+  return DecisionProfile(
+    onboardingVersion: 'test',
+    answers: [
+      const OnboardingAnswer(
+        questionId: 'competitions',
+        orderedOptionIds: ['eng_premier_league'],
+      ),
+      OnboardingAnswer(questionId: 'markets', orderedOptionIds: markets),
+      OnboardingAnswer(
+        questionId: 'opportunity_profiles',
+        orderedOptionIds: profiles,
+      ),
+    ],
+  );
+}
+
+Map<String, Object?> _intelligenceSnapshot() {
+  return const {
+    'schema_version': 1,
+    'source': 'api-football',
+    'captured_at': '2026-08-08T08:30:00Z',
+    'timezone': 'Europe/Paris',
+    'raw': {
+      'fixtures': <Object?>[],
+      'odds': <Object?>[],
+      'standings': <Object?>[],
+      'team_statistics': <Object?>[],
+      'recent_league_matches': <Object?>[],
+      'expected_goals': <Object?>[],
+      'predictions': <Object?>[],
+    },
+  };
+}
+
+MatchBoardItem _personalizationMatch({
+  required String fixtureId,
+  required String homeTeamId,
+  required String awayTeamId,
+  required List<MatchMarket> markets,
+}) {
+  return MatchBoardItem(
+    fixture: NormalizedFixture(
+      id: fixtureId,
+      competition: const CompetitionInfo(
+        id: '39',
+        name: 'Premier League',
+        country: CountryInfo(code: 'GB', name: 'Angleterre'),
+        season: 2026,
+      ),
+      homeTeam: TeamInfo(id: homeTeamId, name: 'Home'),
+      awayTeam: TeamInfo(id: awayTeamId, name: 'Away'),
+      kickoffLabel: '20:00',
+      kickoff: DateTime.utc(2026, 8, 8, 18),
+      status: FixtureStatus.scheduled,
+    ),
+    primaryMarket: const MarketOdds(
+      id: 'market_unavailable',
+      label: 'Marché indisponible',
+      odds: 0,
+    ),
+    availableMarkets: markets,
+    analysis: MatchAnalysisData(asOf: DateTime.utc(2026, 8, 8, 8, 30)),
+    compatibility: 0,
+    signals: const [],
+  );
+}
+
+List<FootballReading> _dominationReadings() {
+  return [
+    _reading(
+      'structural_level_gap',
+      'home-domination',
+      side: ReadingSubjectSide.home,
+      kind: ReadingEvidenceKind.standing,
+    ),
+    _reading(
+      'ranking_superiority',
+      'home-domination',
+      side: ReadingSubjectSide.home,
+      kind: ReadingEvidenceKind.standing,
+    ),
+    _reading(
+      'positive_streak',
+      'home-domination',
+      side: ReadingSubjectSide.home,
+      kind: ReadingEvidenceKind.form,
+    ),
+    _reading(
+      'weak_away_team',
+      'away-domination',
+      side: ReadingSubjectSide.away,
+      kind: ReadingEvidenceKind.homeAway,
+    ),
+  ];
+}
+
+List<FootballReading> _openMatchReadings(String fixtureId) {
+  return [
+    _reading(
+      'open_match_profile',
+      fixtureId,
+      side: ReadingSubjectSide.match,
+      kind: ReadingEvidenceKind.sample,
+    ),
+    _reading(
+      'frequent_over_25',
+      fixtureId,
+      side: ReadingSubjectSide.match,
+      kind: ReadingEvidenceKind.sample,
+    ),
+    _reading(
+      'high_xg_creation',
+      'home-open',
+      side: ReadingSubjectSide.home,
+      kind: ReadingEvidenceKind.expectedGoals,
+    ),
+  ];
+}
+
+FootballReading _reading(
+  String id,
+  String subjectTeamId, {
+  required ReadingSubjectSide side,
+  required ReadingEvidenceKind kind,
+}) {
+  return FootballReading(
+    id: id,
+    subjectTeamId: subjectTeamId,
+    subjectSide: side,
+    status: ReadingStatus.detected,
+    strength: ReadingStrength.strong,
+    evidence: [ReadingEvidence(label: id, kind: kind, sourcePath: 'test')],
+    warnings: const [],
+    asOf: DateTime.utc(2026, 8, 8, 8, 30),
+    sampleSize: 10,
+  );
+}
+
+class _StaticMatchAdapter extends ApiFootballMatchAdapter {
+  const _StaticMatchAdapter(this.matches);
+
+  final List<MatchBoardItem> matches;
+
+  @override
+  List<MatchBoardItem> fromSnapshot(Map<String, Object?> snapshot) {
+    return matches;
+  }
+}
+
+class _CountingFootballAnalyzer extends FootballAnalyzer {
+  _CountingFootballAnalyzer(this._readingsByFixtureId);
+
+  final Map<String, List<FootballReading>> _readingsByFixtureId;
+  int calls = 0;
+
+  @override
+  FootballAnalysis analyze(MatchBoardItem match, {DateTime? asOf}) {
+    calls += 1;
+    return FootballAnalysis(
+      fixtureId: match.id,
+      asOf: asOf ?? match.analysis.asOf ?? DateTime.utc(2026, 8, 8, 8, 30),
+      readings: _readingsByFixtureId[match.id] ?? const [],
+    );
+  }
 }
 
 MatchFeedRepositoryLoader _loader({

@@ -721,11 +721,11 @@ function seasonForWindowFromLeaguesPayload(
 
   if (overlappingSeasons.length > 0) {
     overlappingSeasons.sort((a, b) => {
-      if (a.current !== b.current) {
-        return a.current ? -1 : 1;
-      }
       if (a.start !== b.start) {
         return b.start.localeCompare(a.start);
+      }
+      if (a.current !== b.current) {
+        return a.current ? -1 : 1;
       }
       return b.year - a.year;
     });

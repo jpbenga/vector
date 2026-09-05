@@ -1,6 +1,7 @@
 import 'football_reading.dart';
 import 'football_reading_rules.dart';
 import 'match_board_item.dart';
+import 'structural_tiers/tier_models.dart';
 
 class FootballAnalyzer {
   const FootballAnalyzer();
@@ -74,7 +75,8 @@ class FootballAnalyzer {
         : match.awayTeam;
     final readings = <FootballReading>[];
 
-    if (rankGap <= 2 && pointsGap <= 4) {
+    final structuralRelation = match.analysis.structuralRelation;
+    if (structuralRelation?.balancedHierarchy.exists ?? false) {
       readings.add(
         _reading(
           id: 'balanced_hierarchy',
@@ -86,10 +88,14 @@ class FootballAnalyzer {
           evidence: [
             ReadingEvidence(
               label:
-                  'Hiérarchie proche : ${match.homeTeam.name} #${home.rank}, ${match.awayTeam.name} #${away.rank}.',
+                  'Hiérarchie équilibrée sans frontière structurelle confirmée : ${match.homeTeam.name} #${home.rank}, ${match.awayTeam.name} #${away.rank}.',
               kind: ReadingEvidenceKind.standing,
-              sourcePath: 'standings[].rank',
-              value: rankGap,
+              sourcePath: 'MatchStructuralRelation',
+              value: {
+                'rankGap': rankGap,
+                'pointsGap': pointsGap,
+                'typicalGap': structuralRelation?.typicalGap,
+              },
             ),
           ],
         ),
@@ -122,26 +128,36 @@ class FootballAnalyzer {
       );
     }
 
-    if (rankGap >= 5 || pointsGap >= 8) {
+    final structuralGap = structuralRelation == null
+        ? null
+        : superiorSide == ReadingSubjectSide.home
+        ? structuralRelation.homeStructuralLevelGap
+        : structuralRelation.awayStructuralLevelGap;
+    if (structuralGap?.exists ?? false) {
       readings.add(
         _reading(
           id: 'structural_level_gap',
           teamId: superiorTeam.id,
           side: superiorSide,
-          strength: ReadingStrengthResolver.fromGap(
-            (rankGap + pointsGap / 2).toDouble(),
-            8,
-            14,
-          ),
+          strength: structuralGap?.strength == StructuralLevelGapStrength.strong
+              ? ReadingStrength.strong
+              : ReadingStrength.moderate,
           asOf: asOf,
           sampleSize: sampleSize,
           evidence: [
             ReadingEvidence(
               label:
-                  'Écart structurel confirmé entre ${match.homeTeam.name} et ${match.awayTeam.name}.',
+                  'Écart structurel confirmé par ${structuralRelation!.structuralBoundaryGap} frontière(s) entre ${match.homeTeam.name} et ${match.awayTeam.name}.',
               kind: ReadingEvidenceKind.standing,
-              sourcePath: 'standings[].rank + standings[].points',
-              value: {'rankGap': rankGap, 'pointsGap': pointsGap},
+              sourcePath:
+                  'MatchStructuralRelation.confirmedBoundariesBetweenTeams',
+              value: {
+                'rankGap': rankGap,
+                'pointsGap': pointsGap,
+                'structuralBoundaryGap':
+                    structuralRelation.structuralBoundaryGap,
+                'ordinalTierGap': structuralRelation.ordinalTierGap,
+              },
             ),
           ],
         ),
@@ -155,6 +171,7 @@ class FootballAnalyzer {
     return [
       ..._formFor(match.homeTeam, ReadingSubjectSide.home, match, asOf),
       ..._formFor(match.awayTeam, ReadingSubjectSide.away, match, asOf),
+      ..._formAdvantageReadings(match, asOf),
     ];
   }
 
@@ -228,7 +245,7 @@ class FootballAnalyzer {
     if (sampleSize >= 5) {
       final firstTwo = _formScore(recent.substring(3, 5));
       final lastThree = _formScore(recent.substring(0, 3));
-      if (lastThree >= firstTwo + 4) {
+      if (lastThree >= firstTwo + 3) {
         readings.add(
           _reading(
             id: 'improving_form',
@@ -248,7 +265,7 @@ class FootballAnalyzer {
             ],
           ),
         );
-      } else if (lastThree + 4 <= firstTwo) {
+      } else if (lastThree + 3 <= firstTwo) {
         readings.add(
           _reading(
             id: 'declining_form',
@@ -274,6 +291,54 @@ class FootballAnalyzer {
     return readings;
   }
 
+  List<FootballReading> _formAdvantageReadings(
+    MatchBoardItem match,
+    DateTime asOf,
+  ) {
+    final homeRecent = _recentFormForSide(match, ReadingSubjectSide.home);
+    final awayRecent = _recentFormForSide(match, ReadingSubjectSide.away);
+    if (homeRecent == null || awayRecent == null) {
+      return const [];
+    }
+    final homeScore = _formScore(homeRecent);
+    final awayScore = _formScore(awayRecent);
+    final gap = (homeScore - awayScore).abs();
+    if (gap < 4) {
+      return const [];
+    }
+
+    final side = homeScore > awayScore
+        ? ReadingSubjectSide.home
+        : ReadingSubjectSide.away;
+    final team = side == ReadingSubjectSide.home
+        ? match.homeTeam
+        : match.awayTeam;
+    return [
+      _reading(
+        id: 'form_advantage',
+        teamId: team.id,
+        side: side,
+        strength: gap >= 7 ? ReadingStrength.strong : ReadingStrength.moderate,
+        asOf: asOf,
+        sampleSize: _min(homeRecent.length, awayRecent.length),
+        evidence: [
+          ReadingEvidence(
+            label:
+                '${team.name} possède une dynamique récente supérieure ($homeRecent vs $awayRecent).',
+            kind: ReadingEvidenceKind.form,
+            sourcePath: 'standings[].form',
+            value: {
+              'homeForm': homeRecent,
+              'awayForm': awayRecent,
+              'homeScore': homeScore,
+              'awayScore': awayScore,
+            },
+          ),
+        ],
+      ),
+    ];
+  }
+
   List<FootballReading> _homeAwayReadings(MatchBoardItem match, DateTime asOf) {
     final home = match.analysis.homeStatistics;
     final away = match.analysis.awayStatistics;
@@ -281,7 +346,9 @@ class FootballAnalyzer {
 
     final homePlayed = home?.playedHome ?? home?.playedTotal;
     final homeWins = home?.winsHome ?? home?.winsTotal;
+    final homeLosses = home?.lossesHome ?? home?.lossesTotal;
     final awayPlayed = away?.playedAway ?? away?.playedTotal;
+    final awayWins = away?.winsAway ?? away?.winsTotal;
     final awayLosses = away?.lossesAway ?? away?.lossesTotal;
 
     if (homePlayed != null && homePlayed >= 5 && homeWins != null) {
@@ -303,6 +370,60 @@ class FootballAnalyzer {
                     '${match.homeTeam.name} gagne ${_percent(rate)} de ses matchs à domicile.',
                 kind: ReadingEvidenceKind.homeAway,
                 sourcePath: 'teams/statistics.fixtures.wins.home',
+                value: rate,
+              ),
+            ],
+          ),
+        );
+      }
+    }
+
+    if (homePlayed != null && homePlayed >= 5 && homeLosses != null) {
+      final rate = homeLosses / homePlayed;
+      if (rate >= FootballReadingRules.homeAway.thresholds['weakLossRate']!) {
+        readings.add(
+          _reading(
+            id: 'weak_home_team',
+            teamId: match.homeTeam.id,
+            side: ReadingSubjectSide.home,
+            strength: rate >= .58
+                ? ReadingStrength.strong
+                : ReadingStrength.moderate,
+            asOf: asOf,
+            sampleSize: homePlayed,
+            evidence: [
+              ReadingEvidence(
+                label:
+                    '${match.homeTeam.name} perd ${_percent(rate)} de ses matchs à domicile.',
+                kind: ReadingEvidenceKind.homeAway,
+                sourcePath: 'teams/statistics.fixtures.loses.home',
+                value: rate,
+              ),
+            ],
+          ),
+        );
+      }
+    }
+
+    if (awayPlayed != null && awayPlayed >= 5 && awayWins != null) {
+      final rate = awayWins / awayPlayed;
+      if (rate >= FootballReadingRules.homeAway.thresholds['strongRate']!) {
+        readings.add(
+          _reading(
+            id: 'strong_away_team',
+            teamId: match.awayTeam.id,
+            side: ReadingSubjectSide.away,
+            strength: rate >= .72
+                ? ReadingStrength.strong
+                : ReadingStrength.moderate,
+            asOf: asOf,
+            sampleSize: awayPlayed,
+            evidence: [
+              ReadingEvidence(
+                label:
+                    '${match.awayTeam.name} gagne ${_percent(rate)} de ses déplacements.',
+                kind: ReadingEvidenceKind.homeAway,
+                sourcePath: 'teams/statistics.fixtures.wins.away',
                 value: rate,
               ),
             ],
@@ -340,6 +461,27 @@ class FootballAnalyzer {
 
     if (readings.any((reading) => reading.id == 'strong_home_team') &&
         readings.any((reading) => reading.id == 'weak_away_team')) {
+      readings.add(
+        _reading(
+          id: 'home_away_mismatch',
+          teamId: match.id,
+          side: ReadingSubjectSide.match,
+          strength: ReadingStrength.strong,
+          asOf: asOf,
+          sampleSize: _min(homePlayed ?? 0, awayPlayed ?? 0),
+          evidence: const [
+            ReadingEvidence(
+              label: 'Le split domicile/extérieur renforce la lecture.',
+              kind: ReadingEvidenceKind.homeAway,
+              sourcePath: 'teams/statistics.fixtures.home/away',
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (readings.any((reading) => reading.id == 'strong_away_team') &&
+        readings.any((reading) => reading.id == 'weak_home_team')) {
       readings.add(
         _reading(
           id: 'home_away_mismatch',
@@ -968,6 +1110,20 @@ class FootballAnalyzer {
     return side == ReadingSubjectSide.home
         ? match.analysis.homeStatistics
         : match.analysis.awayStatistics;
+  }
+
+  String? _recentFormForSide(MatchBoardItem match, ReadingSubjectSide side) {
+    final form =
+        _standingForSide(match, side)?.form ??
+        _statisticsForSide(match, side)?.form;
+    if (form == null || form.length < 5) {
+      return null;
+    }
+    final normalized = form.toUpperCase().replaceAll(RegExp('[^WDL]'), '');
+    if (normalized.length < 5) {
+      return null;
+    }
+    return normalized.substring(0, 5);
   }
 
   int _formScore(String form) {

@@ -15,6 +15,7 @@ import '../../tickets/domain/ticket_draft.dart';
 import '../../tickets/domain/saved_ticket.dart';
 import '../../tickets/domain/ticket_strategy.dart';
 import '../../tickets/presentation/ticket_builder_panel.dart';
+import '../domain/football_reading.dart';
 import '../domain/match_board_item.dart';
 import 'opportunity_decision_presenter.dart';
 import 'widgets/sports_asset_badge.dart';
@@ -198,7 +199,11 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                 });
               }
             : null,
-        onOpenReadings: () => _showScenarioReadingsSheet(context, widget.match),
+        onOpenReadings: () => _showScenarioReadingsSheet(
+          context,
+          widget.match,
+          opportunity: widget.opportunity,
+        ),
         onOpenGenerator: widget.onOpenGenerator,
       ),
     );
@@ -685,7 +690,11 @@ class _LectorScenarioCard extends StatelessWidget {
     return Material(
       color: AppColors.transparent,
       child: InkWell(
-        onTap: () => _showScenarioReadingsSheet(context, match),
+        onTap: () => _showScenarioReadingsSheet(
+          context,
+          match,
+          opportunity: opportunity,
+        ),
         borderRadius: BorderRadius.circular(AppRadius.control),
         child: _LectorGlassCard(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
@@ -771,8 +780,11 @@ class _LectorScenarioCard extends StatelessWidget {
                         fit: BoxFit.scaleDown,
                         alignment: Alignment.centerRight,
                         child: TextButton.icon(
-                          onPressed: () =>
-                              _showScenarioReadingsSheet(context, match),
+                          onPressed: () => _showScenarioReadingsSheet(
+                            context,
+                            match,
+                            opportunity: opportunity,
+                          ),
                           style: TextButton.styleFrom(
                             minimumSize: const Size(0, 36),
                             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -3783,7 +3795,11 @@ void _showComingSoon(BuildContext context, String message) {
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }
 
-void _showScenarioReadingsSheet(BuildContext context, MatchBoardItem match) {
+void _showScenarioReadingsSheet(
+  BuildContext context,
+  MatchBoardItem match, {
+  Opportunity? opportunity,
+}) {
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -3794,11 +3810,12 @@ void _showScenarioReadingsSheet(BuildContext context, MatchBoardItem match) {
       return DraggableScrollableSheet(
         expand: false,
         minChildSize: 0.48,
-        initialChildSize: 0.76,
-        maxChildSize: 0.92,
+        initialChildSize: 0.78,
+        maxChildSize: 0.96,
         builder: (context, scrollController) {
           return _ScenarioReadingsSheet(
             match: match,
+            opportunity: opportunity,
             scrollController: scrollController,
           );
         },
@@ -3807,159 +3824,802 @@ void _showScenarioReadingsSheet(BuildContext context, MatchBoardItem match) {
   );
 }
 
-class _ScenarioReadingsSheet extends StatelessWidget {
+class _ScenarioReadingsSheet extends StatefulWidget {
   const _ScenarioReadingsSheet({
     required this.match,
+    required this.opportunity,
     required this.scrollController,
   });
 
   final MatchBoardItem match;
+  final Opportunity? opportunity;
   final ScrollController scrollController;
 
   @override
+  State<_ScenarioReadingsSheet> createState() => _ScenarioReadingsSheetState();
+}
+
+class _ScenarioReadingsSheetState extends State<_ScenarioReadingsSheet> {
+  late final List<_ScenarioReading> _readings;
+  late int _selectedReadingIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _readings = _scenarioReadingsFor(widget.match, widget.opportunity);
+    _selectedReadingIndex = _initialScenarioReadingIndex(
+      _readings,
+      widget.match.thesis?.id,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final surfaces = context.surfaces;
-    final textColors = context.textColors;
-    final count = _scenarioReadingCount(match);
+    final reading = _readings[_selectedReadingIndex];
 
     return DecoratedBox(
       decoration: BoxDecoration(
         color: surfaces.surface.withValues(alpha: 0.97),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-        border: Border(
-          top: BorderSide(color: surfaces.border.withValues(alpha: 0.95)),
-          left: BorderSide(color: surfaces.border.withValues(alpha: 0.72)),
-          right: BorderSide(color: surfaces.border.withValues(alpha: 0.72)),
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(AppRadius.card),
         ),
+        border: Border.all(color: surfaces.border.withValues(alpha: 0.88)),
         boxShadow: [
           BoxShadow(
             color: surfaces.shadow.withValues(alpha: 0.38),
-            blurRadius: 34,
-            offset: const Offset(0, -12),
+            blurRadius: 24,
+            offset: const Offset(0, -8),
           ),
         ],
       ),
       child: Column(
         children: [
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.xs),
           Container(
-            width: 52,
-            height: 5,
+            width: 40,
+            height: 4,
             decoration: BoxDecoration(
-              color: textColors.secondary.withValues(alpha: 0.72),
+              color: context.textColors.secondary.withValues(alpha: 0.72),
               borderRadius: BorderRadius.circular(AppRadius.chip),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 10, 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'LES $count LECTURES',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: textColors.primary,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _scenarioSheetIntro(match),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: textColors.secondary,
-                          fontSize: 11,
-                          height: 1.3,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Fermer',
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: Icon(
-                    Icons.close_rounded,
-                    color: textColors.primary,
-                    size: 27,
-                  ),
-                ),
-              ],
+            padding: const EdgeInsets.fromLTRB(12, 12, 8, 6),
+            child: _ScenarioReadingHeader(
+              reading: reading,
+              onClose: () => Navigator.of(context).pop(),
             ),
           ),
           Expanded(
             child: ListView(
-              controller: scrollController,
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, 16),
+              controller: widget.scrollController,
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
               children: [
-                _ScenarioSheetReadingCard(
-                  index: 1,
-                  icon: Icons.shield_outlined,
-                  title: 'Écart de niveau structurel',
-                  description: _scenarioStructuralDescription(match),
-                  impactLabel: 'Impact élevé',
-                  impactColor: context.opportunities.levelGap,
-                  child: _ScenarioStandingEvidence(match: match),
-                ),
-                const SizedBox(height: 10),
-                _ScenarioSheetReadingCard(
-                  index: 2,
-                  icon: Icons.trending_up_rounded,
-                  title: 'Dynamique récente supérieure',
-                  description: _scenarioFormDescription(match),
-                  impactLabel: 'Impact élevé',
-                  impactColor: context.opportunities.levelGap,
-                  child: _ScenarioFormEvidence(match: match),
-                ),
-                const SizedBox(height: 10),
-                _ScenarioSheetReadingCard(
-                  index: 3,
-                  icon: Icons.home_rounded,
-                  title: 'Avantage domicile / faiblesse extérieure',
-                  description: _scenarioHomeAwayDescription(match),
-                  impactLabel: 'Impact moyen',
-                  impactColor: context.semantic.warning,
-                  child: _ScenarioHomeAwayEvidence(match: match),
-                ),
-                const SizedBox(height: 10),
-                _ScenarioVigilanceCard(match: match),
-                const SizedBox(height: 10),
-                SizedBox(
-                  height: 44,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      _showComingSoon(
-                        context,
-                        'Pont vers les preuves à brancher',
-                      );
-                    },
-                    iconAlignment: IconAlignment.end,
-                    icon: Icon(
-                      Icons.chevron_right_rounded,
-                      color: context.brand.accent,
-                      size: 20,
-                    ),
-                    label: Text(
-                      'Voir les preuves dans les données',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: context.brand.accent,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
+                if (reading.supports.isNotEmpty)
+                  _ScenarioEvidenceSection(
+                    title:
+                        'Ce qui soutient cette lecture (${reading.supports.length})',
+                    items: reading.supports,
+                    color: context.brand.accent,
+                    icon: Icons.check_circle_outline_rounded,
+                  )
+                else
+                  const _ScenarioEmptyEvidenceLine(
+                    message:
+                        'Aucun soutien détaillé produit pour cette lecture.',
                   ),
-                ),
+                if (reading.resistances.isNotEmpty ||
+                    reading.contradictions.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  _ScenarioCounterEvidenceSection(
+                    resistances: reading.resistances,
+                    contradictions: reading.contradictions,
+                  ),
+                ],
+                if (reading.resistances.isEmpty &&
+                    reading.contradictions.isEmpty) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  const _ScenarioEmptyEvidenceLine(
+                    message:
+                        'Aucune résistance ou contradiction explicite produite.',
+                  ),
+                ],
+                if (reading.limits.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  _ScenarioLimitsSection(limits: reading.limits),
+                ],
+                if (_readings.length > 1) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  _ScenarioReadingNavigation(
+                    index: _selectedReadingIndex,
+                    total: _readings.length,
+                    previousTitle: _selectedReadingIndex == 0
+                        ? null
+                        : _readings[_selectedReadingIndex - 1].title,
+                    nextTitle: _selectedReadingIndex == _readings.length - 1
+                        ? null
+                        : _readings[_selectedReadingIndex + 1].title,
+                    onPrevious: _selectedReadingIndex == 0
+                        ? null
+                        : () => setState(() => _selectedReadingIndex -= 1),
+                    onNext: _selectedReadingIndex == _readings.length - 1
+                        ? null
+                        : () => setState(() => _selectedReadingIndex += 1),
+                  ),
+                ],
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ScenarioReadingHeader extends StatelessWidget {
+  const _ScenarioReadingHeader({required this.reading, required this.onClose});
+
+  final _ScenarioReading reading;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final identity = context.opportunities.readingIdentityForId(reading.id);
+    final badge = context.opportunities.badgeFor(
+      reading.id,
+      variant: AppReadingBadgeVariant.soft,
+    );
+    final accent = badge.foreground;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(AppRadius.odds),
+            border: Border.all(color: accent.withValues(alpha: 0.46)),
+          ),
+          child: SizedBox.square(
+            dimension: 36,
+            child: Icon(identity.icon, color: accent, size: 21),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      reading.title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: context.textColors.primary,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0,
+                        height: 1.12,
+                      ),
+                    ),
+                  ),
+                  if (reading.strength != null) ...[
+                    const SizedBox(width: AppSpacing.xs),
+                    _ScenarioImpactPill(
+                      label: _scenarioReadingStrengthLabel(reading.strength!),
+                      color: accent,
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 3),
+              _ScenarioReadingMeta(reading: reading),
+              if (reading.summary != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  reading.summary!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: context.textColors.secondary,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        IconButton(
+          tooltip: 'Fermer',
+          onPressed: onClose,
+          icon: Icon(
+            Icons.close_rounded,
+            color: context.textColors.primary,
+            size: 24,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ScenarioReadingMeta extends StatelessWidget {
+  const _ScenarioReadingMeta({required this.reading});
+
+  final _ScenarioReading reading;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = <Widget>[
+      Text(
+        reading.category,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: context.brand.accent,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      if (reading.strength != null) ...[
+        Text(' · ', style: TextStyle(color: context.textColors.secondary)),
+        Text(
+          _scenarioReadingStrengthLabel(reading.strength!),
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: context.textColors.secondary,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    ];
+
+    return Wrap(children: items);
+  }
+}
+
+class _ScenarioEvidenceSection extends StatelessWidget {
+  const _ScenarioEvidenceSection({
+    required this.title,
+    required this.items,
+    required this.color,
+    required this.icon,
+  });
+
+  final String title;
+  final List<_ScenarioEvidenceDetail> items;
+  final Color color;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.surfaces.surfaceHover.withValues(alpha: 0.38),
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _ScenarioEvidenceSectionHeader(
+              icon: icon,
+              title: title,
+              color: color,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            for (final indexed in items.indexed) ...[
+              _ScenarioEvidenceRow(
+                index: indexed.$1 + 1,
+                item: indexed.$2,
+                color: color,
+              ),
+              if (indexed.$1 < items.length - 1)
+                Divider(
+                  height: 14,
+                  color: context.surfaces.border.withValues(alpha: 0.78),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScenarioCounterEvidenceSection extends StatelessWidget {
+  const _ScenarioCounterEvidenceSection({
+    required this.resistances,
+    required this.contradictions,
+  });
+
+  final List<_ScenarioEvidenceDetail> resistances;
+  final List<_ScenarioEvidenceDetail> contradictions;
+
+  @override
+  Widget build(BuildContext context) {
+    final contradictionColor = Theme.of(context).colorScheme.error;
+    final count = resistances.length + contradictions.length;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: contradictionColor.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        border: Border.all(color: contradictionColor.withValues(alpha: 0.58)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _ScenarioEvidenceSectionHeader(
+              icon: Icons.error_outline_rounded,
+              title: 'Ce qui contredit ou tempère cette lecture ($count)',
+              color: contradictionColor,
+            ),
+            if (resistances.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.xs),
+              _ScenarioEvidenceSubsection(
+                title: 'Résistances (${resistances.length})',
+                items: resistances,
+                color: context.semantic.warning,
+              ),
+            ],
+            if (resistances.isNotEmpty && contradictions.isNotEmpty)
+              Divider(
+                height: 18,
+                color: context.surfaces.border.withValues(alpha: 0.78),
+              ),
+            if (contradictions.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.xs),
+              _ScenarioEvidenceSubsection(
+                title: 'Contradictions (${contradictions.length})',
+                items: contradictions,
+                color: contradictionColor,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScenarioEvidenceSubsection extends StatelessWidget {
+  const _ScenarioEvidenceSubsection({
+    required this.title,
+    required this.items,
+    required this.color,
+  });
+
+  final String title;
+  final List<_ScenarioEvidenceDetail> items;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 6),
+        for (final indexed in items.indexed) ...[
+          _ScenarioEvidenceRow(
+            index: indexed.$1 + 1,
+            item: indexed.$2,
+            color: color,
+          ),
+          if (indexed.$1 < items.length - 1)
+            Divider(
+              height: 14,
+              color: context.surfaces.border.withValues(alpha: 0.78),
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ScenarioEmptyEvidenceLine extends StatelessWidget {
+  const _ScenarioEmptyEvidenceLine({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
+      child: Row(
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            size: 16,
+            color: context.textColors.secondary,
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Text(
+              message,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: context.textColors.secondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScenarioEvidenceRow extends StatelessWidget {
+  const _ScenarioEvidenceRow({
+    required this.index,
+    required this.item,
+    required this.color,
+  });
+
+  final int index;
+  final _ScenarioEvidenceDetail item;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final title = item.title;
+    final description = item.description;
+    final strengthLabel = item.strengthLabel;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 22,
+          height: 22,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: color.withValues(alpha: 0.8)),
+          ),
+          child: Text(
+            '$index',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: context.textColors.primary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  if (strengthLabel != null) ...[
+                    const SizedBox(width: 8),
+                    _ScenarioImpactPill(label: strengthLabel, color: color),
+                  ],
+                ],
+              ),
+              if (description != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: context.textColors.secondary,
+                    fontSize: 11,
+                    height: 1.28,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ScenarioLimitsSection extends StatelessWidget {
+  const _ScenarioLimitsSection({required this.limits});
+
+  final List<ThesisEvidence> limits;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = context.semantic.warning;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        border: Border.all(color: color.withValues(alpha: 0.48)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _ScenarioEvidenceSectionHeader(
+              icon: Icons.info_outline_rounded,
+              title: 'Limites de la lecture (${limits.length})',
+              subtitle: 'Informations à considérer',
+              color: color,
+            ),
+            const SizedBox(height: 8),
+            for (final indexed in limits.indexed) ...[
+              _ScenarioLimitRow(index: indexed.$1 + 1, limit: indexed.$2),
+              if (indexed.$1 < limits.length - 1)
+                Divider(
+                  height: 16,
+                  color: context.surfaces.border.withValues(alpha: 0.78),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScenarioLimitRow extends StatelessWidget {
+  const _ScenarioLimitRow({required this.index, required this.limit});
+
+  final int index;
+  final ThesisEvidence limit;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = context.semantic.warning;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$index.',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            limit.label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: context.textColors.primary,
+              height: 1.3,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ScenarioReadingNavigation extends StatelessWidget {
+  const _ScenarioReadingNavigation({
+    required this.index,
+    required this.total,
+    required this.previousTitle,
+    required this.nextTitle,
+    required this.onPrevious,
+    required this.onNext,
+  });
+
+  final int index;
+  final int total;
+  final String? previousTitle;
+  final String? nextTitle;
+  final VoidCallback? onPrevious;
+  final VoidCallback? onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _ScenarioNavigationButton(
+            tooltip: 'Lecture précédente',
+            label: 'Lecture précédente',
+            readingTitle: previousTitle,
+            icon: Icons.arrow_back_ios_new_rounded,
+            onPressed: onPrevious,
+          ),
+        ),
+        SizedBox(
+          width: 64,
+          child: Column(
+            children: [
+              Text(
+                '${index + 1} / $total',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: context.textColors.primary,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xxs),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (var itemIndex = 0; itemIndex < total; itemIndex++)
+                    Container(
+                      width: itemIndex == index ? 20 : 8,
+                      height: 3,
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      decoration: BoxDecoration(
+                        color: itemIndex == index
+                            ? context.brand.accent
+                            : context.surfaces.border,
+                        borderRadius: BorderRadius.circular(AppRadius.chip),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _ScenarioNavigationButton(
+            tooltip: 'Lecture suivante',
+            label: 'Lecture suivante',
+            readingTitle: nextTitle,
+            icon: Icons.arrow_forward_ios_rounded,
+            alignEnd: true,
+            onPressed: onNext,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ScenarioNavigationButton extends StatelessWidget {
+  const _ScenarioNavigationButton({
+    required this.tooltip,
+    required this.label,
+    required this.readingTitle,
+    required this.icon,
+    required this.onPressed,
+    this.alignEnd = false,
+  });
+
+  final String tooltip;
+  final String label;
+  final String? readingTitle;
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+    final textColor = enabled
+        ? context.textColors.primary
+        : context.textColors.secondary.withValues(alpha: 0.5);
+
+    return Tooltip(
+      message: tooltip,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(0, 48),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+          side: BorderSide(
+            color: enabled
+                ? context.surfaces.border
+                : context.surfaces.border.withValues(alpha: 0.45),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.input),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: alignEnd
+              ? MainAxisAlignment.end
+              : MainAxisAlignment.start,
+          children: [
+            if (!alignEnd) Icon(icon, size: 17, color: textColor),
+            if (!alignEnd) const SizedBox(width: 6),
+            Flexible(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: alignEnd
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: textColor,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  if (readingTitle != null)
+                    Text(
+                      readingTitle!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: alignEnd ? TextAlign.end : TextAlign.start,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: context.textColors.secondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (alignEnd) const SizedBox(width: 6),
+            if (alignEnd) Icon(icon, size: 17, color: textColor),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScenarioEvidenceSectionHeader extends StatelessWidget {
+  const _ScenarioEvidenceSectionHeader({
+    required this.icon,
+    required this.title,
+    required this.color,
+    this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final Color color;
+  final String? subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 21),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: context.textColors.primary,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              if (subtitle != null)
+                Text(
+                  subtitle!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.textColors.secondary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -4096,6 +4756,86 @@ class _ScenarioImpactPill extends StatelessWidget {
             color: color,
             fontSize: 10,
             fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ScenarioArgumentEvidence extends StatelessWidget {
+  const _ScenarioArgumentEvidence({required this.argument});
+
+  final CopilotArgument argument;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textColors = context.textColors;
+    final items = argument.evidence.isEmpty
+        ? [ThesisEvidence(label: argument.id, tone: ThesisEvidenceTone.neutral)]
+        : argument.evidence;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final evidence in items.take(3)) ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.check_circle_outline_rounded,
+                color: _scenarioToneColor(context, evidence.tone),
+                size: 16,
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  evidence.label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: textColors.primary,
+                    fontSize: 11,
+                    height: 1.25,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+        ],
+      ],
+    );
+  }
+}
+
+class _ScenarioNoReadingsCard extends StatelessWidget {
+  const _ScenarioNoReadingsCard({required this.match});
+
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textColors = context.textColors;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.surfaces.surfaceHover.withValues(alpha: 0.52),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(
+          color: context.surfaces.border.withValues(alpha: 0.92),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(13),
+        child: Text(
+          match.signals.isEmpty
+              ? 'Aucune lecture moteur détaillée disponible pour cette rencontre.'
+              : match.signals.first.summary,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: textColors.secondary,
+            fontWeight: FontWeight.w700,
+            height: 1.35,
           ),
         ),
       ),
@@ -4528,64 +5268,87 @@ class _ScenarioHomeAwaySide extends StatelessWidget {
   }
 }
 
-class _ScenarioVigilanceCard extends StatelessWidget {
-  const _ScenarioVigilanceCard({required this.match});
+class _ScenarioVigilanceSection extends StatelessWidget {
+  const _ScenarioVigilanceSection({
+    required this.arguments,
+    required this.limits,
+  });
 
-  final MatchBoardItem match;
+  final List<CopilotArgument> arguments;
+  final List<ThesisEvidence> limits;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final surfaces = context.surfaces;
-    final textColors = context.textColors;
-    final color = context.opportunities.levelGap;
+    final color = context.semantic.warning;
+    final hasVigilance = arguments.isNotEmpty || limits.isNotEmpty;
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppRadius.input),
-        border: Border.all(color: surfaces.border.withValues(alpha: 0.75)),
+        border: Border.all(color: color.withValues(alpha: 0.54)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(11),
-        child: Row(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.visibility_outlined, color: color, size: 22),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'POINT DE VIGILANCE',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: color,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _scenarioVigilanceText(match),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: textColors.secondary,
-                      fontSize: 11,
-                      height: 1.3,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
+            _ScenarioEvidenceSectionHeader(
+              icon: Icons.warning_amber_rounded,
+              title: 'Ce qui la contredit ou la tempère',
+              subtitle: hasVigilance
+                  ? 'Points à prendre en compte'
+                  : 'Aucun élément contradictoire explicite disponible',
+              color: color,
             ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: textColors.secondary,
-              size: 22,
-            ),
+            if (hasVigilance) ...[
+              const SizedBox(height: 10),
+              for (final argument in arguments) ...[
+                _ScenarioVigilanceLine(
+                  label: _scenarioArgumentDescription(argument),
+                  icon: _scenarioArgumentIcon(argument),
+                ),
+                const SizedBox(height: 8),
+              ],
+              for (final limit in limits) ...[
+                _ScenarioVigilanceLine(
+                  label: limit.label,
+                  icon: Icons.remove_circle_outline_rounded,
+                ),
+                const SizedBox(height: 8),
+              ],
+            ],
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ScenarioVigilanceLine extends StatelessWidget {
+  const _ScenarioVigilanceLine({required this.label, required this.icon});
+
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: context.semantic.warning, size: 17),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: context.textColors.primary,
+              height: 1.3,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -4705,12 +5468,9 @@ String _scenarioSummary(MatchBoardItem match) {
 }
 
 int _scenarioReadingCount(MatchBoardItem match) {
-  final evidenceCount = match.thesis?.supportingEvidence.length ?? 0;
-  if (evidenceCount > 0) {
-    return evidenceCount.clamp(1, 3).toInt();
-  }
-  if (match.signals.isNotEmpty) {
-    return match.signals.length.clamp(1, 3).toInt();
+  final arguments = _scenarioArguments(match);
+  if (arguments.isNotEmpty) {
+    return arguments.length.clamp(1, 6).toInt();
   }
   return 1;
 }
@@ -4873,6 +5633,512 @@ List<ThesisEvidence> _scenarioEvidenceItems(MatchBoardItem match) {
   ];
 }
 
+class _ScenarioReading {
+  const _ScenarioReading({
+    required this.id,
+    required this.title,
+    required this.category,
+    required this.supports,
+    required this.resistances,
+    required this.contradictions,
+    required this.limits,
+    this.summary,
+    this.strength,
+  });
+
+  final String id;
+  final String title;
+  final String category;
+  final String? summary;
+  final ReadingStrength? strength;
+  final List<_ScenarioEvidenceDetail> supports;
+  final List<_ScenarioEvidenceDetail> resistances;
+  final List<_ScenarioEvidenceDetail> contradictions;
+  final List<ThesisEvidence> limits;
+}
+
+class _ScenarioEvidenceDetail {
+  const _ScenarioEvidenceDetail({
+    required this.title,
+    this.description,
+    this.strengthLabel,
+  });
+
+  factory _ScenarioEvidenceDetail.fromAssessment(
+    ThesisEvidenceAssessment item,
+  ) {
+    final reading = item.reading;
+    if (reading == null) {
+      return _ScenarioEvidenceDetail(title: item.label);
+    }
+    return _ScenarioEvidenceDetail(
+      title: FootballReadingCopyCatalog.titleFor(
+        reading.toCopilotArgument(subjectName: ''),
+      ),
+      description: _scenarioAssessmentDescription(item),
+      strengthLabel: _scenarioReadingStrengthLabel(reading.strength),
+    );
+  }
+
+  final String title;
+  final String? description;
+  final String? strengthLabel;
+}
+
+List<_ScenarioReading> _scenarioReadingsFor(
+  MatchBoardItem match,
+  Opportunity? opportunity,
+) {
+  final assessments =
+      opportunity?.thesisAssessments
+          .where((assessment) => assessment.isSupported)
+          .toList(growable: false) ??
+      const <ThesisAssessment>[];
+  if (assessments.isNotEmpty) {
+    return [
+      for (final assessment in assessments)
+        _scenarioReadingFromAssessment(match, assessment),
+    ];
+  }
+
+  // Some legacy opportunities carry their selected evidence only in the
+  // opportunity lists. Preserve those engine-produced relations rather than
+  // rebuilding a weaker view from presentation arguments.
+  if (opportunity != null &&
+      (opportunity.supportingReadings.isNotEmpty ||
+          opportunity.contradictoryReadings.isNotEmpty)) {
+    return [_scenarioReadingFromOpportunity(match, opportunity)];
+  }
+
+  final arguments = _scenarioArguments(match);
+  final supports = <_ScenarioEvidenceDetail>[];
+  final contradictions = <_ScenarioEvidenceDetail>[];
+  for (final argument in arguments) {
+    final item = _ScenarioEvidenceDetail(
+      title: _scenarioArgumentTitle(argument),
+      description: argument.evidence
+          .map((evidence) => evidence.label.trim())
+          .where((label) => label.isNotEmpty)
+          .join(' '),
+      strengthLabel: argument.severity == CopilotArgumentSeverity.strong
+          ? 'Fort'
+          : 'Modéré',
+    );
+    if (argument.family == CopilotArgumentFamily.contradiction) {
+      contradictions.add(item);
+    } else {
+      supports.add(item);
+    }
+  }
+
+  final thesisSummary = match.thesis?.summary.trim();
+  final signalSummary = match.signals.isEmpty
+      ? null
+      : match.signals.first.summary.trim();
+  return [
+    _ScenarioReading(
+      id: match.thesis?.id ?? match.id,
+      title: _scenarioTitle(match),
+      category: _scenarioFamilyLabel(
+        arguments.isEmpty ? null : arguments.first.family,
+      ),
+      summary: thesisSummary != null && thesisSummary.isNotEmpty
+          ? thesisSummary
+          : signalSummary != null && signalSummary.isNotEmpty
+          ? signalSummary
+          : null,
+      supports: List.unmodifiable(supports),
+      resistances: const [],
+      contradictions: List.unmodifiable(contradictions),
+      limits: match.thesis?.limits ?? const [],
+    ),
+  ];
+}
+
+_ScenarioReading _scenarioReadingFromOpportunity(
+  MatchBoardItem match,
+  Opportunity opportunity,
+) {
+  final thesis = opportunity.primaryThesis;
+  return _ScenarioReading(
+    id: thesis.id,
+    title: thesis.title,
+    category: _scenarioFamilyLabel(
+      thesis.arguments.isEmpty ? null : thesis.arguments.first.family,
+    ),
+    summary: thesis.summary,
+    supports: [
+      for (final reading in opportunity.supportingReadings)
+        _scenarioEvidenceDetailForReading(reading),
+    ],
+    resistances: const [],
+    contradictions: [
+      for (final reading in opportunity.contradictoryReadings)
+        _scenarioEvidenceDetailForReading(reading),
+    ],
+    limits: thesis.limits,
+  );
+}
+
+_ScenarioEvidenceDetail _scenarioEvidenceDetailForReading(
+  FootballReading reading,
+) {
+  return _ScenarioEvidenceDetail.fromAssessment(
+    ThesisEvidenceAssessment(
+      relation: ThesisEvidenceRelation.additionalSupport,
+      family: CopilotArgumentFamily.performance,
+      label: reading.id,
+      reading: reading,
+    ),
+  );
+}
+
+_ScenarioReading _scenarioReadingFromAssessment(
+  MatchBoardItem match,
+  ThesisAssessment assessment,
+) {
+  final primaryReading = assessment.evidence
+      .map((item) => item.reading)
+      .whereType<FootballReading>()
+      .firstOrNull;
+  final teamName = switch (assessment.subjectSide) {
+    ReadingSubjectSide.home => match.homeTeam.name,
+    ReadingSubjectSide.away => match.awayTeam.name,
+    ReadingSubjectSide.match => null,
+  };
+  final thesisSummary = assessment.id == match.thesis?.id
+      ? match.thesis?.summary.trim()
+      : null;
+  final summary = thesisSummary != null && thesisSummary.isNotEmpty
+      ? thesisSummary
+      : primaryReading == null
+      ? null
+      : _scenarioReadingSummary(primaryReading, teamName);
+
+  return _ScenarioReading(
+    id: assessment.id,
+    title: teamName == null || teamName.isEmpty
+        ? assessment.title
+        : '${assessment.title} pour $teamName',
+    category: _scenarioFamilyLabel(
+      assessment.evidence.isEmpty ? null : assessment.evidence.first.family,
+    ),
+    summary: summary,
+    strength: primaryReading?.strength,
+    supports: assessment.evidence
+        .where(
+          (item) =>
+              item.relation == ThesisEvidenceRelation.coreSupport ||
+              item.relation == ThesisEvidenceRelation.additionalSupport,
+        )
+        .map(_ScenarioEvidenceDetail.fromAssessment)
+        .toList(growable: false),
+    resistances: assessment.resistances
+        .map(_ScenarioEvidenceDetail.fromAssessment)
+        .toList(growable: false),
+    contradictions: assessment.contradictions
+        .map(_ScenarioEvidenceDetail.fromAssessment)
+        .toList(growable: false),
+    limits: assessment.id == match.thesis?.id
+        ? match.thesis?.limits ?? const []
+        : const [],
+  );
+}
+
+int _initialScenarioReadingIndex(
+  List<_ScenarioReading> readings,
+  String? thesisId,
+) {
+  final index = readings.indexWhere((reading) => reading.id == thesisId);
+  return index < 0 ? 0 : index;
+}
+
+String _scenarioAssessmentTitle(ThesisEvidenceAssessment item) {
+  final reading = item.reading;
+  if (reading == null) {
+    return item.label;
+  }
+  return FootballReadingCopyCatalog.titleFor(
+    reading.toCopilotArgument(subjectName: ''),
+  );
+}
+
+String? _scenarioAssessmentDescription(ThesisEvidenceAssessment item) {
+  final reading = item.reading;
+  if (reading == null) {
+    return null;
+  }
+  final evidence = reading.evidence.firstOrNull;
+  final factual = FootballReadingCopyCatalog.factualLineFor(
+    reading.toCopilotArgument(subjectName: ''),
+  );
+  if (factual != null && factual.isNotEmpty) {
+    return factual;
+  }
+  if (evidence != null && evidence.label.trim().isNotEmpty) {
+    return evidence.label;
+  }
+  return item.label;
+}
+
+String _scenarioReadingSummary(FootballReading reading, String? subjectName) {
+  final factual = FootballReadingCopyCatalog.factualLineFor(
+    reading.toCopilotArgument(subjectName: subjectName),
+  );
+  if (factual != null && factual.isNotEmpty) {
+    return factual;
+  }
+  final evidence = reading.evidence.firstOrNull;
+  if (evidence != null && evidence.label.trim().isNotEmpty) {
+    return evidence.label;
+  }
+  return FootballReadingCopyCatalog.summaryFor(
+    reading.toCopilotArgument(subjectName: subjectName),
+  );
+}
+
+String _scenarioFamilyLabel(CopilotArgumentFamily? family) {
+  return switch (family) {
+    CopilotArgumentFamily.hierarchy => 'Classement',
+    CopilotArgumentFamily.performance => 'Performance',
+    CopilotArgumentFamily.defense => 'Défense',
+    CopilotArgumentFamily.attack => 'Attaque',
+    CopilotArgumentFamily.form => 'Forme',
+    CopilotArgumentFamily.rhythm => 'Rythme',
+    CopilotArgumentFamily.market => 'Marché',
+    CopilotArgumentFamily.contradiction => 'Vigilance',
+    null => 'Lecture Lector',
+  };
+}
+
+String _scenarioReadingStrengthLabel(ReadingStrength strength) {
+  return switch (strength) {
+    ReadingStrength.strong => 'Fort',
+    ReadingStrength.moderate => 'Modéré',
+    ReadingStrength.weak => 'Faible',
+  };
+}
+
+List<CopilotArgument> _scenarioArguments(MatchBoardItem match) {
+  final arguments = match.thesis?.arguments ?? const <CopilotArgument>[];
+  if (arguments.isNotEmpty) {
+    return arguments.take(6).toList(growable: false);
+  }
+
+  final evidence = match.thesis?.supportingEvidence ?? const <ThesisEvidence>[];
+  if (evidence.isNotEmpty) {
+    return [
+      for (final indexed in evidence.take(6).indexed)
+        CopilotArgument(
+          id: '${match.fixture.id}_thesis_evidence_${indexed.$1}',
+          type: CopilotArgumentType.openMatch,
+          family: CopilotArgumentFamily.performance,
+          severity: CopilotArgumentSeverity.moderate,
+          subjectName: 'La rencontre',
+          parameters: const {},
+          evidence: [indexed.$2],
+          evidenceAction: CopilotEvidenceAction.results,
+        ),
+    ];
+  }
+
+  return [
+    for (final signal in match.signals.take(6))
+      _scenarioArgumentForSignal(signal),
+  ];
+}
+
+CopilotArgument _scenarioArgumentForSignal(MatchSignal signal) {
+  final evidence = [
+    for (final proof in signal.proofs)
+      if (proof.trim().isNotEmpty)
+        ThesisEvidence(label: proof.trim(), tone: ThesisEvidenceTone.neutral),
+  ];
+  final fallbackLabel = signal.summary.trim().isNotEmpty
+      ? signal.summary.trim()
+      : signal.title.trim();
+
+  return CopilotArgument(
+    id: 'signal:${signal.id}',
+    type: _scenarioArgumentTypeForSignal(signal.id),
+    family: _scenarioArgumentFamilyForSignal(signal.id),
+    severity: CopilotArgumentSeverity.moderate,
+    subjectName: signal.title.trim().isEmpty
+        ? 'La rencontre'
+        : signal.title.trim(),
+    parameters: {'readingId': signal.id},
+    evidence: evidence.isNotEmpty
+        ? evidence.take(3).toList(growable: false)
+        : [
+            ThesisEvidence(
+              label: fallbackLabel.isEmpty ? signal.id : fallbackLabel,
+              tone: ThesisEvidenceTone.neutral,
+            ),
+          ],
+    evidenceAction: _scenarioEvidenceActionForSignal(signal.id),
+  );
+}
+
+CopilotArgumentType _scenarioArgumentTypeForSignal(String signalId) {
+  return switch (signalId) {
+    'ranking_superiority' ||
+    'structural_level_gap' ||
+    'balanced_hierarchy' => CopilotArgumentType.rankingGap,
+    'positive_streak' ||
+    'improving_form' => CopilotArgumentType.strongRecentForm,
+    'negative_streak' || 'declining_form' => CopilotArgumentType.weakRecentForm,
+    'prolific_attack' ||
+    'high_xg_creation' ||
+    'offensive_underperformance' ||
+    'offensive_overperformance' => CopilotArgumentType.strongAttack,
+    'fragile_defense' ||
+    'high_xg_conceded' ||
+    'defensive_underperformance' => CopilotArgumentType.fragileDefense,
+    'solid_defense' ||
+    'frequent_clean_sheet' ||
+    'defensive_overperformance' => CopilotArgumentType.closedMatch,
+    'open_match_profile' || 'frequent_over_25' => CopilotArgumentType.openMatch,
+    'closed_match_profile' ||
+    'frequent_under_25' => CopilotArgumentType.closedMatch,
+    _ => CopilotArgumentType.openMatch,
+  };
+}
+
+CopilotArgumentFamily _scenarioArgumentFamilyForSignal(String signalId) {
+  return switch (signalId) {
+    'ranking_superiority' ||
+    'structural_level_gap' ||
+    'balanced_hierarchy' => CopilotArgumentFamily.hierarchy,
+    'positive_streak' ||
+    'negative_streak' ||
+    'improving_form' ||
+    'declining_form' => CopilotArgumentFamily.form,
+    'prolific_attack' ||
+    'scoring_difficulty' ||
+    'high_xg_creation' ||
+    'low_xg_creation' ||
+    'offensive_underperformance' ||
+    'offensive_overperformance' => CopilotArgumentFamily.attack,
+    'solid_defense' ||
+    'fragile_defense' ||
+    'frequent_clean_sheet' ||
+    'high_xg_conceded' ||
+    'defensive_overperformance' ||
+    'defensive_underperformance' => CopilotArgumentFamily.defense,
+    'open_match_profile' ||
+    'frequent_over_25' ||
+    'closed_match_profile' ||
+    'frequent_under_25' => CopilotArgumentFamily.rhythm,
+    'post_match_xg_rejected' ||
+    'misleading_result' ||
+    'conflicting_signals' => CopilotArgumentFamily.contradiction,
+    _ => CopilotArgumentFamily.performance,
+  };
+}
+
+CopilotEvidenceAction _scenarioEvidenceActionForSignal(String signalId) {
+  return switch (signalId) {
+    'ranking_superiority' ||
+    'structural_level_gap' ||
+    'balanced_hierarchy' => CopilotEvidenceAction.standings,
+    'positive_streak' ||
+    'negative_streak' ||
+    'improving_form' ||
+    'declining_form' => CopilotEvidenceAction.form,
+    'prolific_attack' ||
+    'scoring_difficulty' ||
+    'high_xg_creation' ||
+    'low_xg_creation' ||
+    'offensive_underperformance' ||
+    'offensive_overperformance' => CopilotEvidenceAction.offensiveStats,
+    'solid_defense' ||
+    'fragile_defense' ||
+    'frequent_clean_sheet' ||
+    'high_xg_conceded' ||
+    'defensive_overperformance' ||
+    'defensive_underperformance' => CopilotEvidenceAction.defensiveStats,
+    'open_match_profile' ||
+    'frequent_over_25' ||
+    'closed_match_profile' ||
+    'frequent_under_25' => CopilotEvidenceAction.rhythm,
+    _ => CopilotEvidenceAction.results,
+  };
+}
+
+String _scenarioArgumentTitle(CopilotArgument argument) {
+  final subject = argument.subjectName.trim();
+  final family = _scenarioArgumentFamilyLabel(argument.family);
+  if (subject.isEmpty || subject == 'La rencontre') {
+    return family;
+  }
+  return '$subject - $family';
+}
+
+String _scenarioArgumentDescription(CopilotArgument argument) {
+  final evidence = argument.evidence;
+  if (evidence.isNotEmpty && evidence.first.label.trim().isNotEmpty) {
+    return evidence.first.label;
+  }
+  return argument.id;
+}
+
+String _scenarioArgumentImpactLabel(CopilotArgument argument) {
+  if (argument.family == CopilotArgumentFamily.contradiction) {
+    return 'Vigilance';
+  }
+  return argument.severity == CopilotArgumentSeverity.strong
+      ? 'Signal fort'
+      : 'Signal modéré';
+}
+
+Color _scenarioArgumentImpactColor(
+  BuildContext context,
+  CopilotArgument argument,
+) {
+  if (argument.family == CopilotArgumentFamily.contradiction) {
+    return context.semantic.warning;
+  }
+  if (argument.family == CopilotArgumentFamily.hierarchy) {
+    return context.opportunities.levelGap;
+  }
+  return context.brand.accent;
+}
+
+IconData _scenarioArgumentIcon(CopilotArgument argument) {
+  return switch (argument.family) {
+    CopilotArgumentFamily.hierarchy => Icons.leaderboard_rounded,
+    CopilotArgumentFamily.form => Icons.trending_up_rounded,
+    CopilotArgumentFamily.performance => Icons.query_stats_rounded,
+    CopilotArgumentFamily.attack => Icons.sports_soccer_rounded,
+    CopilotArgumentFamily.defense => Icons.shield_outlined,
+    CopilotArgumentFamily.rhythm => Icons.speed_rounded,
+    CopilotArgumentFamily.contradiction => Icons.warning_amber_rounded,
+    CopilotArgumentFamily.market => Icons.tune_rounded,
+  };
+}
+
+String _scenarioArgumentFamilyLabel(CopilotArgumentFamily family) {
+  return switch (family) {
+    CopilotArgumentFamily.hierarchy => 'Hiérarchie',
+    CopilotArgumentFamily.form => 'Forme',
+    CopilotArgumentFamily.performance => 'Contexte',
+    CopilotArgumentFamily.attack => 'Attaque',
+    CopilotArgumentFamily.defense => 'Défense',
+    CopilotArgumentFamily.rhythm => 'Rythme',
+    CopilotArgumentFamily.contradiction => 'Point de vigilance',
+    CopilotArgumentFamily.market => 'Marché',
+  };
+}
+
+Color _scenarioToneColor(BuildContext context, ThesisEvidenceTone tone) {
+  return switch (tone) {
+    ThesisEvidenceTone.positive => context.semantic.success,
+    ThesisEvidenceTone.warning => context.semantic.warning,
+    ThesisEvidenceTone.negative => context.semantic.error,
+    ThesisEvidenceTone.neutral => context.brand.accent,
+  };
+}
+
 String _scenarioSheetIntro(MatchBoardItem match) {
   final leader = _standingLeader(match);
   final teamName = leader?.name ?? match.homeTeam.name;
@@ -4952,23 +6218,6 @@ String _scenarioHomeAwayDescription(MatchBoardItem match) {
     return '${match.awayTeam.name} voyage mieux que le rendement domicile adverse ne le suggère.';
   }
   return 'Le rendement domicile / extérieur reste équilibré sur les données disponibles.';
-}
-
-String _scenarioVigilanceText(MatchBoardItem match) {
-  final limits = match.thesis?.limits ?? const <ThesisEvidence>[];
-  if (limits.isNotEmpty) {
-    return limits.first.label;
-  }
-
-  final awayGoals = match.analysis.awayRecentLeagueMatches
-      .take(5)
-      .where((recent) => recent.goalsFor != null)
-      .fold<int>(0, (sum, recent) => sum + recent.goalsFor!);
-  if (awayGoals > 0) {
-    return '${match.awayTeam.name} reste capable de marquer ($awayGoals buts sur les 5 derniers matchs disponibles).';
-  }
-
-  return 'Cette lecture reste à confronter aux compositions et aux informations d’avant-match.';
 }
 
 String _pointsLabel(TeamStandingSnapshot? standing) {

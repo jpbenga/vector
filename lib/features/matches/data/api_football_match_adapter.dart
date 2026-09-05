@@ -297,6 +297,7 @@ class ApiFootballMatchAdapter {
       teamId: teamId,
       teamName: teamName ?? 'Équipe',
       group: _stringValue(standing['group']),
+      description: _stringValue(standing['description']),
       rank: _intValue(standing['rank']),
       points: _intValue(standing['points']),
       played: _intValue(all['played']),

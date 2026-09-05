@@ -7,6 +7,7 @@ import 'package:copilot/core/supabase/supabase_initializer.dart';
 import 'package:copilot/core/theme/app_theme.dart';
 import 'package:copilot/core/theme/app_theme_controller.dart';
 import 'package:copilot/features/matches/data/match_feed_repository.dart';
+import 'package:copilot/features/matches/domain/football_reading.dart';
 import 'package:copilot/features/matches/domain/match_board_item.dart';
 import 'package:copilot/features/matches/presentation/lector_space_page.dart';
 import 'package:copilot/features/matches/presentation/lector_strategies_page.dart';
@@ -66,16 +67,50 @@ void main() {
       );
 
       expect(find.text('À suivre aujourd’hui'), findsOneWidget);
-      expect(find.text('Ma sélection'), findsOneWidget);
+      expect(find.text('Ma sélection'), findsNothing);
       expect(find.text('Chelsea'), findsWidgets);
       expect(find.text('Tottenham'), findsWidgets);
-      expect(find.text('Match ouvert'), findsOneWidget);
-      expect(find.text('3 lectures convergentes'), findsOneWidget);
-      expect(find.text('Écart de niveau structurel'), findsNothing);
-      expect(find.text('Avantage au classement'), findsNothing);
-      expect(find.text('Dynamique positive'), findsNothing);
+      expect(find.text('3 lectures'), findsOneWidget);
+      expect(find.text('Écart de niveau structurel'), findsOneWidget);
       expect(find.text('Tous les matchs'), findsNothing);
     });
+
+    testWidgets(
+      'keeps repository-personalized matches visible without re-filtering them',
+      (tester) async {
+        final personalizedMatch =
+            _match(
+              id: 'repository-personalized',
+              homeName: 'Regression FC',
+              awayName: 'Reference United',
+              kickoff: _relativeKickoff(0, hour: 20),
+            ).copyWith(
+              compatibility: 58,
+              signals: const [
+                MatchSignal(
+                  id: 'engine_reading_not_in_presentation_catalog',
+                  title: 'Lecture moteur personnalisée',
+                  summary: 'Le moteur a retenu cette rencontre pour le profil.',
+                  proofs: ['Signal produit par le moteur.'],
+                ),
+              ],
+            );
+
+        await _pumpPage(
+          tester,
+          repository: _FakeMatchFeedRepository(
+            opportunities: const [],
+            matches: [personalizedMatch],
+            personalizedMatches: [personalizedMatch],
+          ),
+        );
+
+        expect(find.text('À suivre aujourd’hui'), findsOneWidget);
+        expect(find.text('Regression FC'), findsOneWidget);
+        expect(find.text('Reference United'), findsOneWidget);
+        expect(find.text('Rien de vraiment lisible'), findsNothing);
+      },
+    );
 
     testWidgets('keeps All matches separated and folded by default', (
       tester,
@@ -134,6 +169,615 @@ void main() {
       expect(find.text('Liverpool'), findsOneWidget);
     });
 
+    testWidgets(
+      'For me filters reading-only matches by selected calendar date',
+      (tester) async {
+        MatchBoardItem readingMatch(String id, String home, int dayOffset) {
+          return _match(
+            id: id,
+            homeName: home,
+            awayName: 'Away $home',
+            kickoff: _relativeKickoff(dayOffset, hour: 20),
+          ).copyWith(
+            signals: [
+              MatchSignal(
+                id: 'positive_streak',
+                title: 'Dynamique positive pour $home',
+                summary: 'Lecture détectée',
+                proofs: const ['Lecture positive_streak détectée.'],
+              ),
+            ],
+            compatibility: 72,
+          );
+        }
+
+        final personalizedMatches = [
+          readingMatch('past-reading', 'Past Club', -1),
+          readingMatch('today-reading', 'Today Club', 0),
+          readingMatch('future-reading', 'Future Club', 1),
+        ];
+
+        await _pumpPage(
+          tester,
+          repository: _FakeMatchFeedRepository(
+            opportunities: const [],
+            matches: personalizedMatches,
+            personalizedMatches: personalizedMatches,
+          ),
+        );
+
+        expect(find.text('À suivre aujourd’hui'), findsOneWidget);
+        expect(find.text('Past Club'), findsNothing);
+        expect(find.text('Today Club'), findsWidgets);
+        expect(find.text('Future Club'), findsNothing);
+
+        await tester.tap(
+          find.text(_calendarLabel(_relativeKickoff(1, hour: 20))),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Past Club'), findsNothing);
+        expect(find.text('Today Club'), findsNothing);
+        expect(find.text('Future Club'), findsWidgets);
+
+        await tester.tap(
+          find.text(_calendarLabel(_relativeKickoff(-1, hour: 20))),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Past Club'), findsWidgets);
+        expect(find.text('Today Club'), findsNothing);
+        expect(find.text('Future Club'), findsNothing);
+      },
+    );
+
+    testWidgets('filters the personalized list locally by selected reading', (
+      tester,
+    ) async {
+      MatchBoardItem readingMatch({
+        required String id,
+        required String homeName,
+        required String readingId,
+        required String title,
+      }) {
+        return _match(
+          id: id,
+          homeName: homeName,
+          awayName: 'Away $homeName',
+          kickoff: _relativeKickoff(0, hour: 20),
+        ).copyWith(
+          signals: [
+            MatchSignal(
+              id: readingId,
+              title: title,
+              summary: '$title détecté.',
+              proofs: ['$title confirmé par les données disponibles.'],
+            ),
+          ],
+        );
+      }
+
+      final rankingMatch = readingMatch(
+        id: 'ranking-match',
+        homeName: 'Ranking FC',
+        readingId: 'ranking_superiority',
+        title: 'Avantage classement',
+      );
+      final attackMatch = readingMatch(
+        id: 'attack-match',
+        homeName: 'Attack FC',
+        readingId: 'prolific_attack',
+        title: 'Attaque efficace',
+      );
+
+      await _pumpPage(
+        tester,
+        profile: _completedProfile().withOptionIds('opportunity_profiles', [
+          'ranking_gap',
+          'prolific_attack',
+        ]),
+        repository: _FakeMatchFeedRepository(
+          opportunities: const [],
+          matches: [rankingMatch, attackMatch],
+          personalizedMatches: [rankingMatch, attackMatch],
+        ),
+      );
+
+      expect(find.text('Tout'), findsOneWidget);
+      expect(find.text('(2)'), findsOneWidget);
+      expect(find.text('Avantage classement'), findsWidgets);
+      expect(find.text('Attaque efficace'), findsWidgets);
+
+      await tester.tap(find.text('Avantage classement').first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ranking FC'), findsOneWidget);
+      expect(find.text('Attack FC'), findsNothing);
+
+      await tester.tap(find.text('Attaque efficace').first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ranking FC'), findsNothing);
+      expect(find.text('Attack FC'), findsOneWidget);
+    });
+
+    testWidgets(
+      'deduplicates fragile-defense filters into one canonical preference',
+      (tester) async {
+        MatchBoardItem readingMatch(String id, String homeName) {
+          return _match(
+            id: id,
+            homeName: homeName,
+            awayName: 'Away $homeName',
+            kickoff: _relativeKickoff(0, hour: 20),
+          ).copyWith(
+            signals: [
+              MatchSignal(
+                id: 'fragile_defense',
+                title: '$homeName fragile à domicile',
+                summary: 'Défense fragile détectée.',
+                proofs: const ['Lecture fragile_defense détectée.'],
+              ),
+            ],
+          );
+        }
+
+        final first = readingMatch('fragile-a', 'Alpha FC');
+        final second = readingMatch('fragile-b', 'Beta FC');
+        await _pumpPage(
+          tester,
+          profile: _completedProfile().withOptionIds('opportunity_profiles', [
+            'fragile_defense',
+          ]),
+          repository: _FakeMatchFeedRepository(
+            opportunities: const [],
+            matches: [first, second],
+            personalizedMatches: [first, second],
+          ),
+        );
+
+        final filter = find.byKey(
+          const ValueKey('for-me-filter-fragile_defense'),
+        );
+        expect(filter, findsOneWidget);
+        expect(
+          find.descendant(of: filter, matching: find.text('Défense fragile')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: filter, matching: find.text('(2)')),
+          findsOneWidget,
+        );
+
+        await tester.tap(filter);
+        await tester.pumpAndSettle();
+
+        expect(find.text('Alpha FC'), findsOneWidget);
+        expect(find.text('Beta FC'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'groups home and away variants under their selected canonical preference',
+      (tester) async {
+        MatchBoardItem readingMatch({
+          required String id,
+          required String homeName,
+          required String readingId,
+          required String title,
+        }) {
+          return _match(
+            id: id,
+            homeName: homeName,
+            awayName: 'Away $homeName',
+            kickoff: _relativeKickoff(0, hour: 20),
+          ).copyWith(
+            signals: [
+              MatchSignal(
+                id: readingId,
+                title: title,
+                summary: '$title détecté.',
+                proofs: const ['Lecture détectée.'],
+              ),
+            ],
+          );
+        }
+
+        final home = readingMatch(
+          id: 'weak-home',
+          homeName: 'Home Weak FC',
+          readingId: 'weak_home_team',
+          title: 'Home Weak FC fragile à domicile',
+        );
+        final away = readingMatch(
+          id: 'weak-away',
+          homeName: 'Away Weak FC',
+          readingId: 'weak_away_team',
+          title: 'Away Weak FC fragile à l’extérieur',
+        );
+        await _pumpPage(
+          tester,
+          profile: _completedProfile().withOptionIds('opportunity_profiles', [
+            'struggling_team',
+          ]),
+          repository: _FakeMatchFeedRepository(
+            opportunities: const [],
+            matches: [home, away],
+            personalizedMatches: [home, away],
+          ),
+        );
+
+        final filter = find.byKey(
+          const ValueKey('for-me-filter-struggling_team'),
+        );
+        expect(filter, findsOneWidget);
+        expect(
+          find.descendant(
+            of: filter,
+            matching: find.text('Équipe en difficulté'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: filter, matching: find.text('(2)')),
+          findsOneWidget,
+        );
+
+        await tester.tap(filter);
+        await tester.pumpAndSettle();
+
+        expect(find.text('Home Weak FC'), findsOneWidget);
+        expect(find.text('Away Weak FC'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Voir tout expands only every personalized story for the selected date',
+      (tester) async {
+        MatchBoardItem readingMatch(String id, String home, int dayOffset) {
+          return _match(
+            id: id,
+            homeName: home,
+            awayName: 'Away $home',
+            kickoff: _relativeKickoff(dayOffset, hour: 14),
+          ).copyWith(
+            signals: [
+              MatchSignal(
+                id: 'ranking_superiority',
+                title: 'Avantage classement pour $home',
+                summary: 'Lecture classement détectée',
+                proofs: const ['Lecture ranking_superiority détectée.'],
+              ),
+            ],
+            compatibility: 88,
+          );
+        }
+
+        final personalizedMatches = [
+          for (var index = 0; index < 5; index++)
+            readingMatch('for-me-$index', 'Home $index', 0),
+          readingMatch('for-me-tomorrow', 'Tomorrow Club', 1),
+        ];
+
+        await _pumpPage(
+          tester,
+          repository: _FakeMatchFeedRepository(
+            opportunities: const [],
+            matches: personalizedMatches,
+            personalizedMatches: personalizedMatches,
+          ),
+        );
+
+        expect(find.text('Voir tout (5)'), findsOneWidget);
+        expect(find.text('Home 0'), findsWidgets);
+        expect(find.text('Home 1'), findsWidgets);
+        expect(find.text('Home 2'), findsWidgets);
+        expect(find.text('1 lecture'), findsNWidgets(3));
+        expect(find.text('Tomorrow Club'), findsNothing);
+
+        await tester.tap(find.text('Voir tout (5)'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Home 3'), findsOneWidget);
+        expect(find.text('Away Home 3'), findsOneWidget);
+        expect(find.text('Home 4'), findsOneWidget);
+        expect(find.text('Away Home 4'), findsOneWidget);
+        expect(find.text('Tomorrow Club'), findsNothing);
+        expect(find.text('Réduire'), findsOneWidget);
+      },
+    );
+
+    testWidgets('Voir les lectures displays real reading-only signals', (
+      tester,
+    ) async {
+      final readingOnlyMatch =
+          _match(
+            id: 'reading-only-detail',
+            homeName: 'Signal-only FC',
+            awayName: 'Proof Town',
+            kickoff: _relativeKickoff(0, hour: 19),
+          ).copyWith(
+            signals: const [
+              MatchSignal(
+                id: 'ranking_superiority',
+                title: 'Avantage classement pour Signal-only FC',
+                summary: 'Signal-only FC possède un avantage au classement.',
+                proofs: ['Signal-only FC possède 6 rangs d’avance.'],
+              ),
+              MatchSignal(
+                id: 'prolific_attack',
+                title: 'Attaque productive pour Signal-only FC',
+                summary: 'Signal-only FC marque régulièrement.',
+                proofs: ['Signal-only FC a marqué 9 buts récemment.'],
+              ),
+            ],
+            compatibility: 76,
+          );
+
+      await _pumpPage(
+        tester,
+        repository: _FakeMatchFeedRepository(
+          opportunities: const [],
+          matches: [readingOnlyMatch],
+          personalizedMatches: [readingOnlyMatch],
+        ),
+      );
+
+      await tester.tap(find.text('Signal-only FC').first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Voir les 2 lectures'), findsOneWidget);
+
+      await tester.tap(find.text('Voir les 2 lectures'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Avantage classement pour Signal-only FC'),
+        findsOneWidget,
+      );
+      expect(find.text('Ce qui soutient cette lecture (2)'), findsOneWidget);
+      expect(
+        find.text('Aucune résistance ou contradiction explicite produite.'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Signal-only FC possède 6 rangs d’avance.'),
+        findsWidgets,
+      );
+      expect(
+        find.text('Signal-only FC a marqué 9 buts récemment.'),
+        findsWidgets,
+      );
+      expect(
+        find.text(
+          'Aucune lecture moteur détaillée disponible pour cette rencontre.',
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets(
+      'shows engine support, resistance and contradiction in reading sheet',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(390, 844));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        final match = _match(
+          id: 'assessment-detail',
+          homeName: 'Alpha FC',
+          awayName: 'Beta FC',
+          kickoff: _relativeKickoff(0, hour: 19),
+        );
+        final now = DateTime(2026, 9, 4, 12);
+        FootballReading reading({
+          required String id,
+          required ReadingStrength strength,
+          required String label,
+        }) {
+          return FootballReading(
+            id: id,
+            subjectTeamId: match.homeTeam.id,
+            subjectSide: ReadingSubjectSide.home,
+            status: ReadingStatus.detected,
+            strength: strength,
+            evidence: [
+              ReadingEvidence(
+                label: label,
+                kind: ReadingEvidenceKind.form,
+                sourcePath: 'test.$id',
+              ),
+            ],
+            warnings: const [],
+            asOf: now,
+            sampleSize: 5,
+          );
+        }
+
+        final supporting = reading(
+          id: 'positive_streak',
+          strength: ReadingStrength.strong,
+          label: 'Alpha FC reste sur une série favorable.',
+        );
+        final resistance = reading(
+          id: 'strong_home_team',
+          strength: ReadingStrength.moderate,
+          label: 'Beta FC conserve un bon rendement à domicile.',
+        );
+        final contradiction = reading(
+          id: 'negative_streak',
+          strength: ReadingStrength.moderate,
+          label: 'Une donnée récente va dans le sens inverse.',
+        );
+
+        await _pumpPage(
+          tester,
+          repository: _FakeMatchFeedRepository(
+            opportunities: [
+              _opportunity(
+                match: match,
+                retainedTheses: [
+                  _thesis(
+                    id: 'expected_domination',
+                    title: 'Domination attendue',
+                  ),
+                ],
+                thesisAssessments: [
+                  ThesisAssessment(
+                    id: 'expected_domination',
+                    title: 'Domination attendue',
+                    subjectSide: ReadingSubjectSide.home,
+                    status: ThesisAssessmentStatus.supported,
+                    clarityScore: 74,
+                    evidence: [
+                      ThesisEvidenceAssessment(
+                        relation: ThesisEvidenceRelation.coreSupport,
+                        family: CopilotArgumentFamily.form,
+                        label: 'Série favorable',
+                        reading: supporting,
+                      ),
+                      ThesisEvidenceAssessment(
+                        relation: ThesisEvidenceRelation.resistance,
+                        family: CopilotArgumentFamily.form,
+                        label: 'Rendement adverse',
+                        reading: resistance,
+                      ),
+                      ThesisEvidenceAssessment(
+                        relation: ThesisEvidenceRelation.contradiction,
+                        family: CopilotArgumentFamily.form,
+                        label: 'Signal contraire',
+                        reading: contradiction,
+                      ),
+                    ],
+                  ),
+                  ThesisAssessment(
+                    id: 'convergent_open_match',
+                    title: 'Match ouvert',
+                    subjectSide: ReadingSubjectSide.match,
+                    status: ThesisAssessmentStatus.supported,
+                    clarityScore: 58,
+                    evidence: [
+                      ThesisEvidenceAssessment(
+                        relation: ThesisEvidenceRelation.additionalSupport,
+                        family: CopilotArgumentFamily.rhythm,
+                        label: 'Rythme favorable',
+                        reading: supporting,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+
+        await tester.tap(find.text('Alpha FC').first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Voir les 1 lectures'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Domination attendue pour Alpha FC'), findsOneWidget);
+        expect(find.text('Ce qui soutient cette lecture (1)'), findsOneWidget);
+        expect(
+          find.text('Ce qui contredit ou tempère cette lecture (2)'),
+          findsOneWidget,
+        );
+        expect(find.text('Résistances (1)'), findsOneWidget);
+        expect(find.text('Contradictions (1)'), findsOneWidget);
+        expect(
+          find.text('Alpha FC reste sur une série favorable.'),
+          findsOneWidget,
+        );
+        expect(
+          find.text('Beta FC conserve un bon rendement à domicile.'),
+          findsOneWidget,
+        );
+
+        await tester.scrollUntilVisible(
+          find.byTooltip('Lecture suivante'),
+          180,
+          scrollable: find.byType(Scrollable).last,
+        );
+        await tester.tap(find.byTooltip('Lecture suivante'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Match ouvert'), findsOneWidget);
+        expect(find.text('2 / 2'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'keeps selected opportunity contradictions when assessments are absent',
+      (tester) async {
+        final match = _match(
+          id: 'legacy-opportunity-evidence',
+          homeName: 'Alpha FC',
+          awayName: 'Beta FC',
+          kickoff: _relativeKickoff(0, hour: 19),
+        );
+        final now = DateTime(2026, 9, 4, 12);
+        FootballReading reading(String id, String label) {
+          return FootballReading(
+            id: id,
+            subjectTeamId: match.homeTeam.id,
+            subjectSide: ReadingSubjectSide.home,
+            status: ReadingStatus.detected,
+            strength: ReadingStrength.moderate,
+            evidence: [
+              ReadingEvidence(
+                label: label,
+                kind: ReadingEvidenceKind.form,
+                sourcePath: 'test.$id',
+              ),
+            ],
+            warnings: const [],
+            asOf: now,
+            sampleSize: 5,
+          );
+        }
+
+        await _pumpPage(
+          tester,
+          repository: _FakeMatchFeedRepository(
+            opportunities: [
+              _opportunity(
+                match: match,
+                retainedTheses: [
+                  _thesis(
+                    id: 'expected_domination',
+                    title: 'Domination attendue',
+                  ),
+                ],
+                supportingReadings: [
+                  reading('positive_streak', 'Alpha FC reste en forme.'),
+                ],
+                contradictoryReadings: [
+                  reading(
+                    'negative_streak',
+                    'Une tendance va contre Alpha FC.',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+
+        await tester.tap(find.text('Alpha FC').first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Voir les 1 lectures'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Ce qui soutient cette lecture (1)'), findsOneWidget);
+        expect(
+          find.text('Ce qui contredit ou tempère cette lecture (1)'),
+          findsOneWidget,
+        );
+        expect(
+          find.text('Aucune résistance ou contradiction explicite produite.'),
+          findsNothing,
+        );
+      },
+    );
+
     testWidgets('keeps a manually selected date outside the snapshot window', (
       tester,
     ) async {
@@ -177,6 +821,66 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets(
+      'shows For me matches from the first fixture date when today is covered but empty',
+      (tester) async {
+        final today = _dayOnly(DateTime.now());
+        final firstFixtureDate = DateTime(
+          today.year,
+          today.month,
+          today.day + 3,
+          20,
+        );
+
+        await _pumpPage(
+          tester,
+          repository: _FakeMatchFeedRepository(
+            metadata: MatchFeedSnapshotMetadata(
+              source: 'test',
+              capturedAt: DateTime.now(),
+              timezone: 'Europe/Paris',
+              matchCount: 1,
+              windowStart: today,
+              windowEnd: DateTime(today.year, today.month, today.day + 3),
+            ),
+            opportunities: [
+              _opportunity(
+                match: _match(
+                  id: 'future-window-match',
+                  homeName: 'Jeonbuk Motors',
+                  awayName: 'Pohang Steelers',
+                  competitionId: '292',
+                  competitionName: 'K League 1',
+                  kickoff: firstFixtureDate,
+                ),
+                retainedTheses: [
+                  _thesis(
+                    id: 'controlled_favorite',
+                    title: 'Favori en contrôle',
+                  ),
+                ],
+              ),
+            ],
+            matches: [
+              _match(
+                id: 'future-window-match',
+                homeName: 'Jeonbuk Motors',
+                awayName: 'Pohang Steelers',
+                competitionId: '292',
+                competitionName: 'K League 1',
+                kickoff: firstFixtureDate,
+              ),
+            ],
+          ),
+          profile: _completedProfile().withOptionIds('competitions', ['292']),
+        );
+
+        expect(find.text('Jeonbuk Motors'), findsWidgets);
+        expect(find.text('Pohang Steelers'), findsWidgets);
+        expect(find.text('Domination attendue'), findsWidgets);
+      },
+    );
 
     testWidgets('opens the redesigned match detail from For me', (
       tester,
@@ -913,6 +1617,9 @@ Opportunity _opportunity({
   required List<MatchThesis> retainedTheses,
   List<OpportunityMarketCompatibility> compatibleMarkets = const [],
   RecommendedMarket? recommendedMarket,
+  List<FootballReading> supportingReadings = const [],
+  List<FootballReading> contradictoryReadings = const [],
+  List<ThesisAssessment> thesisAssessments = const [],
   int engineScore = 82,
 }) {
   final sourceMatch = match ?? _match();
@@ -931,6 +1638,9 @@ Opportunity _opportunity({
     retainedTheses: retainedTheses,
     compatibleMarkets: compatibleMarkets,
     recommendedMarket: recommendedMarket,
+    supportingReadings: supportingReadings,
+    contradictoryReadings: contradictoryReadings,
+    thesisAssessments: thesisAssessments,
   );
 }
 
@@ -1132,11 +1842,13 @@ class _FakeMatchFeedRepository implements MatchFeedRepository {
   const _FakeMatchFeedRepository({
     required this.opportunities,
     this.matches,
+    this.personalizedMatches,
     this.metadata,
   });
 
   final List<Opportunity> opportunities;
   final List<MatchBoardItem>? matches;
+  final List<MatchBoardItem>? personalizedMatches;
   final MatchFeedSnapshotMetadata? metadata;
 
   @override
@@ -1169,7 +1881,11 @@ class _FakeMatchFeedRepository implements MatchFeedRepository {
 
   @override
   List<MatchBoardItem> personalizedFor(DecisionProfile profile) {
-    throw StateError('For me consumes opportunitiesFor directly.');
+    return personalizedMatches ??
+        [
+          for (final opportunity in opportunities)
+            opportunity.toMatchBoardItem(),
+        ];
   }
 }
 

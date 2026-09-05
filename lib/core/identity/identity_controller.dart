@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../auth/supabase_auth_controller.dart';
@@ -14,7 +16,6 @@ enum IdentityStatus {
   migratingGuestToNewAccount,
   account,
   loggingOut,
-  reauthRequired,
   authFailed,
 }
 
@@ -44,8 +45,6 @@ class IdentityController extends ChangeNotifier {
   bool get isResolving => _status == IdentityStatus.resolving;
   bool get isGuest => _scope?.isGuest == true;
   bool get isAccount => _scope?.isAccount == true;
-  bool get isReauthRequired => _status == IdentityStatus.reauthRequired;
-
   Future<void> start() async {
     if (_started) {
       return;
@@ -67,8 +66,7 @@ class IdentityController extends ChangeNotifier {
     return _scope == token.scope &&
         _revision == token.revision &&
         _status != IdentityStatus.loggingOut &&
-        _status != IdentityStatus.resolving &&
-        _status != IdentityStatus.reauthRequired;
+        _status != IdentityStatus.resolving;
   }
 
   Future<void> signInWithPassword({
@@ -156,20 +154,6 @@ class IdentityController extends ChangeNotifier {
     }
   }
 
-  Future<void> continueWithoutAccountFromReauth() async {
-    _isVoluntaryLogout = true;
-    try {
-      if (authController.isSignedIn) {
-        await authController.signOut();
-      }
-    } finally {
-      final guestId = await deviceIdentityStore
-          .currentOrRotateConsumedGuestId();
-      _isVoluntaryLogout = false;
-      _activateGuest(guestId);
-    }
-  }
-
   Future<void> _resolveInitialScope() async {
     final user = authController.user;
     if (user != null) {
@@ -198,10 +182,19 @@ class IdentityController extends ChangeNotifier {
     if (currentScope != null && currentScope.isAccount) {
       _lastAccountScope = currentScope;
       _scope = null;
-      _status = IdentityStatus.reauthRequired;
+      _status = IdentityStatus.resolving;
       _revision++;
       notifyListeners();
+      unawaited(_activateGuestAfterSessionExpiration());
     }
+  }
+
+  Future<void> _activateGuestAfterSessionExpiration() async {
+    final guestId = await deviceIdentityStore.currentOrRotateConsumedGuestId();
+    if (authController.user != null || _scope?.isAccount == true) {
+      return;
+    }
+    _activateGuest(guestId);
   }
 
   Future<void> _restoreGuestAfterAuthFailure() async {

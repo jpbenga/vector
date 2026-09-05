@@ -70,11 +70,23 @@ class CompiledDecisionProfile {
 
   Map<String, MatchTypePreference> get opportunityProfiles => matchTypes;
 
+  bool get hasEnabledCompetitions =>
+      competitions.values.any((preference) => preference.enabled);
+
+  bool get hasEnabledMarkets =>
+      markets.values.any((preference) => preference.enabled);
+
+  bool get hasEnabledOpportunityProfiles =>
+      opportunityProfiles.values.any((preference) => preference.enabled);
+
   bool get isCompleted =>
       configurationState == ProfileConfigurationState.completed;
 
+  bool get canFilterReadings =>
+      hasEnabledCompetitions && hasEnabledOpportunityProfiles;
+
   bool isCompetitionEnabled(String competitionId) {
-    if (!isCompleted) {
+    if (!canFilterReadings) {
       return false;
     }
 
@@ -110,12 +122,27 @@ class CompiledDecisionProfile {
     ).any(isOpportunityProfileEnabled);
   }
 
+  bool isReadingAllowed(String readingId) {
+    if (!canFilterReadings) {
+      return false;
+    }
+
+    final profileIds = OpportunityProfileCatalog.profileIdsForReading(
+      readingId,
+    );
+    if (profileIds.isEmpty) {
+      return true;
+    }
+
+    return profileIds.any(isOpportunityProfileEnabled);
+  }
+
   bool isMatchTypeEnabled(String matchTypeId) {
     return isOpportunityProfileEnabled(matchTypeId);
   }
 
   bool isOpportunityProfileEnabled(String profileId) {
-    if (!isCompleted) {
+    if (!canFilterReadings) {
       return false;
     }
 

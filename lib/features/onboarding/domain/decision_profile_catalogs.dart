@@ -698,6 +698,68 @@ class OpportunityProfileCatalog {
         if (definition.thesisIds.contains(thesisId)) definition.id,
     ];
   }
+
+  static List<String> profileIdsForReading(String readingId) {
+    return _profileIdsByReadingId[readingId] ?? const [];
+  }
+
+  static const Map<String, List<String>> _profileIdsByReadingId = {
+    'balanced_hierarchy': ['ranking_gap'],
+    'ranking_superiority': ['solid_favorite', 'ranking_gap'],
+    'structural_level_gap': ['solid_favorite', 'ranking_gap'],
+    'positive_streak': ['solid_favorite', 'positive_series'],
+    'improving_form': ['solid_favorite', 'positive_series'],
+    'negative_streak': ['struggling_team', 'negative_series'],
+    'declining_form': ['struggling_team', 'negative_series'],
+    'strong_home_team': ['solid_favorite'],
+    'weak_home_team': ['struggling_team'],
+    'strong_away_team': ['solid_favorite'],
+    'weak_away_team': ['solid_favorite', 'struggling_team'],
+    'home_away_mismatch': ['solid_favorite'],
+    'prolific_attack': ['solid_favorite', 'offensive_match', 'prolific_attack'],
+    'scoring_difficulty': [
+      'struggling_team',
+      'defensive_match',
+      'negative_series',
+    ],
+    'solid_defense': ['solid_favorite', 'defensive_match'],
+    'fragile_defense': [
+      'struggling_team',
+      'offensive_match',
+      'fragile_defense',
+    ],
+    'frequent_clean_sheet': ['solid_favorite', 'defensive_match'],
+    'open_match_profile': ['offensive_match'],
+    'frequent_over_25': ['offensive_match', 'prolific_attack'],
+    'frequent_btts': ['offensive_match', 'prolific_attack'],
+    'closed_match_profile': ['defensive_match'],
+    'frequent_under_25': ['defensive_match'],
+    'high_xg_creation': [
+      'solid_favorite',
+      'offensive_match',
+      'prolific_attack',
+    ],
+    'low_xg_creation': [
+      'struggling_team',
+      'defensive_match',
+      'negative_series',
+    ],
+    'high_xg_conceded': [
+      'struggling_team',
+      'offensive_match',
+      'fragile_defense',
+    ],
+    'offensive_underperformance': ['struggling_team', 'negative_series'],
+    'offensive_overperformance': ['prolific_attack', 'positive_series'],
+    'defensive_underperformance': [
+      'struggling_team',
+      'fragile_defense',
+      'negative_series',
+    ],
+    'defensive_overperformance': ['defensive_match', 'positive_series'],
+    'misleading_result': ['credible_outsider', 'positive_series'],
+    'conflicting_signals': ['credible_outsider'],
+  };
 }
 
 typedef MatchTypeDefinition = OpportunityProfileDefinition;

@@ -4,38 +4,60 @@ import 'football_analyzer.dart';
 import 'football_reading.dart';
 import 'match_board_item.dart';
 
+class MatchIntelligence {
+  const MatchIntelligence({
+    required this.match,
+    required this.analysis,
+    required this.thesisAssessments,
+  });
+
+  final MatchBoardItem match;
+  final FootballAnalysis analysis;
+  final List<ThesisAssessment> thesisAssessments;
+}
+
 class OpportunityEngineV2 {
   const OpportunityEngineV2({this.analyzer = const FootballAnalyzer()});
 
   final FootballAnalyzer analyzer;
 
+  FootballAnalysis analyzeMatch(MatchBoardItem match, {DateTime? asOf}) {
+    return analyzer.analyze(match, asOf: asOf);
+  }
+
+  List<ThesisAssessment> assessTheses(MatchBoardItem match, {DateTime? asOf}) {
+    final analysis = analyzeMatch(match, asOf: asOf);
+    return _assessments(match, analysis);
+  }
+
+  MatchIntelligence buildIntelligence(MatchBoardItem match, {DateTime? asOf}) {
+    final analysis = analyzeMatch(match, asOf: asOf);
+    return MatchIntelligence(
+      match: match,
+      analysis: analysis,
+      thesisAssessments: List.unmodifiable(_assessments(match, analysis)),
+    );
+  }
+
   List<Opportunity> opportunities(
     List<MatchBoardItem> matches,
     CompiledDecisionProfile profile,
   ) {
-    if (!profile.isCompleted) {
-      return const [];
-    }
+    final opportunities = [
+      for (final match in matches) analyzeOpportunity(match, profile),
+    ].whereType<Opportunity>().toList()..sort(_compareOpportunities);
 
-    final opportunities =
-        [
-          for (final match in matches)
-            if (profile.isCompetitionEnabled(match.competition.id))
-              analyzeOpportunity(match, profile),
-        ].whereType<Opportunity>().toList()..sort((a, b) {
-          final scoreComparison = b.engineScore.compareTo(a.engineScore);
-          if (scoreComparison != 0) {
-            return scoreComparison;
-          }
+    return opportunities;
+  }
 
-          final aKickoff = a.kickoff;
-          final bKickoff = b.kickoff;
-          if (aKickoff != null && bKickoff != null) {
-            return aKickoff.compareTo(bKickoff);
-          }
-
-          return a.homeTeam.name.compareTo(b.homeTeam.name);
-        });
+  List<Opportunity> opportunitiesFromIntelligence(
+    Iterable<MatchIntelligence> intelligences,
+    CompiledDecisionProfile profile,
+  ) {
+    final opportunities = [
+      for (final intelligence in intelligences)
+        analyzeOpportunityFromIntelligence(intelligence, profile),
+    ].whereType<Opportunity>().toList()..sort(_compareOpportunities);
 
     return opportunities;
   }
@@ -46,12 +68,25 @@ class OpportunityEngineV2 {
     bool allowRecommendedMarket = true,
     DateTime? asOf,
   }) {
+    return analyzeOpportunityFromIntelligence(
+      buildIntelligence(match, asOf: asOf),
+      profile,
+      allowRecommendedMarket: allowRecommendedMarket,
+    );
+  }
+
+  Opportunity? analyzeOpportunityFromIntelligence(
+    MatchIntelligence intelligence,
+    CompiledDecisionProfile profile, {
+    bool allowRecommendedMarket = true,
+  }) {
+    final match = intelligence.match;
+    final analysis = intelligence.analysis;
     if (!profile.isCompleted ||
         !profile.isCompetitionEnabled(match.competition.id)) {
       return null;
     }
 
-    final analysis = analyzer.analyze(match, asOf: asOf);
     final candidates = _candidates(
       match,
       analysis,
@@ -61,12 +96,12 @@ class OpportunityEngineV2 {
     }
 
     candidates.sort((a, b) {
-      final priorityComparison = b.priority.compareTo(a.priority);
-      if (priorityComparison != 0) {
-        return priorityComparison;
+      final clarityComparison = b.clarityScore.compareTo(a.clarityScore);
+      if (clarityComparison != 0) {
+        return clarityComparison;
       }
 
-      return b.supportingReadings.length.compareTo(a.supportingReadings.length);
+      return b.priority.compareTo(a.priority);
     });
 
     final selected = candidates.first;
@@ -93,8 +128,195 @@ class OpportunityEngineV2 {
       recommendedMarket: recommendedMarket,
       supportingReadings: selected.supportingReadings,
       contradictoryReadings: selected.contradictoryReadings,
+      thesisAssessments: intelligence.thesisAssessments,
       asOf: analysis.asOf,
     );
+  }
+
+  MatchBoardItem personalizeMatchFromIntelligence(
+    MatchIntelligence intelligence,
+    CompiledDecisionProfile profile,
+  ) {
+    final match = intelligence.match;
+    final opportunity = analyzeOpportunityFromIntelligence(
+      intelligence,
+      profile,
+    );
+    if (opportunity != null) {
+      return opportunity.toMatchBoardItem();
+    }
+
+    final isCompetitionEnabled = profile.isCompetitionEnabled(
+      match.competition.id,
+    );
+    final profileReadings = isCompetitionEnabled
+        ? _profileReadings(intelligence.analysis, profile)
+        : const <FootballReading>[];
+
+    return match.copyWith(
+      profileStatus: isCompetitionEnabled
+          ? MatchProfileStatus.inProfile
+          : MatchProfileStatus.outOfProfile,
+      compatibility: _readingCompatibility(profileReadings),
+      signals: _signalsForReadings(match, profileReadings),
+    );
+  }
+
+  List<FootballReading> _profileReadings(
+    FootballAnalysis analysis,
+    CompiledDecisionProfile profile,
+  ) {
+    return analysis.supportingReadings
+        .where((reading) => profile.isReadingAllowed(reading.id))
+        .toList(growable: false);
+  }
+
+  int _readingCompatibility(List<FootballReading> readings) {
+    if (readings.isEmpty) {
+      return 0;
+    }
+
+    final strongest = readings
+        .map(_readingScore)
+        .reduce((a, b) => a > b ? a : b);
+    return (strongest + (readings.length - 1) * 6).clamp(0, 88).toInt();
+  }
+
+  int _readingScore(FootballReading reading) {
+    return switch (reading.strength) {
+      ReadingStrength.strong => 72,
+      ReadingStrength.moderate => 58,
+      ReadingStrength.weak => 42,
+    };
+  }
+
+  List<MatchSignal> _signalsForReadings(
+    MatchBoardItem match,
+    List<FootballReading> readings,
+  ) {
+    return [
+      for (final reading in readings.take(4)) _signalForReading(match, reading),
+    ];
+  }
+
+  MatchSignal _signalForReading(MatchBoardItem match, FootballReading reading) {
+    final subjectName = _subjectNameFor(match, reading);
+    final title = _readingTitle(reading, subjectName);
+    final evidenceLabels = [
+      for (final evidence in reading.evidence)
+        if (evidence.label.trim().isNotEmpty) evidence.label,
+    ];
+
+    return MatchSignal(
+      id: reading.id,
+      title: title,
+      summary: _readingSummary(reading, subjectName),
+      proofs: evidenceLabels.isEmpty
+          ? [title]
+          : evidenceLabels.take(3).toList(),
+    );
+  }
+
+  String _readingTitle(FootballReading reading, String subjectName) {
+    return switch (reading.id) {
+      'balanced_hierarchy' => 'Hiérarchie proche',
+      'ranking_superiority' => 'Avantage au classement pour $subjectName',
+      'structural_level_gap' => 'Écart de niveau pour $subjectName',
+      'positive_streak' => 'Dynamique positive pour $subjectName',
+      'negative_streak' => 'Dynamique négative pour $subjectName',
+      'improving_form' => 'Dynamique en hausse pour $subjectName',
+      'declining_form' => 'Dynamique en baisse pour $subjectName',
+      'strong_home_team' => '$subjectName solide à domicile',
+      'weak_home_team' => '$subjectName fragile à domicile',
+      'strong_away_team' => '$subjectName solide à l’extérieur',
+      'weak_away_team' => '$subjectName fragile à l’extérieur',
+      'home_away_mismatch' => 'Avantage domicile / extérieur',
+      'prolific_attack' => 'Attaque prolifique pour $subjectName',
+      'scoring_difficulty' => 'Production offensive faible pour $subjectName',
+      'solid_defense' => 'Défense solide pour $subjectName',
+      'fragile_defense' => 'Défense fragile pour $subjectName',
+      'frequent_clean_sheet' => 'Clean sheets fréquents pour $subjectName',
+      'open_match_profile' => 'Match ouvert',
+      'frequent_over_25' => 'Tendance over 2,5 buts',
+      'closed_match_profile' => 'Match fermé',
+      'frequent_under_25' => 'Tendance under 2,5 buts',
+      'high_xg_creation' => 'Création xG élevée pour $subjectName',
+      'low_xg_creation' => 'Création xG faible pour $subjectName',
+      'high_xg_conceded' => 'xG concédés élevés pour $subjectName',
+      'offensive_underperformance' =>
+        'Sous-performance offensive pour $subjectName',
+      'offensive_overperformance' =>
+        'Surperformance offensive pour $subjectName',
+      'defensive_underperformance' =>
+        'Sous-performance défensive pour $subjectName',
+      'defensive_overperformance' =>
+        'Surperformance défensive pour $subjectName',
+      'misleading_result' => 'Résultats à nuancer pour $subjectName',
+      _ => 'Lecture détectée pour $subjectName',
+    };
+  }
+
+  String _readingSummary(FootballReading reading, String subjectName) {
+    final evidence = reading.evidence.firstOrNull?.label;
+    if (evidence != null && evidence.trim().isNotEmpty) {
+      return evidence;
+    }
+    return 'Cette rencontre correspond à une lecture configurée pour $subjectName.';
+  }
+
+  int _compareOpportunities(Opportunity a, Opportunity b) {
+    final scoreComparison = b.engineScore.compareTo(a.engineScore);
+    if (scoreComparison != 0) {
+      return scoreComparison;
+    }
+
+    final aKickoff = a.kickoff;
+    final bKickoff = b.kickoff;
+    if (aKickoff != null && bKickoff != null) {
+      return aKickoff.compareTo(bKickoff);
+    }
+
+    return a.homeTeam.name.compareTo(b.homeTeam.name);
+  }
+
+  List<ThesisAssessment> _assessments(
+    MatchBoardItem match,
+    FootballAnalysis analysis,
+  ) {
+    final candidates = _candidates(match, analysis);
+    final byId = <String, _OpportunityCandidate>{
+      for (final candidate in candidates) candidate.id: candidate,
+    };
+
+    return [
+      _expectedDominationAssessment(match, analysis),
+      for (final spec in _canonicalThesisSpecs)
+        if (spec.id != 'expected_domination')
+          _assessmentForSpec(spec, byId[spec.id]),
+    ];
+  }
+
+  ThesisAssessment _assessmentForSpec(
+    _ThesisSpec spec,
+    _OpportunityCandidate? candidate,
+  ) {
+    if (candidate == null) {
+      return ThesisAssessment(
+        id: spec.id,
+        title: spec.title,
+        subjectSide: ReadingSubjectSide.match,
+        status: ThesisAssessmentStatus.eligibleButUnsupported,
+        clarityScore: 0,
+        evidence: const [
+          ThesisEvidenceAssessment(
+            relation: ThesisEvidenceRelation.evidenceUnavailable,
+            family: CopilotArgumentFamily.performance,
+            label: 'Aucune combinaison discriminante suffisante.',
+          ),
+        ],
+      );
+    }
+    return candidate.assessment;
   }
 
   List<_OpportunityCandidate> _candidates(
@@ -129,37 +351,180 @@ class OpportunityEngineV2 {
     FootballAnalysis analysis,
   ) {
     for (final side in [ReadingSubjectSide.home, ReadingSubjectSide.away]) {
-      final team = _teamForSide(match, side);
-      final supporting = _readingsFor(analysis, team.id, [
-        'structural_level_gap',
-        'ranking_superiority',
-        'positive_streak',
-        side == ReadingSubjectSide.home
-            ? 'strong_home_team'
-            : 'strong_away_team',
-        side == ReadingSubjectSide.home ? 'weak_away_team' : 'weak_home_team',
-        'home_away_mismatch',
-      ]);
-      if (supporting.length >= 3 &&
-          supporting.any((reading) => reading.id == 'structural_level_gap')) {
-        return _OpportunityCandidate(
-          id: 'expected_domination',
-          title: 'Domination attendue',
-          summary:
-              '${team.name} réunit une supériorité structurelle, une dynamique favorable et un contexte de match cohérent.',
-          subjectSide: side,
-          supportingReadings: supporting,
-          contradictoryReadings: _contradictionsFor(analysis, team.id),
-          marketIntents: [
-            _MarketIntent('matchResult', _selectionForSide(side)),
-            _MarketIntent('doubleChance', _doubleChanceForSide(side)),
-          ],
-          priority: 90,
-        );
+      final assessment = _expectedDominationAssessmentForSide(
+        match,
+        analysis,
+        side,
+      );
+      if (!assessment.isSupported) {
+        continue;
       }
+      final team = _teamForSide(match, side);
+      final supporting = assessment.evidence
+          .where(
+            (item) =>
+                item.relation == ThesisEvidenceRelation.coreSupport ||
+                item.relation == ThesisEvidenceRelation.additionalSupport,
+          )
+          .map((item) => item.reading)
+          .whereType<FootballReading>()
+          .toList(growable: false);
+      final contradictions = assessment.contradictions
+          .map((item) => item.reading)
+          .whereType<FootballReading>()
+          .toList(growable: false);
+      return _OpportunityCandidate(
+        id: 'expected_domination',
+        title: 'Domination attendue',
+        summary:
+            '${team.name} réunit une supériorité structurelle, une dynamique favorable et un contexte de match cohérent.',
+        subjectSide: side,
+        supportingReadings: supporting,
+        contradictoryReadings: contradictions,
+        marketIntents: [
+          _MarketIntent('matchResult', _selectionForSide(side)),
+          _MarketIntent('doubleChance', _doubleChanceForSide(side)),
+        ],
+        priority: 90,
+        evidenceAssessments: assessment.evidence,
+      );
     }
 
     return null;
+  }
+
+  ThesisAssessment _expectedDominationAssessment(
+    MatchBoardItem match,
+    FootballAnalysis analysis,
+  ) {
+    final home = _expectedDominationAssessmentForSide(
+      match,
+      analysis,
+      ReadingSubjectSide.home,
+    );
+    final away = _expectedDominationAssessmentForSide(
+      match,
+      analysis,
+      ReadingSubjectSide.away,
+    );
+    if (home.isSupported && away.isSupported) {
+      return home.clarityScore >= away.clarityScore ? home : away;
+    }
+    if (home.isSupported) {
+      return home;
+    }
+    if (away.isSupported) {
+      return away;
+    }
+    if (home.status == ThesisAssessmentStatus.notEligible) {
+      return home;
+    }
+    if (away.status == ThesisAssessmentStatus.notEligible) {
+      return away;
+    }
+    return home.clarityScore >= away.clarityScore ? home : away;
+  }
+
+  ThesisAssessment _expectedDominationAssessmentForSide(
+    MatchBoardItem match,
+    FootballAnalysis analysis,
+    ReadingSubjectSide side,
+  ) {
+    final relation = match.analysis.structuralRelation;
+    final team = _teamForSide(match, side);
+    final opponent = _teamForSide(match, _opponent(side));
+    final evidence = <ThesisEvidenceAssessment>[];
+
+    if (relation?.sameTier ?? false) {
+      evidence.add(
+        ThesisEvidenceAssessment(
+          relation: ThesisEvidenceRelation.resistance,
+          family: CopilotArgumentFamily.hierarchy,
+          label: 'Même Tier: domination attendue non éligible.',
+        ),
+      );
+      return ThesisAssessment(
+        id: 'expected_domination',
+        title: 'Domination attendue',
+        subjectSide: side,
+        status: ThesisAssessmentStatus.notEligible,
+        failedGate: 'EG_EXPECTED_DOMINATION_TIER_GAP',
+        clarityScore: 0,
+        evidence: evidence,
+      );
+    }
+
+    final structural = _readingsFor(analysis, team.id, [
+      'structural_level_gap',
+    ]);
+    for (final reading in structural) {
+      evidence.add(
+        ThesisEvidenceAssessment(
+          relation: ThesisEvidenceRelation.coreSupport,
+          family: _familyForReading(reading),
+          label: _labelForReading(reading),
+          reading: reading,
+        ),
+      );
+    }
+
+    for (final reading in _readingsFor(analysis, team.id, [
+      'ranking_superiority',
+      'form_advantage',
+    ])) {
+      evidence.add(
+        ThesisEvidenceAssessment(
+          relation: ThesisEvidenceRelation.additionalSupport,
+          family: _familyForReading(reading),
+          label: _labelForReading(reading),
+          reading: reading,
+        ),
+      );
+    }
+
+    _addDirectionalFormEvidence(
+      evidence,
+      analysis,
+      subjectTeamId: team.id,
+      opponentTeamId: opponent.id,
+    );
+    _addDirectionalVenueEvidence(evidence, analysis, match, subjectSide: side);
+
+    for (final reading in _contradictionsFor(analysis, team.id)) {
+      evidence.add(
+        ThesisEvidenceAssessment(
+          relation: ThesisEvidenceRelation.contradiction,
+          family: _familyForReading(reading),
+          label: _labelForReading(reading),
+          reading: reading,
+        ),
+      );
+    }
+
+    final clarity = _clarityScoreForEvidence(evidence);
+    final supportedFamilies = _supportFamilyCount(evidence);
+    final hasCore = evidence.any(
+      (item) => item.relation == ThesisEvidenceRelation.coreSupport,
+    );
+
+    return ThesisAssessment(
+      id: 'expected_domination',
+      title: 'Domination attendue',
+      subjectSide: side,
+      status: hasCore && supportedFamilies >= 3
+          ? ThesisAssessmentStatus.supported
+          : ThesisAssessmentStatus.eligibleButUnsupported,
+      clarityScore: clarity,
+      evidence: evidence.isEmpty
+          ? const [
+              ThesisEvidenceAssessment(
+                relation: ThesisEvidenceRelation.evidenceUnavailable,
+                family: CopilotArgumentFamily.hierarchy,
+                label: 'Aucun écart structurel exploitable.',
+              ),
+            ]
+          : List.unmodifiable(evidence),
+    );
   }
 
   _OpportunityCandidate? _favoriteWithProtection(
@@ -555,6 +920,144 @@ class OpportunityEngineV2 {
     );
   }
 
+  void _addDirectionalFormEvidence(
+    List<ThesisEvidenceAssessment> evidence,
+    FootballAnalysis analysis, {
+    required String subjectTeamId,
+    required String opponentTeamId,
+  }) {
+    final subjectPositive = analysis.detected(
+      id: 'positive_streak',
+      subjectTeamId: subjectTeamId,
+    );
+    final opponentPositive = analysis.detected(
+      id: 'positive_streak',
+      subjectTeamId: opponentTeamId,
+    );
+    if (subjectPositive.isNotEmpty && opponentPositive.isNotEmpty) {
+      for (final reading in [...subjectPositive, ...opponentPositive]) {
+        evidence.add(
+          ThesisEvidenceAssessment(
+            relation: ThesisEvidenceRelation.nonDiscriminating,
+            family: _familyForReading(reading),
+            label: _labelForReading(reading),
+            reading: reading,
+          ),
+        );
+      }
+      return;
+    }
+
+    for (final reading in subjectPositive) {
+      evidence.add(
+        ThesisEvidenceAssessment(
+          relation: ThesisEvidenceRelation.additionalSupport,
+          family: _familyForReading(reading),
+          label: _labelForReading(reading),
+          reading: reading,
+        ),
+      );
+    }
+    for (final reading in opponentPositive) {
+      evidence.add(
+        ThesisEvidenceAssessment(
+          relation: ThesisEvidenceRelation.resistance,
+          family: _familyForReading(reading),
+          label: _labelForReading(reading),
+          reading: reading,
+        ),
+      );
+    }
+  }
+
+  void _addDirectionalVenueEvidence(
+    List<ThesisEvidenceAssessment> evidence,
+    FootballAnalysis analysis,
+    MatchBoardItem match, {
+    required ReadingSubjectSide subjectSide,
+  }) {
+    final subject = _teamForSide(match, subjectSide);
+    final opponentSide = _opponent(subjectSide);
+    final opponent = _teamForSide(match, opponentSide);
+    final subjectStrongId = subjectSide == ReadingSubjectSide.home
+        ? 'strong_home_team'
+        : 'strong_away_team';
+    final subjectWeakId = subjectSide == ReadingSubjectSide.home
+        ? 'weak_home_team'
+        : 'weak_away_team';
+    final opponentStrongId = opponentSide == ReadingSubjectSide.home
+        ? 'strong_home_team'
+        : 'strong_away_team';
+    final opponentWeakId = opponentSide == ReadingSubjectSide.home
+        ? 'weak_home_team'
+        : 'weak_away_team';
+
+    for (final reading in _readingsFor(analysis, subject.id, [
+      subjectStrongId,
+    ])) {
+      evidence.add(
+        ThesisEvidenceAssessment(
+          relation: ThesisEvidenceRelation.additionalSupport,
+          family: _familyForReading(reading),
+          label: _labelForReading(reading),
+          reading: reading,
+        ),
+      );
+    }
+    for (final reading in _readingsFor(analysis, opponent.id, [
+      opponentWeakId,
+    ])) {
+      evidence.add(
+        ThesisEvidenceAssessment(
+          relation: ThesisEvidenceRelation.additionalSupport,
+          family: _familyForReading(reading),
+          label: _labelForReading(reading),
+          reading: reading,
+        ),
+      );
+    }
+    for (final reading in _readingsFor(analysis, opponent.id, [
+      opponentStrongId,
+    ])) {
+      evidence.add(
+        ThesisEvidenceAssessment(
+          relation: ThesisEvidenceRelation.resistance,
+          family: _familyForReading(reading),
+          label: _labelForReading(reading),
+          reading: reading,
+        ),
+      );
+    }
+    for (final reading in _readingsFor(analysis, subject.id, [subjectWeakId])) {
+      evidence.add(
+        ThesisEvidenceAssessment(
+          relation: ThesisEvidenceRelation.resistance,
+          family: _familyForReading(reading),
+          label: _labelForReading(reading),
+          reading: reading,
+        ),
+      );
+    }
+
+    final hasPositiveVenue = evidence.any(
+      (item) =>
+          item.reading?.id == subjectStrongId ||
+          item.reading?.id == opponentWeakId,
+    );
+    for (final reading in analysis.detected(id: 'home_away_mismatch')) {
+      evidence.add(
+        ThesisEvidenceAssessment(
+          relation: hasPositiveVenue
+              ? ThesisEvidenceRelation.additionalSupport
+              : ThesisEvidenceRelation.nonDiscriminating,
+          family: _familyForReading(reading),
+          label: _labelForReading(reading),
+          reading: reading,
+        ),
+      );
+    }
+  }
+
   List<OpportunityMarketCompatibility> _compatibleMarkets(
     MatchBoardItem match,
     CompiledDecisionProfile profile,
@@ -658,19 +1161,7 @@ class OpportunityEngineV2 {
   }
 
   int _internalScore(_OpportunityCandidate candidate) {
-    final support = candidate.supportingReadings.fold<int>(
-      0,
-      (total, reading) =>
-          total +
-          switch (reading.strength) {
-            ReadingStrength.strong => 3,
-            ReadingStrength.moderate => 2,
-            ReadingStrength.weak => 1,
-          },
-    );
-    final contradictions = candidate.contradictoryReadings.length * 2;
-
-    return (candidate.priority + support - contradictions).clamp(1, 96);
+    return candidate.clarityScore;
   }
 
   List<FootballReading> _readingsFor(
@@ -813,6 +1304,7 @@ class _OpportunityCandidate {
     required this.contradictoryReadings,
     required this.marketIntents,
     required this.priority,
+    this.evidenceAssessments = const [],
   });
 
   final String id;
@@ -823,6 +1315,42 @@ class _OpportunityCandidate {
   final List<FootballReading> contradictoryReadings;
   final List<_MarketIntent> marketIntents;
   final int priority;
+  final List<ThesisEvidenceAssessment> evidenceAssessments;
+
+  int get clarityScore => _clarityScoreForEvidence(assessmentEvidence);
+
+  List<ThesisEvidenceAssessment> get assessmentEvidence {
+    if (evidenceAssessments.isNotEmpty) {
+      return evidenceAssessments;
+    }
+    return [
+      for (final reading in supportingReadings)
+        ThesisEvidenceAssessment(
+          relation: ThesisEvidenceRelation.additionalSupport,
+          family: _familyForReading(reading),
+          label: _labelForReading(reading),
+          reading: reading,
+        ),
+      for (final reading in contradictoryReadings)
+        ThesisEvidenceAssessment(
+          relation: ThesisEvidenceRelation.contradiction,
+          family: _familyForReading(reading),
+          label: _labelForReading(reading),
+          reading: reading,
+        ),
+    ];
+  }
+
+  ThesisAssessment get assessment {
+    return ThesisAssessment(
+      id: id,
+      title: title,
+      subjectSide: subjectSide,
+      status: ThesisAssessmentStatus.supported,
+      clarityScore: clarityScore,
+      evidence: assessmentEvidence,
+    );
+  }
 }
 
 class _MarketIntent {
@@ -837,6 +1365,83 @@ class _MarketSide {
 
   final ReadingSubjectSide side;
   final MarketOdds selection;
+}
+
+class _ThesisSpec {
+  const _ThesisSpec(this.id, this.title);
+
+  final String id;
+  final String title;
+}
+
+const _canonicalThesisSpecs = [
+  _ThesisSpec('expected_domination', 'Domination attendue'),
+  _ThesisSpec('favorite_with_protection', 'Favori avec protection'),
+  _ThesisSpec('convergent_open_match', 'Match ouvert'),
+  _ThesisSpec('convergent_closed_match', 'Match fermé'),
+  _ThesisSpec('credible_outsider', 'Outsider crédible'),
+  _ThesisSpec('team_in_serious_difficulty', 'Équipe en difficulté'),
+  _ThesisSpec('controlled_favorite', 'Favori en contrôle'),
+  _ThesisSpec('both_sides_can_score', 'Les deux équipes peuvent marquer'),
+  _ThesisSpec('one_sided_scoring', 'Pression offensive à sens unique'),
+  _ThesisSpec('team_better_than_results', 'Meilleur que les résultats'),
+  _ThesisSpec('team_worse_than_results', 'Résultats à nuancer'),
+  _ThesisSpec('avoid_match', 'Match à éviter'),
+];
+
+CopilotArgumentFamily _familyForReading(FootballReading reading) {
+  return reading.toCopilotArgument(subjectName: '').family;
+}
+
+String _labelForReading(FootballReading reading) {
+  return reading.evidence.isEmpty ? reading.id : reading.evidence.first.label;
+}
+
+int _clarityScoreForEvidence(List<ThesisEvidenceAssessment> evidence) {
+  final coreFamilies = <CopilotArgumentFamily>{};
+  final supportFamilies = <CopilotArgumentFamily>{};
+  var resistanceCount = 0;
+  var contradictionCount = 0;
+
+  for (final item in evidence) {
+    switch (item.relation) {
+      case ThesisEvidenceRelation.coreSupport:
+        coreFamilies.add(item.family);
+        break;
+      case ThesisEvidenceRelation.additionalSupport:
+        supportFamilies.add(item.family);
+        break;
+      case ThesisEvidenceRelation.resistance:
+        resistanceCount += 1;
+        break;
+      case ThesisEvidenceRelation.contradiction:
+        contradictionCount += 1;
+        break;
+      case ThesisEvidenceRelation.nonDiscriminating:
+      case ThesisEvidenceRelation.notRelevant:
+      case ThesisEvidenceRelation.evidenceUnavailable:
+        break;
+    }
+  }
+
+  supportFamilies.removeAll(coreFamilies);
+  final score =
+      coreFamilies.length * 28 +
+      supportFamilies.length * 14 -
+      resistanceCount * 10 -
+      contradictionCount * 18;
+  return score.clamp(0, 96);
+}
+
+int _supportFamilyCount(List<ThesisEvidenceAssessment> evidence) {
+  final families = <CopilotArgumentFamily>{};
+  for (final item in evidence) {
+    if (item.relation == ThesisEvidenceRelation.coreSupport ||
+        item.relation == ThesisEvidenceRelation.additionalSupport) {
+      families.add(item.family);
+    }
+  }
+  return families.length;
 }
 
 enum _SelectionIntent {

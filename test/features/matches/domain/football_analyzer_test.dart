@@ -1,5 +1,7 @@
 import 'package:copilot/features/matches/domain/football_analyzer.dart';
+import 'package:copilot/features/matches/domain/football_reading.dart';
 import 'package:copilot/features/matches/domain/match_board_item.dart';
+import 'package:copilot/features/matches/domain/structural_tiers/tier_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -78,10 +80,59 @@ void main() {
       expect(analysis.has('insufficient_data'), true);
       expect(analysis.contradictoryReadings.single.id, 'insufficient_data');
     });
+
+    test('ignores retained standing descriptions in current readings', () {
+      final analyzer = const FootballAnalyzer();
+      final baseline = analyzer.analyze(_match());
+      final described = analyzer.analyze(
+        _match(
+          homeDescription: 'Promotion - Champions League (Qualification)',
+          awayDescription: 'Relegation',
+        ),
+      );
+
+      expect(_readingSignature(described), _readingSignature(baseline));
+    });
+
+    test(
+      'does not produce structural_level_gap from raw rank or points alone',
+      () {
+        final analysis = const FootballAnalyzer().analyze(
+          _match(withStructuralRelation: false),
+        );
+
+        expect(
+          analysis.has('ranking_superiority', subjectTeamId: 'home'),
+          true,
+        );
+        expect(
+          analysis.has('structural_level_gap', subjectTeamId: 'home'),
+          false,
+        );
+      },
+    );
+
+    test('distinguishes recent trajectory order for equal aggregate form', () {
+      final analysis = const FootballAnalyzer().analyze(
+        _match(homeForm: 'WWWLL', awayForm: 'LLWWW'),
+      );
+
+      expect(analysis.has('improving_form', subjectTeamId: 'home'), true);
+      expect(analysis.has('declining_form', subjectTeamId: 'away'), true);
+      expect(analysis.has('improving_form', subjectTeamId: 'away'), false);
+    });
   });
 }
 
-MatchBoardItem _match({TeamExpectedGoalsSnapshot? homeExpectedGoals}) {
+MatchBoardItem _match({
+  TeamExpectedGoalsSnapshot? homeExpectedGoals,
+  String? homeDescription,
+  String? awayDescription,
+  String homeForm = 'WWDWW',
+  String awayForm = 'LLDLW',
+  bool withStructuralRelation = true,
+  MatchStructuralRelation? structuralRelation,
+}) {
   return MatchBoardItem(
     fixture: NormalizedFixture(
       id: 'fixture',
@@ -108,6 +159,7 @@ MatchBoardItem _match({TeamExpectedGoalsSnapshot? homeExpectedGoals}) {
       homeStanding: TeamStandingSnapshot(
         teamId: 10,
         teamName: 'Home',
+        description: homeDescription,
         rank: 2,
         points: 24,
         played: 10,
@@ -116,11 +168,12 @@ MatchBoardItem _match({TeamExpectedGoalsSnapshot? homeExpectedGoals}) {
         losses: 0,
         goalsFor: 20,
         goalsAgainst: 8,
-        form: 'WWDWW',
+        form: homeForm,
       ),
       awayStanding: TeamStandingSnapshot(
         teamId: 11,
         teamName: 'Away',
+        description: awayDescription,
         rank: 10,
         points: 11,
         played: 10,
@@ -129,8 +182,11 @@ MatchBoardItem _match({TeamExpectedGoalsSnapshot? homeExpectedGoals}) {
         losses: 5,
         goalsFor: 11,
         goalsAgainst: 18,
-        form: 'LLDLW',
+        form: awayForm,
       ),
+      structuralRelation:
+          structuralRelation ??
+          (withStructuralRelation ? _defaultStructuralRelation() : null),
       homeStatistics: TeamStatisticsSnapshot(
         teamId: 10,
         teamName: 'Home',
@@ -160,6 +216,63 @@ MatchBoardItem _match({TeamExpectedGoalsSnapshot? homeExpectedGoals}) {
     compatibility: 0,
     signals: const [],
   );
+}
+
+MatchStructuralRelation _defaultStructuralRelation() {
+  return MatchStructuralRelation(
+    competitionId: '39',
+    season: 2026,
+    analysisAsOf: DateTime.utc(2026, 7, 30, 8),
+    tierSystemVersion: 'tier-v1',
+    standingsSnapshotIdentity: 'snapshot-1',
+    homeTeamId: 10,
+    awayTeamId: 11,
+    homeTeamTier: TierLabel.tier1Podium,
+    awayTeamTier: TierLabel.tier4LowerChampionship,
+    sameTier: false,
+    ordinalTierGap: 3,
+    structuralBoundaryGap: 1,
+    confirmedBoundariesBetweenTeams: const [
+      ConfirmedStructuralBoundary(
+        boundaryIndex: 3,
+        upperRank: 3,
+        lowerRank: 4,
+        rawGap: 12,
+        score: 80,
+        strength: BoundaryStrength.strong,
+        standingsSnapshotIdentity: 'snapshot-1',
+      ),
+    ],
+    tierMaturity: TierMaturity.mature,
+    tierStatus: TierSystemStatus.mature,
+    championshipTeamCount: 10,
+    typicalGap: 1,
+    homeOfficialRank: 2,
+    awayOfficialRank: 10,
+    homePoints: 24,
+    awayPoints: 11,
+    homeStructuralLevelGap: const StructuralLevelGapAssessment(
+      exists: true,
+      strength: StructuralLevelGapStrength.moderate,
+    ),
+    awayStructuralLevelGap: const StructuralLevelGapAssessment(exists: false),
+    balancedHierarchy: const BalancedHierarchyAssessment(exists: false),
+    warnings: const [],
+  );
+}
+
+List<String> _readingSignature(FootballAnalysis analysis) {
+  return analysis.readings
+      .map(
+        (reading) =>
+            '${reading.id}:'
+            '${reading.subjectTeamId}:'
+            '${reading.subjectSide.name}:'
+            '${reading.status.name}:'
+            '${reading.strength.name}:'
+            '${reading.isContradiction}',
+      )
+      .toList(growable: false);
 }
 
 MatchBoardItem _emptyMatch() {

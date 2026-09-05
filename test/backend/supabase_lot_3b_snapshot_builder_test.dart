@@ -133,6 +133,13 @@ void main() {
         expect(functionSource, contains('dateRangesOverlap'));
         expect(functionSource, contains('flatApiFootballResponseItems'));
         expect(functionSource, contains('row.endpoint !== "/leagues"'));
+        expect(
+          functionSource.indexOf('return b.start.localeCompare(a.start);'),
+          lessThan(functionSource.indexOf('return a.current ? -1 : 1;')),
+          reason:
+              'fixture coverage dates must outrank the provider current flag',
+        );
+        expect(functionSource, isNot(contains('fallback: fallbackSeason')));
       },
     );
 

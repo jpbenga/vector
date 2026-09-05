@@ -287,6 +287,8 @@ void main() {
                       'points': 21,
                       'goalsDiff': 8,
                       'group': 'Ligue 1',
+                      'description':
+                          'Promotion - Champions League (Qualification)',
                       'form': 'WWDLW',
                       'all': {
                         'played': 10,
@@ -302,6 +304,7 @@ void main() {
                       'points': 14,
                       'goalsDiff': -2,
                       'group': 'Ligue 1',
+                      'description': null,
                       'form': 'LDWDL',
                       'all': {
                         'played': 10,
@@ -317,6 +320,7 @@ void main() {
                       'points': 19,
                       'goalsDiff': 4,
                       'group': 'Ligue 1',
+                      'description': 'Relegation Playoffs',
                       'form': 'WDDWL',
                       'all': {
                         'played': 10,
@@ -423,9 +427,14 @@ void main() {
       expect(match.analysis.homeStanding?.losses, 1);
       expect(match.analysis.homeStanding?.goalsFor, 18);
       expect(match.analysis.homeStanding?.goalsAgainst, 10);
+      expect(
+        match.analysis.homeStanding?.description,
+        'Promotion - Champions League (Qualification)',
+      );
       expect(match.analysis.homeStanding?.form, 'WWDLW');
       expect(match.analysis.awayStanding?.rank, 8);
       expect(match.analysis.awayStanding?.goalDiff, -2);
+      expect(match.analysis.awayStanding?.description, isNull);
       expect(match.analysis.leagueStandings, hasLength(3));
       expect(match.analysis.leagueStandings.map((standing) => standing.rank), [
         2,
@@ -433,6 +442,10 @@ void main() {
         8,
       ]);
       expect(match.analysis.leagueStandings[1].teamName, 'Table Context');
+      expect(
+        match.analysis.leagueStandings[1].description,
+        'Relegation Playoffs',
+      );
       expect(match.analysis.hasStatistics, isTrue);
       expect(match.analysis.homeStatistics?.form, 'WWDWW');
       expect(match.analysis.homeStatistics?.playedTotal, 10);

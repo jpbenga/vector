@@ -40,6 +40,24 @@ void main() {
       expect(result.tickets, isEmpty);
     });
 
+    test('uses the strategy pick types as an actual generation constraint', () {
+      final result = const TicketGenerator().generate(
+        opportunities: [_opportunity('audacious', odds: 2.20)],
+        strategies: [
+          _strategy(
+            pickTypes: const [PickType.prudent],
+            minimumIndividualOdds: 1.20,
+            maximumIndividualOdds: 3.00,
+          ),
+        ],
+        profile: _profile(),
+        generatedAt: _now,
+      );
+
+      expect(result.status, TicketGenerationStatus.noUsableOpportunity);
+      expect(result.tickets, isEmpty);
+    });
+
     test(
       'generates tickets respecting inclusive selection and total odds bounds',
       () {
@@ -461,6 +479,8 @@ CompiledDecisionProfile _profile() {
 
 TicketStrategy _strategy({
   List<PickType> pickTypes = const [PickType.normal],
+  double? minimumIndividualOdds,
+  double? maximumIndividualOdds,
   int minimumSelections = 1,
   int maximumSelections = 3,
   double minimumTotalOdds = 1.20,
@@ -473,12 +493,12 @@ TicketStrategy _strategy({
     name: 'Strategy',
     isActive: true,
     pickTypes: pickTypes,
-    minimumIndividualOdds: TicketStrategy.defaultMinimumIndividualOddsFor(
-      pickTypes,
-    ),
-    maximumIndividualOdds: TicketStrategy.defaultMaximumIndividualOddsFor(
-      pickTypes,
-    ),
+    minimumIndividualOdds:
+        minimumIndividualOdds ??
+        TicketStrategy.defaultMinimumIndividualOddsFor(pickTypes),
+    maximumIndividualOdds:
+        maximumIndividualOdds ??
+        TicketStrategy.defaultMaximumIndividualOddsFor(pickTypes),
     minimumSelections: minimumSelections,
     maximumSelections: maximumSelections,
     minimumTotalOdds: minimumTotalOdds,

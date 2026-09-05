@@ -853,7 +853,6 @@ function snapshotOptionsFromPayload(payload: JsonObject): SnapshotOptions {
     new Date().getFullYear();
   const seasonByLeague = seasonByLeagueValue(
     payload.season_by_league,
-    fallbackSeason,
   );
   const season = seasonByLeagueReference(seasonByLeague, fallbackSeason);
   const bookmakerId = numberValue(payload.bookmaker_id);
@@ -1030,11 +1029,11 @@ function seasonForWindowFromLeaguesPayload(
 
   if (overlappingSeasons.length > 0) {
     overlappingSeasons.sort((a, b) => {
-      if (a.current !== b.current) {
-        return a.current ? -1 : 1;
-      }
       if (a.start !== b.start) {
         return b.start.localeCompare(a.start);
+      }
+      if (a.current !== b.current) {
+        return a.current ? -1 : 1;
       }
       return b.year - a.year;
     });
@@ -1060,10 +1059,7 @@ function flatApiFootballResponseItems(payload: JsonObject): JsonObject[] {
   return isJsonObject(response) ? [response] : [];
 }
 
-function seasonByLeagueValue(
-  value: unknown,
-  fallbackSeason: number,
-): Record<string, number> {
+function seasonByLeagueValue(value: unknown): Record<string, number> {
   const source = objectValue(value) ?? {};
   const seasons: Record<string, number> = {};
   for (const [leagueId, season] of Object.entries(source)) {
@@ -1073,9 +1069,7 @@ function seasonByLeagueValue(
       seasons[String(parsedLeagueId)] = parsedSeason;
     }
   }
-  return Object.keys(seasons).length === 0
-    ? { fallback: fallbackSeason }
-    : seasons;
+  return seasons;
 }
 
 function seasonByLeagueReference(

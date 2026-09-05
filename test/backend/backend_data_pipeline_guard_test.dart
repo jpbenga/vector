@@ -43,6 +43,13 @@ void main() {
         expect(source, contains('seasonForWindowFromLeaguesPayload'));
         expect(source, contains('coverage.fixtures'));
         expect(source, contains('dateRangesOverlap'));
+        expect(source, contains('return b.start.localeCompare(a.start);'));
+        expect(
+          source.indexOf('return b.start.localeCompare(a.start);'),
+          lessThan(source.indexOf('return a.current ? -1 : 1;')),
+          reason:
+              'fixture coverage dates must outrank the provider current flag',
+        );
         expect(source, isNot(contains('current: "true"')));
         expect(source, isNot(contains('current=true')));
       }
@@ -50,6 +57,7 @@ void main() {
       expect(apiSync, contains('summary.leagueSeasons'));
       expect(snapshotBuilder, contains('seasonForLeagueFromRows'));
       expect(snapshotBuilder, contains('numberValue(league.season)'));
+      expect(snapshotBuilder, isNot(contains('fallback: fallbackSeason')));
     });
 
     test('does not inject one global season into scheduled jobs', () {
@@ -64,28 +72,28 @@ void main() {
       );
     });
 
-    test('keeps one staggered sync and one snapshot job per MVP league', () {
+    test('keeps one staggered orchestrated job per MVP league', () {
       expect(
         cronGenerator,
         contains('RuntimeCompetitionCatalog.apiFootballLeagueIds'),
       );
-      expect(cronGenerator, contains('final syncMinuteOffset = index * 4'));
-      expect(
-        cronGenerator,
-        contains('final snapshotMinuteOffset = syncMinuteOffset + 3'),
-      );
+      expect(cronGenerator, contains('final dailyMinuteOffset = index * 4'));
       expect(cronGenerator, contains("'api-football-league-\$leagueId'"));
       expect(
         cronGenerator,
-        contains("'api-football-league-\$leagueId-snapshot'"),
+        isNot(contains("'api-football-league-\$leagueId-snapshot'")),
       );
+      expect(cronGenerator, contains('daily-football-sync'));
+      expect(cronGenerator, isNot(contains('api-football-sync')));
+      expect(cronGenerator, isNot(contains('build-match-feed-snapshot')));
+      expect(cronGenerator, contains("'results_days_back', 2"));
+      expect(cronGenerator, contains("'future_days', 3"));
       expect(cronGenerator, contains("where jobname like 'api-football-%'"));
       expect(
         cronGenerator,
         contains("and jobname not like 'api-football-run-now-%'"),
       );
       expect(cronGenerator, isNot(contains('api-football-build-snapshot')));
-      expect(cronGenerator, contains("now() at time zone 'UTC'"));
       expect(cronGenerator, isNot(contains('DateTime.now()')));
     });
 
@@ -96,8 +104,13 @@ void main() {
       expect(docs, contains('season_by_league'));
       expect(docs, contains('API-Football peut repondre en HTTP 200'));
       expect(docs, contains('une saison API-Football `2027`'));
-      expect(docs, contains('une collecte par ligue'));
-      expect(docs, contains('un snapshot par ligue'));
+      expect(docs, contains('un run orchestre par ligue'));
+      expect(docs, contains('seulement apres la'));
+      expect(docs, contains('fin de la collecte'));
+      expect(
+        docs,
+        contains('Ne pas programmer un job `build-match-feed-snapshot`'),
+      );
       expect(docs, contains('force_rebuild: true'));
     });
 

@@ -139,6 +139,9 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             widget.profile,
           );
           final opportunities = repository.opportunitiesFor(widget.profile);
+          final personalizedMatches = repository.personalizedFor(
+            widget.profile,
+          );
           final allMatches = repository.allMatches();
           final snapshotMetadata = repository.snapshotMetadata;
           final analyzedAllMatches = [
@@ -160,6 +163,13 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
           _latestAnalyzedMatches = analyzedAllMatches;
           _scheduleSavedTicketSettlement(analyzedAllMatches);
           void openAnalyzedMatch(MatchBoardItem match) {
+            final opportunity = opportunities
+                .where((item) => item.matchId == match.id)
+                .firstOrNull;
+            if (opportunity != null) {
+              _openOpportunityDetails(opportunity);
+              return;
+            }
             _openMatchDetails(repository.analyzeFor(widget.profile, match));
           }
 
@@ -167,10 +177,8 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             profile: widget.profile,
             identityScope: widget.identityScope,
             matches: analyzedAllMatches,
-            personalizedMatches: [
-              for (final opportunity in opportunities)
-                opportunity.toMatchBoardItem(),
-            ],
+            personalizedMatches: personalizedMatches,
+            opportunities: opportunities,
             snapshotMetadata: snapshotMetadata,
             selectedDate: effectiveSelectedDate,
             mode: _scoresMode,
@@ -187,6 +195,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             },
             onChooseDate: _chooseScoresDate,
             onOpenMatch: openAnalyzedMatch,
+            onOpenOpportunity: _openOpportunityDetails,
             onOpenProfile: () => _showAccountSheet(context),
             onOpenTheme: _openLectorSpace,
             hasGeneratorResults: ticketGenerationResult.tickets.isNotEmpty,
@@ -202,6 +211,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
               opportunities: opportunities,
               strategies: widget.ticketStrategies,
               savedTickets: _savedTickets,
+              onEditProfile: _openLectorSpace,
               onEditStrategies: _openTicketStrategies,
               onCreateManualTicket: _startManualTicketFromGenerator,
               onOpenOpportunity: _openOpportunityDetails,
@@ -740,18 +750,8 @@ DateTime _resolvedScoresDate({
     return selectedDay;
   }
 
-  final coversSelectedDate = metadata?.covers(selectedDay) ?? false;
-  if (coversSelectedDate) {
-    return selectedDay;
-  }
-
   if (!allowAutomaticFallback) {
     return selectedDay;
-  }
-
-  final windowStart = metadata?.windowStart;
-  if (windowStart != null) {
-    return _dateOnly(windowStart);
   }
 
   for (final match in [...matches]..sort(_ScoresRedesignHome._compareMatches)) {
@@ -761,6 +761,16 @@ DateTime _resolvedScoresDate({
     }
   }
 
+  final coversSelectedDate = metadata?.covers(selectedDay) ?? false;
+  if (coversSelectedDate) {
+    return selectedDay;
+  }
+
+  final windowStart = metadata?.windowStart;
+  if (windowStart != null) {
+    return _dateOnly(windowStart);
+  }
+
   return selectedDay;
 }
 
@@ -768,12 +778,13 @@ bool _isSameCalendarDay(DateTime a, DateTime b) {
   return a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
-class _ScoresRedesignHome extends StatelessWidget {
+class _ScoresRedesignHome extends StatefulWidget {
   const _ScoresRedesignHome({
     required this.profile,
     required this.identityScope,
     required this.matches,
     required this.personalizedMatches,
+    required this.opportunities,
     required this.snapshotMetadata,
     required this.selectedDate,
     required this.mode,
@@ -781,6 +792,7 @@ class _ScoresRedesignHome extends StatelessWidget {
     required this.onDateSelected,
     required this.onChooseDate,
     required this.onOpenMatch,
+    required this.onOpenOpportunity,
     required this.onOpenProfile,
     required this.onOpenTheme,
     required this.hasGeneratorResults,
@@ -796,6 +808,7 @@ class _ScoresRedesignHome extends StatelessWidget {
   final IdentityScope identityScope;
   final List<MatchBoardItem> matches;
   final List<MatchBoardItem> personalizedMatches;
+  final List<Opportunity> opportunities;
   final MatchFeedSnapshotMetadata? snapshotMetadata;
   final DateTime selectedDate;
   final _ScoresRedesignMode mode;
@@ -803,6 +816,7 @@ class _ScoresRedesignHome extends StatelessWidget {
   final ValueChanged<DateTime> onDateSelected;
   final VoidCallback onChooseDate;
   final ValueChanged<MatchBoardItem> onOpenMatch;
+  final ValueChanged<Opportunity> onOpenOpportunity;
   final VoidCallback onOpenProfile;
   final VoidCallback onOpenTheme;
   final bool hasGeneratorResults;
@@ -814,251 +828,10 @@ class _ScoresRedesignHome extends StatelessWidget {
   final Widget generator;
 
   @override
-  Widget build(BuildContext context) {
-    final visibleMatches = _matchesForModeAndDate();
-    final storyMatches = _storyMatches(visibleMatches);
-    final competitionGroups = _competitionGroups(visibleMatches);
-    final showsGenerator = mode == _ScoresRedesignMode.generator;
-    final listTitle = switch (mode) {
-      _ScoresRedesignMode.forMe => 'Ma sélection',
-      _ScoresRedesignMode.all => 'Tous les matchs',
-      _ScoresRedesignMode.generator => 'Générateur',
-    };
-    final listSubtitle = switch (mode) {
-      _ScoresRedesignMode.forMe =>
-        'Modifiez vos championnats ou vos scénarios depuis Mon espace.',
-      _ScoresRedesignMode.all => 'Essayez un autre jour ou un autre mode.',
-      _ScoresRedesignMode.generator =>
-        'Configurez vos sélections depuis les paramètres Lector.',
-    };
-    final showsStories = mode == _ScoresRedesignMode.forMe;
-    const expandCompetitions = false;
-
-    return Stack(
-      children: [
-        RefreshIndicator(
-          onRefresh: () async {},
-          child: CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 520),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _ScoresRedesignHeader(
-                            onOpenProfile: onOpenProfile,
-                            onOpenTheme: onOpenTheme,
-                          ),
-                          const SizedBox(height: 6),
-                          CopilotCalendar(
-                            selectedDate: selectedDate,
-                            visibleWindowDays: 7,
-                            onDateSelected: onDateSelected,
-                            onChooseDate: onChooseDate,
-                          ),
-                          _SnapshotFreshnessLine(
-                            metadata: snapshotMetadata,
-                            selectedDate: selectedDate,
-                          ),
-                          const SizedBox(height: 6),
-                          _ScoresModeControl(
-                            selected: mode,
-                            onChanged: onModeChanged,
-                          ),
-                          const SizedBox(height: 14),
-                          if (showsGenerator)
-                            SizedBox(
-                              height: _generatorViewportHeight(context),
-                              child: generator,
-                            )
-                          else ...[
-                            if (showsStories) ...[
-                              _TodayStoriesSection(
-                                matches: storyMatches,
-                                onOpenMatch: onOpenMatch,
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-                            _AllMatchesDenseSection(
-                              title: listTitle,
-                              emptySubtitle: listSubtitle,
-                              initiallyExpanded: expandCompetitions,
-                              groups: competitionGroups,
-                              onOpenMatch: onOpenMatch,
-                            ),
-                          ],
-                          const SizedBox(height: 96),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Positioned(
-          left: 14,
-          bottom: 16 + MediaQuery.paddingOf(context).bottom,
-          child: LectorDeck(
-            maxWidth: MediaQuery.sizeOf(context).width - 28,
-            deckContext: LectorDeckContext(
-              scope: _deckScopeForMode(mode),
-              selectedDate: selectedDate,
-              hasGeneratorResults: hasGeneratorResults,
-              hasSavedTickets: hasSavedTickets,
-              hasActiveStrategies: hasActiveStrategies,
-            ),
-            capabilities: LectorDeckCapabilities(
-              onOpenForMe: mode == _ScoresRedesignMode.forMe
-                  ? null
-                  : () => onModeChanged(_ScoresRedesignMode.forMe),
-              onOpenAll: mode == _ScoresRedesignMode.all
-                  ? null
-                  : () => onModeChanged(_ScoresRedesignMode.all),
-              onOpenGenerator: mode == _ScoresRedesignMode.generator
-                  ? null
-                  : () => onModeChanged(_ScoresRedesignMode.generator),
-              onGoToday: () => onDateSelected(_todayDate()),
-              onOpenTicketHistory: onOpenTicketHistory,
-              onRecalculate: onRecalculateTickets,
-              onOpenStrategies: onOpenStrategies,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  List<MatchBoardItem> _matchesForModeAndDate() {
-    final dateMatches = _matchesForDate(matches);
-    final source = switch (mode) {
-      _ScoresRedesignMode.forMe => _forMeMatches(dateMatches),
-      _ScoresRedesignMode.all => dateMatches,
-      _ScoresRedesignMode.generator => const <MatchBoardItem>[],
-    };
-
-    return List<MatchBoardItem>.of(source)..sort(_compareMatches);
-  }
-
-  double _generatorViewportHeight(BuildContext context) {
-    final height = MediaQuery.sizeOf(context).height;
-    final safeBottom = MediaQuery.paddingOf(context).bottom;
-    return (height - safeBottom - 176).clamp(440.0, 760.0);
-  }
-
-  List<MatchBoardItem> _matchesForDate(List<MatchBoardItem> source) {
-    return source.where((match) {
-      final kickoff = match.fixture.kickoff?.toLocal();
-      if (kickoff == null) {
-        return _isSameCalendarDay(selectedDate, _todayDate());
-      }
-      return _isSameCalendarDay(kickoff, selectedDate);
-    }).toList();
-  }
-
-  List<MatchBoardItem> _forMeMatches(List<MatchBoardItem> dateMatches) {
-    final personalizedForDate = _matchesForDate(personalizedMatches);
-    if (_hasExplicitForMePreferences) {
-      return personalizedForDate.where(_matchesExplicitPreferences).toList();
-    }
-
-    return personalizedForDate;
-  }
-
-  bool get _hasExplicitForMePreferences {
-    return _selectedCompetitionIds.isNotEmpty || _selectedReadingIds.isNotEmpty;
-  }
-
-  bool _matchesExplicitPreferences(MatchBoardItem match) {
-    return _matchesSelectedCompetition(match) && _matchesSelectedReading(match);
-  }
-
-  bool _matchesSelectedCompetition(MatchBoardItem match) {
-    final selectedIds = _selectedCompetitionIds;
-    if (selectedIds.isEmpty) {
-      return true;
-    }
-
-    final apiLeagueId = match.competition.apiFootballLeagueId?.toString();
-    return selectedIds.contains(match.competition.id) ||
-        (apiLeagueId != null && selectedIds.contains(apiLeagueId));
-  }
-
-  bool _matchesSelectedReading(MatchBoardItem match) {
-    final selectedIds = _selectedReadingIds;
-    if (selectedIds.isEmpty) {
-      return true;
-    }
-
-    final thesis = match.thesis;
-    if (thesis == null) {
-      return match.signals.isNotEmpty;
-    }
-
-    return OpportunityProfileCatalog.profileIdsForThesis(
-      thesis.id,
-    ).any(selectedIds.contains);
-  }
-
-  Set<String> get _selectedCompetitionIds {
-    return {
-      for (final id in profile.optionIdsFor('competitions'))
-        if (RuntimeCompetitionCatalog.resolveId(id) != null)
-          RuntimeCompetitionCatalog.resolveId(id)!,
-    };
-  }
-
-  Set<String> get _selectedReadingIds {
-    return profile.optionIdsFor('opportunity_profiles').toSet();
-  }
-
-  List<MatchBoardItem> _storyMatches(List<MatchBoardItem> source) {
-    final candidates = source.where(_hasReadableSignal).toList()
-      ..sort((a, b) {
-        final scoreComparison = _storyScore(b).compareTo(_storyScore(a));
-        if (scoreComparison != 0) {
-          return scoreComparison;
-        }
-        return _compareMatches(a, b);
-      });
-
-    return candidates.take(3).toList(growable: false);
-  }
-
-  List<_ScoresCompetitionGroup> _competitionGroups(
-    List<MatchBoardItem> source,
-  ) {
-    final byCompetition = <String, _ScoresCompetitionGroupBuilder>{};
-    for (final match in source) {
-      final id = match.competition.id;
-      byCompetition.putIfAbsent(
-        id,
-        () => _ScoresCompetitionGroupBuilder(match.competition),
-      );
-      byCompetition[id]!.matches.add(match);
-    }
-
-    final groups = [for (final builder in byCompetition.values) builder.build()]
-      ..sort((a, b) => a.competition.name.compareTo(b.competition.name));
-
-    return groups;
-  }
+  State<_ScoresRedesignHome> createState() => _ScoresRedesignHomeState();
 
   static bool _hasReadableSignal(MatchBoardItem match) {
     return match.thesis != null || match.signals.isNotEmpty;
-  }
-
-  static int _storyScore(MatchBoardItem match) {
-    final thesis = match.thesis;
-    if (thesis == null) {
-      return match.signals.length;
-    }
-    return thesis.confidence + thesis.arguments.length * 12;
   }
 
   static int _compareMatches(MatchBoardItem a, MatchBoardItem b) {
@@ -1076,6 +849,551 @@ class _ScoresRedesignHome extends StatelessWidget {
     }
     return a.homeTeam.name.compareTo(b.homeTeam.name);
   }
+}
+
+class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
+  bool _areAllStoriesVisible = false;
+  String? _selectedForMeReadingId;
+
+  @override
+  void didUpdateWidget(covariant _ScoresRedesignHome oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.mode != widget.mode ||
+        !_isSameCalendarDay(oldWidget.selectedDate, widget.selectedDate)) {
+      _areAllStoriesVisible = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleMatches = _matchesForModeAndDate();
+    final allStoryMatches = _storyMatches(visibleMatches);
+    final readingFilters = _readingFilters(allStoryMatches);
+    final activeReadingId =
+        readingFilters
+            .where((filter) => filter.id == _selectedForMeReadingId)
+            .isNotEmpty
+        ? _selectedForMeReadingId
+        : null;
+    final filteredStoryMatches = activeReadingId == null
+        ? allStoryMatches
+        : allStoryMatches
+              .where(
+                (match) => _matchReadingIds(match).contains(activeReadingId),
+              )
+              .toList(growable: false);
+    final storyMatches = _areAllStoriesVisible
+        ? filteredStoryMatches
+        : filteredStoryMatches.take(3).toList(growable: false);
+    final competitionGroups = _competitionGroups(visibleMatches);
+    final showsGenerator = widget.mode == _ScoresRedesignMode.generator;
+    final listTitle = switch (widget.mode) {
+      _ScoresRedesignMode.forMe => 'Ma sélection',
+      _ScoresRedesignMode.all => 'Tous les matchs',
+      _ScoresRedesignMode.generator => 'Générateur',
+    };
+    final listSubtitle = switch (widget.mode) {
+      _ScoresRedesignMode.forMe =>
+        'Modifiez vos championnats ou vos scénarios depuis Mon espace.',
+      _ScoresRedesignMode.all => 'Essayez un autre jour ou un autre mode.',
+      _ScoresRedesignMode.generator =>
+        'Configurez vos sélections depuis les paramètres Lector.',
+    };
+    final showsStories = widget.mode == _ScoresRedesignMode.forMe;
+    final hasMoreStories = filteredStoryMatches.length > 3;
+
+    return Stack(
+      children: [
+        RefreshIndicator(
+          onRefresh: () async {},
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 520),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _ScoresRedesignHeader(
+                            onOpenProfile: widget.onOpenProfile,
+                            onOpenTheme: widget.onOpenTheme,
+                          ),
+                          const SizedBox(height: 6),
+                          CopilotCalendar(
+                            selectedDate: widget.selectedDate,
+                            visibleWindowDays: 7,
+                            onDateSelected: widget.onDateSelected,
+                            onChooseDate: widget.onChooseDate,
+                          ),
+                          _SnapshotFreshnessLine(
+                            metadata: widget.snapshotMetadata,
+                            selectedDate: widget.selectedDate,
+                          ),
+                          const SizedBox(height: 6),
+                          _ScoresModeControl(
+                            selected: widget.mode,
+                            onChanged: widget.onModeChanged,
+                          ),
+                          const SizedBox(height: 14),
+                          if (showsGenerator)
+                            SizedBox(
+                              height: _generatorViewportHeight(context),
+                              child: widget.generator,
+                            )
+                          else ...[
+                            if (showsStories) ...[
+                              _ForMeReadingFilterBar(
+                                filters: readingFilters,
+                                selectedReadingId: activeReadingId,
+                                totalMatchCount: allStoryMatches.length,
+                                onSelected: (readingId) {
+                                  setState(() {
+                                    _selectedForMeReadingId = readingId;
+                                    _areAllStoriesVisible = false;
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 18),
+                              _TodayStoriesSection(
+                                matches: storyMatches,
+                                totalMatchCount: filteredStoryMatches.length,
+                                selectedReadingId: activeReadingId,
+                                onOpenMatch: _openStoryMatch,
+                                onSeeAll: hasMoreStories
+                                    ? _toggleStoryMatchesVisibility
+                                    : null,
+                                seeAllLabel: _areAllStoriesVisible
+                                    ? 'Réduire'
+                                    : 'Voir tout (${filteredStoryMatches.length})',
+                              ),
+                            ] else
+                              _AllMatchesDenseSection(
+                                title: listTitle,
+                                emptySubtitle: listSubtitle,
+                                initiallyExpanded: false,
+                                groups: competitionGroups,
+                                onOpenMatch: widget.onOpenMatch,
+                              ),
+                          ],
+                          const SizedBox(height: 96),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          left: 14,
+          bottom: 16 + MediaQuery.paddingOf(context).bottom,
+          child: LectorDeck(
+            maxWidth: MediaQuery.sizeOf(context).width - 28,
+            deckContext: LectorDeckContext(
+              scope: _deckScopeForMode(widget.mode),
+              selectedDate: widget.selectedDate,
+              hasGeneratorResults: widget.hasGeneratorResults,
+              hasSavedTickets: widget.hasSavedTickets,
+              hasActiveStrategies: widget.hasActiveStrategies,
+            ),
+            capabilities: LectorDeckCapabilities(
+              onOpenForMe: widget.mode == _ScoresRedesignMode.forMe
+                  ? null
+                  : () => widget.onModeChanged(_ScoresRedesignMode.forMe),
+              onOpenAll: widget.mode == _ScoresRedesignMode.all
+                  ? null
+                  : () => widget.onModeChanged(_ScoresRedesignMode.all),
+              onOpenGenerator: widget.mode == _ScoresRedesignMode.generator
+                  ? null
+                  : () => widget.onModeChanged(_ScoresRedesignMode.generator),
+              onGoToday: () => widget.onDateSelected(_todayDate()),
+              onOpenTicketHistory: widget.onOpenTicketHistory,
+              onRecalculate: widget.onRecalculateTickets,
+              onOpenStrategies: widget.onOpenStrategies,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _toggleStoryMatchesVisibility() {
+    setState(() {
+      _areAllStoriesVisible = !_areAllStoriesVisible;
+    });
+  }
+
+  void _openStoryMatch(MatchBoardItem match) {
+    final opportunity = widget.opportunities
+        .where((item) => item.matchId == match.id)
+        .firstOrNull;
+    if (opportunity != null) {
+      widget.onOpenOpportunity(opportunity);
+      return;
+    }
+    widget.onOpenMatch(match);
+  }
+
+  List<MatchBoardItem> _matchesForModeAndDate() {
+    final dateMatches = _matchesForDate(widget.matches);
+    final source = switch (widget.mode) {
+      _ScoresRedesignMode.forMe => _matchesForDate(_forMeMatches()),
+      _ScoresRedesignMode.all => dateMatches,
+      _ScoresRedesignMode.generator => const <MatchBoardItem>[],
+    };
+
+    return List<MatchBoardItem>.of(source)
+      ..sort(_ScoresRedesignHome._compareMatches);
+  }
+
+  double _generatorViewportHeight(BuildContext context) {
+    final height = MediaQuery.sizeOf(context).height;
+    final safeBottom = MediaQuery.paddingOf(context).bottom;
+    return (height - safeBottom - 176).clamp(440.0, 760.0);
+  }
+
+  List<MatchBoardItem> _matchesForDate(List<MatchBoardItem> source) {
+    return source.where((match) {
+      final kickoff = match.fixture.kickoff?.toLocal();
+      if (kickoff == null) {
+        return _isSameCalendarDay(widget.selectedDate, _todayDate());
+      }
+      return _isSameCalendarDay(kickoff, widget.selectedDate);
+    }).toList();
+  }
+
+  List<MatchBoardItem> _forMeMatches() {
+    // The repository has already applied the profile to this list. Filtering
+    // again here can hide valid readings when their ids evolve independently
+    // from the presentation catalog.
+    return widget.personalizedMatches;
+  }
+
+  bool _matchesSelectedCompetition(MatchBoardItem match) {
+    final selectedIds = _selectedCompetitionIds;
+    if (selectedIds.isEmpty) {
+      return true;
+    }
+
+    final apiLeagueId = match.competition.apiFootballLeagueId?.toString();
+    return selectedIds.contains(match.competition.id) ||
+        (apiLeagueId != null && selectedIds.contains(apiLeagueId));
+  }
+
+  Set<String> get _selectedCompetitionIds {
+    return {
+      for (final id in widget.profile.optionIdsFor('competitions'))
+        if (RuntimeCompetitionCatalog.resolveId(id) != null)
+          RuntimeCompetitionCatalog.resolveId(id)!,
+    };
+  }
+
+  Set<String> get _selectedReadingIds {
+    return widget.profile.optionIdsFor('opportunity_profiles').toSet();
+  }
+
+  List<MatchBoardItem> _storyMatches(List<MatchBoardItem> source) {
+    final candidates =
+        source.where(_ScoresRedesignHome._hasReadableSignal).toList()
+          ..sort((a, b) {
+            final scoreComparison = _profileReadingCount(
+              b,
+            ).compareTo(_profileReadingCount(a));
+            if (scoreComparison != 0) {
+              return scoreComparison;
+            }
+            return _ScoresRedesignHome._compareMatches(a, b);
+          });
+
+    return candidates;
+  }
+
+  List<_ForMeReadingFilter> _readingFilters(List<MatchBoardItem> matches) {
+    final filtersById = <String, _ForMeReadingFilterBuilder>{};
+    for (final match in matches) {
+      for (final reading in _profileReadings(match)) {
+        filtersById
+            .putIfAbsent(
+              reading.id,
+              () => _ForMeReadingFilterBuilder(
+                id: reading.id,
+                label: reading.label,
+              ),
+            )
+            .matchIds
+            .add(match.id);
+      }
+    }
+
+    final filters = [for (final builder in filtersById.values) builder.build()]
+      ..sort((a, b) {
+        final countComparison = b.matchCount.compareTo(a.matchCount);
+        return countComparison != 0
+            ? countComparison
+            : a.label.compareTo(b.label);
+      });
+    return filters;
+  }
+
+  List<_ForMeReading> _profileReadings(MatchBoardItem match) {
+    final selectedProfileIds = _selectedReadingIds;
+    final readingsById = <String, _ForMeReading>{};
+
+    void add(String runtimeId) {
+      final category = _ForMeReadingCategory.fromRuntimeId(
+        runtimeId,
+        selectedProfileIds: selectedProfileIds,
+      );
+      if (category == null || readingsById.containsKey(category.id)) {
+        return;
+      }
+      readingsById[category.id] = _ForMeReading(
+        id: category.id,
+        label: category.label,
+      );
+    }
+
+    final thesis = match.thesis;
+    if (thesis != null) {
+      add(thesis.id);
+      for (final argument in thesis.arguments) {
+        final readingId = FootballReadingCopyCatalog.readingIdFor(argument);
+        add(readingId);
+      }
+    }
+    for (final signal in match.signals) {
+      add(signal.id);
+    }
+
+    return readingsById.values.toList(growable: false);
+  }
+
+  Set<String> _matchReadingIds(MatchBoardItem match) {
+    return _profileReadings(match).map((reading) => reading.id).toSet();
+  }
+
+  int _profileReadingCount(MatchBoardItem match) {
+    final readingCount = _profileReadings(match).length;
+    final opportunityBonus = match.thesis?.hasRecommendedMarket == true ? 1 : 0;
+    return readingCount + opportunityBonus;
+  }
+
+  List<_ScoresCompetitionGroup> _competitionGroups(
+    List<MatchBoardItem> source,
+  ) {
+    final byCompetition = <String, _ScoresCompetitionGroupBuilder>{};
+    for (final match in source) {
+      final id = match.competition.id;
+      byCompetition.putIfAbsent(
+        id,
+        () => _ScoresCompetitionGroupBuilder(match.competition),
+      );
+      byCompetition[id]!.matches.add(match);
+    }
+
+    final groups = [for (final builder in byCompetition.values) builder.build()]
+      ..sort((a, b) {
+        final aSelected = _matchesSelectedCompetition(a.matches.first);
+        final bSelected = _matchesSelectedCompetition(b.matches.first);
+        if (aSelected != bSelected) {
+          return aSelected ? -1 : 1;
+        }
+        return a.competition.name.compareTo(b.competition.name);
+      });
+
+    return groups;
+  }
+}
+
+class _ForMeReading {
+  const _ForMeReading({required this.id, required this.label});
+
+  final String id;
+  final String label;
+}
+
+class _ForMeReadingFilter {
+  const _ForMeReadingFilter({
+    required this.id,
+    required this.label,
+    required this.matchCount,
+  });
+
+  final String id;
+  final String label;
+  final int matchCount;
+}
+
+class _ForMeReadingFilterBuilder {
+  _ForMeReadingFilterBuilder({required this.id, required this.label});
+
+  final String id;
+  final String label;
+  final Set<String> matchIds = <String>{};
+
+  _ForMeReadingFilter build() {
+    return _ForMeReadingFilter(
+      id: id,
+      label: label,
+      matchCount: matchIds.length,
+    );
+  }
+}
+
+/// Presentation categories stay aligned with saved preference ids. Runtime
+/// readings carry a subject team in their copy, so they must never be used as
+/// a filter identity or a filter label.
+class _ForMeReadingCategory {
+  const _ForMeReadingCategory({required this.id, required this.label});
+
+  final String id;
+  final String label;
+
+  static _ForMeReadingCategory? fromRuntimeId(
+    String runtimeId, {
+    required Set<String> selectedProfileIds,
+  }) {
+    final candidates = <String>{
+      ...?_preferredProfileIds[runtimeId],
+      ...OpportunityProfileCatalog.profileIdsForReading(runtimeId),
+      ...OpportunityProfileCatalog.profileIdsForThesis(runtimeId),
+    };
+    if (candidates.isEmpty) {
+      return null;
+    }
+
+    final selected = selectedProfileIds.isEmpty
+        ? candidates
+        : candidates.where(selectedProfileIds.contains).toSet();
+    if (selected.isEmpty) {
+      return null;
+    }
+
+    final id = _orderedProfileIds
+        .where(selected.contains)
+        .cast<String?>()
+        .firstOrNull;
+    if (id == null) {
+      return null;
+    }
+    return _categoriesByProfileId[id];
+  }
+
+  static const _orderedProfileIds = [
+    'ranking_gap',
+    'positive_series',
+    'negative_series',
+    'fragile_defense',
+    'prolific_attack',
+    'offensive_match',
+    'defensive_match',
+    'solid_favorite',
+    'struggling_team',
+    'credible_outsider',
+  ];
+
+  static const _categoriesByProfileId = {
+    'ranking_gap': _ForMeReadingCategory(
+      id: 'ranking_gap',
+      label: 'Avantage classement',
+    ),
+    'positive_series': _ForMeReadingCategory(
+      id: 'positive_series',
+      label: 'Forme',
+    ),
+    'negative_series': _ForMeReadingCategory(
+      id: 'negative_series',
+      label: 'Dynamique négative',
+    ),
+    'fragile_defense': _ForMeReadingCategory(
+      id: 'fragile_defense',
+      label: 'Défense fragile',
+    ),
+    'prolific_attack': _ForMeReadingCategory(
+      id: 'prolific_attack',
+      label: 'Attaque efficace',
+    ),
+    'offensive_match': _ForMeReadingCategory(
+      id: 'offensive_match',
+      label: 'Match ouvert',
+    ),
+    'defensive_match': _ForMeReadingCategory(
+      id: 'defensive_match',
+      label: 'Match fermé',
+    ),
+    'solid_favorite': _ForMeReadingCategory(
+      id: 'solid_favorite',
+      label: 'Domination attendue',
+    ),
+    'struggling_team': _ForMeReadingCategory(
+      id: 'struggling_team',
+      label: 'Équipe en difficulté',
+    ),
+    'credible_outsider': _ForMeReadingCategory(
+      id: 'credible_outsider',
+      label: 'Outsider crédible',
+    ),
+  };
+
+  static const _preferredProfileIds = <String, List<String>>{
+    'balanced_hierarchy': ['ranking_gap'],
+    'ranking_superiority': ['ranking_gap'],
+    'structural_level_gap': ['ranking_gap'],
+    'positive_streak': ['positive_series'],
+    'improving_form': ['positive_series'],
+    'negative_streak': ['negative_series'],
+    'declining_form': ['negative_series'],
+    'fragile_defense': ['fragile_defense'],
+    'high_xg_conceded': ['fragile_defense'],
+    'defensive_underperformance': ['fragile_defense'],
+    'prolific_attack': ['prolific_attack'],
+    'high_xg_creation': ['prolific_attack'],
+    'attack_in_form': ['prolific_attack'],
+    'open_match_profile': ['offensive_match'],
+    'frequent_over_25': ['offensive_match'],
+    'frequent_btts': ['offensive_match'],
+    'closed_match_profile': ['defensive_match'],
+    'frequent_under_25': ['defensive_match'],
+    'expected_domination': ['solid_favorite'],
+    'solid_favorite': ['solid_favorite'],
+    'controlled_favorite': ['solid_favorite'],
+    'team_in_serious_difficulty': ['struggling_team'],
+    'credible_outsider': ['credible_outsider'],
+  };
+}
+
+String _readingLabelForId(String id, {required String fallback}) {
+  return switch (id) {
+    'ranking_gap' ||
+    'ranking_superiority' ||
+    'structural_level_gap' ||
+    'balanced_hierarchy' => 'Avantage classement',
+    'positive_streak' || 'improving_form' || 'form_advantage' => 'Forme',
+    'negative_streak' || 'declining_form' => 'Dynamique négative',
+    'fragile_defense' ||
+    'high_xg_conceded' ||
+    'defensive_underperformance' => 'Défense fragile',
+    'prolific_attack' ||
+    'high_xg_creation' ||
+    'attack_in_form' => 'Attaque efficace',
+    'open_match' ||
+    'open_match_profile' ||
+    'frequent_over_25' ||
+    'frequent_btts' => 'Match ouvert',
+    'closed_match' ||
+    'closed_match_profile' ||
+    'frequent_under_25' => 'Match fermé',
+    'expected_domination' ||
+    'solid_favorite' ||
+    'controlled_favorite' => 'Domination attendue',
+    'credible_outsider' => 'Outsider crédible',
+    'contradiction' || 'conflicting_signals' => 'Contexte',
+    _ => fallback,
+  };
 }
 
 class _ScoresRedesignHeader extends StatelessWidget {
@@ -2193,18 +2511,166 @@ class _ScoresModeTab extends StatelessWidget {
   }
 }
 
+class _ForMeReadingFilterBar extends StatelessWidget {
+  const _ForMeReadingFilterBar({
+    required this.filters,
+    required this.selectedReadingId,
+    required this.totalMatchCount,
+    required this.onSelected,
+  });
+
+  final List<_ForMeReadingFilter> filters;
+  final String? selectedReadingId;
+  final int totalMatchCount;
+  final ValueChanged<String?> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 82,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
+        children: [
+          _ForMeReadingFilterTile(
+            label: 'Tout',
+            count: totalMatchCount,
+            icon: Icons.grid_view_rounded,
+            isSelected: selectedReadingId == null,
+            onTap: () => onSelected(null),
+          ),
+          for (final filter in filters) ...[
+            const SizedBox(width: AppSpacing.xs),
+            _ForMeReadingFilterTile(
+              label: filter.label,
+              count: filter.matchCount,
+              icon: context.opportunities.readingIdentityForId(filter.id).icon,
+              readingId: filter.id,
+              isSelected: filter.id == selectedReadingId,
+              onTap: () => onSelected(filter.id),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ForMeReadingFilterTile extends StatelessWidget {
+  const _ForMeReadingFilterTile({
+    required this.label,
+    required this.count,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+    this.readingId,
+  });
+
+  final String label;
+  final int count;
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final String? readingId;
+
+  @override
+  Widget build(BuildContext context) {
+    final readingId = this.readingId;
+    final badge = readingId == null
+        ? null
+        : context.opportunities.badgeFor(
+            readingId,
+            variant: AppReadingBadgeVariant.soft,
+          );
+    final accent = isSelected
+        ? context.brand.accent
+        : (badge?.foreground ?? context.textColors.secondary);
+    final background = isSelected
+        ? context.brand.accent.withValues(alpha: 0.12)
+        : context.surfaces.surface.withValues(alpha: 0.64);
+
+    return SizedBox(
+      key: readingId == null
+          ? const ValueKey('for-me-filter-all')
+          : ValueKey('for-me-filter-$readingId'),
+      width: 94,
+      child: Material(
+        color: AppColors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          side: BorderSide(
+            color: isSelected ? context.brand.accent : context.surfaces.border,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: background,
+              borderRadius: BorderRadius.circular(AppRadius.card),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xs,
+                vertical: AppSpacing.xs,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, color: accent, size: 20),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: context.textColors.primary,
+                      fontWeight: FontWeight.w800,
+                      height: 1.12,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '($count)',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: context.textColors.secondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _TodayStoriesSection extends StatelessWidget {
   const _TodayStoriesSection({
     required this.matches,
+    required this.totalMatchCount,
+    required this.selectedReadingId,
     required this.onOpenMatch,
+    required this.onSeeAll,
+    required this.seeAllLabel,
   });
 
   final List<MatchBoardItem> matches;
+  final int totalMatchCount;
+  final String? selectedReadingId;
   final ValueChanged<MatchBoardItem> onOpenMatch;
+  final VoidCallback? onSeeAll;
+  final String seeAllLabel;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final showsSeeAll = onSeeAll != null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2229,8 +2695,10 @@ class _TodayStoriesSection extends StatelessWidget {
                   ),
                   Text(
                     matches.isEmpty
-                        ? 'Aucun scénario personnalisé sur cette date'
-                        : 'Les 3 scénarios les plus forts pour votre profil',
+                        ? 'Aucune rencontre ne correspond à cette lecture'
+                        : totalMatchCount > matches.length
+                        ? 'Les rencontres les plus pertinentes pour votre profil'
+                        : 'Rencontres correspondant à vos lectures',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: context.textColors.secondary,
                       fontWeight: FontWeight.w600,
@@ -2239,12 +2707,8 @@ class _TodayStoriesSection extends StatelessWidget {
                 ],
               ),
             ),
-            TextButton(
-              onPressed: matches.isEmpty
-                  ? null
-                  : () => onOpenMatch(matches.first),
-              child: const Text('Voir tout'),
-            ),
+            if (showsSeeAll)
+              TextButton(onPressed: onSeeAll, child: Text(seeAllLabel)),
           ],
         ),
         const SizedBox(height: 10),
@@ -2284,12 +2748,9 @@ class _TodayStoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final thesisId = match.thesis?.id ?? match.signals.firstOrNull?.id ?? '';
-    final scenarioBadge = context.opportunities.badgeFor(
-      thesisId,
-      variant: AppReadingBadgeVariant.combined,
-    );
-    final reading = _readingTitle(match);
-    final convergentReadingCount = _convergentReadingCount(match);
+    final hasOpportunity = match.thesis?.hasRecommendedMarket == true;
+    final readingCount = _convergentReadingCount(match);
+    final tags = _representativeReadingTags(match);
 
     return Material(
       color: context.surfaces.surface.withValues(alpha: 0.72),
@@ -2301,16 +2762,16 @@ class _TodayStoryCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.card),
         child: Padding(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.fromLTRB(10, 11, 8, 11),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               _StoryRankMeta(rank: rank, match: match),
               const SizedBox(width: 10),
-              SizedBox(width: 104, child: _StoryTeams(match: match)),
+              SizedBox(width: 112, child: _StoryTeams(match: match)),
               Container(
                 width: 1,
-                height: 58,
+                height: 76,
                 margin: const EdgeInsets.symmetric(horizontal: 10),
                 color: context.surfaces.border,
               ),
@@ -2318,21 +2779,25 @@ class _TodayStoryCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _StoryScenarioPill(
-                      label: reading,
-                      style: scenarioBadge,
-                      icon: context.opportunities
-                          .readingIdentityForId(thesisId)
-                          .icon,
+                    _StoryRelevanceLabel(
+                      readingCount: readingCount,
+                      hasOpportunity: hasOpportunity,
                     ),
                     const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      _convergentReadingCountLabel(convergentReadingCount),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: context.textColors.secondary,
-                        fontWeight: FontWeight.w700,
+                    _StoryReadingTags(tags: tags),
+                    if (_storySummary(match).isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        _storySummary(match),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: context.textColors.secondary,
+                          height: 1.2,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -2342,11 +2807,20 @@ class _TodayStoryCard extends StatelessWidget {
                 tooltip: 'Voir l’analyse',
                 icon: Icon(
                   Icons.chevron_right_rounded,
-                  color: scenarioBadge.foreground,
+                  color: thesisId.isEmpty
+                      ? context.textColors.secondary
+                      : context.opportunities
+                            .badgeFor(
+                              thesisId,
+                              variant: AppReadingBadgeVariant.soft,
+                            )
+                            .foreground,
                 ),
                 style: IconButton.styleFrom(
-                  side: BorderSide(color: scenarioBadge.border),
-                  backgroundColor: scenarioBadge.background,
+                  side: BorderSide(color: context.surfaces.border),
+                  backgroundColor: context.surfaces.surfaceHover.withValues(
+                    alpha: 0.4,
+                  ),
                 ),
               ),
             ],
@@ -2355,6 +2829,114 @@ class _TodayStoryCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _StoryRelevanceLabel extends StatelessWidget {
+  const _StoryRelevanceLabel({
+    required this.readingCount,
+    required this.hasOpportunity,
+  });
+
+  final int readingCount;
+  final bool hasOpportunity;
+
+  @override
+  Widget build(BuildContext context) {
+    final countLabel = readingCount == 1
+        ? '1 lecture'
+        : '$readingCount lectures';
+    final label = hasOpportunity ? '$countLabel · opportunité' : countLabel;
+    final color = hasOpportunity
+        ? context.opportunities.levelGap
+        : context.brand.accent;
+
+    return Row(
+      children: [
+        Icon(
+          hasOpportunity ? Icons.auto_awesome_rounded : Icons.bar_chart_rounded,
+          color: color,
+          size: 17,
+        ),
+        const SizedBox(width: 5),
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: context.textColors.primary,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StoryReadingTags extends StatelessWidget {
+  const _StoryReadingTags({required this.tags});
+
+  final List<_ForMeReading> tags;
+
+  @override
+  Widget build(BuildContext context) {
+    if (tags.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 5,
+      children: [
+        for (final tag in tags.take(3))
+          _StoryScenarioPill(
+            label: tag.label,
+            style: context.opportunities.badgeFor(
+              tag.id,
+              variant: AppReadingBadgeVariant.soft,
+            ),
+            icon: context.opportunities.readingIdentityForId(tag.id).icon,
+          ),
+      ],
+    );
+  }
+}
+
+List<_ForMeReading> _representativeReadingTags(MatchBoardItem match) {
+  final readingsById = <String, _ForMeReading>{};
+  void add(String id, String label) {
+    if (id.isNotEmpty && !readingsById.containsKey(id)) {
+      readingsById[id] = _ForMeReading(id: id, label: label);
+    }
+  }
+
+  final thesis = match.thesis;
+  if (thesis != null) {
+    for (final argument in thesis.arguments) {
+      final id = FootballReadingCopyCatalog.readingIdFor(argument);
+      add(id, FootballReadingCopyCatalog.titleFor(argument));
+    }
+    add(thesis.id, _readingLabelForId(thesis.id, fallback: thesis.title));
+  }
+  for (final signal in match.signals) {
+    add(signal.id, _readingLabelForId(signal.id, fallback: signal.title));
+  }
+  return readingsById.values.toList(growable: false);
+}
+
+String _storySummary(MatchBoardItem match) {
+  final thesisSummary = match.thesis?.summary.trim();
+  if (thesisSummary != null && thesisSummary.isNotEmpty) {
+    return thesisSummary;
+  }
+  for (final signal in match.signals) {
+    final summary = signal.summary.trim();
+    if (summary.isNotEmpty) {
+      return summary;
+    }
+  }
+  return '';
 }
 
 class _StoryRankMeta extends StatelessWidget {
@@ -2474,9 +3056,9 @@ class _StoryScenarioPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: style.background,
+        color: context.surfaces.surfaceHover.withValues(alpha: 0.46),
         borderRadius: BorderRadius.circular(AppRadius.chip),
-        border: Border.all(color: style.border),
+        border: Border.all(color: context.surfaces.border),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -2938,13 +3520,6 @@ int _convergentReadingCount(MatchBoardItem match) {
     }
   }
   return match.signals.length;
-}
-
-String _convergentReadingCountLabel(int count) {
-  if (count <= 0) {
-    return 'Lecture détectée';
-  }
-  return count == 1 ? '1 lecture convergente' : '$count lectures convergentes';
 }
 
 String _freeReadingCopy(String value) {

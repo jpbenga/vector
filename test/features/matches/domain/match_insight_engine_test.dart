@@ -1,5 +1,6 @@
 import 'package:copilot/features/matches/domain/match_board_item.dart';
 import 'package:copilot/features/matches/domain/match_insight_engine.dart';
+import 'package:copilot/features/matches/domain/structural_tiers/tier_models.dart';
 import 'package:copilot/features/onboarding/domain/compiled_decision_profile.dart';
 import 'package:copilot/features/onboarding/domain/decision_profile.dart';
 import 'package:copilot/features/onboarding/domain/onboarding_answer.dart';
@@ -212,8 +213,9 @@ MatchBoardItem _match({
           bookmakerName: 'Unibet',
         ),
     ],
-    analysis: const MatchAnalysisData(
-      homeStanding: TeamStandingSnapshot(
+    analysis: MatchAnalysisData(
+      structuralRelation: _structuralRelation(),
+      homeStanding: const TeamStandingSnapshot(
         teamId: 10,
         teamName: 'Home',
         rank: 2,
@@ -226,7 +228,7 @@ MatchBoardItem _match({
         goalsAgainst: 8,
         form: 'WWDWW',
       ),
-      awayStanding: TeamStandingSnapshot(
+      awayStanding: const TeamStandingSnapshot(
         teamId: 11,
         teamName: 'Away',
         rank: 9,
@@ -239,8 +241,67 @@ MatchBoardItem _match({
         goalsAgainst: 16,
         form: 'LDLDW',
       ),
+      homeStatistics: const TeamStatisticsSnapshot(
+        teamId: 10,
+        teamName: 'Home',
+        playedTotal: 10,
+        playedHome: 5,
+        winsTotal: 7,
+        winsHome: 4,
+      ),
+      awayStatistics: const TeamStatisticsSnapshot(
+        teamId: 11,
+        teamName: 'Away',
+        playedTotal: 10,
+        playedAway: 5,
+        lossesTotal: 4,
+        lossesAway: 3,
+      ),
     ),
     compatibility: 0,
     signals: const [],
+  );
+}
+
+MatchStructuralRelation _structuralRelation() {
+  return MatchStructuralRelation(
+    competitionId: '61',
+    season: 2026,
+    analysisAsOf: DateTime.utc(2026, 7, 30, 8),
+    tierSystemVersion: 'tier-v1',
+    standingsSnapshotIdentity: 'tier-snapshot-insight',
+    homeTeamId: 10,
+    awayTeamId: 11,
+    homeTeamTier: TierLabel.tier1Podium,
+    awayTeamTier: TierLabel.tier4LowerChampionship,
+    sameTier: false,
+    ordinalTierGap: 3,
+    structuralBoundaryGap: 1,
+    confirmedBoundariesBetweenTeams: const [
+      ConfirmedStructuralBoundary(
+        boundaryIndex: 3,
+        upperRank: 3,
+        lowerRank: 4,
+        rawGap: 12,
+        score: 82,
+        strength: BoundaryStrength.strong,
+        standingsSnapshotIdentity: 'tier-snapshot-insight',
+      ),
+    ],
+    tierMaturity: TierMaturity.mature,
+    tierStatus: TierSystemStatus.mature,
+    championshipTeamCount: 20,
+    typicalGap: 1,
+    homeOfficialRank: 2,
+    awayOfficialRank: 9,
+    homePoints: 24,
+    awayPoints: 12,
+    homeStructuralLevelGap: const StructuralLevelGapAssessment(
+      exists: true,
+      strength: StructuralLevelGapStrength.moderate,
+    ),
+    awayStructuralLevelGap: const StructuralLevelGapAssessment(exists: false),
+    balancedHierarchy: const BalancedHierarchyAssessment(exists: false),
+    warnings: const [],
   );
 }

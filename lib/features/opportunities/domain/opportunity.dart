@@ -2,6 +2,92 @@ import '../../matches/domain/match_board_item.dart';
 import '../../matches/domain/football_reading.dart';
 import '../../onboarding/domain/decision_profile_catalogs.dart';
 
+enum ThesisAssessmentStatus { supported, eligibleButUnsupported, notEligible }
+
+enum ThesisEvidenceRelation {
+  coreSupport,
+  additionalSupport,
+  contradiction,
+  resistance,
+  nonDiscriminating,
+  notRelevant,
+  evidenceUnavailable,
+}
+
+extension ThesisEvidenceRelationCode on ThesisEvidenceRelation {
+  String get code {
+    return switch (this) {
+      ThesisEvidenceRelation.coreSupport => 'CORE_SUPPORT',
+      ThesisEvidenceRelation.additionalSupport => 'ADDITIONAL_SUPPORT',
+      ThesisEvidenceRelation.contradiction => 'CONTRADICTION',
+      ThesisEvidenceRelation.resistance => 'RESISTANCE',
+      ThesisEvidenceRelation.nonDiscriminating => 'NON_DISCRIMINATING',
+      ThesisEvidenceRelation.notRelevant => 'NOT_RELEVANT',
+      ThesisEvidenceRelation.evidenceUnavailable => 'EVIDENCE_UNAVAILABLE',
+    };
+  }
+}
+
+class ThesisEvidenceAssessment {
+  const ThesisEvidenceAssessment({
+    required this.relation,
+    required this.family,
+    required this.label,
+    this.reading,
+  });
+
+  final ThesisEvidenceRelation relation;
+  final CopilotArgumentFamily family;
+  final String label;
+  final FootballReading? reading;
+}
+
+class ThesisAssessment {
+  const ThesisAssessment({
+    required this.id,
+    required this.title,
+    required this.subjectSide,
+    required this.status,
+    required this.clarityScore,
+    required this.evidence,
+    this.failedGate,
+  });
+
+  final String id;
+  final String title;
+  final ReadingSubjectSide subjectSide;
+  final ThesisAssessmentStatus status;
+  final int clarityScore;
+  final List<ThesisEvidenceAssessment> evidence;
+  final String? failedGate;
+
+  bool get isSupported => status == ThesisAssessmentStatus.supported;
+
+  List<ThesisEvidenceAssessment> get coreSupport => evidence
+      .where((item) => item.relation == ThesisEvidenceRelation.coreSupport)
+      .toList(growable: false);
+
+  List<ThesisEvidenceAssessment> get additionalSupport => evidence
+      .where(
+        (item) => item.relation == ThesisEvidenceRelation.additionalSupport,
+      )
+      .toList(growable: false);
+
+  List<ThesisEvidenceAssessment> get contradictions => evidence
+      .where((item) => item.relation == ThesisEvidenceRelation.contradiction)
+      .toList(growable: false);
+
+  List<ThesisEvidenceAssessment> get resistances => evidence
+      .where((item) => item.relation == ThesisEvidenceRelation.resistance)
+      .toList(growable: false);
+
+  List<ThesisEvidenceAssessment> get nonDiscriminating => evidence
+      .where(
+        (item) => item.relation == ThesisEvidenceRelation.nonDiscriminating,
+      )
+      .toList(growable: false);
+}
+
 /// Business contract for a detected opportunity.
 ///
 /// Pipeline boundaries:
@@ -20,6 +106,7 @@ class Opportunity {
     this.recommendedMarket,
     this.supportingReadings = const [],
     this.contradictoryReadings = const [],
+    this.thesisAssessments = const [],
     this.asOf,
   });
 
@@ -31,6 +118,7 @@ class Opportunity {
   final RecommendedMarket? recommendedMarket;
   final List<FootballReading> supportingReadings;
   final List<FootballReading> contradictoryReadings;
+  final List<ThesisAssessment> thesisAssessments;
   final DateTime? asOf;
 
   String get matchId => sourceMatch.id;

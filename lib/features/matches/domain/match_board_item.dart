@@ -1,3 +1,5 @@
+import 'structural_tiers/tier_models.dart';
+
 enum MatchDataSourceMode { demo, snapshot, api }
 
 enum FixtureStatus { scheduled, live, finished, postponed, cancelled }
@@ -246,6 +248,7 @@ class TeamStandingSnapshot {
     required this.teamId,
     required this.teamName,
     this.group,
+    this.description,
     this.rank,
     this.points,
     this.played,
@@ -261,6 +264,7 @@ class TeamStandingSnapshot {
   final int teamId;
   final String teamName;
   final String? group;
+  final String? description;
   final int? rank;
   final int? points;
   final int? played;
@@ -301,6 +305,7 @@ class MatchAnalysisData {
     this.homeStanding,
     this.awayStanding,
     this.leagueStandings = const [],
+    this.structuralRelation,
     this.homeRecentLeagueMatches = const [],
     this.awayRecentLeagueMatches = const [],
     this.homeStatistics,
@@ -314,6 +319,7 @@ class MatchAnalysisData {
   final TeamStandingSnapshot? homeStanding;
   final TeamStandingSnapshot? awayStanding;
   final List<TeamStandingSnapshot> leagueStandings;
+  final MatchStructuralRelation? structuralRelation;
   final List<TeamRecentMatchSnapshot> homeRecentLeagueMatches;
   final List<TeamRecentMatchSnapshot> awayRecentLeagueMatches;
   final TeamStatisticsSnapshot? homeStatistics;
@@ -336,6 +342,38 @@ class MatchAnalysisData {
       hasStatistics ||
       hasRecentLeagueMatches ||
       hasExpectedGoals;
+
+  MatchAnalysisData copyWith({
+    DateTime? asOf,
+    TeamStandingSnapshot? homeStanding,
+    TeamStandingSnapshot? awayStanding,
+    List<TeamStandingSnapshot>? leagueStandings,
+    MatchStructuralRelation? structuralRelation,
+    List<TeamRecentMatchSnapshot>? homeRecentLeagueMatches,
+    List<TeamRecentMatchSnapshot>? awayRecentLeagueMatches,
+    TeamStatisticsSnapshot? homeStatistics,
+    TeamStatisticsSnapshot? awayStatistics,
+    TeamExpectedGoalsSnapshot? homeExpectedGoals,
+    TeamExpectedGoalsSnapshot? awayExpectedGoals,
+    bool? containsPredictions,
+  }) {
+    return MatchAnalysisData(
+      asOf: asOf ?? this.asOf,
+      homeStanding: homeStanding ?? this.homeStanding,
+      awayStanding: awayStanding ?? this.awayStanding,
+      leagueStandings: leagueStandings ?? this.leagueStandings,
+      structuralRelation: structuralRelation ?? this.structuralRelation,
+      homeRecentLeagueMatches:
+          homeRecentLeagueMatches ?? this.homeRecentLeagueMatches,
+      awayRecentLeagueMatches:
+          awayRecentLeagueMatches ?? this.awayRecentLeagueMatches,
+      homeStatistics: homeStatistics ?? this.homeStatistics,
+      awayStatistics: awayStatistics ?? this.awayStatistics,
+      homeExpectedGoals: homeExpectedGoals ?? this.homeExpectedGoals,
+      awayExpectedGoals: awayExpectedGoals ?? this.awayExpectedGoals,
+      containsPredictions: containsPredictions ?? this.containsPredictions,
+    );
+  }
 }
 
 class TeamStatisticsSnapshot {

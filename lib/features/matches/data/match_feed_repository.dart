@@ -1,9 +1,15 @@
 import 'api_football_match_adapter.dart';
+import 'championship_tier_snapshot_engine.dart';
+import 'championship_tier_temporal_state_store.dart';
 import '../../onboarding/domain/profile_compiler.dart';
 import '../../onboarding/domain/decision_profile.dart';
 import '../../opportunities/domain/opportunity.dart';
 import '../domain/match_insight_engine.dart';
 import '../domain/match_board_item.dart';
+import '../domain/opportunity_engine_v2.dart';
+import '../domain/structural_tiers/competition_structural_metadata.dart';
+import '../domain/structural_tiers/tier_input.dart';
+import '../domain/structural_tiers/tier_models.dart';
 
 abstract interface class MatchFeedRepository {
   MatchDataSourceMode get mode;
@@ -137,23 +143,47 @@ class SnapshotMatchFeedRepository implements MatchFeedRepository {
   factory SnapshotMatchFeedRepository({
     required Map<String, Object?> snapshot,
     ApiFootballMatchAdapter adapter = const ApiFootballMatchAdapter(),
+    CompetitionStructuralMetadataRepository metadataRepository =
+        const StaticCompetitionStructuralMetadataRepository(),
+    ChampionshipTierSnapshotEngine? tierSnapshotEngine,
+    OpportunityEngineV2 opportunityEngine = const OpportunityEngineV2(),
   }) {
     final matches = adapter.fromSnapshot(snapshot);
-    return SnapshotMatchFeedRepository._(
+    final engine =
+        tierSnapshotEngine ??
+        ChampionshipTierSnapshotEngine(
+          temporalStateStore: InMemoryChampionshipTierTemporalStateStore(),
+        );
+    final enrichedMatches = _attachStructuralRelations(
       matches: matches,
+      snapshot: snapshot,
+      metadataRepository: metadataRepository,
+      tierSnapshotEngine: engine,
+    );
+    return SnapshotMatchFeedRepository._(
+      matches: enrichedMatches,
       snapshotMetadata: MatchFeedSnapshotMetadata.fromSnapshot(
         snapshot,
-        matches: matches,
+        matches: enrichedMatches,
       ),
+      opportunityEngine: opportunityEngine,
+      intelligencesByFixtureId: {
+        for (final match in enrichedMatches)
+          match.id: opportunityEngine.buildIntelligence(match),
+      },
     );
   }
 
   const SnapshotMatchFeedRepository._({
     required this._matches,
     required this.snapshotMetadata,
+    required this._opportunityEngine,
+    required this._intelligencesByFixtureId,
   });
 
   final List<MatchBoardItem> _matches;
+  final OpportunityEngineV2 _opportunityEngine;
+  final Map<String, MatchIntelligence> _intelligencesByFixtureId;
 
   @override
   MatchDataSourceMode get mode => MatchDataSourceMode.snapshot;
@@ -166,18 +196,136 @@ class SnapshotMatchFeedRepository implements MatchFeedRepository {
 
   @override
   List<Opportunity> opportunitiesFor(DecisionProfile profile) {
-    return _opportunitiesFor(profile, allMatches());
+    final compiledProfile = const ProfileCompiler().compile(profile);
+    return _opportunityEngine.opportunitiesFromIntelligence(
+      _intelligencesByFixtureId.values,
+      compiledProfile,
+    );
   }
 
   @override
   List<MatchBoardItem> personalizedFor(DecisionProfile profile) {
-    return _personalizedMatchesFor(profile, allMatches());
+    final compiledProfile = const ProfileCompiler().compile(profile);
+    final matches =
+        [
+          for (final intelligence in _intelligencesByFixtureId.values)
+            _opportunityEngine.personalizeMatchFromIntelligence(
+              intelligence,
+              compiledProfile,
+            ),
+        ].where((match) {
+          return match.profileStatus == MatchProfileStatus.inProfile &&
+              (match.thesis != null || match.signals.isNotEmpty);
+        }).toList();
+
+    matches.sort(_comparePersonalizedMatches);
+    return matches;
   }
 
   @override
   MatchBoardItem analyzeFor(DecisionProfile profile, MatchBoardItem match) {
-    return _analyzeMatchFor(profile, match);
+    final intelligence = _intelligencesByFixtureId[match.id];
+    if (intelligence == null) {
+      return _analyzeMatchFor(profile, match);
+    }
+
+    final compiledProfile = const ProfileCompiler().compile(profile);
+    return _opportunityEngine.personalizeMatchFromIntelligence(
+      intelligence,
+      compiledProfile,
+    );
   }
+}
+
+int _comparePersonalizedMatches(MatchBoardItem a, MatchBoardItem b) {
+  final scoreComparison = b.compatibility.compareTo(a.compatibility);
+  if (scoreComparison != 0) {
+    return scoreComparison;
+  }
+
+  final aKickoff = a.fixture.kickoff;
+  final bKickoff = b.fixture.kickoff;
+  if (aKickoff != null && bKickoff != null) {
+    final kickoffComparison = aKickoff.compareTo(bKickoff);
+    if (kickoffComparison != 0) {
+      return kickoffComparison;
+    }
+  } else if (aKickoff != null) {
+    return -1;
+  } else if (bKickoff != null) {
+    return 1;
+  }
+
+  return a.homeTeam.name.compareTo(b.homeTeam.name);
+}
+
+List<MatchBoardItem> _attachStructuralRelations({
+  required List<MatchBoardItem> matches,
+  required Map<String, Object?> snapshot,
+  required CompetitionStructuralMetadataRepository metadataRepository,
+  required ChampionshipTierSnapshotEngine tierSnapshotEngine,
+}) {
+  if (matches.isEmpty) {
+    return matches;
+  }
+
+  final sourceMetadata = DynamicTierSourceMetadata.fromSnapshotPayload(
+    snapshot,
+  );
+  final snapshotsByCompetition = <String, ChampionshipTierSnapshot?>{};
+
+  ChampionshipTierSnapshot? snapshotFor(MatchBoardItem match) {
+    final key = '${match.competition.id}:${match.competition.season}';
+    if (snapshotsByCompetition.containsKey(key)) {
+      return snapshotsByCompetition[key];
+    }
+
+    final standings = match.analysis.leagueStandings;
+    final analysisAsOf =
+        match.analysis.asOf ??
+        sourceMetadata.sourceAsOf ??
+        match.fixture.kickoff;
+    final metadata = metadataRepository.metadataFor(
+      competitionId: match.competition.id,
+      season: match.competition.season,
+    );
+    final result = tierSnapshotEngine.buildSnapshot(
+      competitionId: match.competition.id,
+      season: match.competition.season,
+      analysisAsOf: analysisAsOf,
+      leagueStandings: standings,
+      metadata: metadata,
+      sourceMetadata: sourceMetadata,
+    );
+
+    snapshotsByCompetition[key] = result.snapshot;
+    return result.snapshot;
+  }
+
+  return [
+    for (final match in matches) _attachRelation(match, snapshotFor(match)),
+  ];
+}
+
+MatchBoardItem _attachRelation(
+  MatchBoardItem match,
+  ChampionshipTierSnapshot? snapshot,
+) {
+  final homeTeamId = match.homeTeam.apiFootballTeamId;
+  final awayTeamId = match.awayTeam.apiFootballTeamId;
+  if (snapshot == null || homeTeamId == null || awayTeamId == null) {
+    return match;
+  }
+
+  return match.copyWith(
+    analysis: match.analysis.copyWith(
+      structuralRelation: MatchStructuralRelation.fromSnapshot(
+        snapshot: snapshot,
+        homeTeamId: homeTeamId,
+        awayTeamId: awayTeamId,
+      ),
+    ),
+  );
 }
 
 DateTime? _parseDateTime(Object? value) {

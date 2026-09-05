@@ -77,7 +77,11 @@ class TicketGenerator {
 
     final compatiblePicks =
         usablePicks
-            .where((pick) => strategy.acceptsIndividualOdds(pick.odds))
+            .where(
+              (pick) =>
+                  strategy.allowsPickType(pick.pickType) &&
+                  strategy.acceptsIndividualOdds(pick.odds),
+            )
             .toList()
           ..sort(_comparePicks);
 
@@ -183,7 +187,11 @@ class TicketGenerator {
     final violations = <ConstraintViolation>[];
     final totalOdds = _totalOdds(picks);
 
-    if (picks.every((pick) => strategy.acceptsIndividualOdds(pick.odds))) {
+    if (picks.every(
+      (pick) =>
+          strategy.allowsPickType(pick.pickType) &&
+          strategy.acceptsIndividualOdds(pick.odds),
+    )) {
       satisfied.add('individual_odds');
     } else {
       violations.add(

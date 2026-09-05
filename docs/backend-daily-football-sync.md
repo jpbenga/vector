@@ -54,6 +54,9 @@ La saison retenue n'est pas choisie en fonction de l'annee courante ni
 uniquement du champ `current`. Le backend inspecte les dates
 `coverage.fixtures.start` / `coverage.fixtures.end` renvoyees par API-Football
 et choisit la saison dont la couverture chevauche la fenetre demandee.
+Si plusieurs saisons chevauchent la fenetre, la saison dont la couverture
+commence le plus tard est prioritaire ; le champ provider `current` ne sert
+que de departage secondaire.
 
 Cette regle est obligatoire pour les championnats decales : par exemple une
 rencontre jouee en 2026 peut appartenir a une saison API-Football `2027`.
@@ -75,9 +78,10 @@ auditable est conservee dans les payloads/provenances via `season_by_league`.
 
 ```text
 Supabase Cron
-  -> collecte api-football-sync par ligue
+  -> daily-football-sync par ligue
+  -> api-football-sync
   -> api_football_cached_responses
-  -> build-match-feed-snapshot par ligue
+  -> build-match-feed-snapshot apres collecte terminee
   -> match_feed_snapshots scopes league:<id>
   -> Flutter read model fusionne les snapshots par ligue
 ```
@@ -116,9 +120,10 @@ WORKER_RESOURCE_LIMIT
 
 La strategie retenue est donc :
 
-1. une collecte par ligue via `api-football-sync` ;
+1. un run orchestre par ligue via `daily-football-sync` ;
 2. cache brut idempotent dans `api_football_cached_responses` ;
-3. un snapshot par ligue via `build-match-feed-snapshot`.
+3. un snapshot par ligue via `build-match-feed-snapshot`, seulement apres la
+   fin de la collecte.
 
 Le front reconstruit le feed global en fusionnant les derniers snapshots de
 chaque ligue pour la date demandee. Cette strategie evite de depasser les
@@ -257,16 +262,14 @@ npx supabase functions deploy daily-football-sync --no-verify-jwt
 Planifier l'appel quotidien depuis Supabase, pas depuis Vercel.
 
 Pour un test court, `daily-football-sync` reste utile avec 1 ou 2 ligues.
-Pour le scope complet MVP, utiliser des jobs Supabase Cron separes :
+Pour le scope complet MVP, utiliser des jobs Supabase Cron separes par ligue,
+mais chaque job doit appeler l'orchestrateur complet :
 
 ```text
-00:00 UTC -> api-football-sync ligue 1
-00:03 UTC -> build-match-feed-snapshot ligue 1
-00:04 UTC -> api-football-sync ligue 2
-00:07 UTC -> build-match-feed-snapshot ligue 2
+00:00 UTC -> daily-football-sync ligue 1
+00:04 UTC -> daily-football-sync ligue 2
 ...
-02:24 UTC -> api-football-sync ligue 37
-02:27 UTC -> build-match-feed-snapshot ligue 37
+02:24 UTC -> daily-football-sync ligue 37
 ```
 
 `00:00 UTC` correspond a environ `02:00` en France en aout.
@@ -281,12 +284,13 @@ Authorization: Bearer <API_FOOTBALL_SYNC_SECRET>
 Content-Type: application/json
 ```
 
-Body commun aux collectes :
+Body commun aux runs orchestres :
 
 ```json
 {
-  "window_start": "YYYY-MM-DD",
-  "window_end": "YYYY-MM-DD",
+  "league_ids": [61],
+  "results_days_back": 2,
+  "future_days": 3,
   "bookmaker_id": 16,
   "api_request_delay_ms": 750,
   "include_team_statistics": true,
@@ -301,7 +305,7 @@ Ne pas ajouter `season` dans les crons quotidiens : ce champ est uniquement un
 override manuel de diagnostic. Le fonctionnement normal doit laisser
 `api-football-sync` resoudre `leagueSeasons` ligue par ligue.
 
-Body commun aux snapshots de ligue :
+Body interne envoye par `daily-football-sync` au builder de snapshot :
 
 ```json
 {
@@ -320,6 +324,11 @@ avec la meme logique de couverture de fenetre que la collecte.
 Chaque snapshot porte un `scope_key` du type `league:61`. L'ancien scope global
 reste supporte pour compatibilite, mais il ne doit plus etre utilise pour le
 cron complet MVP.
+
+Ne pas programmer un job `build-match-feed-snapshot` a delai fixe apres
+`api-football-sync`. La duree reelle de collecte depend du nombre de fixtures,
+des stats recentes et des appels xG; un delai fixe peut publier un snapshot
+incomplet et provoquer une absence de propositions pour les matchs du jour.
 
 `force_rebuild: true` est reserve aux corrections de builder ou aux reprises
 manuelles. Il cree un nouveau snapshot immuable avec un nouvel `as_of` au lieu
@@ -376,10 +385,10 @@ Puis coller le SQL dans Supabase SQL Editor.
 Le SQL genere :
 
 - supprime les anciens jobs `api-football-*` ;
-- cree 37 jobs `api-football-league-<id>` ;
-- cree 37 jobs `api-football-league-<id>-snapshot` ;
-- calcule les fenetres `J-2 -> J+3` et `J -> J+3` au moment de
-  l'execution cron, en UTC ;
+- cree 37 jobs `api-football-league-<id>` qui appellent
+  `daily-football-sync` ;
+- laisse `daily-football-sync` calculer les fenetres `J-2 -> J-1` et
+  `J -> J+3` ;
 - utilise `API_FOOTBALL_SYNC_SECRET` depuis `.env`.
 
 Important : le SQL genere contient `API_FOOTBALL_SYNC_SECRET` en clair dans la
@@ -391,10 +400,9 @@ Le generateur cree aussi un SQL d'execution immediate :
 pbcopy < /tmp/lector_api_football_run_now.sql
 ```
 
-Ce SQL planifie 74 jobs temporaires `api-football-run-now-*` :
+Ce SQL planifie 37 jobs temporaires `api-football-run-now-*` :
 
-- 37 collectes, une par ligue ;
-- 37 snapshots, un par ligue ;
+- 37 runs orchestres, un par ligue ;
 - meme cadence que le cron quotidien ;
 - chaque job temporaire s'auto-supprime apres execution.
 

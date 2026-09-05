@@ -1,4 +1,3 @@
-import 'package:copilot/app/app.dart';
 import 'package:copilot/app/view/copilot_flow_page.dart';
 import 'package:copilot/core/config/app_config.dart';
 import 'package:copilot/core/config/app_environment.dart';
@@ -6,15 +5,17 @@ import 'package:copilot/core/di/service_locator.dart';
 import 'package:copilot/core/identity/identity_scope.dart';
 import 'package:copilot/core/theme/app_theme.dart';
 import 'package:copilot/features/matches/data/match_feed_repository.dart';
+import 'package:copilot/features/matches/presentation/lector_space_page.dart';
 import 'package:copilot/features/onboarding/data/saved_decision_profile_store.dart';
 import 'package:copilot/features/onboarding/domain/decision_profile.dart';
+import 'package:copilot/features/onboarding/domain/decision_profile_catalogs.dart';
 import 'package:copilot/features/tickets/data/saved_ticket_strategy_store.dart';
 import 'package:copilot/features/tickets/domain/ticket_strategy.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('starts with the auth entry flow before scores', (tester) async {
+  testWidgets('starts directly in guest scores', (tester) async {
     await configureDependencies(
       const AppConfig(
         environment: AppEnvironment.development,
@@ -23,17 +24,27 @@ void main() {
       ),
     );
 
-    await tester.pumpWidget(const CopilotApp());
-    await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: CopilotTheme.dark.copyWith(
+          splashFactory: NoSplash.splashFactory,
+        ),
+        home: const CopilotFlowPage(
+          repositoryOverride: DemoMatchFeedRepository(),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 8));
 
-    expect(find.text('Read the Game.'), findsOneWidget);
-    expect(find.text('Continuer sans compte'), findsOneWidget);
-    expect(find.text('Se connecter'), findsOneWidget);
-    expect(find.text('Aperçu des matchs du jour'), findsOneWidget);
+    expect(find.text('Pour moi'), findsOneWidget);
+    expect(find.byTooltip('Connexion'), findsOneWidget);
+    expect(find.text('Read the Game.'), findsNothing);
+    expect(find.text('Continuer sans compte'), findsNothing);
     expect(find.text('Onboarding'), findsNothing);
   });
 
-  testWidgets('can continue locally from auth entry to scores', (tester) async {
+  testWidgets('guest scores expose matches without an account', (tester) async {
     await configureDependencies(
       const AppConfig(
         environment: AppEnvironment.development,
@@ -54,11 +65,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Continuer sans compte'));
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 8));
-
-    expect(find.text('Ma sélection'), findsOneWidget);
+    expect(find.text('À suivre aujourd’hui'), findsOneWidget);
     expect(find.text('Générateur'), findsOneWidget);
     expect(find.text('Live'), findsNothing);
     expect(find.text('À suivre aujourd’hui'), findsOneWidget);
@@ -88,11 +95,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Continuer sans compte'));
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 8));
-
-    expect(find.text('Ma sélection'), findsOneWidget);
     expect(find.text('À suivre aujourd’hui'), findsOneWidget);
 
     await tester.tap(find.text('Tous'));
@@ -125,9 +127,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Continuer sans compte'));
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 8));
     await tester.tap(find.text('Générateur'));
     await tester.pumpAndSettle();
 
@@ -135,6 +134,50 @@ void main() {
     expect(find.text('Tous les matchs'), findsNothing);
     expect(find.text('Live'), findsNothing);
   });
+
+  testWidgets(
+    'opens profile preferences when an active strategy lacks reading preferences',
+    (tester) async {
+      await configureDependencies(
+        const AppConfig(
+          environment: AppEnvironment.development,
+          supabaseUrl: null,
+          supabaseAnonKey: null,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: CopilotTheme.dark.copyWith(
+            splashFactory: NoSplash.splashFactory,
+          ),
+          home: CopilotFlowPage(
+            profileStore: _ProfileStoreWithExistingProfile(),
+            ticketStrategyStore: _ActiveTicketStrategyStore(),
+            repositoryOverride: const DemoMatchFeedRepository(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 8));
+
+      await tester.tap(find.text('Générateur'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Préférences de lecture incomplètes'), findsOneWidget);
+      expect(
+        find.textContaining('Votre stratégie Configuration 1 est active.'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Configurer mes préférences'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(LectorSpacePage), findsOneWidget);
+      expect(find.text('Mes marchés'), findsOneWidget);
+      expect(find.text('Onboarding'), findsNothing);
+    },
+  );
 
   testWidgets(
     'uses scores directly when an existing local profile is present',
@@ -283,6 +326,8 @@ void main() {
     await tester.tap(find.byTooltip('Paramètres'));
     await tester.pumpAndSettle();
     expect(find.text('Mon espace'), findsOneWidget);
+    await tester.drag(find.byType(ListView), const Offset(0, -180));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Mes stratégies').last);
     await tester.pumpAndSettle();
     expect(
@@ -362,4 +407,33 @@ class _CapturingTicketStrategyStore implements SavedTicketStrategyStore {
   }) async {
     savedStrategies = strategies;
   }
+}
+
+class _ActiveTicketStrategyStore implements SavedTicketStrategyStore {
+  @override
+  Future<List<TicketStrategy>> load({required IdentityScope scope}) async => [
+    TicketStrategy(
+      schemaVersion: TicketStrategy.currentSchemaVersion,
+      id: 'configuration-1',
+      userId: '',
+      name: 'Configuration 1',
+      isActive: true,
+      pickTypes: const [PickType.normal],
+      minimumIndividualOdds: 1.45,
+      maximumIndividualOdds: 1.80,
+      minimumSelections: 2,
+      maximumSelections: 3,
+      minimumTotalOdds: 2,
+      maximumTotalOdds: 3,
+      priority: 0,
+      createdAt: DateTime.utc(2026, 9, 4),
+      updatedAt: DateTime.utc(2026, 9, 4),
+    ),
+  ];
+
+  @override
+  Future<void> save({
+    required IdentityScope scope,
+    required List<TicketStrategy> strategies,
+  }) async {}
 }
