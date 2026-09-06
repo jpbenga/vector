@@ -137,7 +137,7 @@ void main() {
       final matches = repository.personalizedFor(profile);
 
       expect(opportunities, isEmpty);
-      expect(matches, isNotEmpty);
+      expect(matches, isEmpty);
     });
   });
 
@@ -182,7 +182,7 @@ void main() {
     });
 
     test(
-      'keeps a configured market candidate even when its thesis is not selected',
+      'keeps a configured market candidate when its direct reading is selected',
       () {
         final analyzer = _CountingFootballAnalyzer({
           'fixture-domination': _dominationReadings(),
@@ -191,15 +191,19 @@ void main() {
         final repository = _personalizationRepository(analyzer);
 
         final matches = repository.personalizedFor(
-          _profile(markets: ['double_chance'], profiles: ['offensive_match']),
+          _profile(
+            markets: ['double_chance'],
+            profiles: ['offensive_match'],
+            readings: ['structural_level_gap'],
+          ),
         );
 
         final marketMatch = matches.singleWhere(
           (match) => match.id == 'fixture-domination',
         );
-        expect(marketMatch.thesis?.id, 'expected_domination');
-        expect(marketMatch.thesis?.hasRecommendedMarket, isTrue);
-        expect(marketMatch.profileRelevance.readingMatches, 0);
+        expect(marketMatch.thesis, isNull);
+        expect(marketMatch.betCandidates, isNotEmpty);
+        expect(marketMatch.profileRelevance.readingMatches, 1);
         expect(marketMatch.profileRelevance.thesisMatches, 0);
         expect(marketMatch.profileRelevance.marketMatches, 1);
       },

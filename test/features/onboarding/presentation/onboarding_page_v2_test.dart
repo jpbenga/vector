@@ -110,7 +110,7 @@ void main() {
       expect(result!.ticketStrategies, isEmpty);
 
       final compiled = const ProfileCompiler().compile(result.profile);
-      expect(compiled.profileSchemaVersion, 2);
+      expect(compiled.profileSchemaVersion, 3);
       expect(compiled.configurationState.name, 'completed');
       expect(compiled.competitions['61']?.enabled, isTrue);
       expect(compiled.competitions['2'], isNull);

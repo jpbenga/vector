@@ -1354,7 +1354,7 @@ class _RuntimePersonalizationDiagnosticButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.transparent,
+      color: AppColors.transparent,
       child: IconButton.filledTonal(
         key: const ValueKey('runtime-personalization-diagnostic'),
         tooltip: 'Diagnostic Pour moi (dev)',
@@ -1399,7 +1399,7 @@ class _RuntimePersonalizationDiagnosticButton extends StatelessWidget {
                 Expanded(
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: .06),
+                      color: context.surfaces.shadow.withValues(alpha: .06),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: SingleChildScrollView(
