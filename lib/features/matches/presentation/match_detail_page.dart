@@ -1,4 +1,4 @@
-// ignore_for_file: unused_element
+// ignore_for_file: unused_element, unused_element_parameter
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -16,7 +16,10 @@ import '../../tickets/domain/saved_ticket.dart';
 import '../../tickets/domain/ticket_strategy.dart';
 import '../../tickets/presentation/ticket_builder_panel.dart';
 import '../domain/football_reading.dart';
+import '../domain/market_assessment.dart';
 import '../domain/match_board_item.dart';
+import '../domain/match_context_key_models.dart';
+import '../domain/structural_tiers/tier_models.dart';
 import 'opportunity_decision_presenter.dart';
 import 'widgets/sports_asset_badge.dart';
 
@@ -82,6 +85,16 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                         match: widget.match,
                         opportunity: widget.opportunity,
                       ),
+                      if (widget.match.betCandidates.isNotEmpty ||
+                          widget.match.profileRelevance.readingMatches > 0 ||
+                          widget.match.profileRelevance.thesisMatches > 0) ...[
+                        const SizedBox(height: 12),
+                        _LectorBetCandidatesCard(
+                          match: widget.match,
+                          ticketDraftListenable: widget.ticketDraftListenable,
+                          onToggleTicket: widget.onToggleTicket,
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       _LectorMatchTabBar(
                         selectedIndex: _selectedFreeTab,
@@ -220,9 +233,10 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
     if (widget.match.profileStatus == MatchProfileStatus.outOfProfile) {
       return null;
     }
-    final recommendedMarket =
-        widget.opportunity?.recommendedMarket ??
-        widget.match.thesis?.recommendedMarket;
+    final recommendedMarket = _recommendedMarketForDetail(
+      widget.match,
+      widget.opportunity,
+    );
     if (recommendedMarket == null) {
       return null;
     }
@@ -255,8 +269,8 @@ class _LectorMatchBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final surfaces = context.surfaces;
     final brand = context.brand;
+    final surfaces = context.surfaces;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -459,6 +473,7 @@ class _LectorMatchHero extends StatelessWidget {
     final brand = context.brand;
     final textColors = context.textColors;
     final venueLabel = _venueValue(match.fixture.venue);
+    final roundLabel = _fixtureRoundLabel(match.fixture.round);
 
     return _LectorGlassCard(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 13),
@@ -489,13 +504,14 @@ class _LectorMatchHero extends StatelessWidget {
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    Text(
-                      'Journée 34',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: brand.accent,
-                        fontWeight: FontWeight.w700,
+                    if (roundLabel != null)
+                      Text(
+                        roundLabel,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: brand.accent,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -759,55 +775,37 @@ class _LectorScenarioCard extends StatelessWidget {
               const SizedBox(height: 9),
               Divider(height: 1, color: surfaces.border),
               const SizedBox(height: 7),
-              Row(
-                children: [
-                  if (_hasScenarioRecommendedPick(recommendedMarket))
-                    Expanded(
-                      flex: 3,
-                      child: _ScenarioRecommendedPick(
-                        match: match,
-                        recommendedMarket: recommendedMarket!,
-                      ),
-                    )
-                  else
-                    const Spacer(),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    flex: 2,
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerRight,
-                        child: TextButton.icon(
-                          onPressed: () => _showScenarioReadingsSheet(
-                            context,
-                            match,
-                            opportunity: opportunity,
-                          ),
-                          style: TextButton.styleFrom(
-                            minimumSize: const Size(0, 36),
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            foregroundColor: brand.accent,
-                          ),
-                          label: Text(
-                            'Voir les $count lectures',
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: brand.accent,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          icon: const Icon(
-                            Icons.chevron_right_rounded,
-                            size: 20,
-                          ),
-                          iconAlignment: IconAlignment.end,
-                        ),
-                      ),
+              if (_hasScenarioRecommendedPick(recommendedMarket)) ...[
+                _ScenarioRecommendedPick(
+                  match: match,
+                  recommendedMarket: recommendedMarket!,
+                ),
+                const SizedBox(height: 4),
+              ],
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => _showScenarioReadingsSheet(
+                    context,
+                    match,
+                    opportunity: opportunity,
+                  ),
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(0, 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    foregroundColor: brand.accent,
+                  ),
+                  label: Text(
+                    'Voir les $count lectures',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: brand.accent,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
-                ],
+                  icon: const Icon(Icons.chevron_right_rounded, size: 20),
+                  iconAlignment: IconAlignment.end,
+                ),
               ),
             ],
           ),
@@ -838,67 +836,39 @@ class _ScenarioRecommendedPick extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < 64) {
-          return Align(
-            alignment: Alignment.centerLeft,
-            child: _ScenarioOddsBadge(odds: selection.odds),
-          );
-        }
-
-        if (constraints.maxWidth < 220) {
-          return Row(
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.trending_up_rounded, color: brand.accent, size: 20),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: brand.accent,
-                    fontWeight: FontWeight.w900,
-                    height: 1.1,
-                  ),
+              Text(
+                'Pari recommandé',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: textColors.secondary,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(width: 8),
-              _ScenarioOddsBadge(odds: selection.odds),
-            ],
-          );
-        }
-
-        return Row(
-          children: [
-            Icon(Icons.trending_up_rounded, color: brand.accent, size: 20),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: 'Pronostic envisagé · ',
-                      style: TextStyle(color: textColors.secondary),
-                    ),
-                    TextSpan(
-                      text: label,
-                      style: TextStyle(color: brand.accent),
-                    ),
-                  ],
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              const SizedBox(height: 2),
+              Text(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.clip,
                 style: theme.textTheme.labelMedium?.copyWith(
+                  color: brand.accent,
                   fontWeight: FontWeight.w900,
-                  height: 1.1,
+                  height: 1.2,
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            _ScenarioOddsBadge(odds: selection.odds),
-          ],
-        );
-      },
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        _ScenarioOddsBadge(odds: selection.odds),
+      ],
     );
   }
 }
@@ -1006,6 +976,233 @@ class _ScenarioMiniDuel extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Displays every configured, analysis-backed bet. A scenario is not reduced
+/// to one arbitrary market and a direct reading gets the same visibility.
+class _LectorBetCandidatesCard extends StatelessWidget {
+  const _LectorBetCandidatesCard({
+    required this.match,
+    required this.ticketDraftListenable,
+    required this.onToggleTicket,
+  });
+
+  final MatchBoardItem match;
+  final ValueListenable<TicketDraft>? ticketDraftListenable;
+  final ValueChanged<TicketDraftSelection>? onToggleTicket;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final textColors = context.textColors;
+    final surfaces = context.surfaces;
+    final candidates = [
+      for (final candidate in match.betCandidates)
+        if (match.recommendedMarketFor(candidate) case final market?)
+          (candidate: candidate, market: market),
+    ];
+
+    return _LectorGlassCard(
+      padding: const EdgeInsets.all(13),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: brand.accent.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(AppRadius.odds),
+                ),
+                child: Icon(
+                  Icons.receipt_long_outlined,
+                  color: brand.accent,
+                  size: 23,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Paris liés à vos lectures et scénarios',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: textColors.primary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      candidates.isEmpty
+                          ? 'Aucune sélection cotée ne correspond encore à vos marchés activés.'
+                          : '${candidates.length} pari${candidates.length > 1 ? 's' : ''} compatible${candidates.length > 1 ? 's' : ''}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: candidates.isEmpty
+                            ? textColors.secondary
+                            : brand.accent,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (candidates.isEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              'La lecture ou le scénario reste visible ; il faut une cote API disponible sur un de vos marchés pour associer un pari réel.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: textColors.secondary,
+                height: 1.35,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ] else ...[
+            const SizedBox(height: 12),
+            for (var index = 0; index < candidates.length; index += 1) ...[
+              _LectorBetCandidateRow(
+                match: match,
+                candidate: candidates[index].candidate,
+                recommendedMarket: candidates[index].market,
+                ticketDraftListenable: ticketDraftListenable,
+                onToggleTicket: onToggleTicket,
+              ),
+              if (index != candidates.length - 1) ...[
+                const SizedBox(height: 9),
+                Divider(height: 1, color: surfaces.border),
+                const SizedBox(height: 9),
+              ],
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _LectorBetCandidateRow extends StatelessWidget {
+  const _LectorBetCandidateRow({
+    required this.match,
+    required this.candidate,
+    required this.recommendedMarket,
+    required this.ticketDraftListenable,
+    required this.onToggleTicket,
+  });
+
+  final MatchBoardItem match;
+  final BetCandidate candidate;
+  final RecommendedMarket recommendedMarket;
+  final ValueListenable<TicketDraft>? ticketDraftListenable;
+  final ValueChanged<TicketDraftSelection>? onToggleTicket;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final textColors = context.textColors;
+    final ticketSelection = TicketDraftSelection.fromMatchSelection(
+      match,
+      recommendedMarket.market,
+      recommendedMarket.selection,
+    );
+    final sourceCount =
+        candidate.supportingReadingIds.toSet().length +
+        candidate.supportingThesisIds.toSet().length;
+    final sourceLabel = candidate.supportingThesisIds.isNotEmpty
+        ? 'Scénario soutenu par $sourceCount élément${sourceCount > 1 ? 's' : ''}'
+        : 'Lecture configurée';
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${recommendedMarket.market.label} · ${recommendedMarket.selection.label}',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: textColors.primary,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                sourceLabel,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: brand.accent,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (candidate.abstentionReason case final reason?) ...[
+                const SizedBox(height: 4),
+                Text(
+                  reason,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: textColors.secondary,
+                    height: 1.25,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              recommendedMarket.selection.odds > 0
+                  ? recommendedMarket.selection.odds.toStringAsFixed(2)
+                  : '—',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: brand.accent,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            if (candidate.isAutomaticallyUsable &&
+                ticketSelection != null &&
+                ticketDraftListenable != null &&
+                onToggleTicket != null) ...[
+              const SizedBox(height: 4),
+              ValueListenableBuilder<TicketDraft>(
+                valueListenable: ticketDraftListenable!,
+                builder: (context, ticket, _) {
+                  final isSelected = ticket.contains(ticketSelection.id);
+                  final blocked = ticket.containsAnotherSelectionForMatch(
+                    ticketSelection,
+                  );
+                  return IconButton.filledTonal(
+                    tooltip: isSelected
+                        ? 'Retirer du ticket'
+                        : blocked
+                        ? 'Ce match est déjà dans Mon ticket'
+                        : 'Ajouter au ticket',
+                    onPressed: isSelected || !blocked
+                        ? () => onToggleTicket!(ticketSelection)
+                        : null,
+                    icon: Icon(
+                      isSelected
+                          ? Icons.check_rounded
+                          : blocked
+                          ? Icons.block_rounded
+                          : Icons.add_rounded,
+                    ),
+                  );
+                },
+              ),
+            ],
+          ],
+        ),
+      ],
     );
   }
 }
@@ -1134,131 +1331,746 @@ class _LectorQuickContextCard extends StatelessWidget {
     final theme = Theme.of(context);
     final brand = context.brand;
     final textColors = context.textColors;
-    final surfaces = context.surfaces;
-    final homeForm = _matchDetailLastFiveResults(
-      match.analysis.homeStatistics?.form ?? match.analysis.homeStanding?.form,
-    );
-    final awayForm = _matchDetailLastFiveResults(
-      match.analysis.awayStatistics?.form ?? match.analysis.awayStanding?.form,
-    );
+    final keys = match.analysis.contextKeys;
 
-    return _LectorGlassCard(
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 4, 2, 2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'CONTEXTE RAPIDE',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: textColors.primary,
-                  fontWeight: FontWeight.w900,
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: brand.accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.control),
+                ),
+                child: Icon(
+                  Icons.auto_awesome_rounded,
+                  color: brand.accent,
+                  size: 22,
                 ),
               ),
-              const SizedBox(width: 6),
-              Icon(
-                Icons.info_outline_rounded,
-                size: 15,
-                color: textColors.secondary,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            'Clés du match',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: textColors.primary,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Icon(
+                          Icons.info_outline_rounded,
+                          size: 17,
+                          color: textColors.secondary,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Ce qui caractérise cette rencontre avant le coup d’envoi.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: textColors.secondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              if (keys.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                _ContextKeyCount(count: keys.length),
+              ],
             ],
           ),
-          const SizedBox(height: 3),
-          Text(
-            'Les éléments clés à retenir en un coup d’œil.',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: textColors.secondary,
-              fontWeight: FontWeight.w600,
+          const SizedBox(height: 12),
+          if (keys.isEmpty)
+            const _ContextKeyEmptyState()
+          else
+            for (var index = 0; index < keys.length; index += 1) ...[
+              _MatchContextKeyCard(match: match, contextKey: keys[index]),
+              if (index != keys.length - 1) const SizedBox(height: 9),
+            ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ContextKeyCount extends StatelessWidget {
+  const _ContextKeyCount({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = context.brand;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: brand.accent.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+        border: Border.all(color: brand.accent.withValues(alpha: 0.24)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        child: Text(
+          count == 1 ? '1 clé' : '$count clés',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: brand.accent,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ContextKeyEmptyState extends StatelessWidget {
+  const _ContextKeyEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    final textColors = context.textColors;
+    final surfaces = context.surfaces;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: surfaces.surfaceHover.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: surfaces.border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(13),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.forum_outlined, color: textColors.secondary, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Peu d’éléments différenciants ressortent avant cette rencontre.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: textColors.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MatchContextKeyCard extends StatelessWidget {
+  const _MatchContextKeyCard({required this.match, required this.contextKey});
+
+  final MatchBoardItem match;
+  final MatchContextKey contextKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final textColors = context.textColors;
+    final surfaces = context.surfaces;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(13, 13, 13, 12),
+      decoration: BoxDecoration(
+        color: surfaces.surface.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: surfaces.border),
+        boxShadow: [
+          BoxShadow(
+            color: surfaces.shadow.withValues(alpha: 0.10),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 43,
+            height: 43,
+            decoration: BoxDecoration(
+              color: brand.accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppRadius.control),
+              border: Border.all(color: brand.accent.withValues(alpha: 0.32)),
+            ),
+            child: Icon(
+              _iconFor(contextKey.family),
+              color: brand.accent,
+              size: 22,
             ),
           ),
-          const SizedBox(height: 10),
-          _ContextComparisonRow(
-            icon: Icons.bar_chart_rounded,
-            label: 'CLASSEMENT',
-            home: _TeamMetricSummary(
-              logoUrl: match.homeTeam.logoUrl,
-              fallbackLabel: match.homeTeam.name,
-              value: _rankLabel(match.analysis.homeStanding),
-              detail: _pointsLabel(match.analysis.homeStanding),
-              accent: brand.accent,
-              alignRight: false,
-            ),
-            center: _ContextDeltaPill(
-              primary: _rankGapLabel(match),
-              secondary: _pointsGapLabel(match),
-            ),
-            away: _TeamMetricSummary(
-              logoUrl: match.awayTeam.logoUrl,
-              fallbackLabel: match.awayTeam.name,
-              value: _rankLabel(match.analysis.awayStanding),
-              detail: _pointsLabel(match.analysis.awayStanding),
-              accent: textColors.secondary,
-              alignRight: true,
-            ),
-          ),
-          Divider(height: 12, color: surfaces.border),
-          _ContextComparisonRow(
-            icon: Icons.monitor_heart_outlined,
-            label: 'FORME · 5 DERNIERS MATCHS',
-            home: _TeamFormSummary(results: homeForm),
-            center: _ContextDeltaPill(
-              primary: _formGapLabel(homeForm, awayForm),
-              secondary: 'sur les 5 derniers matchs',
-            ),
-            away: _TeamFormSummary(results: awayForm, alignRight: true),
-          ),
-          Divider(height: 12, color: surfaces.border),
-          _ContextComparisonRow(
-            icon: Icons.home_outlined,
-            label: 'DOMICILE / EXTÉRIEUR',
-            home: _HomeAwaySummary(
-              title: '${match.homeTeam.name} à domicile',
-              wins: match.analysis.homeStatistics?.winsHome,
-              draws: match.analysis.homeStatistics?.drawsHome,
-              losses: match.analysis.homeStatistics?.lossesHome,
-              played: match.analysis.homeStatistics?.playedHome,
-            ),
-            center: _ContextDeltaPill(
-              primary: _homeAwayGapLabel(match),
-              secondary: 'écart contextuel',
-            ),
-            away: _HomeAwaySummary(
-              title: '${match.awayTeam.name} à l’extérieur',
-              wins: match.analysis.awayStatistics?.winsAway,
-              draws: match.analysis.awayStatistics?.drawsAway,
-              losses: match.analysis.awayStatistics?.lossesAway,
-              played: match.analysis.awayStatistics?.playedAway,
-              alignRight: true,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(Icons.auto_awesome_rounded, size: 15, color: brand.accent),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Ces éléments contribuent à la lecture « ${_scenarioTitle(match)} »',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _familyLabel(contextKey.family),
                   style: theme.textTheme.labelSmall?.copyWith(
-                    color: textColors.secondary,
-                    fontWeight: FontWeight.w600,
+                    color: brand.accent,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.7,
                   ),
                 ),
-              ),
-              Icon(
-                Icons.chevron_right_rounded,
-                size: 20,
-                color: textColors.secondary,
-              ),
-            ],
+                const SizedBox(height: 2),
+                Text(
+                  _conclusionFor(contextKey),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: textColors.primary,
+                    fontWeight: FontWeight.w900,
+                    height: 1.12,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _factsFor(contextKey),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
+
+  String _familyLabel(MatchContextKeyFamily family) {
+    return switch (family) {
+      MatchContextKeyFamily.hierarchy => 'HIÉRARCHIE',
+      MatchContextKeyFamily.structure => 'STRUCTURE',
+      MatchContextKeyFamily.form => 'FORME',
+      MatchContextKeyFamily.venue => 'DOMICILE / EXTÉRIEUR',
+      MatchContextKeyFamily.attack => 'ATTAQUE',
+      MatchContextKeyFamily.defense => 'DÉFENSE',
+      MatchContextKeyFamily.opposition => 'OPPOSITION',
+    };
+  }
+
+  String _conclusionFor(MatchContextKey key) {
+    final high = _highlightNames(key, ChampionshipContextZoneSide.high);
+    final low = _highlightNames(key, ChampionshipContextZoneSide.low);
+    final facts = key.facts;
+    return switch (key.semanticScope) {
+      'championship_positioning' ||
+      'official_positioning' => _hierarchyConclusion(high, low, facts),
+      'championship_structure' => 'Écart structurel entre les deux équipes',
+      'recent_form' =>
+        high.isNotEmpty
+            ? '$high dans une dynamique remarquable'
+            : '$low dans une dynamique récente en retrait',
+      'offensive_production' =>
+        high.isNotEmpty
+            ? '$high se distingue offensivement'
+            : '$low parmi les attaques les moins productives',
+      'defensive_exposure' =>
+        high.isNotEmpty
+            ? '$high parmi les défenses les plus exposées'
+            : '$low se distingue défensivement',
+      'attack_against_exposed_defense' =>
+        '${_teamName(facts['attackTeamId'])} face à une défense adverse exposée',
+      _ => 'Fait contextuel remarquable',
+    };
+  }
+
+  String _hierarchyConclusion(
+    String high,
+    String low,
+    Map<String, Object?> facts,
+  ) {
+    final homeRank = facts['homeRank'];
+    final awayRank = facts['awayRank'];
+    if (high.isNotEmpty && homeRank == 1 && high == match.homeTeam.name) {
+      return '${match.homeTeam.name} en tête du championnat';
+    }
+    if (high.isNotEmpty && awayRank == 1 && high == match.awayTeam.name) {
+      return '${match.awayTeam.name} en tête du championnat';
+    }
+    if (high.isNotEmpty) {
+      return '$high se distingue au classement';
+    }
+    if (low.isNotEmpty) {
+      return '$low occupe une position basse au classement';
+    }
+    return 'Écart de position dans le championnat';
+  }
+
+  Widget _factsFor(MatchContextKey key) {
+    return switch (key.semanticScope) {
+      'championship_positioning' ||
+      'official_positioning' => _HierarchyFacts(match: match, contextKey: key),
+      'championship_structure' => _StructureFacts(contextKey: key),
+      'recent_form' => _FormFacts(match: match, contextKey: key),
+      'offensive_production' => _RateFacts(
+        match: match,
+        contextKey: key,
+        factName: 'goalsForPerGame',
+        label: 'buts marqués / match',
+      ),
+      'defensive_exposure' => _RateFacts(
+        match: match,
+        contextKey: key,
+        factName: 'goalsAgainstPerGame',
+        label: 'buts encaissés / match',
+      ),
+      'attack_against_exposed_defense' => _OppositionFacts(
+        match: match,
+        contextKey: key,
+      ),
+      _ => const SizedBox.shrink(),
+    };
+  }
+
+  String _highlightNames(
+    MatchContextKey key,
+    ChampionshipContextZoneSide direction,
+  ) {
+    return key.highlights
+        .where((highlight) => highlight.direction == direction)
+        .map((highlight) => _teamName(highlight.teamId))
+        .join(' et ');
+  }
+
+  String _teamName(Object? teamId) {
+    if (teamId == match.homeTeam.apiFootballTeamId) return match.homeTeam.name;
+    if (teamId == match.awayTeam.apiFootballTeamId) return match.awayTeam.name;
+    return 'Équipe';
+  }
+
+  IconData _iconFor(MatchContextKeyFamily family) {
+    return switch (family) {
+      MatchContextKeyFamily.hierarchy => Icons.bar_chart_rounded,
+      MatchContextKeyFamily.structure => Icons.account_tree_outlined,
+      MatchContextKeyFamily.form => Icons.monitor_heart_outlined,
+      MatchContextKeyFamily.venue => Icons.home_outlined,
+      MatchContextKeyFamily.attack => Icons.bolt_rounded,
+      MatchContextKeyFamily.defense => Icons.shield_outlined,
+      MatchContextKeyFamily.opposition => Icons.compare_arrows_rounded,
+    };
+  }
+}
+
+class _HierarchyFacts extends StatelessWidget {
+  const _HierarchyFacts({required this.match, required this.contextKey});
+
+  final MatchBoardItem match;
+  final MatchContextKey contextKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final facts = contextKey.facts;
+    return Row(
+      children: [
+        Expanded(
+          child: _ContextKeyFactPanel(
+            teamName: match.homeTeam.name,
+            primary: _ordinal(_contextInt(facts['homeRank'])),
+            secondary: _contextPointsLabel(_contextInt(facts['homePoints'])),
+            emphasis: _contextKeyTeamColor(context, contextKey, match.homeTeam),
+          ),
+        ),
+        const SizedBox(width: 7),
+        Expanded(
+          child: _ContextKeyFactPanel(
+            teamName: match.awayTeam.name,
+            primary: _ordinal(_contextInt(facts['awayRank'])),
+            secondary: _contextPointsLabel(_contextInt(facts['awayPoints'])),
+            emphasis: _contextKeyTeamColor(context, contextKey, match.awayTeam),
+            alignEnd: true,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StructureFacts extends StatelessWidget {
+  const _StructureFacts({required this.contextKey});
+
+  final MatchContextKey contextKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final facts = contextKey.facts;
+    final textColors = context.textColors;
+    final brand = context.brand;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                _contextTierLabel(facts['homeTier']),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: textColors.primary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            Icon(Icons.arrow_forward_rounded, size: 18, color: brand.accent),
+            Expanded(
+              child: Text(
+                _contextTierLabel(facts['awayTier']),
+                textAlign: TextAlign.right,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: textColors.primary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '${_contextInt(facts['boundaryCount']) ?? '—'} frontière(s) confirmée(s)',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: textColors.secondary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FormFacts extends StatelessWidget {
+  const _FormFacts({required this.match, required this.contextKey});
+
+  final MatchBoardItem match;
+  final MatchContextKey contextKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final facts = contextKey.facts;
+    return Row(
+      children: [
+        Expanded(
+          child: _ContextKeyFormPanel(
+            teamName: match.homeTeam.name,
+            form: _contextString(facts['homeForm']),
+            points: _contextInt(facts['homePoints']),
+            alignEnd: false,
+          ),
+        ),
+        const SizedBox(width: 7),
+        Expanded(
+          child: _ContextKeyFormPanel(
+            teamName: match.awayTeam.name,
+            form: _contextString(facts['awayForm']),
+            points: _contextInt(facts['awayPoints']),
+            alignEnd: true,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RateFacts extends StatelessWidget {
+  const _RateFacts({
+    required this.match,
+    required this.contextKey,
+    required this.factName,
+    required this.label,
+  });
+
+  final MatchBoardItem match;
+  final MatchContextKey contextKey;
+  final String factName;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final facts = contextKey.facts;
+    return Row(
+      children: [
+        Expanded(
+          child: _ContextKeyFactPanel(
+            teamName: match.homeTeam.name,
+            primary: _rate(_contextDouble(facts['home$factName'])),
+            secondary: label,
+            emphasis: _contextKeyTeamColor(context, contextKey, match.homeTeam),
+          ),
+        ),
+        const SizedBox(width: 7),
+        Expanded(
+          child: _ContextKeyFactPanel(
+            teamName: match.awayTeam.name,
+            primary: _rate(_contextDouble(facts['away$factName'])),
+            secondary: label,
+            emphasis: _contextKeyTeamColor(context, contextKey, match.awayTeam),
+            alignEnd: true,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _OppositionFacts extends StatelessWidget {
+  const _OppositionFacts({required this.match, required this.contextKey});
+
+  final MatchBoardItem match;
+  final MatchContextKey contextKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final facts = contextKey.facts;
+    return Row(
+      children: [
+        Expanded(
+          child: _ContextKeyFactPanel(
+            teamName: _contextKeyTeamName(match, facts['attackTeamId']),
+            primary: _rate(_contextDouble(facts['goalsForPerGame'])),
+            secondary: 'buts marqués / match',
+            emphasis: context.semantic.success,
+          ),
+        ),
+        const SizedBox(width: 7),
+        Expanded(
+          child: _ContextKeyFactPanel(
+            teamName: _contextKeyTeamName(match, facts['defenseTeamId']),
+            primary: _rate(_contextDouble(facts['goalsAgainstPerGame'])),
+            secondary: 'buts encaissés / match',
+            emphasis: context.semantic.error,
+            alignEnd: true,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ContextKeyFactPanel extends StatelessWidget {
+  const _ContextKeyFactPanel({
+    required this.teamName,
+    required this.primary,
+    required this.secondary,
+    this.emphasis,
+    this.alignEnd = false,
+  });
+
+  final String teamName;
+  final String primary;
+  final String secondary;
+  final Color? emphasis;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final textColors = context.textColors;
+    final alignment = alignEnd
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start;
+    return Container(
+      padding: const EdgeInsets.all(9),
+      decoration: BoxDecoration(
+        color: context.surfaces.surfaceHover.withValues(alpha: 0.48),
+        borderRadius: BorderRadius.circular(AppRadius.tight),
+      ),
+      child: Column(
+        crossAxisAlignment: alignment,
+        children: [
+          Text(
+            teamName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: alignEnd ? TextAlign.right : TextAlign.left,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: textColors.secondary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            primary,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              color: emphasis ?? textColors.primary,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            secondary,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: alignEnd ? TextAlign.right : TextAlign.left,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: textColors.secondary,
+              fontWeight: FontWeight.w600,
+              height: 1.15,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContextKeyFormPanel extends StatelessWidget {
+  const _ContextKeyFormPanel({
+    required this.teamName,
+    required this.form,
+    required this.points,
+    required this.alignEnd,
+  });
+
+  final String? teamName;
+  final String? form;
+  final int? points;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = (form ?? '').toUpperCase().split('');
+    final textColors = context.textColors;
+    return Container(
+      padding: const EdgeInsets.all(9),
+      decoration: BoxDecoration(
+        color: context.surfaces.surfaceHover.withValues(alpha: 0.48),
+        borderRadius: BorderRadius.circular(AppRadius.tight),
+      ),
+      child: Column(
+        crossAxisAlignment: alignEnd
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        children: [
+          Text(
+            teamName ?? 'Équipe',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: alignEnd ? TextAlign.right : TextAlign.left,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: textColors.secondary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 3,
+            runSpacing: 3,
+            alignment: alignEnd ? WrapAlignment.end : WrapAlignment.start,
+            children: [
+              for (final result in normalized)
+                _ContextKeyFormResult(result: result),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            points == null ? '—' : '$points/15',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: textColors.primary,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContextKeyFormResult extends StatelessWidget {
+  const _ContextKeyFormResult({required this.result});
+
+  final String result;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 18,
+      height: 18,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: _formDotColor(context, result).withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(
+          color: _formDotColor(context, result).withValues(alpha: 0.35),
+        ),
+      ),
+      child: Text(
+        _formDotLabel(result),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: _formDotColor(context, result),
+          fontWeight: FontWeight.w900,
+          height: 1,
+        ),
+      ),
+    );
+  }
+}
+
+int? _contextInt(Object? value) => value is num ? value.toInt() : null;
+
+double? _contextDouble(Object? value) => value is num ? value.toDouble() : null;
+
+String? _contextString(Object? value) => value is String ? value : null;
+
+String _rate(double? value) => value == null ? '—' : value.toStringAsFixed(2);
+
+String _contextPointsLabel(int? points) => points == null ? '—' : '$points pts';
+
+String _ordinal(int? rank) {
+  if (rank == null) return '—';
+  return rank == 1 ? '1er' : '${rank}e';
+}
+
+String _contextTierLabel(Object? value) {
+  final code = _contextString(value);
+  for (final tier in TierLabel.values) {
+    if (tier.code == code) {
+      return _tierDisplayLabel(tier);
+    }
+  }
+  return 'Tier indisponible';
+}
+
+String _contextKeyTeamName(MatchBoardItem match, Object? teamId) {
+  if (teamId == match.homeTeam.apiFootballTeamId) return match.homeTeam.name;
+  if (teamId == match.awayTeam.apiFootballTeamId) return match.awayTeam.name;
+  return 'Équipe';
+}
+
+Color? _contextKeyTeamColor(
+  BuildContext context,
+  MatchContextKey key,
+  TeamInfo team,
+) {
+  final teamId = team.apiFootballTeamId;
+  if (teamId == null) return null;
+  final direction = key.highlights
+      .where((highlight) => highlight.teamId == teamId)
+      .map((highlight) => highlight.direction)
+      .firstOrNull;
+  if (direction == null) return null;
+  return switch (key.family) {
+    MatchContextKeyFamily.attack =>
+      direction == ChampionshipContextZoneSide.high
+          ? context.semantic.success
+          : context.semantic.error,
+    MatchContextKeyFamily.defense =>
+      direction == ChampionshipContextZoneSide.low
+          ? context.semantic.success
+          : context.semantic.error,
+    _ => context.brand.accent,
+  };
 }
 
 class _ContextComparisonRow extends StatelessWidget {
@@ -1411,7 +2223,6 @@ class _TeamFormSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final brand = context.brand;
     final textColors = context.textColors;
     final points = _formPoints(results);
 
@@ -1427,7 +2238,9 @@ class _TeamFormSummary extends StatelessWidget {
             children: [
               TextSpan(
                 text: '$points',
-                style: TextStyle(color: brand.accent),
+                style: TextStyle(
+                  color: _formPerformanceColor(context, results),
+                ),
               ),
               const TextSpan(text: ' / 15 pts'),
             ],
@@ -1462,7 +2275,6 @@ class _HomeAwaySummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final brand = context.brand;
     final textColors = context.textColors;
     final winCount = wins;
     final drawCount = draws;
@@ -1491,7 +2303,7 @@ class _HomeAwaySummary extends StatelessWidget {
             children: [
               TextSpan(
                 text: '${winCount ?? '-'} V',
-                style: TextStyle(color: brand.accent),
+                style: TextStyle(color: context.semantic.success),
               ),
               TextSpan(
                 text: '  ${drawCount ?? '-'} N',
@@ -1534,7 +2346,6 @@ class _ContextDeltaPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final brand = context.brand;
     final textColors = context.textColors;
     final surfaces = context.surfaces;
 
@@ -1555,7 +2366,7 @@ class _ContextDeltaPill extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
             style: theme.textTheme.labelMedium?.copyWith(
-              color: brand.accent,
+              color: _contextDeltaColor(context, primary),
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -1577,17 +2388,29 @@ class _ContextDeltaPill extends StatelessWidget {
   }
 }
 
-class _LectorStandingContextCard extends StatelessWidget {
+enum _StandingViewMode { tiers, stakes }
+
+class _LectorStandingContextCard extends StatefulWidget {
   const _LectorStandingContextCard({required this.match});
 
   final MatchBoardItem match;
+
+  @override
+  State<_LectorStandingContextCard> createState() =>
+      _LectorStandingContextCardState();
+}
+
+class _LectorStandingContextCardState
+    extends State<_LectorStandingContextCard> {
+  _StandingViewMode _mode = _StandingViewMode.tiers;
+
+  MatchBoardItem get match => widget.match;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final brand = context.brand;
     final textColors = context.textColors;
-    final surfaces = context.surfaces;
     final standings = _mobileStandingRows(match);
 
     if (standings.isEmpty) {
@@ -1602,6 +2425,14 @@ class _LectorStandingContextCard extends StatelessWidget {
         ],
       );
     }
+
+    final tierSnapshot = match.analysis.championshipTierSnapshot;
+    final hasTierSnapshot =
+        tierSnapshot?.status == TierSystemStatus.mature &&
+        tierSnapshot!.teamAssignments.isNotEmpty;
+    final hasOfficialZones = standings.any(
+      (standing) => _officialStandingZone(standing) != null,
+    );
 
     return _LectorGlassCard(
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
@@ -1632,19 +2463,154 @@ class _LectorStandingContextCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          Divider(height: 1, color: surfaces.border),
-          const SizedBox(height: 10),
-          _StandingMatchSummary(match: match),
-          const SizedBox(height: 10),
-          Divider(height: 1, color: surfaces.border),
-          const SizedBox(height: 10),
-          _StandingTableHeaderTitle(match: match),
+          _StandingModeSwitch(
+            mode: _mode,
+            onChanged: (mode) => setState(() => _mode = mode),
+          ),
           const SizedBox(height: 8),
-          _MobileStandingTable(match: match, standings: standings),
+          _StandingModeExplanation(
+            mode: _mode,
+            hasTierSnapshot: hasTierSnapshot,
+            hasOfficialZones: hasOfficialZones,
+          ),
           const SizedBox(height: 10),
-          _StandingInsightStrip(match: match),
+          _MobileStandingTable(
+            match: match,
+            standings: standings,
+            mode: _mode,
+            tierSnapshot: hasTierSnapshot ? tierSnapshot : null,
+          ),
+          if (_mode == _StandingViewMode.tiers && hasTierSnapshot) ...[
+            const SizedBox(height: 10),
+            _TierLegend(snapshot: tierSnapshot),
+          ],
         ],
       ),
+    );
+  }
+}
+
+class _StandingModeSwitch extends StatelessWidget {
+  const _StandingModeSwitch({required this.mode, required this.onChanged});
+
+  final _StandingViewMode mode;
+  final ValueChanged<_StandingViewMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final surfaces = context.surfaces;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: surfaces.surfaceHover.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: surfaces.border),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _StandingModeButton(
+              selected: mode == _StandingViewMode.tiers,
+              icon: Icons.bar_chart_rounded,
+              label: 'Tiers Lector',
+              onPressed: () => onChanged(_StandingViewMode.tiers),
+            ),
+          ),
+          Container(width: 1, height: 30, color: surfaces.border),
+          Expanded(
+            child: _StandingModeButton(
+              selected: mode == _StandingViewMode.stakes,
+              icon: Icons.emoji_events_outlined,
+              label: 'Enjeux',
+              onPressed: () => onChanged(_StandingViewMode.stakes),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StandingModeButton extends StatelessWidget {
+  const _StandingModeButton({
+    required this.selected,
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final bool selected;
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = context.brand.accent;
+    return TextButton.icon(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        minimumSize: const Size.fromHeight(44),
+        foregroundColor: selected ? accent : context.textColors.secondary,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.tight),
+        ),
+      ),
+      icon: Icon(icon, size: 19),
+      label: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(
+          context,
+        ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w900),
+      ),
+    );
+  }
+}
+
+class _StandingModeExplanation extends StatelessWidget {
+  const _StandingModeExplanation({
+    required this.mode,
+    required this.hasTierSnapshot,
+    required this.hasOfficialZones,
+  });
+
+  final _StandingViewMode mode;
+  final bool hasTierSnapshot;
+  final bool hasOfficialZones;
+
+  @override
+  Widget build(BuildContext context) {
+    final isTierMode = mode == _StandingViewMode.tiers;
+    final text = isTierMode
+        ? hasTierSnapshot
+              ? 'Les Tiers Lector regroupent les équipes selon les écarts réels de points, indépendamment des places officielles.'
+              : 'Le snapshot courant ne permet pas encore d’afficher les Tiers Lector.'
+        : hasOfficialZones
+        ? 'Les enjeux affichés proviennent uniquement des descriptions officielles disponibles dans ce snapshot.'
+        : 'Aucune zone officielle n’est disponible dans ce snapshot.';
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          Icons.info_outline_rounded,
+          size: 18,
+          color: isTierMode
+              ? context.textColors.secondary
+              : context.semantic.info,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: context.textColors.secondary,
+              height: 1.3,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1845,14 +2811,22 @@ class _StandingTableHeaderTitle extends StatelessWidget {
 }
 
 class _MobileStandingTable extends StatelessWidget {
-  const _MobileStandingTable({required this.match, required this.standings});
+  const _MobileStandingTable({
+    required this.match,
+    required this.standings,
+    required this.mode,
+    required this.tierSnapshot,
+  });
 
   final MatchBoardItem match;
   final List<TeamStandingSnapshot> standings;
+  final _StandingViewMode mode;
+  final ChampionshipTierSnapshot? tierSnapshot;
 
   @override
   Widget build(BuildContext context) {
     final surfaces = context.surfaces;
+    TierLabel? previousTier;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.control),
@@ -1865,15 +2839,35 @@ class _MobileStandingTable extends StatelessWidget {
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: SizedBox(
-            width: 642,
+            width: 528,
             child: Column(
               children: [
                 const _MobileStandingRow.header(),
-                for (final standing in standings.take(10))
-                  _MobileStandingRow(
-                    standing: standing,
-                    team: _standingTeam(match, standing),
-                    highlight: _standingHighlight(match, standing),
+                for (final standing in standings)
+                  Builder(
+                    builder: (context) {
+                      final tier = tierSnapshot
+                          ?.assignmentForTeam(standing.teamId)
+                          ?.assignedTier;
+                      final isBoundary =
+                          mode == _StandingViewMode.tiers &&
+                          previousTier != null &&
+                          tier != null &&
+                          tier != previousTier;
+                      if (tier != null) {
+                        previousTier = tier;
+                      }
+                      return _MobileStandingRow(
+                        standing: standing,
+                        team: _standingTeam(match, standing),
+                        highlight: _standingHighlight(match, standing),
+                        tier: mode == _StandingViewMode.tiers ? tier : null,
+                        officialZone: mode == _StandingViewMode.stakes
+                            ? _officialStandingZone(standing)
+                            : null,
+                        isTierBoundary: isBoundary,
+                      );
+                    },
                   ),
               ],
             ),
@@ -1889,130 +2883,65 @@ class _MobileStandingRow extends StatelessWidget {
     required this.standing,
     required this.team,
     required this.highlight,
+    required this.tier,
+    required this.officialZone,
+    required this.isTierBoundary,
   }) : isHeader = false;
 
   const _MobileStandingRow.header()
     : standing = null,
       team = null,
       highlight = _StandingHighlight.none,
+      tier = null,
+      officialZone = null,
+      isTierBoundary = false,
       isHeader = true;
 
   final TeamStandingSnapshot? standing;
   final TeamInfo? team;
   final _StandingHighlight highlight;
+  final TierLabel? tier;
+  final _OfficialStandingZone? officialZone;
+  final bool isTierBoundary;
   final bool isHeader;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final brand = context.brand;
     final textColors = context.textColors;
     final surfaces = context.surfaces;
-    final accent = switch (highlight) {
-      _StandingHighlight.home => brand.accent,
-      _StandingHighlight.away => context.opportunities.levelGap,
-      _StandingHighlight.none => surfaces.border,
-    };
-    final rowColor = isHeader
-        ? AppColors.transparent
-        : highlight == _StandingHighlight.none
-        ? AppColors.transparent
-        : accent.withValues(alpha: 0.11);
-    final borderColor = highlight == _StandingHighlight.none
-        ? surfaces.border.withValues(alpha: 0.62)
-        : accent.withValues(alpha: 0.82);
-    final textColor = isHeader
-        ? textColors.secondary
-        : highlight == _StandingHighlight.none
-        ? textColors.primary
-        : textColors.primary;
+    final groupColor = tier == null
+        ? officialZone?.color(context)
+        : _tierColor(context, tier!);
+    // A tier or official stake category is carried by the rank only. Keeping
+    // the rows neutral makes the table easier to scan while preserving the
+    // classification information in both views.
+    final rowColor = AppColors.transparent;
+    final borderColor = surfaces.border;
+    final textColor = isHeader ? textColors.secondary : textColors.primary;
+    final rankColor = isHeader ? textColor : groupColor ?? textColor;
 
     if (isHeader) {
       return _MobileStandingRowShell(
         backgroundColor: rowColor,
         borderColor: borderColor,
-        child: Row(
-          children: [
-            _StandingTableCell(
-              '#',
-              width: 34,
-              color: textColor,
-              isHeader: true,
-            ),
-            _StandingTableCell(
-              'Équipe',
-              width: 164,
-              color: textColor,
-              isHeader: true,
-              alignment: Alignment.centerLeft,
-            ),
-            _StandingTableCell(
-              'J',
-              width: 36,
-              color: textColor,
-              isHeader: true,
-            ),
-            _StandingTableCell(
-              'V',
-              width: 34,
-              color: textColor,
-              isHeader: true,
-            ),
-            _StandingTableCell(
-              'N',
-              width: 34,
-              color: textColor,
-              isHeader: true,
-            ),
-            _StandingTableCell(
-              'D',
-              width: 34,
-              color: textColor,
-              isHeader: true,
-            ),
-            _StandingTableCell(
-              'BP',
-              width: 42,
-              color: textColor,
-              isHeader: true,
-            ),
-            _StandingTableCell(
-              'BC',
-              width: 42,
-              color: textColor,
-              isHeader: true,
-            ),
-            _StandingTableCell(
-              'Diff',
-              width: 50,
-              color: textColor,
-              isHeader: true,
-            ),
-            _StandingTableCell(
-              'Pts',
-              width: 44,
-              color: textColor,
-              isHeader: true,
-            ),
-            _StandingTableCell(
-              'Forme',
-              width: 114,
-              color: textColor,
-              isHeader: true,
-            ),
-          ],
-        ),
+        child: _StandingTableCells.header(color: textColor),
       );
     }
 
     final row = standing!;
-
     return _MobileStandingRowShell(
       backgroundColor: rowColor,
       borderColor: borderColor,
+      isTierBoundary: isTierBoundary,
       child: Row(
         children: [
-          _StandingTableCell(_intValue(row.rank), width: 34, color: textColor),
+          _StandingTableCell(
+            _intValue(row.rank),
+            width: 34,
+            color: rankColor,
+            bold: true,
+          ),
           SizedBox(
             width: 164,
             child: Row(
@@ -2026,16 +2955,35 @@ class _MobileStandingRow extends StatelessWidget {
                 ),
                 const SizedBox(width: 7),
                 Expanded(
-                  child: Text(
-                    row.teamName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: textColor,
-                      fontWeight: highlight == _StandingHighlight.none
-                          ? FontWeight.w700
-                          : FontWeight.w900,
-                    ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        row.teamName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: textColor,
+                          fontWeight: highlight == _StandingHighlight.none
+                              ? FontWeight.w700
+                              : FontWeight.w900,
+                        ),
+                      ),
+                      if (officialZone != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          officialZone!.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: textColors.secondary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ],
@@ -2074,19 +3022,175 @@ class _MobileStandingRow extends StatelessWidget {
             color: textColor,
             bold: true,
           ),
-          SizedBox(
-            width: 114,
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: _StandingFormDots(
-                results: _matchDetailLastFiveResults(row.form),
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
+}
+
+class _StandingTableCells extends StatelessWidget {
+  const _StandingTableCells.header({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _StandingTableCell('#', width: 34, color: color, isHeader: true),
+        _StandingTableCell(
+          'Équipe',
+          width: 164,
+          color: color,
+          isHeader: true,
+          alignment: Alignment.centerLeft,
+        ),
+        _StandingTableCell('J', width: 36, color: color, isHeader: true),
+        _StandingTableCell('V', width: 34, color: color, isHeader: true),
+        _StandingTableCell('N', width: 34, color: color, isHeader: true),
+        _StandingTableCell('D', width: 34, color: color, isHeader: true),
+        _StandingTableCell('BP', width: 42, color: color, isHeader: true),
+        _StandingTableCell('BC', width: 42, color: color, isHeader: true),
+        _StandingTableCell('Diff', width: 50, color: color, isHeader: true),
+        _StandingTableCell('Pts', width: 44, color: color, isHeader: true),
+      ],
+    );
+  }
+}
+
+class _TierLegend extends StatelessWidget {
+  const _TierLegend({required this.snapshot});
+
+  final ChampionshipTierSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    final tiers = snapshot.tierPresence.toList()
+      ..sort((a, b) => a.ordinal.compareTo(b.ordinal));
+    if (tiers.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.surfaces.surfaceHover.withValues(alpha: 0.34),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: context.surfaces.border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Légende des Tiers Lector',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: context.textColors.primary,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                for (final tier in tiers)
+                  _TierLegendItem(
+                    color: _tierColor(context, tier),
+                    label: _tierDisplayLabel(tier),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TierLegendItem extends StatelessWidget {
+  const _TierLegendItem({required this.color, required this.label});
+
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: context.textColors.secondary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _OfficialStandingZone {
+  const _OfficialStandingZone({required this.label, required this.kind});
+
+  final String label;
+  final _OfficialStandingZoneKind kind;
+
+  Color color(BuildContext context) {
+    return switch (kind) {
+      _OfficialStandingZoneKind.promotion => context.semantic.success,
+      _OfficialStandingZoneKind.relegation => context.semantic.error,
+      _OfficialStandingZoneKind.playoff => context.semantic.warning,
+      _OfficialStandingZoneKind.other => context.semantic.info,
+    };
+  }
+}
+
+enum _OfficialStandingZoneKind { promotion, relegation, playoff, other }
+
+_OfficialStandingZone? _officialStandingZone(TeamStandingSnapshot standing) {
+  final description = standing.description?.trim();
+  if (description == null || description.isEmpty) {
+    return null;
+  }
+  final normalized = description.toLowerCase();
+  final kind = normalized.contains('relegation')
+      ? normalized.contains('playoff')
+            ? _OfficialStandingZoneKind.playoff
+            : _OfficialStandingZoneKind.relegation
+      : normalized.contains('promotion')
+      ? _OfficialStandingZoneKind.promotion
+      : normalized.contains('playoff')
+      ? _OfficialStandingZoneKind.playoff
+      : _OfficialStandingZoneKind.other;
+  return _OfficialStandingZone(label: description, kind: kind);
+}
+
+Color _tierColor(BuildContext context, TierLabel tier) {
+  return switch (tier) {
+    TierLabel.tier1Podium => context.semantic.success,
+    TierLabel.tier2UpperChampionship => context.semantic.info,
+    TierLabel.tier3MiddleChampionship => context.textColors.secondary,
+    TierLabel.tier4LowerChampionship => context.semantic.warning,
+    TierLabel.tier5Relegation => context.semantic.error,
+  };
+}
+
+String _tierDisplayLabel(TierLabel tier) {
+  return switch (tier) {
+    TierLabel.tier1Podium => 'Tier 1 - Podium',
+    TierLabel.tier2UpperChampionship => 'Tier 2 - Haut de tableau',
+    TierLabel.tier3MiddleChampionship => 'Tier 3 - Milieu de tableau',
+    TierLabel.tier4LowerChampionship => 'Tier 4 - Bas de tableau',
+    TierLabel.tier5Relegation => 'Tier 5 - Relégation',
+  };
 }
 
 class _MobileStandingRowShell extends StatelessWidget {
@@ -2094,18 +3198,26 @@ class _MobileStandingRowShell extends StatelessWidget {
     required this.child,
     required this.backgroundColor,
     required this.borderColor,
+    this.isTierBoundary = false,
   });
 
   final Widget child;
   final Color backgroundColor;
   final Color borderColor;
+  final bool isTierBoundary;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: backgroundColor,
-        border: Border(bottom: BorderSide(color: borderColor)),
+        border: Border(
+          left: BorderSide(color: borderColor, width: 3),
+          top: isTierBoundary
+              ? BorderSide(color: borderColor, width: 2)
+              : BorderSide.none,
+          bottom: BorderSide(color: borderColor.withValues(alpha: 0.7)),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
@@ -2451,13 +3563,11 @@ class _LectorFormDuelSummary extends StatelessWidget {
       team: match.homeTeam,
       results: homeResults,
       stats: homeStats,
-      accent: context.brand.accent,
     );
     final awayCard = _LectorFormTeamCard(
       team: match.awayTeam,
       results: awayResults,
       stats: awayStats,
-      accent: context.opportunities.levelGap,
       alignEnd: true,
     );
     final delta = _LectorFormDeltaPill(
@@ -2500,14 +3610,12 @@ class _LectorFormTeamCard extends StatelessWidget {
     required this.team,
     required this.results,
     required this.stats,
-    required this.accent,
     this.alignEnd = false,
   });
 
   final TeamInfo team;
   final List<String> results;
   final _FormWindowStats stats;
-  final Color accent;
   final bool alignEnd;
 
   @override
@@ -2577,7 +3685,7 @@ class _LectorFormTeamCard extends StatelessWidget {
                   TextSpan(
                     text: stats.hasResults ? '${stats.points}' : '-',
                     style: TextStyle(
-                      color: accent,
+                      color: _formPerformanceColor(context, results),
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -2613,7 +3721,6 @@ class _LectorFormDeltaPill extends StatelessWidget {
     final theme = Theme.of(context);
     final surfaces = context.surfaces;
     final textColors = context.textColors;
-    final brand = context.brand;
     final gap = homeStats.hasResults && awayStats.hasResults
         ? (homeStats.points - awayStats.points).abs()
         : null;
@@ -2633,7 +3740,9 @@ class _LectorFormDeltaPill extends StatelessWidget {
             gap == null ? 'Écart' : '+$gap pts',
             textAlign: TextAlign.center,
             style: theme.textTheme.labelLarge?.copyWith(
-              color: brand.accent,
+              color: gap == null || gap == 0
+                  ? textColors.secondary
+                  : context.semantic.success,
               fontWeight: FontWeight.w900,
               height: 1.05,
             ),
@@ -2725,13 +3834,13 @@ class _LectorFormEvolutionSection extends StatelessWidget {
                   _LectorFormChartCard(
                     teamName: match.homeTeam.name,
                     results: homeResults,
-                    color: context.brand.accent,
+                    color: _formPerformanceColor(context, homeResults),
                   ),
                   const SizedBox(height: 8),
                   _LectorFormChartCard(
                     teamName: match.awayTeam.name,
                     results: awayResults,
-                    color: context.opportunities.levelGap,
+                    color: _formPerformanceColor(context, awayResults),
                   ),
                 ],
               );
@@ -2743,7 +3852,7 @@ class _LectorFormEvolutionSection extends StatelessWidget {
                   child: _LectorFormChartCard(
                     teamName: match.homeTeam.name,
                     results: homeResults,
-                    color: context.brand.accent,
+                    color: _formPerformanceColor(context, homeResults),
                   ),
                 ),
                 Container(
@@ -2756,7 +3865,7 @@ class _LectorFormEvolutionSection extends StatelessWidget {
                   child: _LectorFormChartCard(
                     teamName: match.awayTeam.name,
                     results: awayResults,
-                    color: context.opportunities.levelGap,
+                    color: _formPerformanceColor(context, awayResults),
                   ),
                 ),
               ],
@@ -5443,7 +6552,13 @@ String _standingSummary(TeamStandingSnapshot? standing) {
 
 String _firstSignalTitle(MatchBoardItem match) {
   if (match.signals.isNotEmpty) {
-    return match.signals.first.title;
+    final signal = match.signals.first;
+    return switch (signal.id) {
+      'ranking_superiority' => 'Écart au classement',
+      'structural_level_gap' => 'Écart de niveau structurel',
+      'balanced_hierarchy' => 'Hiérarchie proche',
+      _ => signal.title,
+    };
   }
   return 'Lecture disponible';
 }
@@ -5488,41 +6603,40 @@ RecommendedMarket? _scenarioRecommendedMarket(
   MatchBoardItem match,
   Opportunity? opportunity,
 ) {
-  final explicit =
-      opportunity?.recommendedMarket ?? match.thesis?.recommendedMarket;
-  if (_hasScenarioRecommendedPick(explicit)) {
-    return explicit;
-  }
+  return _recommendedMarketForDetail(match, opportunity);
+}
 
-  final primary = match.primaryMarket;
-  if (!primary.odds.isFinite ||
-      primary.odds <= 0 ||
-      primary.id == 'market_unavailable') {
+/// Production matches carry personalized [BetCandidate]s. The Opportunity
+/// fallback only keeps historic/detail fixtures renderable while no candidate
+/// data exists; it never overrides an ambiguous or rejected candidate set.
+RecommendedMarket? _recommendedMarketForDetail(
+  MatchBoardItem match,
+  Opportunity? opportunity,
+) {
+  final fromCandidate = match.recommendedMarketFor(match.suggestedBetCandidate);
+  if (_hasScenarioRecommendedPick(fromCandidate)) {
+    return fromCandidate;
+  }
+  if (match.betCandidates.isNotEmpty ||
+      opportunity?.isAutomaticallyUsable != true) {
+    return null;
+  }
+  final fromOpportunity = opportunity?.recommendedMarket;
+  return _hasScenarioRecommendedPick(fromOpportunity) ? fromOpportunity : null;
+}
+
+String? _fixtureRoundLabel(String? rawRound) {
+  final round = rawRound?.trim();
+  if (round == null || round.isEmpty) {
     return null;
   }
 
-  for (final market in match.availableMarkets) {
-    for (final selection in market.selections) {
-      if (_sameMarketSelection(selection, primary)) {
-        return RecommendedMarket(market: market, selection: selection);
-      }
-    }
-  }
-
-  return null;
-}
-
-bool _sameMarketSelection(MarketOdds left, MarketOdds right) {
-  if (left.id == right.id) {
-    return true;
-  }
-
-  final leftRaw = left.apiFootballValue?.trim().toLowerCase();
-  final rightRaw = right.apiFootballValue?.trim().toLowerCase();
-  return leftRaw != null &&
-      leftRaw.isNotEmpty &&
-      leftRaw == rightRaw &&
-      left.odds == right.odds;
+  final match = RegExp(
+    r'^(?:regular\s+season\s*-\s*)?(\d+)$',
+    caseSensitive: false,
+  ).firstMatch(round);
+  final number = match?.group(1);
+  return number == null ? null : 'Journée $number';
 }
 
 String? _scenarioRecommendedPickLabel(
@@ -6405,22 +7519,7 @@ List<TeamStandingSnapshot> _mobileStandingRows(MatchBoardItem match) {
   }
 
   fullTable.sort((a, b) => (a.rank ?? 999).compareTo(b.rank ?? 999));
-  final rows = fullTable.take(10).toList();
-
-  void addIfMissing(TeamStandingSnapshot? standing) {
-    if (standing == null) {
-      return;
-    }
-    final alreadyVisible = rows.any((row) => _sameStandingTeam(row, standing));
-    if (!alreadyVisible) {
-      rows.add(standing);
-    }
-  }
-
-  addIfMissing(match.analysis.homeStanding);
-  addIfMissing(match.analysis.awayStanding);
-  rows.sort((a, b) => (a.rank ?? 999).compareTo(b.rank ?? 999));
-  return rows;
+  return fullTable;
 }
 
 TeamInfo? _standingTeam(MatchBoardItem match, TeamStandingSnapshot standing) {
@@ -6473,7 +7572,7 @@ Color _goalDiffColor(BuildContext context, int? value) {
   if (value == null || value == 0) {
     return context.textColors.secondary;
   }
-  return value > 0 ? context.brand.accent : context.semantic.error;
+  return value > 0 ? context.semantic.success : context.semantic.error;
 }
 
 String _standingFormDotLabel(String result) {
@@ -6523,15 +7622,38 @@ String _standingReadingText(MatchBoardItem match) {
 Color _formDotColor(BuildContext context, String result) {
   final value = result.toUpperCase();
   if (value == 'W' || value == 'V') {
-    return context.brand.accent;
+    return context.semantic.success;
   }
   if (value == 'D' || value == 'N') {
-    return Theme.of(context).colorScheme.outline;
+    return context.textColors.secondary;
   }
   if (value == 'L' || value == 'P') {
     return context.semantic.error;
   }
   return context.surfaces.border;
+}
+
+Color _formPerformanceColor(BuildContext context, List<String> results) {
+  if (results.isEmpty) {
+    return context.textColors.secondary;
+  }
+  final points = _formPoints(results);
+  final maximum = results.length * 3;
+  if (points * 3 >= maximum * 2) {
+    return context.semantic.success;
+  }
+  if (points * 3 <= maximum) {
+    return context.semantic.error;
+  }
+  return context.textColors.secondary;
+}
+
+Color _contextDeltaColor(BuildContext context, String value) {
+  final normalized = value.trim();
+  if (normalized.startsWith('+') && normalized != '+0 pts') {
+    return context.semantic.success;
+  }
+  return context.textColors.secondary;
 }
 
 String _formDotLabel(String result) {
@@ -8841,7 +9963,7 @@ class _InlineFormBalance extends StatelessWidget {
         ),
         _ColoredText('${stats.wins}V', color: semantic.success),
         _MutedDot(),
-        _ColoredText('${stats.draws}N', color: semantic.warning),
+        _ColoredText('${stats.draws}N', color: context.textColors.secondary),
         _MutedDot(),
         _ColoredText('${stats.losses}D', color: theme.colorScheme.error),
       ],
@@ -9046,9 +10168,9 @@ Color _formResultColor(BuildContext context, String result) {
   final semantic = context.semantic;
   return switch (_normalizeResult(result)) {
     'W' => semantic.success,
-    'D' => semantic.warning,
-    'L' => Theme.of(context).colorScheme.error,
-    _ => Theme.of(context).colorScheme.onSurfaceVariant,
+    'D' => context.textColors.secondary,
+    'L' => semantic.error,
+    _ => context.textColors.secondary,
   };
 }
 
@@ -10401,13 +11523,25 @@ class _MarketsSectionState extends State<_MarketsSection> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final recommendedMarket =
-        widget.opportunity?.recommendedMarket ??
-        widget.match.thesis?.recommendedMarket;
+    final recommendedMarket = _recommendedMarketForDetail(
+      widget.match,
+      widget.opportunity,
+    );
     final theses =
         widget.opportunity?.retainedTheses ??
         [if (widget.match.thesis != null) widget.match.thesis!];
-    final compatibleMarkets = widget.opportunity?.compatibleMarkets ?? const [];
+    final compatibleMarkets = [
+      for (final candidate in widget.match.betCandidates)
+        if (widget.match.recommendedMarketFor(candidate) case final market?)
+          OpportunityMarketCompatibility(
+            thesisId:
+                candidate.supportingThesisIds.firstOrNull ??
+                'market_assessment',
+            market: market.market,
+            selection: market.selection,
+            isRecommended: candidate == widget.match.suggestedBetCandidate,
+          ),
+    ];
     final isOutOfProfile =
         widget.match.profileStatus == MatchProfileStatus.outOfProfile;
     final summary = recommendedMarket == null || isOutOfProfile
@@ -10447,7 +11581,7 @@ class _MarketsSectionState extends State<_MarketsSection> {
                     child: Column(
                       children: [
                         Text(
-                          'Aucun marché recommandé actuellement.',
+                          'Aucun pari clair à proposer',
                           textAlign: TextAlign.center,
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w900,
@@ -10457,7 +11591,7 @@ class _MarketsSectionState extends State<_MarketsSection> {
                         Text(
                           isOutOfProfile
                               ? 'Cette compétition n’est pas dans votre profil.\nActivez-la pour recevoir des marchés adaptés.'
-                              : 'Lector n’a pas trouvé de marché assez aligné avec cette lecture.',
+                              : 'Les signaux disponibles ne permettent pas de dégager un marché suffisamment net pour votre configuration.',
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: colorScheme.onSurfaceVariant,

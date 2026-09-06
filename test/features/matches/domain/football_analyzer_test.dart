@@ -1,4 +1,5 @@
 import 'package:copilot/features/matches/domain/football_analyzer.dart';
+import 'package:copilot/features/matches/domain/analysis_maturity.dart';
 import 'package:copilot/features/matches/domain/football_reading.dart';
 import 'package:copilot/features/matches/domain/match_board_item.dart';
 import 'package:copilot/features/matches/domain/structural_tiers/tier_models.dart';
@@ -12,7 +13,6 @@ void main() {
       expect(analysis.has('structural_level_gap', subjectTeamId: 'home'), true);
       expect(analysis.has('positive_streak', subjectTeamId: 'home'), true);
       expect(analysis.has('strong_home_team', subjectTeamId: 'home'), true);
-      expect(analysis.has('weak_away_team', subjectTeamId: 'away'), true);
       expect(analysis.has('prolific_attack', subjectTeamId: 'home'), true);
       expect(analysis.has('fragile_defense', subjectTeamId: 'away'), true);
       expect(
@@ -23,7 +23,7 @@ void main() {
       );
     });
 
-    test('derives expected-goals readings from pre-match rolling xG only', () {
+    test('does not classify xG with a legacy absolute cutoff', () {
       final analysis = const FootballAnalyzer().analyze(
         _match(
           homeExpectedGoals: TeamExpectedGoalsSnapshot(
@@ -39,14 +39,10 @@ void main() {
         ),
       );
 
-      expect(analysis.has('high_xg_creation', subjectTeamId: 'home'), true);
+      expect(analysis.has('high_xg_creation', subjectTeamId: 'home'), false);
       expect(
         analysis.has('offensive_overperformance', subjectTeamId: 'home'),
-        true,
-      );
-      expect(
-        analysis.has('defensive_underperformance', subjectTeamId: 'home'),
-        true,
+        false,
       );
     });
 
@@ -112,14 +108,72 @@ void main() {
       },
     );
 
-    test('distinguishes recent trajectory order for equal aggregate form', () {
+    test('uses the championship distribution for hierarchy', () {
+      final narrow = const FootballAnalyzer().analyze(
+        _match(
+          withStructuralRelation: false,
+          homeRank: 3,
+          awayRank: 6,
+          homePoints: 21,
+          awayPoints: 17,
+        ),
+      );
+      expect(narrow.has('ranking_superiority'), isFalse);
+    });
+
+    test('analyzes J1, J2 and J5 as EARLY without suppressing the match', () {
+      for (final played in [0, 1, 4]) {
+        final analysis = const FootballAnalyzer().analyze(
+          _match(homePlayed: played, awayPlayed: played),
+        );
+
+        expect(analysis.maturity, AnalysisMaturity.early);
+        expect(analysis.fixtureId, 'fixture');
+        expect(
+          analysis.readings.every(
+            (reading) => reading.strength == ReadingStrength.weak,
+          ),
+          isTrue,
+        );
+      }
+    });
+
+    test(
+      'marks the sixth scheduled match as ESTABLISHED after five played',
+      () {
+        final analysis = const FootballAnalyzer().analyze(
+          _match(homePlayed: 5, awayPlayed: 5),
+        );
+
+        expect(analysis.maturity, AnalysisMaturity.established);
+      },
+    );
+
+    test('keeps a postponed team EARLY even on a later calendar round', () {
+      final analysis = const FootballAnalyzer().analyze(
+        _match(homePlayed: 4, awayPlayed: 6),
+      );
+
+      expect(analysis.maturity, AnalysisMaturity.early);
+    });
+
+    test('does not drop attack or defense below eight played matches', () {
+      final analysis = const FootballAnalyzer().analyze(
+        _match(homePlayed: 4, awayPlayed: 4),
+      );
+
+      expect(analysis.has('prolific_attack', subjectTeamId: 'home'), isTrue);
+      expect(analysis.has('fragile_defense', subjectTeamId: 'away'), isTrue);
+      expect(analysis.maturity, AnalysisMaturity.early);
+    });
+
+    test('does not infer a trajectory from a legacy fixed gap', () {
       final analysis = const FootballAnalyzer().analyze(
         _match(homeForm: 'WWWLL', awayForm: 'LLWWW'),
       );
 
-      expect(analysis.has('improving_form', subjectTeamId: 'home'), true);
-      expect(analysis.has('declining_form', subjectTeamId: 'away'), true);
-      expect(analysis.has('improving_form', subjectTeamId: 'away'), false);
+      expect(analysis.has('improving_form'), false);
+      expect(analysis.has('declining_form'), false);
     });
   });
 }
@@ -128,11 +182,45 @@ MatchBoardItem _match({
   TeamExpectedGoalsSnapshot? homeExpectedGoals,
   String? homeDescription,
   String? awayDescription,
-  String homeForm = 'WWDWW',
-  String awayForm = 'LLDLW',
+  String homeForm = 'WWWWW',
+  String awayForm = 'LLLLL',
+  int homeRank = 2,
+  int awayRank = 10,
+  int homePoints = 24,
+  int awayPoints = 11,
+  int homePlayed = 10,
+  int awayPlayed = 10,
   bool withStructuralRelation = true,
   MatchStructuralRelation? structuralRelation,
 }) {
+  final homeStanding = TeamStandingSnapshot(
+    teamId: 10,
+    teamName: 'Home',
+    description: homeDescription,
+    rank: homeRank,
+    points: homePoints,
+    played: homePlayed,
+    wins: 7,
+    draws: 3,
+    losses: 0,
+    goalsFor: 20,
+    goalsAgainst: 8,
+    form: homeForm,
+  );
+  final awayStanding = TeamStandingSnapshot(
+    teamId: 11,
+    teamName: 'Away',
+    description: awayDescription,
+    rank: awayRank,
+    points: awayPoints,
+    played: awayPlayed,
+    wins: 3,
+    draws: 2,
+    losses: 5,
+    goalsFor: 11,
+    goalsAgainst: 32,
+    form: awayForm,
+  );
   return MatchBoardItem(
     fixture: NormalizedFixture(
       id: 'fixture',
@@ -156,34 +244,9 @@ MatchBoardItem _match({
     availableMarkets: const [],
     analysis: MatchAnalysisData(
       asOf: DateTime.utc(2026, 7, 30, 8),
-      homeStanding: TeamStandingSnapshot(
-        teamId: 10,
-        teamName: 'Home',
-        description: homeDescription,
-        rank: 2,
-        points: 24,
-        played: 10,
-        wins: 7,
-        draws: 3,
-        losses: 0,
-        goalsFor: 20,
-        goalsAgainst: 8,
-        form: homeForm,
-      ),
-      awayStanding: TeamStandingSnapshot(
-        teamId: 11,
-        teamName: 'Away',
-        description: awayDescription,
-        rank: 10,
-        points: 11,
-        played: 10,
-        wins: 3,
-        draws: 2,
-        losses: 5,
-        goalsFor: 11,
-        goalsAgainst: 18,
-        form: awayForm,
-      ),
+      homeStanding: homeStanding,
+      awayStanding: awayStanding,
+      leagueStandings: _leagueStandings(homeStanding, awayStanding),
       structuralRelation:
           structuralRelation ??
           (withStructuralRelation ? _defaultStructuralRelation() : null),
@@ -216,6 +279,96 @@ MatchBoardItem _match({
     compatibility: 0,
     signals: const [],
   );
+}
+
+List<TeamStandingSnapshot> _leagueStandings(
+  TeamStandingSnapshot home,
+  TeamStandingSnapshot away,
+) {
+  return [
+    home,
+    TeamStandingSnapshot(
+      teamId: 12,
+      teamName: 'Two',
+      rank: 1,
+      points: 20,
+      played: home.played,
+      goalsFor: 16,
+      goalsAgainst: 10,
+      form: 'WWWDD',
+    ),
+    TeamStandingSnapshot(
+      teamId: 13,
+      teamName: 'Three',
+      rank: 3,
+      points: 18,
+      played: home.played,
+      goalsFor: 15,
+      goalsAgainst: 11,
+      form: 'WWDDL',
+    ),
+    TeamStandingSnapshot(
+      teamId: 14,
+      teamName: 'Four',
+      rank: 4,
+      points: 16,
+      played: home.played,
+      goalsFor: 14,
+      goalsAgainst: 12,
+      form: 'WDDLL',
+    ),
+    TeamStandingSnapshot(
+      teamId: 15,
+      teamName: 'Five',
+      rank: 5,
+      points: 14,
+      played: home.played,
+      goalsFor: 13,
+      goalsAgainst: 13,
+      form: 'DDLLL',
+    ),
+    TeamStandingSnapshot(
+      teamId: 16,
+      teamName: 'Six',
+      rank: 6,
+      points: 12,
+      played: home.played,
+      goalsFor: 12,
+      goalsAgainst: 14,
+      form: 'DLLLW',
+    ),
+    TeamStandingSnapshot(
+      teamId: 17,
+      teamName: 'Seven',
+      rank: 7,
+      points: 10,
+      played: home.played,
+      goalsFor: 11,
+      goalsAgainst: 15,
+      form: 'LLLWW',
+    ),
+    TeamStandingSnapshot(
+      teamId: 18,
+      teamName: 'Eight',
+      rank: 8,
+      points: 8,
+      played: home.played,
+      goalsFor: 10,
+      goalsAgainst: 16,
+      form: 'LLWWW',
+    ),
+    TeamStandingSnapshot(
+      teamId: 19,
+      teamName: 'Nine',
+      rank: 9,
+      points: 6,
+      played: home.played,
+      goalsFor: 9,
+      goalsAgainst: 17,
+      form: 'LWWLL',
+    ),
+    away,
+  ];
 }
 
 MatchStructuralRelation _defaultStructuralRelation() {

@@ -26,6 +26,7 @@ void main() {
       expect(arsenal.homeTeam.name, 'Arsenal');
       expect(arsenal.awayTeam.name, 'Everton');
       expect(arsenal.fixture.kickoffLabel, '16:00');
+      expect(arsenal.fixture.round, isNull);
       expect(arsenal.fixture.status, FixtureStatus.scheduled);
       expect(arsenal.primaryMarket.label, 'Double chance · Bet365');
       expect(arsenal.primaryMarket.odds, 1.42);
@@ -35,6 +36,40 @@ void main() {
       expect(arsenal.defaultMarket?.selections.single.label, '1X');
       expect(arsenal.compatibility, 0);
       expect(arsenal.signals, isEmpty);
+    });
+
+    test('keeps the provider round on the normalized fixture', () {
+      final snapshot = {
+        'raw': {
+          'fixtures': [
+            {
+              'fixture': {
+                'id': 27,
+                'date': '2026-11-22T12:00:00+09:00',
+                'status': {'short': 'NS'},
+              },
+              'league': {
+                'id': 292,
+                'name': 'K League 1',
+                'country': 'South Korea',
+                'season': 2026,
+                'round': 'Regular Season - 27',
+              },
+              'teams': {
+                'home': {'id': 10, 'name': 'Bucheon FC 1995'},
+                'away': {'id': 11, 'name': 'Daejeon Citizen'},
+              },
+            },
+          ],
+          'odds': <Object?>[],
+        },
+      };
+
+      final match = const ApiFootballMatchAdapter()
+          .fromSnapshot(snapshot)
+          .single;
+
+      expect(match.fixture.round, 'Regular Season - 27');
     });
 
     test('snapshot repository does not recommend matches without a thesis', () {

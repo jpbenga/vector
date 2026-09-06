@@ -1,5 +1,6 @@
 import '../../onboarding/domain/compiled_decision_profile.dart';
-import '../../opportunities/domain/opportunity.dart';
+import '../../matches/domain/market_assessment.dart';
+import '../../matches/domain/match_board_item.dart';
 import 'generated_ticket.dart';
 import 'generated_ticket_pick.dart';
 import 'ticket_generation_result.dart';
@@ -17,7 +18,7 @@ class TicketGenerator {
   final int maxCombinationsEvaluatedPerStrategy;
 
   TicketGenerationResult generate({
-    required List<Opportunity> opportunities,
+    required List<MatchBoardItem> matches,
     required List<TicketStrategy> strategies,
     required CompiledDecisionProfile profile,
     DateTime? targetDate,
@@ -48,7 +49,11 @@ class TicketGenerator {
       );
     }
 
-    final usablePicks = _usablePicks(opportunities, targetDate: targetDate);
+    final usablePicks = _usablePicksFromCandidates(
+      matches,
+      profile: profile,
+      targetDate: targetDate,
+    );
     final timestamp = generatedAt ?? DateTime.now().toUtc();
     final strategyResults = [
       for (final strategy in activeStrategies)
@@ -255,27 +260,31 @@ class TicketGenerator {
     );
   }
 
-  List<GeneratedTicketPick> _usablePicks(
-    List<Opportunity> opportunities, {
+  List<GeneratedTicketPick> _usablePicksFromCandidates(
+    List<MatchBoardItem> matches, {
+    required CompiledDecisionProfile profile,
     DateTime? targetDate,
   }) {
     final picksByMatchId = <String, GeneratedTicketPick>{};
     final targetDayKey = targetDate == null ? null : _dayKey(targetDate);
-
-    for (final opportunity in opportunities) {
+    for (final match in matches) {
       if (targetDayKey != null &&
-          _dayKey(opportunity.kickoff) != targetDayKey) {
+          _dayKey(match.fixture.kickoff) != targetDayKey) {
         continue;
       }
-
-      final pick = GeneratedTicketPick.fromOpportunity(opportunity);
-      if (pick == null) {
+      final candidate = selectSuggestedBetCandidate(
+        match.betCandidates.where(
+          (candidate) => profile.enabledMarket(candidate.marketId) != null,
+        ),
+      );
+      if (candidate == null) {
         continue;
       }
-
-      picksByMatchId.putIfAbsent(pick.matchId, () => pick);
+      final pick = GeneratedTicketPick.fromBetCandidate(match, candidate);
+      if (pick != null) {
+        picksByMatchId[pick.matchId] = pick;
+      }
     }
-
     return picksByMatchId.values.toList()..sort(_comparePicks);
   }
 

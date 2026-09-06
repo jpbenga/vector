@@ -8,9 +8,11 @@ import 'package:copilot/features/matches/data/match_feed_repository.dart';
 import 'package:copilot/features/matches/data/match_feed_repository_loader.dart';
 import 'package:copilot/features/matches/data/supabase_match_feed_snapshot_repository.dart';
 import 'package:copilot/features/matches/domain/football_analyzer.dart';
+import 'package:copilot/features/matches/domain/analysis_maturity.dart';
 import 'package:copilot/features/matches/domain/football_reading.dart';
 import 'package:copilot/features/matches/domain/match_board_item.dart';
 import 'package:copilot/features/matches/domain/opportunity_engine_v2.dart';
+import 'package:copilot/features/matches/domain/structural_tiers/tier_models.dart';
 import 'package:copilot/features/onboarding/domain/decision_profile.dart';
 import 'package:copilot/features/onboarding/domain/onboarding_answer.dart';
 import 'package:flutter/services.dart';
@@ -80,6 +82,17 @@ void main() {
       expect(matches.first.primaryMarket.label, 'Double Chance 1X');
     });
 
+    test('sends demo data through the V2 analysis pipeline', () {
+      final matches = repository.allMatches();
+
+      expect(matches, isNotEmpty);
+      for (final match in matches) {
+        expect(match.analysis.asOf, isNotNull);
+        expect(match.analysis.leagueStandings, hasLength(10));
+        expect(match.signals, isEmpty);
+      }
+    });
+
     test('does not recommend demo matches without a sufficient thesis', () {
       const profile = DecisionProfile(
         onboardingVersion: 'test',
@@ -101,7 +114,7 @@ void main() {
       expect(matches, isEmpty);
     });
 
-    test('derives personalized matches from canonical opportunities', () {
+    test('does not surface an opportunity without a real available market', () {
       const profile = DecisionProfile(
         onboardingVersion: 'test',
         answers: [
@@ -123,10 +136,8 @@ void main() {
       final opportunities = repository.opportunitiesFor(profile);
       final matches = repository.personalizedFor(profile);
 
-      expect(opportunities, hasLength(matches.length));
-      expect(matches.map((match) => match.id), [
-        for (final opportunity in opportunities) opportunity.matchId,
-      ]);
+      expect(opportunities, isEmpty);
+      expect(matches, isNotEmpty);
     });
   });
 
@@ -171,6 +182,150 @@ void main() {
     });
 
     test(
+      'keeps a configured market candidate even when its thesis is not selected',
+      () {
+        final analyzer = _CountingFootballAnalyzer({
+          'fixture-domination': _dominationReadings(),
+          'fixture-open': _openMatchReadings('fixture-open'),
+        });
+        final repository = _personalizationRepository(analyzer);
+
+        final matches = repository.personalizedFor(
+          _profile(markets: ['double_chance'], profiles: ['offensive_match']),
+        );
+
+        final marketMatch = matches.singleWhere(
+          (match) => match.id == 'fixture-domination',
+        );
+        expect(marketMatch.thesis?.id, 'expected_domination');
+        expect(marketMatch.thesis?.hasRecommendedMarket, isTrue);
+        expect(marketMatch.profileRelevance.readingMatches, 0);
+        expect(marketMatch.profileRelevance.thesisMatches, 0);
+        expect(marketMatch.profileRelevance.marketMatches, 1);
+      },
+    );
+
+    test(
+      'excludes a followed competition match without any relevant signal',
+      () {
+        final analyzer = _CountingFootballAnalyzer({
+          'fixture-domination': _dominationReadings(),
+          'fixture-open': _openMatchReadings('fixture-open'),
+          'fixture-silent': const [],
+        });
+        final repository = _personalizationRepository(
+          analyzer,
+          extraMatches: [
+            _personalizationMatch(
+              fixtureId: 'fixture-silent',
+              homeTeamId: 'home-silent',
+              awayTeamId: 'away-silent',
+              markets: const [],
+            ),
+          ],
+        );
+
+        final matches = repository.personalizedFor(
+          _profile(markets: ['double_chance'], profiles: ['ranking_gap']),
+        );
+
+        expect(
+          matches.map((match) => match.id),
+          isNot(contains('fixture-silent')),
+        );
+      },
+    );
+
+    test(
+      'keeps a relevant match outside followed competitions out of Pour moi',
+      () {
+        final analyzer = _CountingFootballAnalyzer({
+          'fixture-domination': _dominationReadings(),
+          'fixture-open': _openMatchReadings('fixture-open'),
+          'fixture-outside': [
+            _reading(
+              'positive_streak',
+              'home-outside',
+              side: ReadingSubjectSide.home,
+              kind: ReadingEvidenceKind.form,
+            ),
+          ],
+        });
+        final repository = _personalizationRepository(
+          analyzer,
+          extraMatches: [
+            _personalizationMatch(
+              fixtureId: 'fixture-outside',
+              homeTeamId: 'home-outside',
+              awayTeamId: 'away-outside',
+              markets: const [],
+              competition: const CompetitionInfo(
+                id: '61',
+                name: 'Ligue 1',
+                country: CountryInfo(code: 'FR', name: 'France'),
+                season: 2026,
+              ),
+            ),
+          ],
+        );
+
+        final matches = repository.personalizedFor(
+          _profile(markets: const [], profiles: ['positive_series']),
+        );
+
+        expect(
+          matches.map((match) => match.id),
+          isNot(contains('fixture-outside')),
+        );
+        expect(
+          repository.allMatches().map((match) => match.id),
+          contains('fixture-outside'),
+        );
+      },
+    );
+
+    test('ranks Pour moi by configured reading, thesis and market matches', () {
+      final analyzer = _CountingFootballAnalyzer({
+        'fixture-domination': _dominationReadings(),
+        'fixture-open': _openMatchReadings('fixture-open'),
+        'fixture-form': [
+          _reading(
+            'positive_streak',
+            'home-form',
+            side: ReadingSubjectSide.home,
+            kind: ReadingEvidenceKind.form,
+          ),
+        ],
+      });
+      final repository = _personalizationRepository(
+        analyzer,
+        extraMatches: [
+          _personalizationMatch(
+            fixtureId: 'fixture-form',
+            homeTeamId: 'home-form',
+            awayTeamId: 'away-form',
+            markets: const [],
+          ),
+        ],
+      );
+
+      final matches = repository.personalizedFor(
+        _profile(
+          markets: ['double_chance'],
+          profiles: ['ranking_gap', 'positive_series'],
+          readings: ['positive_streak'],
+        ),
+      );
+
+      expect(matches.map((match) => match.id).take(2), [
+        'fixture-domination',
+        'fixture-form',
+      ]);
+      expect(matches.first.profileRelevance.total, greaterThan(1));
+      expect(matches[1].profileRelevance.total, 1);
+    });
+
+    test(
       'keeps reading-only matches in Pour moi without creating opportunities',
       () {
         final analyzer = _CountingFootballAnalyzer({
@@ -199,6 +354,7 @@ void main() {
         final profile = _profile(
           markets: ['double_chance'],
           profiles: ['positive_series'],
+          readings: ['positive_streak'],
         );
 
         final opportunities = repository.opportunitiesFor(profile);
@@ -248,12 +404,13 @@ void main() {
         final profile = _profile(
           markets: const [],
           profiles: ['positive_series'],
+          readings: ['positive_streak'],
         );
 
         final opportunities = repository.opportunitiesFor(profile);
         final matches = repository.personalizedFor(profile);
 
-        expect(opportunities, isEmpty);
+        expect(opportunities, isNotEmpty);
         expect(matches.map((match) => match.id), contains('fixture-form'));
         final readingOnlyMatch = matches.singleWhere(
           (match) => match.id == 'fixture-form',
@@ -448,6 +605,7 @@ SnapshotMatchFeedRepository _personalizationRepository(
         fixtureId: 'fixture-domination',
         homeTeamId: 'home-domination',
         awayTeamId: 'away-domination',
+        structuralRelation: _matureStructuralRelation(),
         markets: const [
           MatchMarket(
             id: 'doubleChance',
@@ -495,6 +653,7 @@ DecisionProfile _emptyProfile() {
 DecisionProfile _profile({
   required List<String> markets,
   required List<String> profiles,
+  List<String> readings = const [],
 }) {
   return DecisionProfile(
     onboardingVersion: 'test',
@@ -508,6 +667,7 @@ DecisionProfile _profile({
         questionId: 'opportunity_profiles',
         orderedOptionIds: profiles,
       ),
+      OnboardingAnswer(questionId: 'readings', orderedOptionIds: readings),
     ],
   );
 }
@@ -535,16 +695,18 @@ MatchBoardItem _personalizationMatch({
   required String homeTeamId,
   required String awayTeamId,
   required List<MatchMarket> markets,
+  MatchStructuralRelation? structuralRelation,
+  CompetitionInfo competition = const CompetitionInfo(
+    id: '39',
+    name: 'Premier League',
+    country: CountryInfo(code: 'GB', name: 'Angleterre'),
+    season: 2026,
+  ),
 }) {
   return MatchBoardItem(
     fixture: NormalizedFixture(
       id: fixtureId,
-      competition: const CompetitionInfo(
-        id: '39',
-        name: 'Premier League',
-        country: CountryInfo(code: 'GB', name: 'Angleterre'),
-        season: 2026,
-      ),
+      competition: competition,
       homeTeam: TeamInfo(id: homeTeamId, name: 'Home'),
       awayTeam: TeamInfo(id: awayTeamId, name: 'Away'),
       kickoffLabel: '20:00',
@@ -557,9 +719,55 @@ MatchBoardItem _personalizationMatch({
       odds: 0,
     ),
     availableMarkets: markets,
-    analysis: MatchAnalysisData(asOf: DateTime.utc(2026, 8, 8, 8, 30)),
+    analysis: MatchAnalysisData(
+      asOf: DateTime.utc(2026, 8, 8, 8, 30),
+      structuralRelation: structuralRelation,
+    ),
     compatibility: 0,
     signals: const [],
+  );
+}
+
+MatchStructuralRelation _matureStructuralRelation() {
+  return MatchStructuralRelation(
+    competitionId: '39',
+    season: 2026,
+    analysisAsOf: DateTime.utc(2026, 8, 8, 8, 30),
+    tierSystemVersion: 'tier-v1',
+    standingsSnapshotIdentity: 'test-tier-snapshot',
+    homeTeamId: 10,
+    awayTeamId: 11,
+    homeTeamTier: TierLabel.tier1Podium,
+    awayTeamTier: TierLabel.tier4LowerChampionship,
+    sameTier: false,
+    ordinalTierGap: 3,
+    structuralBoundaryGap: 1,
+    confirmedBoundariesBetweenTeams: const [
+      ConfirmedStructuralBoundary(
+        boundaryIndex: 3,
+        upperRank: 3,
+        lowerRank: 4,
+        rawGap: 10,
+        score: 80,
+        strength: BoundaryStrength.strong,
+        standingsSnapshotIdentity: 'test-tier-snapshot',
+      ),
+    ],
+    tierMaturity: TierMaturity.mature,
+    tierStatus: TierSystemStatus.mature,
+    championshipTeamCount: 20,
+    typicalGap: 1,
+    homeOfficialRank: 2,
+    awayOfficialRank: 10,
+    homePoints: 24,
+    awayPoints: 11,
+    homeStructuralLevelGap: const StructuralLevelGapAssessment(
+      exists: true,
+      strength: StructuralLevelGapStrength.moderate,
+    ),
+    awayStructuralLevelGap: const StructuralLevelGapAssessment(exists: false),
+    balancedHierarchy: const BalancedHierarchyAssessment(exists: false),
+    warnings: const [],
   );
 }
 
@@ -658,6 +866,7 @@ class _CountingFootballAnalyzer extends FootballAnalyzer {
       fixtureId: match.id,
       asOf: asOf ?? match.analysis.asOf ?? DateTime.utc(2026, 8, 8, 8, 30),
       readings: _readingsByFixtureId[match.id] ?? const [],
+      maturity: AnalysisMaturity.established,
     );
   }
 }

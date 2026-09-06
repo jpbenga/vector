@@ -1,6 +1,10 @@
 import 'package:copilot/features/matches/domain/match_board_item.dart';
+import 'package:copilot/features/matches/domain/market_assessment.dart';
+import 'package:copilot/features/matches/domain/analysis_maturity.dart';
+import 'package:copilot/features/matches/domain/football_analyzer.dart';
 import 'package:copilot/features/matches/domain/opportunity_engine_v2.dart';
 import 'package:copilot/features/matches/domain/structural_tiers/tier_models.dart';
+import 'package:copilot/features/matches/domain/football_reading.dart';
 import 'package:copilot/features/onboarding/domain/compiled_decision_profile.dart';
 import 'package:copilot/features/onboarding/domain/decision_profile.dart';
 import 'package:copilot/features/onboarding/domain/onboarding_answer.dart';
@@ -11,7 +15,9 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('OpportunityEngineV2', () {
     test('creates one combined opportunity with readings and a market', () {
-      final opportunities = const OpportunityEngineV2().opportunities([
+      final engine = _expectedDominationEngine();
+      final intelligence = engine.buildIntelligence(_match());
+      final opportunities = engine.opportunities([
         _match(),
       ], _profile(markets: ['double_chance'], profiles: ['ranking_gap']));
 
@@ -40,12 +46,16 @@ void main() {
       );
       expect(opportunity.asOf, DateTime.utc(2026, 7, 30, 8));
       expect(opportunity.thesisAssessments.length, greaterThan(1));
+      expect(
+        intelligence.betCandidates.map((candidate) => candidate.marketId),
+        contains('doubleChance'),
+      );
     });
 
     test(
       'keeps an opportunity visible when no enabled market translates it',
       () {
-        final opportunities = const OpportunityEngineV2().opportunities([
+        final opportunities = _expectedDominationEngine().opportunities([
           _match(),
         ], _profile(markets: ['match_result'], profiles: ['ranking_gap']));
 
@@ -64,9 +74,24 @@ void main() {
     );
 
     test('can produce avoid_match without proposing a market', () {
-      final opportunities = const OpportunityEngineV2().opportunities([
-        _balancedConflictingMatch(),
-      ], _profile(markets: ['double_chance'], profiles: ['solid_favorite']));
+      final opportunities =
+          OpportunityEngineV2(
+            analyzer: _StaticAnalyzer([
+              _reading(
+                'balanced_hierarchy',
+                'fixture',
+                ReadingSubjectSide.match,
+              ),
+              _reading(
+                'conflicting_signals',
+                'fixture',
+                ReadingSubjectSide.match,
+              ),
+            ]),
+          ).opportunities(
+            [_balancedConflictingMatch()],
+            _profile(markets: ['double_chance'], profiles: ['solid_favorite']),
+          );
 
       expect(opportunities, hasLength(1));
       expect(opportunities.single.retainedTheses.single.id, 'avoid_match');
@@ -85,6 +110,233 @@ void main() {
 
       expect(opportunities, isEmpty);
     });
+
+    test(
+      'keeps EARLY analysis visible but excludes automatic opportunities',
+      () {
+        final engine = OpportunityEngineV2(
+          analyzer: _StaticAnalyzer([
+            _reading(
+              'ranking_superiority',
+              'api-team-10',
+              ReadingSubjectSide.home,
+            ),
+          ], maturity: AnalysisMaturity.early),
+        );
+        final intelligence = engine.buildIntelligence(_match());
+        final opportunities = engine.opportunities([
+          _match(),
+        ], _profile(markets: ['double_chance'], profiles: ['ranking_gap']));
+
+        expect(intelligence.analysis.maturity, AnalysisMaturity.early);
+        expect(intelligence.analysis.readings, isNotEmpty);
+        expect(intelligence.thesisAssessments, isNotEmpty);
+        expect(opportunities, isEmpty);
+      },
+    );
+
+    test('allows automatic opportunities once analysis is ESTABLISHED', () {
+      final engine = OpportunityEngineV2(
+        analyzer: _StaticAnalyzer([
+          _reading(
+            'structural_level_gap',
+            'api-team-10',
+            ReadingSubjectSide.home,
+          ),
+          _reading(
+            'ranking_superiority',
+            'api-team-10',
+            ReadingSubjectSide.home,
+          ),
+          _reading('form_advantage', 'api-team-10', ReadingSubjectSide.home),
+          _reading('strong_home_team', 'api-team-10', ReadingSubjectSide.home),
+        ], maturity: AnalysisMaturity.established),
+      );
+
+      final opportunity = engine.analyzeOpportunity(
+        _match(),
+        _profile(markets: ['double_chance'], profiles: ['ranking_gap']),
+      );
+
+      expect(opportunity, isNotNull);
+      expect(opportunity!.maturity, AnalysisMaturity.established);
+    });
+
+    test('creates a real market candidate without an Opportunity', () {
+      final engine = OpportunityEngineV2(
+        analyzer: _StaticAnalyzer([
+          _reading('strong_home_team', 'api-team-10', ReadingSubjectSide.home),
+        ]),
+      );
+
+      final intelligence = engine.buildIntelligence(_match());
+      final personalized = engine.personalizeMatchFromIntelligence(
+        intelligence,
+        _profile(
+          markets: ['double_chance'],
+          profiles: [],
+          readings: ['strong_home_team'],
+        ),
+      );
+
+      expect(intelligence.opportunities, isEmpty);
+      expect(intelligence.betCandidates, hasLength(1));
+      expect(intelligence.betCandidates.single.marketId, 'doubleChance');
+      expect(intelligence.betCandidates.single.selectionLabel, '1X');
+      expect(intelligence.betCandidates.single.odds, 1.42);
+      expect(intelligence.betCandidates.single.isAutomaticallyUsable, isTrue);
+      expect(personalized.betCandidates, hasLength(1));
+      expect(personalized.profileStatus, MatchProfileStatus.inProfile);
+    });
+
+    test(
+      'keeps every configured market candidate attached to a direct reading',
+      () {
+        final engine = OpportunityEngineV2(
+          analyzer: _StaticAnalyzer([
+            _reading(
+              'strong_home_team',
+              'api-team-10',
+              ReadingSubjectSide.home,
+            ),
+          ]),
+        );
+        final match = _match().copyWith(
+          availableMarkets: const [
+            MatchMarket(
+              id: 'matchResult',
+              label: 'Résultat du match',
+              selections: [
+                MarketOdds(id: 'home', label: 'Domicile', odds: 1.80),
+              ],
+            ),
+            MatchMarket(
+              id: 'doubleChance',
+              label: 'Double chance',
+              selections: [
+                MarketOdds(id: 'double_chance_1x', label: '1X', odds: 1.42),
+              ],
+            ),
+          ],
+        );
+
+        final personalized = engine.personalizeMatchFromIntelligence(
+          engine.buildIntelligence(match),
+          _profile(
+            markets: ['match_result', 'double_chance'],
+            profiles: [],
+            readings: ['strong_home_team'],
+          ),
+        );
+
+        expect(personalized.betCandidates, hasLength(2));
+        expect(
+          personalized.betCandidates.map((candidate) => candidate.marketId),
+          containsAll(['matchResult', 'doubleChance']),
+        );
+        expect(
+          personalized.betCandidates,
+          everyElement(
+            predicate<BetCandidate>(
+              (candidate) =>
+                  candidate.supportingReadingIds.contains('strong_home_team'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test('does not expose a candidate from an unconfigured reading', () {
+      final engine = OpportunityEngineV2(
+        analyzer: _StaticAnalyzer([
+          _reading('strong_home_team', 'api-team-10', ReadingSubjectSide.home),
+        ]),
+      );
+
+      final personalized = engine.personalizeMatchFromIntelligence(
+        engine.buildIntelligence(_match()),
+        _profile(markets: ['double_chance'], profiles: []),
+      );
+
+      expect(personalized.betCandidates, isEmpty);
+      expect(personalized.profileStatus, MatchProfileStatus.outOfProfile);
+    });
+
+    test('orients a negative direct reading toward the opponent market', () {
+      final engine = OpportunityEngineV2(
+        analyzer: _StaticAnalyzer([
+          _reading('fragile_defense', 'api-team-11', ReadingSubjectSide.away),
+        ]),
+      );
+      final match = _match().copyWith(
+        availableMarkets: const [
+          MatchMarket(
+            id: 'matchResult',
+            label: 'Résultat du match',
+            selections: [MarketOdds(id: 'home', label: 'Domicile', odds: 1.80)],
+          ),
+        ],
+      );
+
+      final personalized = engine.personalizeMatchFromIntelligence(
+        engine.buildIntelligence(match),
+        _profile(
+          markets: ['match_result'],
+          profiles: [],
+          readings: ['fragile_defense'],
+        ),
+      );
+
+      expect(personalized.betCandidates, hasLength(1));
+      expect(personalized.betCandidates.single.selectionLabel, 'Domicile');
+      expect(personalized.betCandidates.single.subjectTeamId, 'api-team-10');
+    });
+
+    test(
+      'keeps EARLY market candidates visible but not automatically usable',
+      () {
+        final engine = OpportunityEngineV2(
+          analyzer: _StaticAnalyzer([
+            _reading(
+              'strong_home_team',
+              'api-team-10',
+              ReadingSubjectSide.home,
+            ),
+          ], maturity: AnalysisMaturity.early),
+        );
+
+        final intelligence = engine.buildIntelligence(_match());
+
+        expect(intelligence.betCandidates, hasLength(1));
+        expect(
+          intelligence.betCandidates.single.maturity,
+          AnalysisMaturity.early,
+        );
+        expect(
+          intelligence.betCandidates.single.isAutomaticallyUsable,
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      'does not treat every configured raw reading as an attention signal',
+      () {
+        final engine = OpportunityEngineV2(
+          analyzer: _StaticAnalyzer([
+            _reading('solid_defense', 'api-team-10', ReadingSubjectSide.home),
+          ]),
+        );
+
+        final personalized = engine.personalizeMatchFromIntelligence(
+          engine.buildIntelligence(_match()),
+          _profile(markets: const [], profiles: ['solid_favorite']),
+        );
+
+        expect(personalized.profileStatus, MatchProfileStatus.outOfProfile);
+        expect(personalized.signals, isEmpty);
+      },
+    );
 
     test('keeps full thesis analysis independent from profile completion', () {
       final profile = const ProfileCompiler().compile(
@@ -113,8 +365,17 @@ void main() {
         structuralRelation: _sameTierRelation(),
       );
 
-      final analysis = const OpportunityEngineV2().analyzeMatch(match);
-      final assessments = const OpportunityEngineV2().assessTheses(match);
+      final engine = OpportunityEngineV2(
+        analyzer: _StaticAnalyzer([
+          _reading(
+            'ranking_superiority',
+            'api-team-10',
+            ReadingSubjectSide.home,
+          ),
+        ]),
+      );
+      final analysis = engine.analyzeMatch(match);
+      final assessments = engine.assessTheses(match);
       final domination = assessments.singleWhere(
         (assessment) => assessment.id == 'expected_domination',
       );
@@ -130,22 +391,96 @@ void main() {
       expect(domination.status, ThesisAssessmentStatus.notEligible);
       expect(domination.failedGate, 'EG_EXPECTED_DOMINATION_TIER_GAP');
       expect(domination.clarityScore, 0);
+      expect(domination.resistances, isEmpty);
+    });
+
+    test('does not evaluate domination without a mature Tier relation', () {
+      final domination = const OpportunityEngineV2()
+          .assessTheses(_ambiguousMatch())
+          .singleWhere((assessment) => assessment.id == 'expected_domination');
+
+      expect(domination.status, ThesisAssessmentStatus.notEvaluable);
+      expect(domination.failedGate, 'EG_TIER_SYSTEM_MATURITY');
+      expect(domination.resistances, isEmpty);
+    });
+
+    test(
+      'blocks an open-match scenario when a closed profile contradicts it',
+      () {
+        final engine = OpportunityEngineV2(
+          analyzer: _StaticAnalyzer([
+            _reading('open_match_profile', 'fixture', ReadingSubjectSide.match),
+            _reading('frequent_over_25', 'fixture', ReadingSubjectSide.match),
+            _reading(
+              'high_xg_creation',
+              'api-team-10',
+              ReadingSubjectSide.home,
+            ),
+            _reading(
+              'closed_match_profile',
+              'fixture',
+              ReadingSubjectSide.match,
+            ),
+          ]),
+        );
+
+        final opportunities = engine.opportunities(
+          [_match()],
+          _profile(
+            markets: ['goals_over_under'],
+            profiles: ['offensive_match'],
+          ),
+        );
+
+        expect(opportunities, isEmpty);
+      },
+    );
+
+    test('blocks one-sided scoring when the target cannot create', () {
+      final engine = OpportunityEngineV2(
+        analyzer: _StaticAnalyzer([
+          _reading('high_xg_creation', 'api-team-10', ReadingSubjectSide.home),
+          _reading('fragile_defense', 'api-team-11', ReadingSubjectSide.away),
+          _reading(
+            'scoring_difficulty',
+            'api-team-10',
+            ReadingSubjectSide.home,
+          ),
+        ]),
+      );
+
+      final assessments = engine.assessTheses(_match());
+      final oneSided = assessments.singleWhere(
+        (assessment) => assessment.id == 'one_sided_scoring',
+      );
+
+      expect(oneSided.status, ThesisAssessmentStatus.eligibleButUnsupported);
     });
 
     test(
       'preserves opponent resistance without turning it into contradiction',
       () {
-        final assessment = const OpportunityEngineV2()
-            .assessTheses(
-              _match(
-                awayWinsAway: 4,
-                awayLossesAway: 0,
-                structuralRelation: _structuralRelation(),
-              ),
-            )
-            .singleWhere(
-              (assessment) => assessment.id == 'expected_domination',
-            );
+        final assessment =
+            OpportunityEngineV2(
+                  analyzer: _StaticAnalyzer([
+                    ..._expectedDominationReadings(),
+                    _reading(
+                      'strong_away_team',
+                      'api-team-11',
+                      ReadingSubjectSide.away,
+                    ),
+                  ]),
+                )
+                .assessTheses(
+                  _match(
+                    awayWinsAway: 4,
+                    awayLossesAway: 0,
+                    structuralRelation: _structuralRelation(),
+                  ),
+                )
+                .singleWhere(
+                  (assessment) => assessment.id == 'expected_domination',
+                );
 
         expect(assessment.status, ThesisAssessmentStatus.supported);
         expect(
@@ -164,9 +499,26 @@ void main() {
     );
 
     test('marks shared positive form as non-discriminating', () {
-      final assessment = const OpportunityEngineV2()
-          .assessTheses(_match(awayForm: 'WWDWW'))
-          .singleWhere((assessment) => assessment.id == 'expected_domination');
+      final assessment =
+          OpportunityEngineV2(
+                analyzer: _StaticAnalyzer([
+                  ..._expectedDominationReadings(),
+                  _reading(
+                    'positive_streak',
+                    'api-team-10',
+                    ReadingSubjectSide.home,
+                  ),
+                  _reading(
+                    'positive_streak',
+                    'api-team-11',
+                    ReadingSubjectSide.away,
+                  ),
+                ]),
+              )
+              .assessTheses(_match(awayForm: 'WWDWW'))
+              .singleWhere(
+                (assessment) => assessment.id == 'expected_domination',
+              );
 
       expect(
         assessment.nonDiscriminating
@@ -177,7 +529,7 @@ void main() {
     });
 
     test('deduplicates correlated hierarchy evidence for clarity', () {
-      final assessment = const OpportunityEngineV2()
+      final assessment = _expectedDominationEngine()
           .assessTheses(_match())
           .singleWhere((assessment) => assessment.id == 'expected_domination');
       final supportFamilies = assessment.evidence
@@ -219,9 +571,65 @@ void main() {
   });
 }
 
+class _StaticAnalyzer extends FootballAnalyzer {
+  const _StaticAnalyzer(
+    this.readings, {
+    this.maturity = AnalysisMaturity.established,
+  });
+
+  final List<FootballReading> readings;
+  final AnalysisMaturity maturity;
+
+  @override
+  FootballAnalysis analyze(MatchBoardItem match, {DateTime? asOf}) {
+    return FootballAnalysis(
+      fixtureId: match.id,
+      asOf: asOf ?? match.analysis.asOf ?? DateTime.utc(2026, 7, 30, 8),
+      readings: readings,
+      maturity: maturity,
+    );
+  }
+}
+
+OpportunityEngineV2 _expectedDominationEngine() {
+  return OpportunityEngineV2(
+    analyzer: _StaticAnalyzer(_expectedDominationReadings()),
+  );
+}
+
+List<FootballReading> _expectedDominationReadings() {
+  return [
+    _reading('structural_level_gap', 'api-team-10', ReadingSubjectSide.home),
+    _reading('ranking_superiority', 'api-team-10', ReadingSubjectSide.home),
+    _reading('form_advantage', 'api-team-10', ReadingSubjectSide.home),
+    _reading('strong_home_team', 'api-team-10', ReadingSubjectSide.home),
+  ];
+}
+
+FootballReading _reading(String id, String teamId, ReadingSubjectSide side) {
+  return FootballReading(
+    id: id,
+    subjectTeamId: teamId,
+    subjectSide: side,
+    status: ReadingStatus.detected,
+    strength: ReadingStrength.strong,
+    evidence: [
+      ReadingEvidence(
+        label: id,
+        kind: ReadingEvidenceKind.sample,
+        sourcePath: 'test',
+      ),
+    ],
+    warnings: const [],
+    asOf: DateTime.utc(2026, 7, 30, 8),
+    sampleSize: 10,
+  );
+}
+
 CompiledDecisionProfile _profile({
   required List<String> markets,
   required List<String> profiles,
+  List<String> readings = const [],
 }) {
   return const ProfileCompiler().compile(
     DecisionProfile(
@@ -232,6 +640,7 @@ CompiledDecisionProfile _profile({
           orderedOptionIds: ['eng_premier_league'],
         ),
         OnboardingAnswer(questionId: 'markets', orderedOptionIds: markets),
+        OnboardingAnswer(questionId: 'readings', orderedOptionIds: readings),
         OnboardingAnswer(
           questionId: 'opportunity_profiles',
           orderedOptionIds: profiles,

@@ -23,17 +23,17 @@ Future<void> main(List<String> args) async {
 
   final profile = _allEnabledProfile();
   final compiledProfile = const ProfileCompiler().compile(profile);
-  final opportunities = repository.opportunitiesFor(profile);
+  final matches = repository.personalizedFor(profile);
   final strategy = _auditedStrategy();
   final result = const TicketGenerator().generate(
-    opportunities: opportunities,
+    matches: matches,
     strategies: [strategy],
     profile: compiledProfile,
     generatedAt: DateTime.utc(2026, 8, 9, 12),
   );
 
   stdout.writeln('Snapshot: $snapshotPath');
-  stdout.writeln('Opportunities: ${opportunities.length}');
+  stdout.writeln('Personalized matches: ${matches.length}');
   stdout.writeln('Status: ${result.status.name}');
   for (final strategyResult in result.strategies) {
     stdout.writeln(
@@ -45,8 +45,9 @@ Future<void> main(List<String> args) async {
   }
 
   final allPicks = [
-    for (final opportunity in opportunities)
-      ?GeneratedTicketPick.fromOpportunity(opportunity),
+    for (final match in matches)
+      for (final candidate in match.betCandidates)
+        ?GeneratedTicketPick.fromBetCandidate(match, candidate),
   ];
   final groupedAll = <String, List<GeneratedTicketPick>>{};
   for (final pick in allPicks) {

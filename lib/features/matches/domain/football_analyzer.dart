@@ -1,6 +1,8 @@
+import 'analysis_maturity.dart';
 import 'football_reading.dart';
-import 'football_reading_rules.dart';
 import 'match_board_item.dart';
+import 'match_context_key_builder.dart';
+import 'match_context_key_models.dart';
 import 'structural_tiers/tier_models.dart';
 
 class FootballAnalyzer {
@@ -9,14 +11,17 @@ class FootballAnalyzer {
   FootballAnalysis analyze(MatchBoardItem match, {DateTime? asOf}) {
     final snapshotTime =
         asOf ?? match.analysis.asOf ?? match.fixture.kickoff ?? DateTime.now();
+    final maturity = AnalysisMaturityResolver.forMatch(match);
+    final reference = const ChampionshipContextReferenceBuilder().build(match);
     final readings = <FootballReading>[
-      ..._hierarchyReadings(match, snapshotTime),
-      ..._formReadings(match, snapshotTime),
+      ..._hierarchyReadings(match, snapshotTime, reference),
+      ..._formReadings(match, snapshotTime, reference),
       ..._homeAwayReadings(match, snapshotTime),
-      ..._attackReadings(match, snapshotTime),
-      ..._defenseReadings(match, snapshotTime),
+      ..._attackReadings(match, snapshotTime, reference),
+      ..._defenseReadings(match, snapshotTime, reference),
       ..._rhythmReadings(match, snapshotTime),
       ..._expectedGoalsReadings(match, snapshotTime),
+      ..._standoutGoalScorerReadings(match, snapshotTime),
     ];
 
     final contradictions = _contradictions(match, snapshotTime, readings);
@@ -29,7 +34,7 @@ class FootballAnalyzer {
           subjectTeamId: match.id,
           subjectSide: ReadingSubjectSide.match,
           status: ReadingStatus.detected,
-          strength: ReadingStrength.strong,
+          strength: ReadingStrength.weak,
           evidence: const [
             ReadingEvidence(
               label: 'Aucun échantillon exploitable ne soutient une lecture.',
@@ -45,28 +50,43 @@ class FootballAnalyzer {
       );
     }
 
+    final maturityAdjusted = maturity.isEarly
+        ? allReadings.map(_makeEarlyReading).toList(growable: false)
+        : allReadings;
     return FootballAnalysis(
       fixtureId: match.id,
       asOf: snapshotTime,
-      readings: List.unmodifiable(allReadings),
+      readings: List.unmodifiable(maturityAdjusted),
+      maturity: maturity,
     );
   }
 
   List<FootballReading> _hierarchyReadings(
     MatchBoardItem match,
     DateTime asOf,
+    ChampionshipContextReference? reference,
   ) {
     final home = match.analysis.homeStanding;
     final away = match.analysis.awayStanding;
-    if (home?.rank == null || away?.rank == null) {
+    if (home?.rank == null ||
+        away?.rank == null ||
+        home?.points == null ||
+        away?.points == null ||
+        home?.played == null ||
+        away?.played == null) {
       return const [];
     }
 
     final rankGap = (home!.rank! - away!.rank!).abs();
-    final pointsGap = home.points == null || away.points == null
-        ? 0
-        : (home.points! - away.points!).abs();
-    final sampleSize = [home.played ?? 0, away.played ?? 0].reduce(_min);
+    final pointsGap = (home.points! - away.points!).abs();
+    final sampleSize = [home.played!, away.played!].reduce(_min);
+    final distribution = reference?.distributionFor(
+      ChampionshipContextMetric.pointsPerGame,
+    );
+    final homeId = match.homeTeam.apiFootballTeamId;
+    final awayId = match.awayTeam.apiFootballTeamId;
+    final homeZone = homeId == null ? null : distribution?.zoneForTeam(homeId);
+    final awayZone = awayId == null ? null : distribution?.zoneForTeam(awayId);
     final superiorSide = home.rank! < away.rank!
         ? ReadingSubjectSide.home
         : ReadingSubjectSide.away;
@@ -102,26 +122,30 @@ class FootballAnalyzer {
       );
     }
 
-    if (rankGap >= 3 || pointsGap >= 5) {
+    final pointsPerGameGap =
+        (home.points! / home.played! - away.points! / away.played!).abs();
+    if ((homeZone != null || awayZone != null) && homeZone != awayZone) {
       readings.add(
         _reading(
           id: 'ranking_superiority',
           teamId: superiorTeam.id,
           side: superiorSide,
-          strength: ReadingStrengthResolver.fromGap(
-            (rankGap + pointsGap / 2).toDouble(),
-            5,
-            10,
-          ),
+          strength: ReadingStrength.moderate,
           asOf: asOf,
           sampleSize: sampleSize,
           evidence: [
             ReadingEvidence(
               label:
-                  '${superiorTeam.name} possède un avantage de classement ($rankGap rangs, $pointsGap pts).',
+                  '${superiorTeam.name} possède un écart mesurable au classement ($rankGap rangs, $pointsGap pts).',
               kind: ReadingEvidenceKind.standing,
               sourcePath: 'standings[].rank + standings[].points',
-              value: {'rankGap': rankGap, 'pointsGap': pointsGap},
+              value: {
+                'rankGap': rankGap,
+                'pointsGap': pointsGap,
+                'pointsPerGameGap': pointsPerGameGap,
+                'homePlayed': home.played,
+                'awayPlayed': away.played,
+              },
             ),
           ],
         ),
@@ -167,176 +191,115 @@ class FootballAnalyzer {
     return readings;
   }
 
-  List<FootballReading> _formReadings(MatchBoardItem match, DateTime asOf) {
-    return [
-      ..._formFor(match.homeTeam, ReadingSubjectSide.home, match, asOf),
-      ..._formFor(match.awayTeam, ReadingSubjectSide.away, match, asOf),
-      ..._formAdvantageReadings(match, asOf),
-    ];
-  }
-
-  List<FootballReading> _formFor(
-    TeamInfo team,
-    ReadingSubjectSide side,
+  List<FootballReading> _formReadings(
     MatchBoardItem match,
     DateTime asOf,
+    ChampionshipContextReference? reference,
   ) {
-    final form =
-        _standingForSide(match, side)?.form ??
-        _statisticsForSide(match, side)?.form;
-    if (form == null || form.length < 3) {
+    final distribution = reference?.distributionFor(
+      ChampionshipContextMetric.form,
+    );
+    final homeId = match.homeTeam.apiFootballTeamId;
+    final awayId = match.awayTeam.apiFootballTeamId;
+    if (distribution == null || homeId == null || awayId == null) {
       return const [];
     }
 
-    final normalized = form.toUpperCase().replaceAll(RegExp('[^WDL]'), '');
-    final sampleSize = normalized.length.clamp(0, 5);
-    if (sampleSize < 3) {
-      return const [];
-    }
-
-    final recent = normalized.substring(0, sampleSize);
-    final score = _formScore(recent);
     final readings = <FootballReading>[];
-    if (sampleSize >= 5 && score >= 10) {
-      readings.add(
-        _reading(
-          id: 'positive_streak',
-          teamId: team.id,
-          side: side,
-          strength: score >= 13
-              ? ReadingStrength.strong
-              : ReadingStrength.moderate,
-          asOf: asOf,
-          sampleSize: sampleSize,
-          evidence: [
-            ReadingEvidence(
-              label: '${team.name} reste sur une dynamique positive ($recent).',
-              kind: ReadingEvidenceKind.form,
-              sourcePath: 'standings[].form',
-              value: recent,
-            ),
-          ],
-        ),
-      );
-    }
-    if (sampleSize >= 5 && score <= 4) {
-      readings.add(
-        _reading(
-          id: 'negative_streak',
-          teamId: team.id,
-          side: side,
-          strength: score <= 2
-              ? ReadingStrength.strong
-              : ReadingStrength.moderate,
-          asOf: asOf,
-          sampleSize: sampleSize,
-          evidence: [
-            ReadingEvidence(
-              label: '${team.name} traverse une dynamique négative ($recent).',
-              kind: ReadingEvidenceKind.form,
-              sourcePath: 'standings[].form',
-              value: recent,
-            ),
-          ],
-        ),
-      );
-    }
+    final homeZone = distribution.zoneForTeam(homeId);
+    final awayZone = distribution.zoneForTeam(awayId);
+    final homeForm = _recentFormForSide(match, ReadingSubjectSide.home);
+    final awayForm = _recentFormForSide(match, ReadingSubjectSide.away);
 
-    if (sampleSize >= 5) {
-      final firstTwo = _formScore(recent.substring(3, 5));
-      final lastThree = _formScore(recent.substring(0, 3));
-      if (lastThree >= firstTwo + 3) {
-        readings.add(
-          _reading(
-            id: 'improving_form',
-            teamId: team.id,
-            side: side,
-            strength: ReadingStrength.moderate,
-            asOf: asOf,
-            sampleSize: sampleSize,
-            evidence: [
-              ReadingEvidence(
-                label:
-                    '${team.name} montre une amélioration récente ($recent).',
-                kind: ReadingEvidenceKind.form,
-                sourcePath: 'standings[].form',
-                value: recent,
-              ),
-            ],
-          ),
-        );
-      } else if (lastThree + 3 <= firstTwo) {
-        readings.add(
-          _reading(
-            id: 'declining_form',
-            teamId: team.id,
-            side: side,
-            strength: ReadingStrength.moderate,
-            asOf: asOf,
-            sampleSize: sampleSize,
-            evidence: [
-              ReadingEvidence(
-                label:
-                    '${team.name} se dégrade dans la série récente ($recent).',
-                kind: ReadingEvidenceKind.form,
-                sourcePath: 'standings[].form',
-                value: recent,
-              ),
-            ],
-          ),
-        );
+    void addDirectional(
+      TeamInfo team,
+      ReadingSubjectSide side,
+      ChampionshipContextZone? zone,
+      String? form,
+    ) {
+      if (zone == null || form == null) {
+        return;
       }
+      final isHigh = zone.side == ChampionshipContextZoneSide.high;
+      readings.add(
+        _reading(
+          id: isHigh ? 'positive_streak' : 'negative_streak',
+          teamId: team.id,
+          side: side,
+          strength: ReadingStrength.moderate,
+          asOf: asOf,
+          sampleSize: form.length,
+          evidence: [
+            ReadingEvidence(
+              label: isHigh
+                  ? '${team.name} appartient à une zone de forme haute dans ce championnat ($form).'
+                  : '${team.name} appartient à une zone de forme basse dans ce championnat ($form).',
+              kind: ReadingEvidenceKind.form,
+              sourcePath: 'standings[].form',
+              value: form,
+            ),
+          ],
+        ),
+      );
     }
 
+    addDirectional(match.homeTeam, ReadingSubjectSide.home, homeZone, homeForm);
+    addDirectional(match.awayTeam, ReadingSubjectSide.away, awayZone, awayForm);
+
+    if (homeZone?.side == ChampionshipContextZoneSide.high &&
+        awayZone?.side == ChampionshipContextZoneSide.low &&
+        homeForm != null &&
+        awayForm != null) {
+      readings.add(
+        _formAdvantageReading(
+          team: match.homeTeam,
+          side: ReadingSubjectSide.home,
+          homeForm: homeForm,
+          awayForm: awayForm,
+          asOf: asOf,
+        ),
+      );
+    } else if (awayZone?.side == ChampionshipContextZoneSide.high &&
+        homeZone?.side == ChampionshipContextZoneSide.low &&
+        homeForm != null &&
+        awayForm != null) {
+      readings.add(
+        _formAdvantageReading(
+          team: match.awayTeam,
+          side: ReadingSubjectSide.away,
+          homeForm: homeForm,
+          awayForm: awayForm,
+          asOf: asOf,
+        ),
+      );
+    }
     return readings;
   }
 
-  List<FootballReading> _formAdvantageReadings(
-    MatchBoardItem match,
-    DateTime asOf,
-  ) {
-    final homeRecent = _recentFormForSide(match, ReadingSubjectSide.home);
-    final awayRecent = _recentFormForSide(match, ReadingSubjectSide.away);
-    if (homeRecent == null || awayRecent == null) {
-      return const [];
-    }
-    final homeScore = _formScore(homeRecent);
-    final awayScore = _formScore(awayRecent);
-    final gap = (homeScore - awayScore).abs();
-    if (gap < 4) {
-      return const [];
-    }
-
-    final side = homeScore > awayScore
-        ? ReadingSubjectSide.home
-        : ReadingSubjectSide.away;
-    final team = side == ReadingSubjectSide.home
-        ? match.homeTeam
-        : match.awayTeam;
-    return [
-      _reading(
-        id: 'form_advantage',
-        teamId: team.id,
-        side: side,
-        strength: gap >= 7 ? ReadingStrength.strong : ReadingStrength.moderate,
-        asOf: asOf,
-        sampleSize: _min(homeRecent.length, awayRecent.length),
-        evidence: [
-          ReadingEvidence(
-            label:
-                '${team.name} possède une dynamique récente supérieure ($homeRecent vs $awayRecent).',
-            kind: ReadingEvidenceKind.form,
-            sourcePath: 'standings[].form',
-            value: {
-              'homeForm': homeRecent,
-              'awayForm': awayRecent,
-              'homeScore': homeScore,
-              'awayScore': awayScore,
-            },
-          ),
-        ],
-      ),
-    ];
+  FootballReading _formAdvantageReading({
+    required TeamInfo team,
+    required ReadingSubjectSide side,
+    required String homeForm,
+    required String awayForm,
+    required DateTime asOf,
+  }) {
+    return _reading(
+      id: 'form_advantage',
+      teamId: team.id,
+      side: side,
+      strength: ReadingStrength.moderate,
+      asOf: asOf,
+      sampleSize: _min(homeForm.length, awayForm.length),
+      evidence: [
+        ReadingEvidence(
+          label:
+              '${team.name} oppose une zone de forme haute à une zone basse adverse ($homeForm vs $awayForm).',
+          kind: ReadingEvidenceKind.form,
+          sourcePath: 'standings[].form',
+          value: {'homeForm': homeForm, 'awayForm': awayForm},
+        ),
+      ],
+    );
   }
 
   List<FootballReading> _homeAwayReadings(MatchBoardItem match, DateTime asOf) {
@@ -351,112 +314,112 @@ class FootballAnalyzer {
     final awayWins = away?.winsAway ?? away?.winsTotal;
     final awayLosses = away?.lossesAway ?? away?.lossesTotal;
 
-    if (homePlayed != null && homePlayed >= 5 && homeWins != null) {
+    if (homePlayed != null &&
+        homePlayed > 0 &&
+        homeWins != null &&
+        homeLosses != null &&
+        homeWins > homeLosses) {
       final rate = homeWins / homePlayed;
-      if (rate >= FootballReadingRules.homeAway.thresholds['strongRate']!) {
-        readings.add(
-          _reading(
-            id: 'strong_home_team',
-            teamId: match.homeTeam.id,
-            side: ReadingSubjectSide.home,
-            strength: rate >= .72
-                ? ReadingStrength.strong
-                : ReadingStrength.moderate,
-            asOf: asOf,
-            sampleSize: homePlayed,
-            evidence: [
-              ReadingEvidence(
-                label:
-                    '${match.homeTeam.name} gagne ${_percent(rate)} de ses matchs à domicile.',
-                kind: ReadingEvidenceKind.homeAway,
-                sourcePath: 'teams/statistics.fixtures.wins.home',
-                value: rate,
-              ),
-            ],
-          ),
-        );
-      }
+      readings.add(
+        _reading(
+          id: 'strong_home_team',
+          teamId: match.homeTeam.id,
+          side: ReadingSubjectSide.home,
+          strength: ReadingStrength.moderate,
+          asOf: asOf,
+          sampleSize: homePlayed,
+          evidence: [
+            ReadingEvidence(
+              label:
+                  '${match.homeTeam.name} gagne ${_percent(rate)} de ses matchs à domicile.',
+              kind: ReadingEvidenceKind.homeAway,
+              sourcePath: 'teams/statistics.fixtures.wins.home',
+              value: rate,
+            ),
+          ],
+        ),
+      );
     }
 
-    if (homePlayed != null && homePlayed >= 5 && homeLosses != null) {
+    if (homePlayed != null &&
+        homePlayed > 0 &&
+        homeWins != null &&
+        homeLosses != null &&
+        homeLosses > homeWins) {
       final rate = homeLosses / homePlayed;
-      if (rate >= FootballReadingRules.homeAway.thresholds['weakLossRate']!) {
-        readings.add(
-          _reading(
-            id: 'weak_home_team',
-            teamId: match.homeTeam.id,
-            side: ReadingSubjectSide.home,
-            strength: rate >= .58
-                ? ReadingStrength.strong
-                : ReadingStrength.moderate,
-            asOf: asOf,
-            sampleSize: homePlayed,
-            evidence: [
-              ReadingEvidence(
-                label:
-                    '${match.homeTeam.name} perd ${_percent(rate)} de ses matchs à domicile.',
-                kind: ReadingEvidenceKind.homeAway,
-                sourcePath: 'teams/statistics.fixtures.loses.home',
-                value: rate,
-              ),
-            ],
-          ),
-        );
-      }
+      readings.add(
+        _reading(
+          id: 'weak_home_team',
+          teamId: match.homeTeam.id,
+          side: ReadingSubjectSide.home,
+          strength: ReadingStrength.moderate,
+          asOf: asOf,
+          sampleSize: homePlayed,
+          evidence: [
+            ReadingEvidence(
+              label:
+                  '${match.homeTeam.name} perd ${_percent(rate)} de ses matchs à domicile.',
+              kind: ReadingEvidenceKind.homeAway,
+              sourcePath: 'teams/statistics.fixtures.loses.home',
+              value: rate,
+            ),
+          ],
+        ),
+      );
     }
 
-    if (awayPlayed != null && awayPlayed >= 5 && awayWins != null) {
+    if (awayPlayed != null &&
+        awayPlayed > 0 &&
+        awayWins != null &&
+        awayLosses != null &&
+        awayWins > awayLosses) {
       final rate = awayWins / awayPlayed;
-      if (rate >= FootballReadingRules.homeAway.thresholds['strongRate']!) {
-        readings.add(
-          _reading(
-            id: 'strong_away_team',
-            teamId: match.awayTeam.id,
-            side: ReadingSubjectSide.away,
-            strength: rate >= .72
-                ? ReadingStrength.strong
-                : ReadingStrength.moderate,
-            asOf: asOf,
-            sampleSize: awayPlayed,
-            evidence: [
-              ReadingEvidence(
-                label:
-                    '${match.awayTeam.name} gagne ${_percent(rate)} de ses déplacements.',
-                kind: ReadingEvidenceKind.homeAway,
-                sourcePath: 'teams/statistics.fixtures.wins.away',
-                value: rate,
-              ),
-            ],
-          ),
-        );
-      }
+      readings.add(
+        _reading(
+          id: 'strong_away_team',
+          teamId: match.awayTeam.id,
+          side: ReadingSubjectSide.away,
+          strength: ReadingStrength.moderate,
+          asOf: asOf,
+          sampleSize: awayPlayed,
+          evidence: [
+            ReadingEvidence(
+              label:
+                  '${match.awayTeam.name} gagne ${_percent(rate)} de ses déplacements.',
+              kind: ReadingEvidenceKind.homeAway,
+              sourcePath: 'teams/statistics.fixtures.wins.away',
+              value: rate,
+            ),
+          ],
+        ),
+      );
     }
 
-    if (awayPlayed != null && awayPlayed >= 5 && awayLosses != null) {
+    if (awayPlayed != null &&
+        awayPlayed > 0 &&
+        awayWins != null &&
+        awayLosses != null &&
+        awayLosses > awayWins) {
       final rate = awayLosses / awayPlayed;
-      if (rate >= FootballReadingRules.homeAway.thresholds['weakLossRate']!) {
-        readings.add(
-          _reading(
-            id: 'weak_away_team',
-            teamId: match.awayTeam.id,
-            side: ReadingSubjectSide.away,
-            strength: rate >= .58
-                ? ReadingStrength.strong
-                : ReadingStrength.moderate,
-            asOf: asOf,
-            sampleSize: awayPlayed,
-            evidence: [
-              ReadingEvidence(
-                label:
-                    '${match.awayTeam.name} perd ${_percent(rate)} de ses déplacements.',
-                kind: ReadingEvidenceKind.homeAway,
-                sourcePath: 'teams/statistics.fixtures.loses.away',
-                value: rate,
-              ),
-            ],
-          ),
-        );
-      }
+      readings.add(
+        _reading(
+          id: 'weak_away_team',
+          teamId: match.awayTeam.id,
+          side: ReadingSubjectSide.away,
+          strength: ReadingStrength.moderate,
+          asOf: asOf,
+          sampleSize: awayPlayed,
+          evidence: [
+            ReadingEvidence(
+              label:
+                  '${match.awayTeam.name} perd ${_percent(rate)} de ses déplacements.',
+              kind: ReadingEvidenceKind.homeAway,
+              sourcePath: 'teams/statistics.fixtures.loses.away',
+              value: rate,
+            ),
+          ],
+        ),
+      );
     }
 
     if (readings.any((reading) => reading.id == 'strong_home_team') &&
@@ -466,7 +429,7 @@ class FootballAnalyzer {
           id: 'home_away_mismatch',
           teamId: match.id,
           side: ReadingSubjectSide.match,
-          strength: ReadingStrength.strong,
+          strength: ReadingStrength.moderate,
           asOf: asOf,
           sampleSize: _min(homePlayed ?? 0, awayPlayed ?? 0),
           evidence: const [
@@ -487,7 +450,7 @@ class FootballAnalyzer {
           id: 'home_away_mismatch',
           teamId: match.id,
           side: ReadingSubjectSide.match,
-          strength: ReadingStrength.strong,
+          strength: ReadingStrength.moderate,
           asOf: asOf,
           sampleSize: _min(homePlayed ?? 0, awayPlayed ?? 0),
           evidence: const [
@@ -504,279 +467,206 @@ class FootballAnalyzer {
     return readings;
   }
 
-  List<FootballReading> _attackReadings(MatchBoardItem match, DateTime asOf) {
-    return [
-      ..._attackFor(match.homeTeam, ReadingSubjectSide.home, match, asOf),
-      ..._attackFor(match.awayTeam, ReadingSubjectSide.away, match, asOf),
-    ];
-  }
-
-  List<FootballReading> _attackFor(
-    TeamInfo team,
-    ReadingSubjectSide side,
+  List<FootballReading> _attackReadings(
     MatchBoardItem match,
     DateTime asOf,
-  ) {
-    final stats = _statisticsForSide(match, side);
-    final average = stats?.goalsForAverageTotal;
-    final played = stats?.playedTotal ?? 0;
-    if (average == null || played < 8) {
+    ChampionshipContextReference? reference,
+  ) => _relativeGoalReadings(
+    match: match,
+    asOf: asOf,
+    reference: reference,
+    metric: ChampionshipContextMetric.goalsFor,
+    highId: 'prolific_attack',
+    lowId: 'scoring_difficulty',
+    highLabel: 'marque',
+    lowLabel: 'marque peu',
+    sourcePath: 'standings[].all.goals.for',
+  );
+
+  List<FootballReading> _defenseReadings(
+    MatchBoardItem match,
+    DateTime asOf,
+    ChampionshipContextReference? reference,
+  ) => _relativeGoalReadings(
+    match: match,
+    asOf: asOf,
+    reference: reference,
+    metric: ChampionshipContextMetric.goalsAgainst,
+    highId: 'fragile_defense',
+    lowId: 'solid_defense',
+    highLabel: 'encaisse',
+    lowLabel: 'encaisse peu',
+    sourcePath: 'standings[].all.goals.against',
+  );
+
+  List<FootballReading> _relativeGoalReadings({
+    required MatchBoardItem match,
+    required DateTime asOf,
+    required ChampionshipContextReference? reference,
+    required ChampionshipContextMetric metric,
+    required String highId,
+    required String lowId,
+    required String highLabel,
+    required String lowLabel,
+    required String sourcePath,
+  }) {
+    final distribution = reference?.distributionFor(metric);
+    final homeId = match.homeTeam.apiFootballTeamId;
+    final awayId = match.awayTeam.apiFootballTeamId;
+    if (distribution == null || homeId == null || awayId == null) {
       return const [];
     }
-
-    if (average >= FootballReadingRules.attack.thresholds['prolific']!) {
-      return [
-        _reading(
-          id: 'prolific_attack',
-          teamId: team.id,
-          side: side,
-          strength: average >= 2.05
-              ? ReadingStrength.strong
-              : ReadingStrength.moderate,
-          asOf: asOf,
-          sampleSize: played,
-          evidence: [
-            ReadingEvidence(
-              label:
-                  '${team.name} marque ${average.toStringAsFixed(2)} but(s) par match.',
-              kind: ReadingEvidenceKind.goals,
-              sourcePath: 'teams/statistics.goals.for.average.total',
-              value: average,
-            ),
-          ],
-        ),
-      ];
-    }
-
-    if (average <= FootballReadingRules.attack.thresholds['difficulty']!) {
-      return [
-        _reading(
-          id: 'scoring_difficulty',
-          teamId: team.id,
-          side: side,
-          strength: average <= .65
-              ? ReadingStrength.strong
-              : ReadingStrength.moderate,
-          asOf: asOf,
-          sampleSize: played,
-          evidence: [
-            ReadingEvidence(
-              label:
-                  '${team.name} produit peu au score (${average.toStringAsFixed(2)} but/match).',
-              kind: ReadingEvidenceKind.goals,
-              sourcePath: 'teams/statistics.goals.for.average.total',
-              value: average,
-            ),
-          ],
-        ),
-      ];
-    }
-
-    return const [];
-  }
-
-  List<FootballReading> _defenseReadings(MatchBoardItem match, DateTime asOf) {
-    return [
-      ..._defenseFor(match.homeTeam, ReadingSubjectSide.home, match, asOf),
-      ..._defenseFor(match.awayTeam, ReadingSubjectSide.away, match, asOf),
-    ];
-  }
-
-  List<FootballReading> _defenseFor(
-    TeamInfo team,
-    ReadingSubjectSide side,
-    MatchBoardItem match,
-    DateTime asOf,
-  ) {
-    final stats = _statisticsForSide(match, side);
-    final average = stats?.goalsAgainstAverageTotal;
-    final played = stats?.playedTotal ?? 0;
     final readings = <FootballReading>[];
-    if (average == null || played < 8) {
-      return readings;
-    }
-
-    if (average <= FootballReadingRules.defense.thresholds['solid']!) {
-      readings.add(
-        _reading(
-          id: 'solid_defense',
-          teamId: team.id,
-          side: side,
-          strength: average <= .75
-              ? ReadingStrength.strong
-              : ReadingStrength.moderate,
-          asOf: asOf,
-          sampleSize: played,
-          evidence: [
-            ReadingEvidence(
-              label:
-                  '${team.name} encaisse seulement ${average.toStringAsFixed(2)} but/match.',
-              kind: ReadingEvidenceKind.goals,
-              sourcePath: 'teams/statistics.goals.against.average.total',
-              value: average,
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (average >= FootballReadingRules.defense.thresholds['fragile']!) {
-      readings.add(
-        _reading(
-          id: 'fragile_defense',
-          teamId: team.id,
-          side: side,
-          strength: average >= 1.95
-              ? ReadingStrength.strong
-              : ReadingStrength.moderate,
-          asOf: asOf,
-          sampleSize: played,
-          evidence: [
-            ReadingEvidence(
-              label:
-                  '${team.name} concède ${average.toStringAsFixed(2)} but(s) par match.',
-              kind: ReadingEvidenceKind.goals,
-              sourcePath: 'teams/statistics.goals.against.average.total',
-              value: average,
-            ),
-          ],
-        ),
-      );
-    }
-
-    final cleanSheets = stats?.cleanSheetsTotal;
-    if (cleanSheets != null && played > 0) {
-      final rate = cleanSheets / played;
-      if (rate >= FootballReadingRules.defense.thresholds['cleanSheetRate']!) {
-        readings.add(
-          _reading(
-            id: 'frequent_clean_sheet',
-            teamId: team.id,
-            side: side,
-            strength: rate >= .50
-                ? ReadingStrength.strong
-                : ReadingStrength.moderate,
-            asOf: asOf,
-            sampleSize: played,
-            evidence: [
-              ReadingEvidence(
-                label:
-                    '${team.name} garde sa cage inviolée ${_percent(rate)} du temps.',
-                kind: ReadingEvidenceKind.goals,
-                sourcePath: 'teams/statistics.clean_sheet.total',
-                value: rate,
-              ),
-            ],
-          ),
-        );
+    for (final entry in [
+      (team: match.homeTeam, side: ReadingSubjectSide.home, id: homeId),
+      (team: match.awayTeam, side: ReadingSubjectSide.away, id: awayId),
+    ]) {
+      final value = distribution.valueForTeam(entry.id);
+      final zone = distribution.zoneForTeam(entry.id);
+      final standing = _standingForSide(match, entry.side);
+      if (value == null || zone == null || standing?.played == null) {
+        continue;
       }
+      final isHigh = zone.side == ChampionshipContextZoneSide.high;
+      final verb = isHigh ? highLabel : lowLabel;
+      readings.add(
+        _reading(
+          id: isHigh ? highId : lowId,
+          teamId: entry.team.id,
+          side: entry.side,
+          strength: ReadingStrength.moderate,
+          asOf: asOf,
+          sampleSize: standing!.played!,
+          evidence: [
+            ReadingEvidence(
+              label:
+                  '${entry.team.name} $verb ${value.value.toStringAsFixed(2)} but(s) par match, dans une zone ${isHigh ? 'haute' : 'basse'} du championnat.',
+              kind: ReadingEvidenceKind.goals,
+              sourcePath: sourcePath,
+              value: value.value,
+            ),
+          ],
+        ),
+      );
     }
-
     return readings;
   }
 
   List<FootballReading> _rhythmReadings(MatchBoardItem match, DateTime asOf) {
-    final home = match.analysis.homeStatistics;
-    final away = match.analysis.awayStatistics;
-    final homeFor = home?.goalsForAverageTotal;
-    final awayFor = away?.goalsForAverageTotal;
-    final homeAgainst = home?.goalsAgainstAverageTotal;
-    final awayAgainst = away?.goalsAgainstAverageTotal;
-    if (homeFor == null ||
-        awayFor == null ||
-        homeAgainst == null ||
-        awayAgainst == null) {
-      return const [];
-    }
-
-    final sampleSize = _min(home?.playedTotal ?? 0, away?.playedTotal ?? 0);
-    if (sampleSize < 8) {
-      return const [];
-    }
-
-    final climate = (homeFor + awayFor + homeAgainst + awayAgainst) / 2;
-    if (climate >= FootballReadingRules.rhythm.thresholds['open']!) {
-      return [
-        _reading(
-          id: 'open_match_profile',
-          teamId: match.id,
-          side: ReadingSubjectSide.match,
-          strength: climate >= 3.20
-              ? ReadingStrength.strong
-              : ReadingStrength.moderate,
-          asOf: asOf,
-          sampleSize: sampleSize,
-          evidence: [
-            ReadingEvidence(
-              label:
-                  'Le climat buts agrégé atteint ${climate.toStringAsFixed(2)}.',
-              kind: ReadingEvidenceKind.goals,
-              sourcePath: 'teams/statistics.goals.*.average.total',
-              value: climate,
-            ),
-          ],
-        ),
-        _reading(
-          id: 'frequent_over_25',
-          teamId: match.id,
-          side: ReadingSubjectSide.match,
-          strength: ReadingStrength.moderate,
-          asOf: asOf,
-          sampleSize: sampleSize,
-          evidence: [
-            ReadingEvidence(
-              label:
-                  'Le profil global soutient un scénario au-dessus de 2,5 buts.',
-              kind: ReadingEvidenceKind.goals,
-              sourcePath: 'teams/statistics.goals.*.average.total',
-              value: climate,
-            ),
-          ],
-        ),
-      ];
-    }
-
-    if (climate <= FootballReadingRules.rhythm.thresholds['closed']!) {
-      return [
-        _reading(
-          id: 'closed_match_profile',
-          teamId: match.id,
-          side: ReadingSubjectSide.match,
-          strength: climate <= 1.80
-              ? ReadingStrength.strong
-              : ReadingStrength.moderate,
-          asOf: asOf,
-          sampleSize: sampleSize,
-          evidence: [
-            ReadingEvidence(
-              label:
-                  'Le climat buts agrégé reste bas (${climate.toStringAsFixed(2)}).',
-              kind: ReadingEvidenceKind.goals,
-              sourcePath: 'teams/statistics.goals.*.average.total',
-              value: climate,
-            ),
-          ],
-        ),
-        _reading(
-          id: 'frequent_under_25',
-          teamId: match.id,
-          side: ReadingSubjectSide.match,
-          strength: ReadingStrength.moderate,
-          asOf: asOf,
-          sampleSize: sampleSize,
-          evidence: [
-            ReadingEvidence(
-              label: 'Le profil global soutient un scénario sous 2,5 buts.',
-              kind: ReadingEvidenceKind.goals,
-              sourcePath: 'teams/statistics.goals.*.average.total',
-              value: climate,
-            ),
-          ],
-        ),
-      ];
-    }
-
+    // No match-level championship reference exists yet. Do not turn raw team
+    // averages into an "open" or "closed" qualification with a fixed cutoff.
     return const [];
+  }
+
+  /// Identifies a unique, sufficiently exposed scoring-rate leader inside its
+  /// own team. There is no universal goals or minutes threshold: exposure is
+  /// compared to the team's observed minutes distribution, and the scoring
+  /// distinction is relative to the other players of that same team.
+  List<FootballReading> _standoutGoalScorerReadings(
+    MatchBoardItem match,
+    DateTime asOf,
+  ) {
+    return [
+      ..._standoutGoalScorerForTeam(
+        teamId: match.homeTeam.id,
+        side: ReadingSubjectSide.home,
+        players: match.analysis.homePlayerStatistics,
+        asOf: asOf,
+      ),
+      ..._standoutGoalScorerForTeam(
+        teamId: match.awayTeam.id,
+        side: ReadingSubjectSide.away,
+        players: match.analysis.awayPlayerStatistics,
+        asOf: asOf,
+      ),
+    ];
+  }
+
+  List<FootballReading> _standoutGoalScorerForTeam({
+    required String teamId,
+    required ReadingSubjectSide side,
+    required List<PlayerSeasonStatisticsSnapshot> players,
+    required DateTime asOf,
+  }) {
+    final exposed = players
+        .where((player) => (player.minutes ?? 0) > 0)
+        .where((player) => player.goalsPer90 != null)
+        .toList(growable: false);
+    if (exposed.length < 2) return const [];
+
+    final minuteMedian = _median(
+      exposed.map((player) => player.minutes!.toDouble()),
+    );
+    final candidates = exposed
+        .where((player) => player.minutes! >= minuteMedian)
+        .where((player) => (player.goals ?? 0) > 0)
+        .toList(growable: false);
+    if (candidates.isEmpty) return const [];
+
+    final highestRate = candidates
+        .map((player) => player.goalsPer90!)
+        .reduce((a, b) => a > b ? a : b);
+    final leaders = candidates
+        .where((player) => player.goalsPer90! == highestRate)
+        .toList(growable: false);
+    if (leaders.length != 1) return const [];
+    final leader = leaders.single;
+    final otherRates = exposed
+        .where((player) => player.playerId != leader.playerId)
+        .map((player) => player.goalsPer90!)
+        .toList(growable: false);
+    if (otherRates.isEmpty || highestRate <= _upperQuartile(otherRates)) {
+      return const [];
+    }
+
+    final appearances = leader.appearances;
+    final evidence = <ReadingEvidence>[
+      ReadingEvidence(
+        label:
+            '${leader.playerName} se distingue dans ${leader.teamName} : ${leader.goals} but${leader.goals == 1 ? '' : 's'} en ${leader.minutes} min (${highestRate.toStringAsFixed(2)} but/90).',
+        kind: ReadingEvidenceKind.player,
+        sourcePath: 'players.statistics.games.minutes + goals.total',
+        value: {
+          'playerId': leader.playerId,
+          'teamId': leader.teamId,
+          'goals': leader.goals,
+          'minutes': leader.minutes,
+          'appearances': appearances,
+          'lineups': leader.lineups,
+          'goalsPer90': highestRate,
+        },
+      ),
+    ];
+    return [
+      FootballReading(
+        id: 'standout_goal_scorer',
+        subjectTeamId: teamId,
+        subjectSide: side,
+        subjectKind: ReadingSubjectKind.player,
+        playerId: leader.playerId,
+        playerName: leader.playerName,
+        status: ReadingStatus.detected,
+        strength: ReadingStrength.moderate,
+        evidence: evidence,
+        warnings: const [],
+        asOf: asOf,
+        sampleSize: appearances ?? 0,
+      ),
+    ];
+  }
+
+  double _median(Iterable<double> values) {
+    final sorted = values.toList()..sort();
+    final middle = sorted.length ~/ 2;
+    return sorted.length.isOdd
+        ? sorted[middle]
+        : (sorted[middle - 1] + sorted[middle]) / 2;
+  }
+
+  double _upperQuartile(Iterable<double> values) {
+    final sorted = values.toList()..sort();
+    final start = sorted.length ~/ 2;
+    return _median(sorted.sublist(start));
   }
 
   List<FootballReading> _expectedGoalsReadings(
@@ -808,8 +698,7 @@ class FootballAnalyzer {
     final xg = side == ReadingSubjectSide.home
         ? match.analysis.homeExpectedGoals
         : match.analysis.awayExpectedGoals;
-    if (xg == null ||
-        xg.sampleSize < FootballReadingRules.expectedGoals.minimumSampleSize) {
+    if (xg == null) {
       return const [];
     }
 
@@ -845,125 +734,10 @@ class FootballAnalyzer {
       ];
     }
 
-    final readings = <FootballReading>[];
-    final created = xg.rollingXgFor5;
-    final conceded = xg.rollingXgAgainst5;
-    if (created != null) {
-      if (created >=
-          FootballReadingRules.expectedGoals.thresholds['highCreation']!) {
-        readings.add(
-          _xgReading(
-            id: 'high_xg_creation',
-            team: team,
-            side: side,
-            value: created,
-            asOf: asOf,
-            sampleSize: xg.sampleSize,
-            label:
-                '${team.name} produit ${created.toStringAsFixed(2)} xG en moyenne récente.',
-          ),
-        );
-      } else if (created <=
-          FootballReadingRules.expectedGoals.thresholds['lowCreation']!) {
-        readings.add(
-          _xgReading(
-            id: 'low_xg_creation',
-            team: team,
-            side: side,
-            value: created,
-            asOf: asOf,
-            sampleSize: xg.sampleSize,
-            label:
-                '${team.name} crée peu d’occasions nettes (${created.toStringAsFixed(2)} xG).',
-          ),
-        );
-      }
-    }
-
-    if (conceded != null &&
-        conceded >=
-            FootballReadingRules.expectedGoals.thresholds['highConceded']!) {
-      readings.add(
-        _xgReading(
-          id: 'high_xg_conceded',
-          team: team,
-          side: side,
-          value: conceded,
-          asOf: asOf,
-          sampleSize: xg.sampleSize,
-          label:
-              '${team.name} concède ${conceded.toStringAsFixed(2)} xG en moyenne récente.',
-        ),
-      );
-    }
-
-    final goalsMinusXg = xg.goalsMinusXgFor5;
-    if (goalsMinusXg != null) {
-      final threshold =
-          FootballReadingRules.expectedGoals.thresholds['divergence']!;
-      if (goalsMinusXg <= -threshold) {
-        readings.add(
-          _xgReading(
-            id: 'offensive_underperformance',
-            team: team,
-            side: side,
-            value: goalsMinusXg,
-            asOf: asOf,
-            sampleSize: xg.sampleSize,
-            label:
-                '${team.name} marque moins que sa production xG récente ne le suggère.',
-          ),
-        );
-      } else if (goalsMinusXg >= threshold) {
-        readings.add(
-          _xgReading(
-            id: 'offensive_overperformance',
-            team: team,
-            side: side,
-            value: goalsMinusXg,
-            asOf: asOf,
-            sampleSize: xg.sampleSize,
-            label:
-                '${team.name} marque davantage que sa production xG récente.',
-          ),
-        );
-      }
-    }
-
-    final concededMinusXg = xg.goalsConcededMinusXgAgainst5;
-    if (concededMinusXg != null) {
-      final threshold =
-          FootballReadingRules.expectedGoals.thresholds['divergence']!;
-      if (concededMinusXg <= -threshold) {
-        readings.add(
-          _xgReading(
-            id: 'defensive_overperformance',
-            team: team,
-            side: side,
-            value: concededMinusXg,
-            asOf: asOf,
-            sampleSize: xg.sampleSize,
-            label:
-                '${team.name} encaisse moins que les xG concédés ne le suggèrent.',
-          ),
-        );
-      } else if (concededMinusXg >= threshold) {
-        readings.add(
-          _xgReading(
-            id: 'defensive_underperformance',
-            team: team,
-            side: side,
-            value: concededMinusXg,
-            asOf: asOf,
-            sampleSize: xg.sampleSize,
-            label:
-                '${team.name} encaisse plus que les xG concédés ne le suggèrent.',
-          ),
-        );
-      }
-    }
-
-    return readings;
+    // xG is retained as pre-match data, but there is no championship-level
+    // xG reference in the current snapshot. A fixed xG cutoff would recreate
+    // a fixed qualification problem, so the analyzer deliberately abstains here.
+    return const [];
   }
 
   List<FootballReading> _contradictions(
@@ -1037,36 +811,6 @@ class FootballAnalyzer {
     );
   }
 
-  FootballReading _xgReading({
-    required String id,
-    required TeamInfo team,
-    required ReadingSubjectSide side,
-    required double value,
-    required DateTime asOf,
-    required int sampleSize,
-    required String label,
-  }) {
-    return _reading(
-      id: id,
-      teamId: team.id,
-      side: side,
-      strength: value.abs() >= 2
-          ? ReadingStrength.strong
-          : ReadingStrength.moderate,
-      asOf: asOf,
-      sampleSize: sampleSize,
-      evidence: [
-        ReadingEvidence(
-          label: label,
-          kind: ReadingEvidenceKind.expectedGoals,
-          sourcePath: 'fixtures/statistics[].statistics[].type=expected_goals',
-          value: value,
-          isPostMatchOnly: false,
-        ),
-      ],
-    );
-  }
-
   FootballReading _contradiction({
     required String id,
     required TeamInfo team,
@@ -1116,25 +860,33 @@ class FootballAnalyzer {
     final form =
         _standingForSide(match, side)?.form ??
         _statisticsForSide(match, side)?.form;
-    if (form == null || form.length < 5) {
+    if (form == null) {
       return null;
     }
     final normalized = form.toUpperCase().replaceAll(RegExp('[^WDL]'), '');
-    if (normalized.length < 5) {
+    if (normalized.isEmpty) {
       return null;
     }
-    return normalized.substring(0, 5);
+    return normalized.substring(
+      0,
+      normalized.length > 5 ? 5 : normalized.length,
+    );
   }
 
-  int _formScore(String form) {
-    return form.split('').fold(0, (score, result) {
-      return score +
-          switch (result) {
-            'W' => 3,
-            'D' => 1,
-            _ => 0,
-          };
-    });
+  FootballReading _makeEarlyReading(FootballReading reading) {
+    return reading.copyWith(
+      strength: ReadingStrength.weak,
+      warnings: [
+        ...reading.warnings,
+        const ReadingWarning(
+          id: 'early_championship_analysis',
+          label:
+              'Championnat en phase précoce : lecture visible mais non exploitable automatiquement.',
+          sourcePath:
+              'MatchAnalysisData.homeStanding.played/awayStanding.played',
+        ),
+      ],
+    );
   }
 
   int _min(int a, int b) => a < b ? a : b;

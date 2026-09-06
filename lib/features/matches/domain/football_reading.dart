@@ -1,3 +1,4 @@
+import 'analysis_maturity.dart';
 import 'match_board_item.dart';
 
 enum ReadingStatus { detected, notDetected, insufficientData }
@@ -6,12 +7,15 @@ enum ReadingStrength { weak, moderate, strong }
 
 enum ReadingSubjectSide { match, home, away }
 
+enum ReadingSubjectKind { match, team, player }
+
 enum ReadingEvidenceKind {
   standing,
   form,
   homeAway,
   goals,
   expectedGoals,
+  player,
   market,
   availability,
   sample,
@@ -57,6 +61,9 @@ class FootballReading {
     required this.asOf,
     required this.sampleSize,
     this.isContradiction = false,
+    this.subjectKind = ReadingSubjectKind.team,
+    this.playerId,
+    this.playerName,
   });
 
   final String id;
@@ -69,6 +76,30 @@ class FootballReading {
   final DateTime asOf;
   final int sampleSize;
   final bool isContradiction;
+  final ReadingSubjectKind subjectKind;
+  final int? playerId;
+  final String? playerName;
+
+  FootballReading copyWith({
+    ReadingStrength? strength,
+    List<ReadingWarning>? warnings,
+  }) {
+    return FootballReading(
+      id: id,
+      subjectTeamId: subjectTeamId,
+      subjectSide: subjectSide,
+      status: status,
+      strength: strength ?? this.strength,
+      evidence: evidence,
+      warnings: warnings ?? this.warnings,
+      asOf: asOf,
+      sampleSize: sampleSize,
+      isContradiction: isContradiction,
+      subjectKind: subjectKind,
+      playerId: playerId,
+      playerName: playerName,
+    );
+  }
 
   bool get isDetected => status == ReadingStatus.detected;
 
@@ -97,13 +128,13 @@ class FootballReading {
     }
 
     return CopilotArgument(
-      id: '${id}_$subjectTeamId',
+      id: '${id}_${playerId ?? subjectTeamId}',
       type: _argumentType,
       family: isContradiction ? CopilotArgumentFamily.contradiction : _family,
       severity: strength == ReadingStrength.strong
           ? CopilotArgumentSeverity.strong
           : CopilotArgumentSeverity.moderate,
-      subjectName: subjectName ?? subjectTeamId,
+      subjectName: subjectName ?? playerName ?? subjectTeamId,
       parameters: parameters,
       evidence: [toThesisEvidence()],
       evidenceAction: _evidenceAction,
@@ -196,11 +227,13 @@ class FootballAnalysis {
     required this.fixtureId,
     required this.asOf,
     required this.readings,
+    this.maturity = AnalysisMaturity.early,
   });
 
   final String fixtureId;
   final DateTime asOf;
   final List<FootballReading> readings;
+  final AnalysisMaturity maturity;
 
   List<FootballReading> detected({
     String? id,

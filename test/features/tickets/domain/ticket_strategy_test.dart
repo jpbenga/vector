@@ -120,20 +120,21 @@ void main() {
         'updatedAt': DateTime.utc(2026, 8).toIso8601String(),
       });
 
-      expect(restored.minimumIndividualOdds, 1.20);
+      expect(restored.minimumIndividualOdds, 0);
+      expect(restored.minimumIndividualOddsIsUserDefined, isFalse);
       expect(restored.maximumIndividualOdds, 2.19);
       expect(restored.hasMathematicallyPossibleTicket, isTrue);
     });
 
     test('derives compatibility pickTypes from individual odds bounds', () {
-      expect(TicketStrategy.pickTypesForIndividualOdds(1.20, 1.49), [
+      expect(TicketStrategy.pickTypesForIndividualOdds(0, 1.49), [
         PickType.prudent,
       ]);
       expect(TicketStrategy.pickTypesForIndividualOdds(1.35, 2.10), [
         PickType.prudent,
         PickType.normal,
       ]);
-      expect(TicketStrategy.pickTypesForIndividualOdds(1.20, null), [
+      expect(TicketStrategy.pickTypesForIndividualOdds(0, null), [
         PickType.prudent,
         PickType.normal,
         PickType.audacious,

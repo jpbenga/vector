@@ -1,10 +1,11 @@
 import 'package:copilot/features/matches/domain/match_board_item.dart';
+import 'package:copilot/features/matches/domain/analysis_maturity.dart';
+import 'package:copilot/features/matches/domain/market_assessment.dart';
 import 'package:copilot/features/onboarding/domain/compiled_decision_profile.dart';
 import 'package:copilot/features/onboarding/domain/decision_profile.dart';
 import 'package:copilot/features/onboarding/domain/decision_profile_catalogs.dart';
 import 'package:copilot/features/onboarding/domain/onboarding_answer.dart';
 import 'package:copilot/features/onboarding/domain/profile_compiler.dart';
-import 'package:copilot/features/opportunities/domain/opportunity.dart';
 import 'package:copilot/features/tickets/domain/generated_ticket.dart';
 import 'package:copilot/features/tickets/domain/generated_ticket_pick.dart';
 import 'package:copilot/features/tickets/domain/ticket_generation_result.dart';
@@ -15,7 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('TicketGenerator', () {
     test('classifies pick types at inclusive odds boundaries', () {
-      expect(pickTypeForOdds(1.19), isNull);
+      expect(pickTypeForOdds(1.19), PickType.prudent);
       expect(pickTypeForOdds(1.20), PickType.prudent);
       expect(pickTypeForOdds(1.49), PickType.prudent);
       expect(pickTypeForOdds(1.50), PickType.normal);
@@ -23,11 +24,25 @@ void main() {
       expect(pickTypeForOdds(2.20), PickType.audacious);
     });
 
-    test('excludes opportunities without recommended market or low odds', () {
+    test('excludes opportunities without a market or valid odds', () {
       final result = const TicketGenerator().generate(
-        opportunities: [
-          _opportunity('a', odds: null),
-          _opportunity('b', odds: 1.19),
+        matches: [_opportunity('a', odds: null), _opportunity('b', odds: 0)],
+        strategies: [
+          _strategy(pickTypes: const [PickType.prudent]),
+        ],
+        profile: _profile(),
+        generatedAt: _now,
+      );
+
+      expect(result.status, TicketGenerationStatus.noUsableOpportunity);
+      expect(result.tickets, isEmpty);
+    });
+
+    test('excludes EARLY opportunities from automatic ticket generation', () {
+      final result = const TicketGenerator().generate(
+        matches: [
+          _opportunity('early-a', odds: 1.30, maturity: AnalysisMaturity.early),
+          _opportunity('early-b', odds: 1.40, maturity: AnalysisMaturity.early),
         ],
         strategies: [
           _strategy(pickTypes: const [PickType.prudent]),
@@ -42,7 +57,7 @@ void main() {
 
     test('uses the strategy pick types as an actual generation constraint', () {
       final result = const TicketGenerator().generate(
-        opportunities: [_opportunity('audacious', odds: 2.20)],
+        matches: [_opportunity('audacious', odds: 2.20)],
         strategies: [
           _strategy(
             pickTypes: const [PickType.prudent],
@@ -62,7 +77,7 @@ void main() {
       'generates tickets respecting inclusive selection and total odds bounds',
       () {
         final result = const TicketGenerator().generate(
-          opportunities: [
+          matches: [
             _opportunity('a', odds: 1.20),
             _opportunity('b', odds: 1.50),
           ],
@@ -103,7 +118,7 @@ void main() {
 
     test('accepts open maximum total odds and multiple pickTypes', () {
       final result = const TicketGenerator().generate(
-        opportunities: [
+        matches: [
           _opportunity('a', odds: 1.55),
           _opportunity('b', odds: 2.20),
           _opportunity('c', odds: 1.42),
@@ -132,7 +147,7 @@ void main() {
 
     test('returns notEnoughCompatiblePicks without relaxing selections', () {
       final result = const TicketGenerator().generate(
-        opportunities: [_opportunity('a', odds: 1.50)],
+        matches: [_opportunity('a', odds: 1.50)],
         strategies: [
           _strategy(
             pickTypes: const [PickType.normal],
@@ -152,7 +167,7 @@ void main() {
       'returns noCombinationWithinTotalOdds without relaxing odds range',
       () {
         final result = const TicketGenerator().generate(
-          opportunities: [
+          matches: [
             _opportunity('a', odds: 1.50),
             _opportunity('b', odds: 1.60),
           ],
@@ -179,7 +194,7 @@ void main() {
 
     test('rejects invalid strategy configuration explicitly', () {
       final result = const TicketGenerator().generate(
-        opportunities: [_opportunity('a', odds: 1.50)],
+        matches: [_opportunity('a', odds: 1.50)],
         strategies: [
           _strategy(
             pickTypes: const [],
@@ -216,13 +231,13 @@ void main() {
       const generator = TicketGenerator();
 
       final first = generator.generate(
-        opportunities: opportunities,
+        matches: opportunities,
         strategies: [strategy],
         profile: _profile(),
         generatedAt: _now,
       );
       final second = generator.generate(
-        opportunities: opportunities,
+        matches: opportunities,
         strategies: [strategy],
         profile: _profile(),
         generatedAt: _now,
@@ -249,7 +264,7 @@ void main() {
         _opportunity('visible-b', odds: 1.60),
       ];
       final result = const TicketGenerator().generate(
-        opportunities: opportunities,
+        matches: opportunities,
         strategies: [
           _strategy(
             pickTypes: const [PickType.normal],
@@ -262,7 +277,7 @@ void main() {
         generatedAt: _now,
       );
 
-      final personalizedIds = opportunities.map((item) => item.matchId).toSet();
+      final personalizedIds = opportunities.map((item) => item.id).toSet();
       for (final ticket in result.tickets) {
         expect(ticket.matchIds.toSet().difference(personalizedIds), isEmpty);
       }
@@ -272,7 +287,7 @@ void main() {
       final day = DateTime.utc(2026, 8, 2, 20);
       final nextDay = DateTime.utc(2026, 8, 3, 20);
       final result = const TicketGenerator().generate(
-        opportunities: [
+        matches: [
           _opportunity('today-a', odds: 1.50, score: 95, kickoff: day),
           _opportunity('tomorrow-a', odds: 1.60, score: 94, kickoff: nextDay),
           _opportunity('today-b', odds: 1.55, score: 60, kickoff: day),
@@ -317,7 +332,7 @@ void main() {
         final nextDay = DateTime.utc(2026, 8, 3, 20);
         final result = const TicketGenerator(maxCandidatesPerStrategy: 2)
             .generate(
-              opportunities: [
+              matches: [
                 _opportunity('today-a', odds: 1.50, score: 100, kickoff: day),
                 _opportunity(
                   'tomorrow-a',
@@ -357,7 +372,7 @@ void main() {
       () {
         final day = DateTime.utc(2026, 8, 2, 20);
         final result = const TicketGenerator().generate(
-          opportunities: [
+          matches: [
             _opportunity('match-1', odds: 1.50, score: 99, kickoff: day),
             _opportunity('match-2', odds: 1.90, score: 98, kickoff: day),
             _opportunity('match-3', odds: 1.55, score: 97, kickoff: day),
@@ -409,7 +424,7 @@ void main() {
       final day = DateTime.utc(2026, 8, 2, 20);
       final nextDay = DateTime.utc(2026, 8, 3, 20);
       final result = const TicketGenerator().generate(
-        opportunities: [
+        matches: [
           _opportunity('today-a', odds: 1.50, kickoff: day),
           _opportunity('tomorrow-a', odds: 1.60, kickoff: nextDay),
         ],
@@ -435,13 +450,13 @@ void main() {
       'returns noActiveStrategy and profileIncomplete states explicitly',
       () {
         final noStrategy = const TicketGenerator().generate(
-          opportunities: [_opportunity('a', odds: 1.50)],
+          matches: [_opportunity('a', odds: 1.50)],
           strategies: const [],
           profile: _profile(),
           generatedAt: _now,
         );
         final incomplete = const TicketGenerator().generate(
-          opportunities: [_opportunity('a', odds: 1.50)],
+          matches: [_opportunity('a', odds: 1.50)],
           strategies: [_strategy()],
           profile: const ProfileCompiler().compile(
             const DecisionProfile(onboardingVersion: 'test', answers: []),
@@ -509,11 +524,12 @@ TicketStrategy _strategy({
   );
 }
 
-Opportunity _opportunity(
+MatchBoardItem _opportunity(
   String id, {
   double? odds,
   int score = 80,
   DateTime? kickoff,
+  AnalysisMaturity maturity = AnalysisMaturity.established,
 }) {
   final market = odds == null
       ? null
@@ -525,60 +541,50 @@ Opportunity _opportunity(
           ],
           bookmakerName: 'Demo',
         );
-  final recommendedMarket = market == null
-      ? null
-      : RecommendedMarket(market: market, selection: market.selections.first);
-
-  return Opportunity(
-    sourceMatch: MatchBoardItem(
-      fixture: NormalizedFixture(
-        id: id,
-        competition: const CompetitionInfo(
-          id: '61',
-          name: 'Ligue 1',
-          country: CountryInfo(code: 'FR', name: 'France'),
-          season: 2026,
-        ),
-        homeTeam: TeamInfo(id: 'home-$id', name: 'Home $id'),
-        awayTeam: TeamInfo(id: 'away-$id', name: 'Away $id'),
-        kickoffLabel: '20:00',
-        kickoff: kickoff ?? DateTime.utc(2026, 8, 2, 20),
-        status: FixtureStatus.scheduled,
+  final sourceMatch = MatchBoardItem(
+    fixture: NormalizedFixture(
+      id: id,
+      competition: const CompetitionInfo(
+        id: '61',
+        name: 'Ligue 1',
+        country: CountryInfo(code: 'FR', name: 'France'),
+        season: 2026,
       ),
-      primaryMarket: const MarketOdds(
-        id: 'market_unavailable',
-        label: 'Marché indisponible',
-        odds: 0,
-      ),
-      availableMarkets: [?market],
-      compatibility: 0,
-      signals: const [],
+      homeTeam: TeamInfo(id: 'home-$id', name: 'Home $id'),
+      awayTeam: TeamInfo(id: 'away-$id', name: 'Away $id'),
+      kickoffLabel: '20:00',
+      kickoff: kickoff ?? DateTime.utc(2026, 8, 2, 20),
+      status: FixtureStatus.scheduled,
     ),
-    engineScore: score,
-    detectedSignals: const [
-      MatchSignal(
-        id: 'signal',
-        title: 'Signal',
-        summary: 'Signal détecté',
-        proofs: ['Preuve'],
+    primaryMarket: const MarketOdds(
+      id: 'market_unavailable',
+      label: 'Marché indisponible',
+      odds: 0,
+    ),
+    availableMarkets: [?market],
+    compatibility: 0,
+    signals: const [],
+  );
+
+  if (market == null) {
+    return sourceMatch;
+  }
+
+  return sourceMatch.copyWith(
+    betCandidates: [
+      BetCandidate(
+        matchId: id,
+        marketId: market.id,
+        marketLabel: market.label,
+        selectionId: market.selections.first.id,
+        selectionLabel: market.selections.first.label,
+        selectionValue: market.selections.first.apiFootballValue,
+        odds: market.selections.first.odds,
+        supportingReadingIds: const ['signal'],
+        supportingThesisIds: const ['solid_favorite'],
+        contradictionIds: const [],
+        maturity: maturity,
       ),
     ],
-    retainedTheses: [
-      MatchThesis(
-        id: 'solid_favorite',
-        title: 'Favori solide',
-        summary: 'Lecture Copilot',
-        status: recommendedMarket == null
-            ? MatchThesisStatus.watchlist
-            : MatchThesisStatus.recommended,
-        confidence: recommendedMarket == null ? 0 : score,
-        supportingEvidence: const [],
-        limits: const [],
-        profileReasons: const [],
-        recommendedMarket: recommendedMarket,
-      ),
-    ],
-    compatibleMarkets: const [],
-    recommendedMarket: recommendedMarket,
   );
 }

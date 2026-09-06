@@ -113,6 +113,7 @@ Deno.serve(async (request) => {
       rawTeamStatistics: build.rawTeamStatistics,
       rawRecentLeagueMatches: build.rawRecentLeagueMatches,
       rawExpectedGoals: build.rawExpectedGoals,
+      rawPlayerStatistics: build.rawPlayerStatistics,
       fixtureIndex,
       sourceRows: build.sourceRows,
     });
@@ -152,6 +153,7 @@ Deno.serve(async (request) => {
         team_statistics: build.rawTeamStatistics,
         recent_league_matches: build.rawRecentLeagueMatches,
         expected_goals: build.rawExpectedGoals,
+        player_statistics: build.rawPlayerStatistics,
         predictions: [],
       },
     };
@@ -277,6 +279,7 @@ type SourceBuild = {
   rawTeamStatistics: JsonObject[];
   rawRecentLeagueMatches: JsonObject[];
   rawExpectedGoals: JsonObject[];
+  rawPlayerStatistics: JsonObject[];
 };
 
 type FixtureIndexRow = {
@@ -319,6 +322,7 @@ async function collectSnapshotSources({
   const rawStandings: JsonObject[] = [];
   const rawTeamStatistics: JsonObject[] = [];
   const rawRecentLeagueMatches: JsonObject[] = [];
+  const rawPlayerStatistics: JsonObject[] = [];
   const fixtureStatisticsRows: FixtureStatisticsPayload[] = [];
 
   const addSourceRows = (rows: CachedRawResponse[]) => {
@@ -397,6 +401,20 @@ async function collectSnapshotSources({
     const rows = await cachedResponsesFor({
       supabaseUrl,
       serviceRoleKey,
+      endpoint: "/players",
+      filters: {
+        league: String(request.leagueId),
+        season: String(request.season),
+        team: String(request.teamId),
+      },
+    });
+    addSourceRows(rows);
+    rawPlayerStatistics.push(...flatResponseItems(rows));
+  }
+  for (const request of teamRequests) {
+    const rows = await cachedResponsesFor({
+      supabaseUrl,
+      serviceRoleKey,
       endpoint: "/teams/statistics",
       filters: {
         league: String(request.leagueId),
@@ -469,6 +487,7 @@ async function collectSnapshotSources({
     rawTeamStatistics,
     rawRecentLeagueMatches,
     rawExpectedGoals,
+    rawPlayerStatistics,
   };
 }
 
@@ -735,6 +754,7 @@ function coverageSummary({
   rawTeamStatistics,
   rawRecentLeagueMatches,
   rawExpectedGoals,
+  rawPlayerStatistics,
   fixtureIndex,
   sourceRows,
 }: {
@@ -744,6 +764,7 @@ function coverageSummary({
   rawTeamStatistics: JsonObject[];
   rawRecentLeagueMatches: JsonObject[];
   rawExpectedGoals: JsonObject[];
+  rawPlayerStatistics: JsonObject[];
   fixtureIndex: FixtureIndexRow[];
   sourceRows: CachedRawResponse[];
 }): JsonObject {
@@ -754,6 +775,7 @@ function coverageSummary({
     team_statistics: rawTeamStatistics.length,
     recent_league_matches: rawRecentLeagueMatches.length,
     expected_goals: rawExpectedGoals.length,
+    player_statistics: rawPlayerStatistics.length,
     predictions: 0,
     fixture_index_rows: fixtureIndex.length,
     source_rows: sourceRows.length,

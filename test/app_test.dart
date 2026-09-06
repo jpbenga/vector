@@ -270,6 +270,21 @@ void main() {
 
     await tester.tap(find.byTooltip('Retour'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Mes lectures').last);
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Choisissez les faits observés qui peuvent faire apparaître un match dans Pour moi.',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Dynamique positive').last);
+    await tester.tap(find.text('Enregistrer'));
+    await tester.pumpAndSettle();
+    expect(profileStore.savedProfile?.optionIdsFor('readings'), [
+      'positive_streak',
+    ]);
+
     await tester.tap(find.text('Mes scénarios').last);
     await tester.pumpAndSettle();
     expect(

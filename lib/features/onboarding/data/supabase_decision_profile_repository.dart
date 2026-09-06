@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/debug/runtime_personalization_diagnostic.dart';
 import '../../../core/identity/identity_scope.dart';
 import '../domain/compiled_decision_profile.dart';
 import '../domain/decision_profile.dart';
@@ -16,6 +17,7 @@ class SupabaseDecisionProfileRepository {
   final String _userId;
 
   Future<DecisionProfile?> load() async {
+    await _traceProfileRows();
     final row = await client
         .from('profiles')
         .select('decision_profile')
@@ -32,6 +34,49 @@ class SupabaseDecisionProfileRepository {
     }
 
     return null;
+  }
+
+  Future<void> _traceProfileRows() async {
+    if (!RuntimePersonalizationDiagnostic.instance.isEnabled) return;
+    try {
+      final List<Map<String, dynamic>> rows = await client
+          .from('profiles')
+          .select(
+            'id,user_id,is_active,created_at,updated_at,profile_schema_version,decision_profile',
+          )
+          .eq('user_id', _userId);
+      final normalizedRows = rows.map(_traceRow).toList(growable: false);
+      RuntimePersonalizationDiagnostic.instance.recordProfileRows(
+        normalizedRows,
+      );
+      RuntimePersonalizationDiagnostic.instance.recordLifecycle(
+        'profile rows fetched',
+        fields: {
+          'userId': _userId,
+          'rowCount': normalizedRows.length,
+          'activeRowCount': normalizedRows
+              .where((row) => row['is_active'] == true)
+              .length,
+          'rows': normalizedRows,
+        },
+      );
+    } on Object catch (error) {
+      RuntimePersonalizationDiagnostic.instance.recordLifecycle(
+        'profile rows fetch failed',
+        fields: {'userId': _userId, 'error': error.toString()},
+      );
+    }
+  }
+
+  Map<String, Object?> _traceRow(Map<String, dynamic> row) {
+    return {
+      'id': row['id']?.toString(),
+      'user_id': row['user_id']?.toString(),
+      'is_active': row['is_active'],
+      'created_at': row['created_at']?.toString(),
+      'updated_at': row['updated_at']?.toString(),
+      'decision_profile_version': row['profile_schema_version'],
+    };
   }
 
   Future<void> save(DecisionProfile profile) async {
@@ -92,6 +137,10 @@ Map<String, Object?> _compiledProfileJson(
           'enabled': entry.value.enabled,
           'sourceOptionId': entry.value.sourceOptionId,
         },
+    },
+    'readings': {
+      for (final entry in compiledProfile.readings.entries)
+        entry.key: {'id': entry.value.id, 'enabled': entry.value.enabled},
     },
     'matchTypes': {
       for (final entry in compiledProfile.matchTypes.entries)

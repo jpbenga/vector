@@ -35,6 +35,13 @@ class MatchTypePreference {
   final bool enabled;
 }
 
+class ReadingPreference {
+  const ReadingPreference({required this.id, required this.enabled});
+
+  final String id;
+  final bool enabled;
+}
+
 class ProfileCompatibility {
   const ProfileCompatibility({
     this.migratedFromSchemaVersion,
@@ -54,10 +61,11 @@ class CompiledDecisionProfile {
     required this.competitions,
     required this.markets,
     required this.matchTypes,
+    this.readings = const {},
     required this.compatibility,
   });
 
-  static const currentSchemaVersion = 2;
+  static const currentSchemaVersion = 3;
 
   final String onboardingVersion;
   final int profileSchemaVersion;
@@ -66,6 +74,7 @@ class CompiledDecisionProfile {
   final Map<String, CompetitionPreference> competitions;
   final Map<String, MarketPreference> markets;
   final Map<String, MatchTypePreference> matchTypes;
+  final Map<String, ReadingPreference> readings;
   final ProfileCompatibility compatibility;
 
   Map<String, MatchTypePreference> get opportunityProfiles => matchTypes;
@@ -79,18 +88,22 @@ class CompiledDecisionProfile {
   bool get hasEnabledOpportunityProfiles =>
       opportunityProfiles.values.any((preference) => preference.enabled);
 
+  bool get hasEnabledReadings =>
+      readings.values.any((preference) => preference.enabled);
+
   bool get isCompleted =>
       configurationState == ProfileConfigurationState.completed;
 
-  bool get canFilterReadings =>
-      hasEnabledCompetitions && hasEnabledOpportunityProfiles;
+  bool get canFilterReadings => hasEnabledCompetitions;
 
   bool isCompetitionEnabled(String competitionId) {
-    if (!canFilterReadings) {
-      return false;
-    }
-
-    return competitions[competitionId]?.enabled ?? false;
+    return competitions.values.any(
+      (preference) =>
+          preference.enabled &&
+          (preference.id == competitionId ||
+              preference.legacyIds.contains(competitionId) ||
+              preference.apiFootballLeagueId.toString() == competitionId),
+    );
   }
 
   MarketPreference? enabledMarket(String marketId) {
@@ -122,19 +135,23 @@ class CompiledDecisionProfile {
     ).any(isOpportunityProfileEnabled);
   }
 
-  bool isReadingAllowed(String readingId) {
-    if (!canFilterReadings) {
+  bool isThesisConfigured(String thesisId) {
+    if (!isCompleted) {
       return false;
     }
 
-    final profileIds = OpportunityProfileCatalog.profileIdsForReading(
-      readingId,
-    );
-    if (profileIds.isEmpty) {
-      return true;
-    }
+    return OpportunityProfileCatalog.profileIdsForThesis(
+      thesisId,
+    ).any(isOpportunityProfileEnabled);
+  }
 
-    return profileIds.any(isOpportunityProfileEnabled);
+  bool isReadingAllowed(String readingId) {
+    if (!isCompleted ||
+        !canFilterReadings ||
+        !ReadingPreferenceCatalog.contains(readingId)) {
+      return false;
+    }
+    return readings[readingId]?.enabled ?? false;
   }
 
   bool isMatchTypeEnabled(String matchTypeId) {
@@ -142,7 +159,7 @@ class CompiledDecisionProfile {
   }
 
   bool isOpportunityProfileEnabled(String profileId) {
-    if (!canFilterReadings) {
+    if (!isCompleted || !canFilterReadings) {
       return false;
     }
 

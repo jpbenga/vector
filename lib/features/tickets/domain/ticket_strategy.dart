@@ -19,6 +19,7 @@ class TicketStrategy {
     required this.priority,
     required this.createdAt,
     required this.updatedAt,
+    this.minimumIndividualOddsIsUserDefined = true,
   });
 
   static const currentSchemaVersion = 2;
@@ -39,6 +40,10 @@ class TicketStrategy {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// Distinguishes a deliberate user bound from the removed legacy 1.20
+  /// default when old strategies are restored.
+  final bool minimumIndividualOddsIsUserDefined;
+
   TicketStrategy copyWith({
     String? id,
     String? userId,
@@ -56,6 +61,7 @@ class TicketStrategy {
     int? priority,
     DateTime? createdAt,
     DateTime? updatedAt,
+    bool? minimumIndividualOddsIsUserDefined,
   }) {
     return TicketStrategy(
       schemaVersion: schemaVersion,
@@ -78,6 +84,9 @@ class TicketStrategy {
       priority: priority ?? this.priority,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      minimumIndividualOddsIsUserDefined:
+          minimumIndividualOddsIsUserDefined ??
+          this.minimumIndividualOddsIsUserDefined,
     );
   }
 
@@ -89,7 +98,8 @@ class TicketStrategy {
     final normalizedOdds = _normalizeOdds(odds);
     final upperBound = maximumIndividualOdds;
 
-    return normalizedOdds >= minimumIndividualOdds &&
+    return normalizedOdds > 0 &&
+        normalizedOdds >= minimumIndividualOdds &&
         (upperBound == null || normalizedOdds <= upperBound);
   }
 
@@ -106,7 +116,7 @@ class TicketStrategy {
   }
 
   bool get hasValidBounds {
-    return minimumIndividualOdds >= 1.01 &&
+    return minimumIndividualOdds >= 0 &&
         (maximumIndividualOdds == null ||
             maximumIndividualOdds! >= minimumIndividualOdds) &&
         minimumSelections > 0 &&
@@ -159,6 +169,7 @@ class TicketStrategy {
       'priority': priority,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'minimumIndividualOddsIsUserDefined': minimumIndividualOddsIsUserDefined,
     };
   }
 
@@ -168,9 +179,21 @@ class TicketStrategy {
       for (final value in _listValue(json['pickTypes']))
         if (_pickTypeValue(value) != null) _pickTypeValue(value)!,
     ];
-    final minimumIndividualOdds =
-        _doubleValue(json['minimumIndividualOdds']) ??
-        defaultMinimumIndividualOddsFor(legacyPickTypes);
+    final rawMinimumIndividualOdds = _doubleValue(
+      json['minimumIndividualOdds'],
+    );
+    final recordedMinimumIsUserDefined = _boolValue(
+      json['minimumIndividualOddsIsUserDefined'],
+    );
+    // Before this marker existed, 1.20 was injected by the application as a
+    // default. A persisted value without explicit provenance is therefore
+    // neutralized rather than silently retaining a global eligibility gate.
+    final isLegacyInjectedMinimum =
+        recordedMinimumIsUserDefined != true && rawMinimumIndividualOdds == 1.2;
+    final minimumIndividualOdds = isLegacyInjectedMinimum
+        ? 0.0
+        : rawMinimumIndividualOdds ??
+              defaultMinimumIndividualOddsFor(legacyPickTypes);
     final maximumIndividualOdds = json.containsKey('maximumIndividualOdds')
         ? _doubleValue(json['maximumIndividualOdds'])
         : defaultMaximumIndividualOddsFor(legacyPickTypes);
@@ -197,17 +220,14 @@ class TicketStrategy {
       priority: _intValue(json['priority']) ?? 1,
       createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ?? now,
       updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? '') ?? now,
+      minimumIndividualOddsIsUserDefined:
+          recordedMinimumIsUserDefined ??
+          (rawMinimumIndividualOdds != null && !isLegacyInjectedMinimum),
     );
   }
 
   static double defaultMinimumIndividualOddsFor(List<PickType> pickTypes) {
-    if (pickTypes.isEmpty) {
-      return PickTypeCatalog.prudent.minimumOdds;
-    }
-
-    return pickTypes
-        .map((pickType) => _bandFor(pickType).minimumOdds)
-        .reduce(math.min);
+    return 0;
   }
 
   static double? defaultMaximumIndividualOddsFor(List<PickType> pickTypes) {

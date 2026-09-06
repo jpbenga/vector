@@ -259,6 +259,16 @@ void main() {
           everyElement(isNotNull),
         );
         expect(
+          matches.map((match) => match.analysis.championshipTierSnapshot),
+          everyElement(isNotNull),
+        );
+        expect(
+          matches
+              .map((match) => match.analysis.championshipTierSnapshot)
+              .toSet(),
+          hasLength(1),
+        );
+        expect(
           matches
               .map(
                 (match) => match

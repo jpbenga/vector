@@ -1,5 +1,6 @@
 import '../../onboarding/domain/decision_profile_catalogs.dart';
-import '../../opportunities/domain/opportunity.dart';
+import '../../matches/domain/market_assessment.dart';
+import '../../matches/domain/match_board_item.dart';
 
 class GeneratedTicketPick {
   const GeneratedTicketPick({
@@ -38,41 +39,42 @@ class GeneratedTicketPick {
   final List<String> opportunityProfileIds;
   final int engineScore;
 
-  static GeneratedTicketPick? fromOpportunity(Opportunity opportunity) {
-    final recommendedMarket = opportunity.recommendedMarket;
-    if (recommendedMarket == null || recommendedMarket.selection.odds < 1.20) {
+  static GeneratedTicketPick? fromBetCandidate(
+    MatchBoardItem match,
+    BetCandidate candidate,
+  ) {
+    if (!candidate.isAutomaticallyUsable || candidate.odds <= 1) {
       return null;
     }
-
-    final pickType = pickTypeForOdds(recommendedMarket.selection.odds);
+    final pickType = pickTypeForOdds(candidate.odds);
     if (pickType == null) {
       return null;
     }
-
     return GeneratedTicketPick(
-      opportunityId: opportunity.matchId,
-      matchId: opportunity.matchId,
-      homeTeam: opportunity.homeTeam.name,
-      awayTeam: opportunity.awayTeam.name,
-      competitionName: opportunity.competition.name,
-      kickoffLabel: opportunity.fixture.kickoffLabel,
-      kickoff: opportunity.fixture.kickoff,
-      marketId: recommendedMarket.market.id,
-      marketLabel: recommendedMarket.market.label,
-      selectionId: recommendedMarket.selection.id,
-      selectionLabel: recommendedMarket.selection.label,
-      odds: _normalizeOdds(recommendedMarket.selection.odds),
+      opportunityId: candidate.matchId,
+      matchId: candidate.matchId,
+      homeTeam: match.homeTeam.name,
+      awayTeam: match.awayTeam.name,
+      competitionName: match.competition.name,
+      kickoffLabel: match.fixture.kickoffLabel,
+      kickoff: match.fixture.kickoff,
+      marketId: candidate.marketId,
+      marketLabel: candidate.marketLabel,
+      selectionId: candidate.selectionId,
+      selectionLabel: candidate.selectionLabel,
+      odds: _normalizeOdds(candidate.odds),
       pickType: pickType,
-      thesisId: opportunity.primaryThesis.id,
-      opportunityProfileIds: opportunity.opportunityProfileIds,
-      engineScore: opportunity.engineScore,
+      thesisId:
+          candidate.supportingThesisIds.firstOrNull ?? 'market_assessment',
+      opportunityProfileIds: const [],
+      engineScore: candidate.supportingReadingIds.length,
     );
   }
 }
 
 PickType? pickTypeForOdds(double odds) {
   final normalizedOdds = _normalizeOdds(odds);
-  if (normalizedOdds < 1.20) {
+  if (normalizedOdds <= 0) {
     return null;
   }
   if (normalizedOdds <= 1.49) {

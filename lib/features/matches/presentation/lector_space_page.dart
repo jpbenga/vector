@@ -95,6 +95,7 @@ class _LectorSpacePageState extends State<LectorSpacePage> {
                   user: user,
                   isSignedIn: authController?.isSignedIn ?? false,
                   competitionCount: _selectedCompetitionCount(_profile),
+                  readingCount: _selectedReadingCount(_profile),
                   scenarioCount: _selectedScenarioCount(_profile),
                   activeStrategyCount: _activeStrategyCount(_ticketStrategies),
                   onAccount: () => _showUnavailable(
@@ -117,6 +118,16 @@ class _LectorSpacePageState extends State<LectorSpacePage> {
                   count: _selectedCompetitionCount(_profile),
                   color: context.brand.accent,
                   onTap: () => _openCompetitions(context),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _SpaceActionCard(
+                  icon: Icons.auto_graph_rounded,
+                  title: 'Mes lectures',
+                  subtitle:
+                      'Choisissez les faits sportifs qui doivent retenir votre attention.',
+                  count: _selectedReadingCount(_profile),
+                  color: context.semantic.info,
+                  onTap: () => _openReadings(context),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 _SpaceActionCard(
@@ -245,6 +256,14 @@ class _LectorSpacePageState extends State<LectorSpacePage> {
           onProfileChanged: _handleProfileChanged,
         ),
       ),
+    );
+  }
+
+  void _openReadings(BuildContext context) {
+    showReadingPreferencesSheet(
+      context: context,
+      profile: _profile,
+      onProfileChanged: _handleProfileChanged,
     );
   }
 
@@ -652,6 +671,7 @@ class _ProfileCard extends StatelessWidget {
     required this.user,
     required this.isSignedIn,
     required this.competitionCount,
+    required this.readingCount,
     required this.scenarioCount,
     required this.activeStrategyCount,
     required this.onAccount,
@@ -660,6 +680,7 @@ class _ProfileCard extends StatelessWidget {
   final User? user;
   final bool isSignedIn;
   final int competitionCount;
+  final int readingCount;
   final int scenarioCount;
   final int activeStrategyCount;
   final VoidCallback onAccount;
@@ -733,6 +754,7 @@ class _ProfileCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       '$competitionCount compétition${competitionCount > 1 ? 's' : ''} · '
+                      '$readingCount lecture${readingCount > 1 ? 's' : ''} · '
                       '$scenarioCount scénario${scenarioCount > 1 ? 's' : ''} · '
                       '$activeStrategyCount stratégie${activeStrategyCount > 1 ? 's' : ''}',
                       maxLines: 2,
@@ -1088,8 +1110,18 @@ int _selectedScenarioCount(DecisionProfile profile) {
   return profile.optionIdsFor('opportunity_profiles').toSet().length;
 }
 
+int _selectedReadingCount(DecisionProfile profile) {
+  return profile
+      .optionIdsFor('readings')
+      .where(ReadingPreferenceCatalog.contains)
+      .toSet()
+      .length;
+}
+
 int _selectedMarketCount(DecisionProfile profile) {
-  return profile.optionIdsFor('markets').toSet().length;
+  return MarketCatalog.enabledMarketIdsFor(
+    profile.optionIdsFor('markets'),
+  ).length;
 }
 
 int _activeStrategyCount(List<TicketStrategy> strategies) {

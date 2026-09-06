@@ -158,7 +158,7 @@ TicketStrategy createTicketStrategyDraft({required int index}) {
     name: 'Configuration $index',
     isActive: true,
     pickTypes: const [PickType.prudent, PickType.normal],
-    minimumIndividualOdds: 1.20,
+    minimumIndividualOdds: 0,
     maximumIndividualOdds: 2.19,
     minimumSelections: 2,
     maximumSelections: 3,
@@ -325,17 +325,17 @@ class _ReadingPreferencesEditorState extends State<_ReadingPreferencesEditor> {
   @override
   void initState() {
     super.initState();
-    _selectedIds = widget.profile.optionIdsFor('opportunity_profiles').toSet();
+    _selectedIds = widget.profile.optionIdsFor('readings').toSet();
   }
 
   @override
   Widget build(BuildContext context) {
-    final profiles = OpportunityProfileCatalog.values;
+    final readings = ReadingPreferenceCatalog.values;
 
     return _PreferenceEditorScaffold(
-      title: 'Mes scénarios',
+      title: 'Mes lectures',
       subtitle:
-          'Choisissez les situations de match que Lector doit rechercher pour vous.',
+          'Choisissez les faits observés qui peuvent faire apparaître un match dans Pour moi.',
       isSaving: _isSaving,
       selectedCount: _selectedIds.length,
       onClear: _selectedIds.isEmpty
@@ -346,24 +346,24 @@ class _ReadingPreferencesEditorState extends State<_ReadingPreferencesEditor> {
       onSave: _save,
       child: ListView.separated(
         padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-        itemCount: profiles.length,
+        itemCount: readings.length,
         separatorBuilder: (_, _) =>
             const SizedBox(height: _PreferenceScale.rowGap),
         itemBuilder: (context, index) {
-          final profile = profiles[index];
-          final isSelected = _selectedIds.contains(profile.id);
+          final reading = readings[index];
+          final isSelected = _selectedIds.contains(reading.id);
 
           return _PreferenceToggleTile(
-            icon: context.opportunities.iconForProfileId(profile.id),
-            title: profile.displayLabel,
-            subtitle: profile.description,
+            icon: _readingPreferenceIcon(reading.id),
+            title: reading.label,
+            subtitle: reading.description,
             isSelected: isSelected,
             onChanged: (value) {
               setState(() {
                 if (value) {
-                  _selectedIds.add(profile.id);
+                  _selectedIds.add(reading.id);
                 } else {
-                  _selectedIds.remove(profile.id);
+                  _selectedIds.remove(reading.id);
                 }
               });
             },
@@ -378,17 +378,36 @@ class _ReadingPreferencesEditorState extends State<_ReadingPreferencesEditor> {
       _isSaving = true;
     });
     final orderedIds = [
-      for (final profile in OpportunityProfileCatalog.values)
-        if (_selectedIds.contains(profile.id)) profile.id,
+      for (final reading in ReadingPreferenceCatalog.values)
+        if (_selectedIds.contains(reading.id)) reading.id,
     ];
     await widget.onProfileChanged(
-      widget.profile.withOptionIds('opportunity_profiles', orderedIds),
+      widget.profile.withOptionIds('readings', orderedIds),
     );
     if (!mounted) {
       return;
     }
     Navigator.of(context).pop();
   }
+}
+
+IconData _readingPreferenceIcon(String readingId) {
+  return switch (readingId) {
+    'positive_streak' || 'improving_form' => Icons.trending_up_rounded,
+    'negative_streak' || 'declining_form' => Icons.trending_down_rounded,
+    'prolific_attack' || 'scoring_difficulty' => Icons.sports_soccer_rounded,
+    'solid_defense' ||
+    'fragile_defense' ||
+    'frequent_clean_sheet' => Icons.shield_outlined,
+    'open_match_profile' ||
+    'frequent_over_25' ||
+    'frequent_btts' => Icons.local_fire_department_outlined,
+    'closed_match_profile' || 'frequent_under_25' => Icons.lock_outline,
+    'high_xg_creation' ||
+    'low_xg_creation' ||
+    'high_xg_conceded' => Icons.query_stats_rounded,
+    _ => Icons.insights_outlined,
+  };
 }
 
 class _MarketPreferencesEditor extends StatefulWidget {
@@ -412,7 +431,9 @@ class _MarketPreferencesEditorState extends State<_MarketPreferencesEditor> {
   @override
   void initState() {
     super.initState();
-    _selectedIds = widget.profile.optionIdsFor('markets').toSet();
+    _selectedIds = MarketCatalog.sourceOptionIdsFor(
+      widget.profile.optionIdsFor('markets'),
+    );
   }
 
   @override

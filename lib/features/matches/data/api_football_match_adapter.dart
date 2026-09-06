@@ -36,6 +36,9 @@ class ApiFootballMatchAdapter {
       _list(raw['expected_goals']),
       capturedAt,
     );
+    final playerStatisticsByLeagueTeamId = _playerStatisticsByLeagueTeamId(
+      _list(raw['player_statistics']),
+    );
     final containsPredictions = _list(raw['predictions']).isNotEmpty;
     final items = <MatchBoardItem>[];
 
@@ -48,6 +51,7 @@ class ApiFootballMatchAdapter {
         statisticsByLeagueTeamId,
         recentMatchesByLeagueTeamId,
         expectedGoalsByTeamId,
+        playerStatisticsByLeagueTeamId,
         capturedAt,
         containsPredictions,
       );
@@ -67,6 +71,8 @@ class ApiFootballMatchAdapter {
     Map<String, TeamStatisticsSnapshot> statisticsByLeagueTeamId,
     Map<String, List<TeamRecentMatchSnapshot>> recentMatchesByLeagueTeamId,
     Map<int, TeamExpectedGoalsSnapshot> expectedGoalsByTeamId,
+    Map<String, List<PlayerSeasonStatisticsSnapshot>>
+    playerStatisticsByLeagueTeamId,
     DateTime? capturedAt,
     bool containsPredictions,
   ) {
@@ -126,6 +132,7 @@ class ApiFootballMatchAdapter {
           logoUrl: _stringValue(awayTeam['logo']),
         ),
         kickoffLabel: _kickoffLabel(kickoff, _stringValue(fixture['date'])),
+        round: _stringValue(league['round']),
         kickoff: kickoff,
         status: _fixtureStatus(_map(fixture['status'])['short']),
         score: _score(root),
@@ -180,6 +187,20 @@ class ApiFootballMatchAdapter {
         awayExpectedGoals: awayTeamId == null
             ? null
             : expectedGoalsByTeamId[awayTeamId],
+        homePlayerStatistics: homeTeamId == null || leagueId == null
+            ? const []
+            : playerStatisticsByLeagueTeamId[_standingKey(
+                    leagueId,
+                    homeTeamId,
+                  )] ??
+                  const [],
+        awayPlayerStatistics: awayTeamId == null || leagueId == null
+            ? const []
+            : playerStatisticsByLeagueTeamId[_standingKey(
+                    leagueId,
+                    awayTeamId,
+                  )] ??
+                  const [],
         containsPredictions: containsPredictions,
       ),
       compatibility: 0,
@@ -221,6 +242,54 @@ class ApiFootballMatchAdapter {
     }
 
     return matches[_standingKey(leagueId, teamId)] ?? const [];
+  }
+
+  Map<String, List<PlayerSeasonStatisticsSnapshot>>
+  _playerStatisticsByLeagueTeamId(List<Object?> rows) {
+    final grouped = <String, List<PlayerSeasonStatisticsSnapshot>>{};
+    for (final row in rows) {
+      final root = _map(row);
+      final player = _map(root['player']);
+      final playerId = _intValue(player['id']);
+      final playerName = _stringValue(player['name']);
+      if (playerId == null || playerName == null || playerName.isEmpty) {
+        continue;
+      }
+      for (final statisticJson in _list(root['statistics'])) {
+        final statistic = _map(statisticJson);
+        final leagueId = _intValue(_map(statistic['league'])['id']);
+        final team = _map(statistic['team']);
+        final teamId = _intValue(team['id']);
+        final teamName = _stringValue(team['name']);
+        if (leagueId == null || teamId == null || teamName == null) continue;
+        final games = _map(statistic['games']);
+        final goals = _map(statistic['goals']);
+        final shots = _map(statistic['shots']);
+        final penalty = _map(statistic['penalty']);
+        grouped
+            .putIfAbsent(_standingKey(leagueId, teamId), () => [])
+            .add(
+              PlayerSeasonStatisticsSnapshot(
+                playerId: playerId,
+                playerName: playerName,
+                teamId: teamId,
+                teamName: teamName,
+                appearances: _intValue(games['appearences']),
+                lineups: _intValue(games['lineups']),
+                minutes: _intValue(games['minutes']),
+                goals: _intValue(goals['total']),
+                assists: _intValue(goals['assists']),
+                shots: _intValue(shots['total']),
+                shotsOnTarget: _intValue(shots['on']),
+                penaltyGoals: _intValue(penalty['scored']),
+              ),
+            );
+      }
+    }
+    return {
+      for (final entry in grouped.entries)
+        entry.key: List.unmodifiable(entry.value),
+    };
   }
 
   Map<String, TeamStandingSnapshot> _standingsByLeagueTeamId(
@@ -599,6 +668,7 @@ class ApiFootballMatchAdapter {
               odds: odds,
               apiFootballBetId: betId,
               apiFootballValue: rawValue,
+              playerName: selection.playerName,
               bookmakerId: bookmakerId,
               bookmakerName: bookmakerName,
             ),
@@ -724,6 +794,7 @@ class ApiFootballMatchAdapter {
       'teamTotalAway',
       'cornersTotal',
       'cardsTotal',
+      'playerAnytimeScorer',
     ];
     final index = order.indexOf(marketId);
 

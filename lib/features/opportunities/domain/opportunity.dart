@@ -1,8 +1,14 @@
 import '../../matches/domain/match_board_item.dart';
+import '../../matches/domain/analysis_maturity.dart';
 import '../../matches/domain/football_reading.dart';
 import '../../onboarding/domain/decision_profile_catalogs.dart';
 
-enum ThesisAssessmentStatus { supported, eligibleButUnsupported, notEligible }
+enum ThesisAssessmentStatus {
+  supported,
+  eligibleButUnsupported,
+  notEligible,
+  notEvaluable,
+}
 
 enum ThesisEvidenceRelation {
   coreSupport,
@@ -108,6 +114,7 @@ class Opportunity {
     this.contradictoryReadings = const [],
     this.thesisAssessments = const [],
     this.asOf,
+    this.maturity = AnalysisMaturity.established,
   });
 
   final MatchBoardItem sourceMatch;
@@ -120,6 +127,9 @@ class Opportunity {
   final List<FootballReading> contradictoryReadings;
   final List<ThesisAssessment> thesisAssessments;
   final DateTime? asOf;
+  final AnalysisMaturity maturity;
+
+  bool get isAutomaticallyUsable => maturity.allowsAutomaticOpportunity;
 
   String get matchId => sourceMatch.id;
   NormalizedFixture get fixture => sourceMatch.fixture;

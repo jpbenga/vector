@@ -1,12 +1,13 @@
 import '../../onboarding/domain/compiled_decision_profile.dart';
-import '../../opportunities/domain/opportunity.dart';
 import '../../tickets/domain/generated_ticket_pick.dart';
+import 'market_assessment.dart';
+import 'match_board_item.dart';
 
 class PickEngine {
   const PickEngine();
 
   List<GeneratedTicketPick> eligiblePicks({
-    required List<Opportunity> opportunities,
+    required List<MatchBoardItem> matches,
     required CompiledDecisionProfile profile,
   }) {
     if (!profile.isCompleted) {
@@ -14,31 +15,38 @@ class PickEngine {
     }
 
     final picksByMatchId = <String, GeneratedTicketPick>{};
-    for (final opportunity in opportunities) {
-      final pick = eligiblePick(opportunity: opportunity, profile: profile);
-      if (pick == null) {
+    for (final match in matches) {
+      final candidate = selectSuggestedBetCandidate(
+        match.betCandidates.where(
+          (candidate) => profile.enabledMarket(candidate.marketId) != null,
+        ),
+      );
+      if (candidate == null) {
         continue;
       }
-
-      picksByMatchId.putIfAbsent(pick.matchId, () => pick);
+      final pick = GeneratedTicketPick.fromBetCandidate(match, candidate);
+      if (pick != null) {
+        picksByMatchId[pick.matchId] = pick;
+      }
     }
 
     return picksByMatchId.values.toList(growable: false);
   }
 
   GeneratedTicketPick? eligiblePick({
-    required Opportunity opportunity,
+    required MatchBoardItem match,
+    required int candidateIndex,
     required CompiledDecisionProfile profile,
   }) {
-    final recommendedMarket = opportunity.recommendedMarket;
-    if (recommendedMarket == null) {
+    if (candidateIndex < 0 || candidateIndex >= match.betCandidates.length) {
+      return null;
+    }
+    final candidate = match.betCandidates[candidateIndex];
+
+    if (profile.enabledMarket(candidate.marketId) == null) {
       return null;
     }
 
-    if (profile.enabledMarket(recommendedMarket.market.id) == null) {
-      return null;
-    }
-
-    return GeneratedTicketPick.fromOpportunity(opportunity);
+    return GeneratedTicketPick.fromBetCandidate(match, candidate);
   }
 }

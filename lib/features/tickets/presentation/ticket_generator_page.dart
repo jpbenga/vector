@@ -22,6 +22,7 @@ enum _TicketTab { copilot, edited, manual }
 class TicketGeneratorPage extends StatefulWidget {
   const TicketGeneratorPage({
     required this.profile,
+    required this.matches,
     required this.opportunities,
     required this.strategies,
     this.savedTickets = const [],
@@ -36,6 +37,7 @@ class TicketGeneratorPage extends StatefulWidget {
   });
 
   final CompiledDecisionProfile profile;
+  final List<MatchBoardItem> matches;
   final List<Opportunity> opportunities;
   final List<TicketStrategy> strategies;
   final List<SavedTicket> savedTickets;
@@ -74,7 +76,7 @@ class _TicketGeneratorPageState extends State<TicketGeneratorPage> {
   @override
   Widget build(BuildContext context) {
     final result = const TicketGenerator().generate(
-      opportunities: widget.opportunities,
+      matches: widget.matches,
       strategies: widget.strategies,
       profile: widget.profile,
     );
@@ -130,6 +132,7 @@ class _TicketGeneratorPageState extends State<TicketGeneratorPage> {
                       ? null
                       : activeStrategies.first.name,
                   savedTickets: widget.savedTickets,
+                  matches: widget.matches,
                   opportunities: widget.opportunities,
                   opportunityForMatchId: _opportunityForMatchId,
                   onOpenOpportunity: widget.onOpenOpportunity,
@@ -1724,6 +1727,7 @@ class _TicketTabContent extends StatelessWidget {
     required this.onEditStrategies,
     required this.activeStrategyName,
     required this.savedTickets,
+    required this.matches,
     required this.opportunities,
     required this.opportunityForMatchId,
     required this.onOpenOpportunity,
@@ -1738,6 +1742,7 @@ class _TicketTabContent extends StatelessWidget {
   final VoidCallback onEditStrategies;
   final String? activeStrategyName;
   final List<SavedTicket> savedTickets;
+  final List<MatchBoardItem> matches;
   final List<Opportunity> opportunities;
   final Opportunity? Function(String matchId) opportunityForMatchId;
   final ValueChanged<Opportunity> onOpenOpportunity;
@@ -1754,6 +1759,7 @@ class _TicketTabContent extends StatelessWidget {
         onEditStrategies: onEditStrategies,
         activeStrategyName: activeStrategyName,
         opportunityForMatchId: opportunityForMatchId,
+        matches: matches,
         opportunities: opportunities,
         onOpenOpportunity: onOpenOpportunity,
         onSaveTicket: onSaveTicket,
@@ -1772,6 +1778,7 @@ class _TicketTabContent extends StatelessWidget {
                 strategies: result.strategies
                     .map((result) => result.strategy)
                     .toList(growable: false),
+                matches: matches,
                 opportunities: opportunities,
                 opportunityForMatchId: opportunityForMatchId,
                 onSaveTicket: onSaveTicket,
@@ -1814,6 +1821,7 @@ class _CopilotProposalsList extends StatelessWidget {
     required this.onEditStrategies,
     required this.activeStrategyName,
     required this.opportunityForMatchId,
+    required this.matches,
     required this.opportunities,
     required this.onOpenOpportunity,
     required this.onSaveTicket,
@@ -1826,6 +1834,7 @@ class _CopilotProposalsList extends StatelessWidget {
   final VoidCallback onEditStrategies;
   final String? activeStrategyName;
   final Opportunity? Function(String matchId) opportunityForMatchId;
+  final List<MatchBoardItem> matches;
   final List<Opportunity> opportunities;
   final ValueChanged<Opportunity> onOpenOpportunity;
   final ValueChanged<SavedTicket> onSaveTicket;
@@ -1877,6 +1886,7 @@ class _CopilotProposalsList extends StatelessWidget {
               isExpanded: expandedTicketIds.contains(ticket.id),
               onToggleExpanded: () => onToggleTicketExpanded(ticket.id),
               opportunityForMatchId: opportunityForMatchId,
+              matches: matches,
               opportunities: opportunities,
               onOpenOpportunity: onOpenOpportunity,
               onSaveTicket: onSaveTicket,
@@ -1923,6 +1933,7 @@ class _GeneratedTicketCard extends StatelessWidget {
     required this.isExpanded,
     required this.onToggleExpanded,
     required this.opportunityForMatchId,
+    required this.matches,
     required this.opportunities,
     required this.onOpenOpportunity,
     required this.onSaveTicket,
@@ -1933,6 +1944,7 @@ class _GeneratedTicketCard extends StatelessWidget {
   final bool isExpanded;
   final VoidCallback onToggleExpanded;
   final Opportunity? Function(String matchId) opportunityForMatchId;
+  final List<MatchBoardItem> matches;
   final List<Opportunity> opportunities;
   final ValueChanged<Opportunity> onOpenOpportunity;
   final ValueChanged<SavedTicket> onSaveTicket;
@@ -2092,6 +2104,7 @@ class _GeneratedTicketCard extends StatelessWidget {
         ticket: ticket,
         strategy: strategy,
         opportunityForMatchId: opportunityForMatchId,
+        matches: matches,
         opportunities: opportunities,
       ),
     );
@@ -2218,6 +2231,7 @@ class _ModifyGeneratedTicketSheet extends StatefulWidget {
     required this.ticket,
     required this.strategy,
     required this.opportunityForMatchId,
+    required this.matches,
     required this.opportunities,
     this.existingTicket,
   });
@@ -2225,6 +2239,7 @@ class _ModifyGeneratedTicketSheet extends StatefulWidget {
   final GeneratedTicket ticket;
   final TicketStrategy strategy;
   final Opportunity? Function(String matchId) opportunityForMatchId;
+  final List<MatchBoardItem> matches;
   final List<Opportunity> opportunities;
   final SavedTicket? existingTicket;
 
@@ -2441,26 +2456,23 @@ class _ModifyGeneratedTicketSheetState
       isRecommended: _samePick(currentPick, pick),
     );
 
-    final opportunity = widget.opportunityForMatchId(pick.matchId);
-    final recommended = opportunity?.recommendedMarket;
-    if (recommended != null) {
-      addOption(
-        market: recommended.market,
-        selection: recommended.selection,
-        thesisId: opportunity!.primaryThesis.id,
-        isRecommended: true,
-      );
-    }
-
-    for (final compatibility
-        in opportunity?.compatibleMarkets ??
-            const <OpportunityMarketCompatibility>[]) {
-      addOption(
-        market: compatibility.market,
-        selection: compatibility.selection,
-        thesisId: compatibility.thesisId,
-        isRecommended: compatibility.isRecommended,
-      );
+    final match = widget.matches
+        .where((item) => item.id == pick.matchId)
+        .firstOrNull;
+    if (match != null) {
+      for (final candidate in match.betCandidates) {
+        final resolved = match.recommendedMarketFor(candidate);
+        if (resolved == null) {
+          continue;
+        }
+        addOption(
+          market: resolved.market,
+          selection: resolved.selection,
+          thesisId:
+              candidate.supportingThesisIds.firstOrNull ?? 'market_assessment',
+          isRecommended: candidate.selectionId == pick.selectionId,
+        );
+      }
     }
 
     return optionsByKey.values.toList(growable: false)..sort((a, b) {
@@ -2483,14 +2495,19 @@ class _ModifyGeneratedTicketSheetState
       currentPick.matchId: _EditableOpportunityOption(pick: currentPick),
     };
 
-    for (final opportunity in widget.opportunities) {
-      final opportunityPick = GeneratedTicketPick.fromOpportunity(opportunity);
-      if (opportunityPick == null) {
-        continue;
+    for (final match in widget.matches) {
+      for (final candidate in match.betCandidates) {
+        final candidatePick = GeneratedTicketPick.fromBetCandidate(
+          match,
+          candidate,
+        );
+        if (candidatePick == null) {
+          continue;
+        }
+        optionsByMatchId[candidatePick.matchId] = _EditableOpportunityOption(
+          pick: candidatePick,
+        );
       }
-      optionsByMatchId[opportunityPick.matchId] = _EditableOpportunityOption(
-        pick: opportunityPick,
-      );
     }
 
     return optionsByMatchId.values.toList(growable: false)..sort((a, b) {
@@ -3730,6 +3747,7 @@ class _SavedTicketsList extends StatelessWidget {
     required this.title,
     required this.tickets,
     this.strategies = const [],
+    this.matches = const [],
     this.opportunities = const [],
     this.opportunityForMatchId,
     this.onSaveTicket,
@@ -3738,6 +3756,7 @@ class _SavedTicketsList extends StatelessWidget {
   final String title;
   final List<SavedTicket> tickets;
   final List<TicketStrategy> strategies;
+  final List<MatchBoardItem> matches;
   final List<Opportunity> opportunities;
   final Opportunity? Function(String matchId)? opportunityForMatchId;
   final ValueChanged<SavedTicket>? onSaveTicket;
@@ -3790,6 +3809,7 @@ class _SavedTicketsList extends StatelessWidget {
         ticket: generatedTicket,
         strategy: strategy,
         opportunityForMatchId: opportunityForMatchId!,
+        matches: matches,
         opportunities: opportunities,
         existingTicket: savedTicket,
       ),

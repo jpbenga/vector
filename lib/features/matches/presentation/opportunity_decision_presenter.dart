@@ -285,7 +285,7 @@ class FootballReadingCopyCatalog {
 
   static const Map<String, String> _titlesByReadingId = {
     'balanced_hierarchy': 'Hiérarchie proche',
-    'ranking_superiority': 'Avantage au classement',
+    'ranking_superiority': 'Écart au classement',
     'structural_level_gap': 'Écart de niveau structurel',
     'positive_streak': 'Dynamique positive',
     'negative_streak': 'Dynamique négative',

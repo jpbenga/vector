@@ -1,4 +1,21 @@
+import 'match_context_key_models.dart';
+import 'market_assessment.dart';
 import 'structural_tiers/tier_models.dart';
+
+/// Calendar day used by Lector for fixture presentation and filtering.
+///
+/// API-Football instants are normalized by [DateTime] before this point. The
+/// UI deliberately groups them in the viewer's local timezone, rather than
+/// comparing a UTC date string to a local selected date.
+DateTime lectorLocalCalendarDate(DateTime value) {
+  final local = value.toLocal();
+  return DateTime(local.year, local.month, local.day);
+}
+
+DateTime? lectorLocalCalendarDateForFixture(NormalizedFixture fixture) {
+  final kickoff = fixture.kickoff;
+  return kickoff == null ? null : lectorLocalCalendarDate(kickoff);
+}
 
 enum MatchDataSourceMode { demo, snapshot, api }
 
@@ -67,6 +84,7 @@ class NormalizedFixture {
     required this.kickoffLabel,
     required this.status,
     this.apiFootballFixtureId,
+    this.round,
     this.kickoff,
     this.score,
     this.venue,
@@ -74,6 +92,9 @@ class NormalizedFixture {
 
   final String id;
   final int? apiFootballFixtureId;
+
+  /// Raw competition round supplied by the fixture provider, when available.
+  final String? round;
   final CompetitionInfo competition;
   final TeamInfo homeTeam;
   final TeamInfo awayTeam;
@@ -91,6 +112,7 @@ class MarketOdds {
     required this.odds,
     this.apiFootballBetId,
     this.apiFootballValue,
+    this.playerName,
     this.bookmakerId,
     this.bookmakerName,
   });
@@ -100,6 +122,7 @@ class MarketOdds {
   final double odds;
   final int? apiFootballBetId;
   final String? apiFootballValue;
+  final String? playerName;
   final int? bookmakerId;
   final String? bookmakerName;
 }
@@ -139,6 +162,28 @@ class MatchSignal {
 enum MatchThesisStatus { recommended, watchlist, notRecommended }
 
 enum MatchProfileStatus { inProfile, outOfProfile }
+
+/// Explicit relevance of a match for the user's configured analysis scope.
+///
+/// This is a count of concrete profile matches, never a prediction, a
+/// probability, or a betting-confidence score.
+class MatchProfileRelevance {
+  const MatchProfileRelevance({
+    this.readingMatches = 0,
+    this.thesisMatches = 0,
+    this.marketMatches = 0,
+  });
+
+  static const none = MatchProfileRelevance();
+
+  final int readingMatches;
+  final int thesisMatches;
+  final int marketMatches;
+
+  int get total => readingMatches + thesisMatches + marketMatches;
+
+  bool get isRelevant => total > 0;
+}
 
 enum CopilotArgumentType {
   marketFavorite,
@@ -299,19 +344,64 @@ class TeamRecentMatchSnapshot {
   final int? goalsAgainst;
 }
 
+/// Factual season statistics for one player in the competition of this match.
+/// They are deliberately separate from a team identifier: player identity is
+/// always carried by [playerId].
+class PlayerSeasonStatisticsSnapshot {
+  const PlayerSeasonStatisticsSnapshot({
+    required this.playerId,
+    required this.playerName,
+    required this.teamId,
+    required this.teamName,
+    this.appearances,
+    this.lineups,
+    this.minutes,
+    this.goals,
+    this.assists,
+    this.shots,
+    this.shotsOnTarget,
+    this.penaltyGoals,
+  });
+
+  final int playerId;
+  final String playerName;
+  final int teamId;
+  final String teamName;
+  final int? appearances;
+  final int? lineups;
+  final int? minutes;
+  final int? goals;
+  final int? assists;
+  final int? shots;
+  final int? shotsOnTarget;
+  final int? penaltyGoals;
+
+  double? get goalsPer90 {
+    final value = minutes;
+    final totalGoals = goals;
+    if (value == null || value <= 0 || totalGoals == null) return null;
+    return totalGoals / value * 90;
+  }
+}
+
 class MatchAnalysisData {
   const MatchAnalysisData({
     this.asOf,
     this.homeStanding,
     this.awayStanding,
     this.leagueStandings = const [],
+    this.championshipTierSnapshot,
     this.structuralRelation,
+    this.contextKeys = const [],
+    this.contextKeyAvailability = MatchContextKeyAvailability.unavailable,
     this.homeRecentLeagueMatches = const [],
     this.awayRecentLeagueMatches = const [],
     this.homeStatistics,
     this.awayStatistics,
     this.homeExpectedGoals,
     this.awayExpectedGoals,
+    this.homePlayerStatistics = const [],
+    this.awayPlayerStatistics = const [],
     this.containsPredictions = false,
   });
 
@@ -319,13 +409,18 @@ class MatchAnalysisData {
   final TeamStandingSnapshot? homeStanding;
   final TeamStandingSnapshot? awayStanding;
   final List<TeamStandingSnapshot> leagueStandings;
+  final ChampionshipTierSnapshot? championshipTierSnapshot;
   final MatchStructuralRelation? structuralRelation;
+  final List<MatchContextKey> contextKeys;
+  final MatchContextKeyAvailability contextKeyAvailability;
   final List<TeamRecentMatchSnapshot> homeRecentLeagueMatches;
   final List<TeamRecentMatchSnapshot> awayRecentLeagueMatches;
   final TeamStatisticsSnapshot? homeStatistics;
   final TeamStatisticsSnapshot? awayStatistics;
   final TeamExpectedGoalsSnapshot? homeExpectedGoals;
   final TeamExpectedGoalsSnapshot? awayExpectedGoals;
+  final List<PlayerSeasonStatisticsSnapshot> homePlayerStatistics;
+  final List<PlayerSeasonStatisticsSnapshot> awayPlayerStatistics;
   final bool containsPredictions;
 
   bool get hasStandings =>
@@ -337,24 +432,32 @@ class MatchAnalysisData {
       homeRecentLeagueMatches.isNotEmpty || awayRecentLeagueMatches.isNotEmpty;
   bool get hasExpectedGoals =>
       homeExpectedGoals != null || awayExpectedGoals != null;
+  bool get hasPlayerStatistics =>
+      homePlayerStatistics.isNotEmpty || awayPlayerStatistics.isNotEmpty;
   bool get hasAnalysisData =>
       hasStandings ||
       hasStatistics ||
       hasRecentLeagueMatches ||
-      hasExpectedGoals;
+      hasExpectedGoals ||
+      hasPlayerStatistics;
 
   MatchAnalysisData copyWith({
     DateTime? asOf,
     TeamStandingSnapshot? homeStanding,
     TeamStandingSnapshot? awayStanding,
     List<TeamStandingSnapshot>? leagueStandings,
+    ChampionshipTierSnapshot? championshipTierSnapshot,
     MatchStructuralRelation? structuralRelation,
+    List<MatchContextKey>? contextKeys,
+    MatchContextKeyAvailability? contextKeyAvailability,
     List<TeamRecentMatchSnapshot>? homeRecentLeagueMatches,
     List<TeamRecentMatchSnapshot>? awayRecentLeagueMatches,
     TeamStatisticsSnapshot? homeStatistics,
     TeamStatisticsSnapshot? awayStatistics,
     TeamExpectedGoalsSnapshot? homeExpectedGoals,
     TeamExpectedGoalsSnapshot? awayExpectedGoals,
+    List<PlayerSeasonStatisticsSnapshot>? homePlayerStatistics,
+    List<PlayerSeasonStatisticsSnapshot>? awayPlayerStatistics,
     bool? containsPredictions,
   }) {
     return MatchAnalysisData(
@@ -362,7 +465,12 @@ class MatchAnalysisData {
       homeStanding: homeStanding ?? this.homeStanding,
       awayStanding: awayStanding ?? this.awayStanding,
       leagueStandings: leagueStandings ?? this.leagueStandings,
+      championshipTierSnapshot:
+          championshipTierSnapshot ?? this.championshipTierSnapshot,
       structuralRelation: structuralRelation ?? this.structuralRelation,
+      contextKeys: contextKeys ?? this.contextKeys,
+      contextKeyAvailability:
+          contextKeyAvailability ?? this.contextKeyAvailability,
       homeRecentLeagueMatches:
           homeRecentLeagueMatches ?? this.homeRecentLeagueMatches,
       awayRecentLeagueMatches:
@@ -371,6 +479,8 @@ class MatchAnalysisData {
       awayStatistics: awayStatistics ?? this.awayStatistics,
       homeExpectedGoals: homeExpectedGoals ?? this.homeExpectedGoals,
       awayExpectedGoals: awayExpectedGoals ?? this.awayExpectedGoals,
+      homePlayerStatistics: homePlayerStatistics ?? this.homePlayerStatistics,
+      awayPlayerStatistics: awayPlayerStatistics ?? this.awayPlayerStatistics,
       containsPredictions: containsPredictions ?? this.containsPredictions,
     );
   }
@@ -515,16 +625,20 @@ class MatchBoardItem {
     required this.compatibility,
     required this.signals,
     this.availableMarkets = const [],
+    this.betCandidates = const [],
     this.analysis = const MatchAnalysisData(),
     this.profileStatus = MatchProfileStatus.inProfile,
+    this.profileRelevance = MatchProfileRelevance.none,
     this.thesis,
   });
 
   final NormalizedFixture fixture;
   final MarketOdds primaryMarket;
   final List<MatchMarket> availableMarkets;
+  final List<BetCandidate> betCandidates;
   final MatchAnalysisData analysis;
   final MatchProfileStatus profileStatus;
+  final MatchProfileRelevance profileRelevance;
   final int compatibility;
   final List<MatchSignal> signals;
   final MatchThesis? thesis;
@@ -548,11 +662,34 @@ class MatchBoardItem {
     return availableMarkets.any((market) => market.id == 'matchResult');
   }
 
+  BetCandidate? get suggestedBetCandidate {
+    return selectSuggestedBetCandidate(betCandidates);
+  }
+
+  RecommendedMarket? recommendedMarketFor(BetCandidate? candidate) {
+    if (candidate == null) {
+      return null;
+    }
+    for (final market in availableMarkets) {
+      if (market.id != candidate.marketId) {
+        continue;
+      }
+      for (final selection in market.selections) {
+        if (selection.id == candidate.selectionId) {
+          return RecommendedMarket(market: market, selection: selection);
+        }
+      }
+    }
+    return null;
+  }
+
   MatchBoardItem copyWith({
     MarketOdds? primaryMarket,
     List<MatchMarket>? availableMarkets,
+    List<BetCandidate>? betCandidates,
     MatchAnalysisData? analysis,
     MatchProfileStatus? profileStatus,
+    MatchProfileRelevance? profileRelevance,
     int? compatibility,
     List<MatchSignal>? signals,
     MatchThesis? thesis,
@@ -561,8 +698,10 @@ class MatchBoardItem {
       fixture: fixture,
       primaryMarket: primaryMarket ?? this.primaryMarket,
       availableMarkets: availableMarkets ?? this.availableMarkets,
+      betCandidates: betCandidates ?? this.betCandidates,
       analysis: analysis ?? this.analysis,
       profileStatus: profileStatus ?? this.profileStatus,
+      profileRelevance: profileRelevance ?? this.profileRelevance,
       compatibility: compatibility ?? this.compatibility,
       signals: signals ?? this.signals,
       thesis: thesis ?? this.thesis,

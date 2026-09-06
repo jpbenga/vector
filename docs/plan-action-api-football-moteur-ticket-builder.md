@@ -100,7 +100,6 @@ Le profil compilé doit contenir au minimum :
 
 Livrable :
 
-- `docs/profile-schema-v1.md`
 - code du compilateur ;
 - tests unitaires lisibles.
 

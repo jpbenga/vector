@@ -4,8 +4,9 @@ import 'championship_tier_temporal_state_store.dart';
 import '../../onboarding/domain/profile_compiler.dart';
 import '../../onboarding/domain/decision_profile.dart';
 import '../../opportunities/domain/opportunity.dart';
-import '../domain/match_insight_engine.dart';
 import '../domain/match_board_item.dart';
+import '../domain/match_context_key_builder.dart';
+import '../domain/match_context_key_models.dart';
 import '../domain/opportunity_engine_v2.dart';
 import '../domain/structural_tiers/competition_structural_metadata.dart';
 import '../domain/structural_tiers/tier_input.dart';
@@ -123,11 +124,10 @@ class MatchFeedSnapshotMetadata {
     DateTime? start;
     DateTime? end;
     for (final match in matches) {
-      final kickoff = match.fixture.kickoff?.toLocal();
-      if (kickoff == null) {
+      final day = lectorLocalCalendarDateForFixture(match.fixture);
+      if (day == null) {
         continue;
       }
-      final day = _dateOnly(kickoff);
       if (start == null || day.isBefore(start)) {
         start = day;
       }
@@ -160,15 +160,16 @@ class SnapshotMatchFeedRepository implements MatchFeedRepository {
       metadataRepository: metadataRepository,
       tierSnapshotEngine: engine,
     );
+    final matchesWithContextKeys = _attachContextKeys(enrichedMatches);
     return SnapshotMatchFeedRepository._(
-      matches: enrichedMatches,
+      matches: matchesWithContextKeys,
       snapshotMetadata: MatchFeedSnapshotMetadata.fromSnapshot(
         snapshot,
-        matches: enrichedMatches,
+        matches: matchesWithContextKeys,
       ),
       opportunityEngine: opportunityEngine,
       intelligencesByFixtureId: {
-        for (final match in enrichedMatches)
+        for (final match in matchesWithContextKeys)
           match.id: opportunityEngine.buildIntelligence(match),
       },
     );
@@ -225,22 +226,20 @@ class SnapshotMatchFeedRepository implements MatchFeedRepository {
   @override
   MatchBoardItem analyzeFor(DecisionProfile profile, MatchBoardItem match) {
     final intelligence = _intelligencesByFixtureId[match.id];
-    if (intelligence == null) {
-      return _analyzeMatchFor(profile, match);
-    }
-
     final compiledProfile = const ProfileCompiler().compile(profile);
     return _opportunityEngine.personalizeMatchFromIntelligence(
-      intelligence,
+      intelligence ?? _opportunityEngine.buildIntelligence(match),
       compiledProfile,
     );
   }
 }
 
 int _comparePersonalizedMatches(MatchBoardItem a, MatchBoardItem b) {
-  final scoreComparison = b.compatibility.compareTo(a.compatibility);
-  if (scoreComparison != 0) {
-    return scoreComparison;
+  final relevanceComparison = b.profileRelevance.total.compareTo(
+    a.profileRelevance.total,
+  );
+  if (relevanceComparison != 0) {
+    return relevanceComparison;
   }
 
   final aKickoff = a.fixture.kickoff;
@@ -319,6 +318,7 @@ MatchBoardItem _attachRelation(
 
   return match.copyWith(
     analysis: match.analysis.copyWith(
+      championshipTierSnapshot: snapshot,
       structuralRelation: MatchStructuralRelation.fromSnapshot(
         snapshot: snapshot,
         homeTeamId: homeTeamId,
@@ -326,6 +326,55 @@ MatchBoardItem _attachRelation(
       ),
     ),
   );
+}
+
+List<MatchBoardItem> _attachContextKeys(List<MatchBoardItem> matches) {
+  const referenceBuilder = ChampionshipContextReferenceBuilder();
+  const keyBuilder = MatchContextKeyBuilder();
+  final references = <String, ChampionshipContextReference?>{};
+
+  ChampionshipContextReference? referenceFor(MatchBoardItem match) {
+    final asOf = match.analysis.asOf;
+    if (asOf == null) {
+      return null;
+    }
+    final structuralIdentity =
+        match.analysis.championshipTierSnapshot?.standingsSnapshotIdentity ??
+        ([...match.analysis.leagueStandings]
+              ..sort((left, right) => left.teamId.compareTo(right.teamId)))
+            .map(
+              (standing) =>
+                  '${standing.teamId}:${standing.rank}:${standing.points}:${standing.played}:${standing.form}:${standing.goalsFor}:${standing.goalsAgainst}',
+            )
+            .join('|');
+    final key =
+        '${match.competition.id}:${match.competition.season}:${asOf.toUtc().toIso8601String()}:$structuralIdentity';
+    return references.putIfAbsent(key, () => referenceBuilder.build(match));
+  }
+
+  MatchBoardItem withContextKeys(MatchBoardItem match) {
+    final reference = referenceFor(match);
+    final contextKeys = keyBuilder.build(match, reference: reference);
+    final relation = match.analysis.structuralRelation;
+    final structureCanBeEvaluated =
+        relation?.tierStatus == TierSystemStatus.mature &&
+        relation?.tierMaturity == TierMaturity.mature;
+    final hasContextReference =
+        (reference?.distributions.isNotEmpty ?? false) ||
+        structureCanBeEvaluated;
+    return match.copyWith(
+      analysis: match.analysis.copyWith(
+        contextKeys: contextKeys,
+        contextKeyAvailability: contextKeys.isNotEmpty
+            ? MatchContextKeyAvailability.available
+            : hasContextReference
+            ? MatchContextKeyAvailability.noRemarkableFact
+            : MatchContextKeyAvailability.unavailable,
+      ),
+    );
+  }
+
+  return [for (final match in matches) withContextKeys(match)];
 }
 
 DateTime? _parseDateTime(Object? value) {
@@ -344,8 +393,7 @@ DateTime? _parseDate(Object? value) {
 }
 
 DateTime _dateOnly(DateTime value) {
-  final local = value.toLocal();
-  return DateTime(local.year, local.month, local.day);
+  return lectorLocalCalendarDate(value);
 }
 
 Map<String, Object?> _asMap(Object? value) {
@@ -399,6 +447,8 @@ class UnavailableMatchFeedRepository implements MatchFeedRepository {
 class DemoMatchFeedRepository implements MatchFeedRepository {
   const DemoMatchFeedRepository();
 
+  static const _opportunityEngine = OpportunityEngineV2();
+
   @override
   MatchDataSourceMode get mode => MatchDataSourceMode.demo;
 
@@ -407,22 +457,48 @@ class DemoMatchFeedRepository implements MatchFeedRepository {
 
   @override
   List<Opportunity> opportunitiesFor(DecisionProfile profile) {
-    return _opportunitiesFor(profile, allMatches());
+    final compiledProfile = const ProfileCompiler().compile(profile);
+    return _opportunityEngine.opportunitiesFromIntelligence(
+      _intelligences(),
+      compiledProfile,
+    );
   }
 
   @override
   List<MatchBoardItem> personalizedFor(DecisionProfile profile) {
-    return _personalizedMatchesFor(profile, allMatches());
+    final compiledProfile = const ProfileCompiler().compile(profile);
+    final matches =
+        [
+          for (final intelligence in _intelligences())
+            _opportunityEngine.personalizeMatchFromIntelligence(
+              intelligence,
+              compiledProfile,
+            ),
+        ].where((match) {
+          return match.profileStatus == MatchProfileStatus.inProfile &&
+              (match.thesis != null || match.signals.isNotEmpty);
+        }).toList();
+
+    matches.sort(_comparePersonalizedMatches);
+    return matches;
   }
 
   @override
   MatchBoardItem analyzeFor(DecisionProfile profile, MatchBoardItem match) {
-    return _analyzeMatchFor(profile, match);
+    final compiledProfile = const ProfileCompiler().compile(profile);
+    final intelligence = _intelligences().firstWhere(
+      (intelligence) => intelligence.match.id == match.id,
+      orElse: () => _opportunityEngine.buildIntelligence(match),
+    );
+    return _opportunityEngine.personalizeMatchFromIntelligence(
+      intelligence,
+      compiledProfile,
+    );
   }
 
   @override
   List<MatchBoardItem> allMatches() {
-    return const [
+    const rawMatches = [
       MatchBoardItem(
         fixture: NormalizedFixture(
           id: 'ars-eve',
@@ -718,32 +794,81 @@ class DemoMatchFeedRepository implements MatchFeedRepository {
         ],
       ),
     ];
+    return List.unmodifiable(
+      _attachContextKeys(rawMatches.map(_withDemoAnalysis).toList()),
+    );
+  }
+
+  List<MatchIntelligence> _intelligences() {
+    return [
+      for (final match in allMatches())
+        _opportunityEngine.buildIntelligence(match),
+    ];
   }
 }
 
-List<MatchBoardItem> _personalizedMatchesFor(
-  DecisionProfile profile,
-  List<MatchBoardItem> matches,
-) {
-  return _opportunitiesFor(
-    profile,
-    matches,
-  ).map((opportunity) => opportunity.toMatchBoardItem()).toList();
-}
+MatchBoardItem _withDemoAnalysis(MatchBoardItem match) {
+  final homeId = match.homeTeam.apiFootballTeamId!;
+  final awayId = match.awayTeam.apiFootballTeamId!;
+  final standings = <TeamStandingSnapshot>[
+    TeamStandingSnapshot(
+      teamId: homeId,
+      teamName: match.homeTeam.name,
+      rank: 1,
+      points: 15,
+      played: 5,
+      wins: 5,
+      draws: 0,
+      losses: 0,
+      goalsFor: 16,
+      goalsAgainst: 3,
+      form: 'WWWWW',
+    ),
+    TeamStandingSnapshot(
+      teamId: awayId,
+      teamName: match.awayTeam.name,
+      rank: 10,
+      points: 2,
+      played: 5,
+      wins: 0,
+      draws: 2,
+      losses: 3,
+      goalsFor: 3,
+      goalsAgainst: 15,
+      form: 'DDLLL',
+    ),
+    for (var index = 0; index < 8; index++)
+      TeamStandingSnapshot(
+        teamId: 900000 + index,
+        teamName: 'Equipe demo ${index + 1}',
+        rank: index + 2,
+        points: 13 - index,
+        played: 5,
+        wins: 4 - (index ~/ 3),
+        draws: index % 3,
+        losses: index ~/ 4,
+        goalsFor: 13 - index,
+        goalsAgainst: 5 + index,
+        form: index.isEven ? 'WWDWL' : 'WDLWD',
+      ),
+  ]..sort((a, b) => (a.rank ?? 0).compareTo(b.rank ?? 0));
 
-List<Opportunity> _opportunitiesFor(
-  DecisionProfile profile,
-  List<MatchBoardItem> matches,
-) {
-  final compiledProfile = const ProfileCompiler().compile(profile);
-
-  return const MatchInsightEngine().opportunities(matches, compiledProfile);
-}
-
-MatchBoardItem _analyzeMatchFor(DecisionProfile profile, MatchBoardItem match) {
-  final compiledProfile = const ProfileCompiler().compile(profile);
-
-  return const MatchInsightEngine().analyze(match, compiledProfile);
+  final homeStanding = standings.firstWhere(
+    (standing) => standing.teamId == homeId,
+  );
+  final awayStanding = standings.firstWhere(
+    (standing) => standing.teamId == awayId,
+  );
+  return match.copyWith(
+    compatibility: 0,
+    signals: const [],
+    analysis: MatchAnalysisData(
+      asOf: DateTime.utc(2026, 9, 5, 12),
+      homeStanding: homeStanding,
+      awayStanding: awayStanding,
+      leagueStandings: standings,
+    ),
+  );
 }
 
 const _england = CountryInfo(

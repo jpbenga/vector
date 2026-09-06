@@ -1,7 +1,8 @@
 # Audit Lector - readings, theses et matrice de relations
 
 Date d'audit : 2026-09-02  
-Périmètre : audit documentaire uniquement. Aucune règle métier, aucun seuil, aucun enum, aucune UI, aucun score et aucun test n'ont été modifiés.
+Périmètre : audit documentaire historique. Le runtime actuel utilise seulement
+le pipeline V2 dynamique ; le fallback historique a été supprimé.
 
 ## 1. Executive Summary
 
@@ -22,15 +23,13 @@ Pipeline actuel côté application :
 
 1. `MatchFeedRepositoryLoader.load` choisit la source : demo, snapshot local, snapshot Supabase ou fallback local (`lib/features/matches/data/match_feed_repository_loader.dart:30`).
 2. `ApiFootballMatchAdapter.fromSnapshot` normalise fixtures, cotes, standings, team statistics, recent matches, expected goals et predictions dans `MatchBoardItem.analysis` (`lib/features/matches/data/api_football_match_adapter.dart:20`).
-3. `MatchFeedRepository.opportunitiesFor(profile)` compile le `DecisionProfile`, puis appelle `MatchInsightEngine.opportunities` (`lib/features/matches/data/match_feed_repository.dart:586`).
-4. `MatchInsightEngine.opportunities` appelle d'abord `OpportunityEngineV2.opportunities`. Si la liste V2 n'est pas vide, le fallback historique est entièrement ignoré pour le batch (`lib/features/matches/domain/match_insight_engine.dart:21`).
-5. `OpportunityEngineV2.opportunities` exige un profil complet, filtre les compétitions activées, analyse les matches via `FootballAnalyzer`, filtre les candidats par `profile.isThesisAllowed`, trie par priorité puis nombre de supports, et retourne une opportunité par match au maximum (`lib/features/matches/domain/opportunity_engine_v2.dart:12`).
-6. `PickEngine` ne crée un pick que si une `Opportunity` possède déjà un marché recommandé et si ce marché est activé dans le profil (`lib/features/matches/domain/pick_engine.dart:29`).
-
-Pipeline de fallback encore présent :
-
-- `MatchInsightEngine.analyze` appelle V2 si la compétition est dans le profil ; sinon ou si V2 ne trouve rien, il peut produire une thèse legacy (`solid_favorite`, `level_gap`, etc.) avec `allowRecommendedMarket` selon le profil compétition (`lib/features/matches/domain/match_insight_engine.dart:75`).
-- `MatchInsightEngine.opportunities` n'utilise le fallback batch que si V2 ne produit aucune opportunité sur tout le batch.
+3. `SnapshotMatchFeedRepository` et `DemoMatchFeedRepository` construisent la
+   `MatchIntelligence` avec `OpportunityEngineV2`.
+4. `OpportunityEngineV2` analyse les matchs via `FootballAnalyzer`, évalue les
+   thèses puis sélectionne une opportunité compatible avec le profil et la
+   maturité établie.
+5. `PickEngine` ne crée un pick que si une `Opportunity` possède déjà un marché
+   recommandé et si ce marché est activé dans le profil.
 
 ## 3. Match Intelligence vs User Matching
 
@@ -91,7 +90,7 @@ Statuts : `CURRENT` = produit par `FootballAnalyzer`; `CONSUMED_BUT_NOT_PRODUCED
 | `misleading_result` | `_contradictions` | readings same team | `positive_streak && (offensive_overperformance || defensive_overperformance)` | home ou away | `moderate`; contradiction | Attaché comme contradiction aux thèses du même sujet | Dérivé des readings | CURRENT | Jamais utilisé comme support de `team_worse_than_results`, seulement limite. |
 | `conflicting_signals` | `_contradictions` | readings same team | `positive_streak && fragile_defense` | home ou away | `moderate`; contradiction | `avoid_match`; limite des thèses du même sujet | Dérivé des readings | CURRENT | Contradiction intra-équipe uniquement. |
 | `insufficient_data` | `analyze` ou `_expectedGoalsFor` | absence readings ou xG post-match | aucun reading détecté, ou `xg.asOf.isAfter(kickoff)` | match ou équipe | `strong` si absence totale; `moderate` si xG rejeté | `avoid_match`; limite | xG post-match explicitement rejeté | CURRENT | Même ID pour absence globale et rejet xG local. |
-| `false_favorite` | Aucun producteur actif | n/a | référencé dans `ReadingRule.contradictionReadingIds` | équipe | n/a | Aucun consumer opérationnel | n/a | CONSUMED_BUT_NOT_PRODUCED | Métadonnée morte dans `FootballReadingRules`. |
+| `false_favorite` | Aucun producteur actif | n/a | anciennement référencé par une métadonnée supprimée | équipe | n/a | Aucun consumer opérationnel | n/a | REMOVED_LEGACY_METADATA | Catalogue legacy supprimé. |
 
 ## 5. Reading Families
 
@@ -498,7 +497,7 @@ Recommandation : ne pas coder directement la plupart de ces relations thesis->th
 | `attack_in_form` | none | `FootballReading.toCopilotArgument`, copy catalog | UI/mapping suggests capability absent | HARDCODED_UI |
 | `declining_defense` | none | copy/theme mappings | UI/mapping suggests capability absent | HARDCODED_UI |
 | `frequent_btts` | none | copy/theme mappings, docs | BTTS reading absent though BTTS thesis exists | HARDCODED_UI |
-| `false_favorite` | none | `ReadingRule.contradictionReadingIds` metadata | Dead contradiction ID | CONSUMED_BUT_NOT_PRODUCED |
+| `false_favorite` | none | metadata legacy supprimée | Dead contradiction ID removed | REMOVED_LEGACY_METADATA |
 | `improving_form` | `_formFor` | none V2 | Produced but no thesis uses it | PRODUCED_BUT_NOT_CONSUMED |
 | `low_xg_creation` | `_expectedGoalsFor` | none V2 | Important contradiction unused | PRODUCED_BUT_NOT_CONSUMED |
 | `defensive_underperformance` | `_expectedGoalsFor` | no direct V2 consumer | Defensive fragility xG not used | PRODUCED_BUT_NOT_CONSUMED |
@@ -526,7 +525,6 @@ Recommandation : ne pas coder directement la plupart de ces relations thesis->th
 | `OpportunityEngineV2.opportunities` early return if `!profile.isCompleted` | Analyse absente | Oui | Un match devrait pouvoir être analysé sans profil | CRITICAL |
 | competition filter before `analyzeOpportunity` | Analyse absente pour compétition désactivée | Oui | `Tous` pourrait vouloir l'intelligence complète | HIGH |
 | `profile.isThesisAllowed(candidate.id)` before candidate selection | Candidate supprimée | Oui | Supprime renforcements/contradictions utiles | CRITICAL |
-| `MatchInsightEngine.analyze` only calls V2 if competition in profile | V2 absent hors profil | Oui | Hors profil reçoit legacy, pas V2 complète | HIGH |
 | compatible markets use enabled profile markets | Marché filtré | Non | Correct user-specific | LOW |
 | `PickEngine` market check | Pick filtré | Non | Correct user-specific | LOW |
 | UI profile copy | Textes personnalisés | Non | Correct présentation | LOW |
@@ -760,9 +758,8 @@ Règle d'architecture :
 - IDs `FootballReading` produits reparcourus dans `football_analyzer.dart`.
 - IDs de readings consommés reparcourus dans `opportunity_engine_v2.dart`, `football_reading.dart`, `opportunity_decision_presenter.dart`, `app_components.dart`, `ticket_generator_page.dart`.
 - IDs thèses V2 reparcourus dans `opportunity_engine_v2.dart`.
-- IDs thèses legacy reparcourus dans `match_insight_engine.dart`.
 - Mappings profil reparcourus dans `decision_profile_catalogs.dart` et `compiled_decision_profile.dart`.
-- Tests inspectés : `football_analyzer_test.dart`, `opportunity_engine_v2_test.dart`, `match_insight_engine_test.dart`, `opportunity_decision_presenter_test.dart`.
+- Tests inspectés : `football_analyzer_test.dart`, `opportunity_engine_v2_test.dart` et `opportunity_decision_presenter_test.dart`.
 - Aucune relation proposée n'est marquée `CURRENT` si elle n'est pas visible dans le code.
 - Le cas KR Reykjavik vs Vikingur utilise uniquement les données pré-match fournies.
 

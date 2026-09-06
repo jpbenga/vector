@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../debug/runtime_personalization_diagnostic.dart';
 import '../auth/supabase_auth_controller.dart';
 import 'device_identity_store.dart';
 import 'guest_account_migration_service.dart';
@@ -206,6 +207,10 @@ class IdentityController extends ChangeNotifier {
     _scope = IdentityScope.guest(guestId);
     _status = IdentityStatus.guest;
     _revision++;
+    RuntimePersonalizationDiagnostic.instance.recordLifecycle(
+      'session restored',
+      fields: {'scope': _scope!.stableKey, 'status': _status.name},
+    );
     notifyListeners();
   }
 
@@ -214,6 +219,10 @@ class IdentityController extends ChangeNotifier {
     _lastAccountScope = _scope;
     _status = IdentityStatus.account;
     _revision++;
+    RuntimePersonalizationDiagnostic.instance.recordLifecycle(
+      'session restored',
+      fields: {'scope': _scope!.stableKey, 'status': _status.name},
+    );
     notifyListeners();
   }
 

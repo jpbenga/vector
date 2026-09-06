@@ -27,7 +27,7 @@ void main() {
 
       final profile = const ProfileCompiler().compile(sourceProfile);
 
-      expect(profile.profileSchemaVersion, 2);
+      expect(profile.profileSchemaVersion, 3);
       expect(profile.onboardingVersion, '3.0');
       expect(profile.configurationState, ProfileConfigurationState.completed);
       expect(profile.competitions['61']?.enabled, isTrue);
@@ -103,6 +103,61 @@ void main() {
       },
     );
 
+    test('keeps readings separate from scenarios', () {
+      const sourceProfile = DecisionProfile(
+        onboardingVersion: '3.0',
+        answers: [
+          OnboardingAnswer(
+            questionId: 'competitions',
+            orderedOptionIds: ['eng_premier_league'],
+          ),
+          OnboardingAnswer(
+            questionId: 'markets',
+            orderedOptionIds: ['double_chance'],
+          ),
+          OnboardingAnswer(
+            questionId: 'opportunity_profiles',
+            orderedOptionIds: ['ranking_gap'],
+          ),
+          OnboardingAnswer(
+            questionId: 'readings',
+            orderedOptionIds: ['structural_level_gap'],
+          ),
+        ],
+      );
+
+      final profile = const ProfileCompiler().compile(sourceProfile);
+
+      expect(profile.isReadingAllowed('balanced_hierarchy'), isFalse);
+      expect(profile.isReadingAllowed('ranking_superiority'), isFalse);
+      expect(profile.isReadingAllowed('structural_level_gap'), isTrue);
+      expect(profile.isReadingAllowed('positive_streak'), isFalse);
+      expect(profile.isOpportunityProfileEnabled('ranking_gap'), isTrue);
+    });
+
+    test('allows a completed reading-only profile', () {
+      const sourceProfile = DecisionProfile(
+        onboardingVersion: '3.0',
+        answers: [
+          OnboardingAnswer(
+            questionId: 'competitions',
+            orderedOptionIds: ['eng_premier_league'],
+          ),
+          OnboardingAnswer(
+            questionId: 'readings',
+            orderedOptionIds: ['positive_streak'],
+          ),
+        ],
+      );
+
+      final profile = const ProfileCompiler().compile(sourceProfile);
+
+      expect(profile.isCompleted, isTrue);
+      expect(profile.hasEnabledReadings, isTrue);
+      expect(profile.isReadingAllowed('positive_streak'), isTrue);
+      expect(profile.hasEnabledOpportunityProfiles, isFalse);
+    });
+
     test(
       'serializes and restores a decision profile for local development',
       () {
@@ -131,6 +186,54 @@ void main() {
         expect(restored.answers.first.marketMinimumOdds['double_chance'], 1.45);
         expect(restored.answers.last.oddsRanges['range_2_00_4_00']?.min, 2);
         expect(restored.answers.last.oddsRanges['range_2_00_4_00']?.max, 4);
+      },
+    );
+
+    test(
+      'keeps compiled markets identical after a persisted profile reload',
+      () {
+        const saved = DecisionProfile(
+          onboardingVersion: '3.0',
+          answers: [
+            OnboardingAnswer(
+              questionId: 'competitions',
+              orderedOptionIds: ['fr_ligue_1'],
+            ),
+            OnboardingAnswer(
+              questionId: 'markets',
+              orderedOptionIds: ['matchResult', 'player_scorer'],
+            ),
+            OnboardingAnswer(
+              questionId: 'opportunity_profiles',
+              orderedOptionIds: ['ranking_gap'],
+            ),
+          ],
+        );
+
+        final reloaded = DecisionProfile.fromJson(saved.toJson());
+        final before = const ProfileCompiler().compile(saved);
+        final after = const ProfileCompiler().compile(reloaded);
+
+        expect(
+          MarketCatalog.sourceOptionIdsFor(saved.optionIdsFor('markets')),
+          {'match_result', 'player_scorer'},
+        );
+        expect(
+          MarketCatalog.enabledMarketIdsFor(saved.optionIdsFor('markets')),
+          {'matchResult', 'playerAnytimeScorer'},
+        );
+        expect(
+          before.markets.entries
+              .where((entry) => entry.value.enabled)
+              .map((entry) => entry.key)
+              .toSet(),
+          after.markets.entries
+              .where((entry) => entry.value.enabled)
+              .map((entry) => entry.key)
+              .toSet(),
+        );
+        expect(after.markets['matchResult']?.enabled, isTrue);
+        expect(after.markets['playerAnytimeScorer']?.enabled, isTrue);
       },
     );
   });

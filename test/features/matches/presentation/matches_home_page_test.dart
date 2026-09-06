@@ -8,10 +8,14 @@ import 'package:copilot/core/theme/app_theme.dart';
 import 'package:copilot/core/theme/app_theme_controller.dart';
 import 'package:copilot/features/matches/data/match_feed_repository.dart';
 import 'package:copilot/features/matches/domain/football_reading.dart';
+import 'package:copilot/features/matches/domain/analysis_maturity.dart';
 import 'package:copilot/features/matches/domain/match_board_item.dart';
+import 'package:copilot/features/matches/domain/match_context_key_models.dart';
+import 'package:copilot/features/matches/domain/structural_tiers/tier_models.dart';
 import 'package:copilot/features/matches/presentation/lector_space_page.dart';
 import 'package:copilot/features/matches/presentation/lector_strategies_page.dart';
 import 'package:copilot/features/matches/presentation/matches_home_page.dart';
+import 'package:copilot/features/matches/presentation/match_detail_page.dart';
 import 'package:copilot/features/onboarding/domain/decision_profile.dart';
 import 'package:copilot/features/onboarding/domain/decision_profile_catalogs.dart';
 import 'package:copilot/features/onboarding/domain/onboarding_answer.dart';
@@ -73,6 +77,164 @@ void main() {
       expect(find.text('3 lectures'), findsOneWidget);
       expect(find.text('Écart de niveau structurel'), findsOneWidget);
       expect(find.text('Tous les matchs'), findsNothing);
+    });
+
+    testWidgets('shows only an interpretable provider round in match detail', (
+      tester,
+    ) async {
+      await _pumpMatchDetail(
+        tester,
+        match: _match(round: 'Regular Season - 27'),
+      );
+
+      expect(find.text('Journée 27'), findsOneWidget);
+      expect(find.text('Journée 34'), findsNothing);
+
+      await _pumpMatchDetail(
+        tester,
+        match: _match(round: 'Regular Season - 8'),
+      );
+
+      expect(find.text('Journée 8'), findsOneWidget);
+
+      await _pumpMatchDetail(tester, match: _match(round: 'Playoffs - Final'));
+
+      expect(find.textContaining('Journée'), findsNothing);
+    });
+
+    testWidgets(
+      'renders only an established opportunity pick without truncation',
+      (tester) async {
+        const homeName = 'Association Sportive de la Métropole Universitaire';
+        final market = _doubleChanceMarket();
+        final recommendedMarket = RecommendedMarket(
+          market: market,
+          selection: market.selections.first,
+        );
+
+        await _pumpMatchDetail(
+          tester,
+          match: _match(homeName: homeName),
+          opportunity: _opportunity(
+            match: _match(homeName: homeName),
+            retainedTheses: [
+              _thesis(
+                id: 'solid_favorite',
+                title: 'Avantage domicile',
+                status: MatchThesisStatus.recommended,
+                recommendedMarket: recommendedMarket,
+              ),
+            ],
+            recommendedMarket: recommendedMarket,
+          ),
+        );
+
+        final pick = find.text('$homeName ou nul');
+        expect(pick, findsOneWidget);
+        expect(tester.widget<Text>(pick).maxLines, 2);
+        expect(tester.widget<Text>(pick).overflow, TextOverflow.clip);
+        expect(find.text('1.42'), findsOneWidget);
+      },
+    );
+
+    testWidgets('hides the pick for an early or marketless opportunity', (
+      tester,
+    ) async {
+      final market = _doubleChanceMarket();
+      final recommendedMarket = RecommendedMarket(
+        market: market,
+        selection: market.selections.first,
+      );
+      final match = _match();
+
+      await _pumpMatchDetail(
+        tester,
+        match: match,
+        opportunity: _opportunity(
+          match: match,
+          maturity: AnalysisMaturity.early,
+          retainedTheses: [
+            _thesis(id: 'solid_favorite', title: 'Avantage domicile'),
+          ],
+          recommendedMarket: recommendedMarket,
+        ),
+      );
+
+      expect(find.text('Pari recommandé'), findsNothing);
+
+      await _pumpMatchDetail(
+        tester,
+        match: match,
+        opportunity: _opportunity(
+          match: match,
+          retainedTheses: [
+            _thesis(id: 'solid_favorite', title: 'Avantage domicile'),
+          ],
+        ),
+      );
+
+      expect(find.text('Pari recommandé'), findsNothing);
+
+      await _pumpMatchDetail(
+        tester,
+        match: match.copyWith(
+          thesis: _thesis(
+            id: 'solid_favorite',
+            title: 'Avantage domicile',
+            status: MatchThesisStatus.recommended,
+            recommendedMarket: recommendedMarket,
+          ),
+        ),
+      );
+
+      expect(find.text('Pari recommandé'), findsNothing);
+    });
+
+    testWidgets('keeps the selected opportunity pick when several exist', (
+      tester,
+    ) async {
+      final market = _doubleChanceMarket();
+      final recommendedMarket = RecommendedMarket(
+        market: market,
+        selection: market.selections.first,
+      );
+      final firstMatch = _match(
+        id: 'first-opportunity',
+        homeName: 'Premier Club',
+        awayName: 'Premier Adversaire',
+        kickoff: _relativeKickoff(0, hour: 18),
+      );
+      final secondMatch = _match(
+        id: 'second-opportunity',
+        homeName: 'Second Club',
+        awayName: 'Second Adversaire',
+        kickoff: _relativeKickoff(0, hour: 20),
+      );
+
+      await _pumpPage(
+        tester,
+        repository: _FakeMatchFeedRepository(
+          opportunities: [
+            _opportunity(
+              match: firstMatch,
+              retainedTheses: [_thesis(id: 'first', title: 'Premier scénario')],
+              recommendedMarket: recommendedMarket,
+            ),
+            _opportunity(
+              match: secondMatch,
+              retainedTheses: [_thesis(id: 'second', title: 'Second scénario')],
+              recommendedMarket: recommendedMarket,
+            ),
+          ],
+          matches: [firstMatch, secondMatch],
+        ),
+      );
+
+      await tester.tap(find.text('Second Club').first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Second Club ou nul'), findsOneWidget);
+      expect(find.text('Premier Club ou nul'), findsNothing);
     });
 
     testWidgets(
@@ -260,8 +422,8 @@ void main() {
       final rankingMatch = readingMatch(
         id: 'ranking-match',
         homeName: 'Ranking FC',
-        readingId: 'ranking_superiority',
-        title: 'Avantage classement',
+        readingId: 'structural_level_gap',
+        title: 'Écart de niveau structurel',
       );
       final attackMatch = readingMatch(
         id: 'attack-match',
@@ -444,7 +606,7 @@ void main() {
             signals: [
               MatchSignal(
                 id: 'ranking_superiority',
-                title: 'Avantage classement pour $home',
+                title: 'Écart au classement pour $home',
                 summary: 'Lecture classement détectée',
                 proofs: const ['Lecture ranking_superiority détectée.'],
               ),
@@ -500,8 +662,8 @@ void main() {
             signals: const [
               MatchSignal(
                 id: 'ranking_superiority',
-                title: 'Avantage classement pour Signal-only FC',
-                summary: 'Signal-only FC possède un avantage au classement.',
+                title: 'Écart au classement pour Signal-only FC',
+                summary: 'Signal-only FC possède un écart au classement.',
                 proofs: ['Signal-only FC possède 6 rangs d’avance.'],
               ),
               MatchSignal(
@@ -531,10 +693,7 @@ void main() {
       await tester.tap(find.text('Voir les 2 lectures'));
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Avantage classement pour Signal-only FC'),
-        findsOneWidget,
-      );
+      expect(find.text('Écart au classement'), findsOneWidget);
       expect(find.text('Ce qui soutient cette lecture (2)'), findsOneWidget);
       expect(
         find.text('Aucune résistance ou contradiction explicite produite.'),
@@ -913,7 +1072,13 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('DOMINATION ATTENDUE'), findsOneWidget);
-      expect(find.text('CONTEXTE RAPIDE'), findsOneWidget);
+      expect(find.text('Clés du match'), findsOneWidget);
+      expect(
+        find.text(
+          'Peu d’éléments différenciants ressortent avant cette rencontre.',
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Avant-match'), findsWidgets);
 
       await tester.tap(find.text('Classement'));
@@ -925,6 +1090,164 @@ void main() {
       );
       expect(find.text('Bodo/Glimt'), findsWidgets);
       expect(find.text('Rosenborg'), findsWidgets);
+    });
+
+    testWidgets('renders the semantic highlight carried by a context key', (
+      tester,
+    ) async {
+      final match = _match(
+        id: 'semantic-context-key',
+        homeName: 'Alpha FC',
+        awayName: 'Beta FC',
+        kickoff: _relativeKickoff(0, hour: 20),
+        homeApiTeamId: 1,
+        awayApiTeamId: 2,
+        analysis: const MatchAnalysisData(
+          contextKeys: [
+            MatchContextKey(
+              family: MatchContextKeyFamily.defense,
+              semanticScope: 'defensive_exposure',
+              subjectTeamIds: [1, 2],
+              facts: {
+                'homegoalsAgainstPerGame': 0.75,
+                'awaygoalsAgainstPerGame': 1.80,
+              },
+              highlights: [
+                MatchContextKeyHighlight(
+                  teamId: 1,
+                  direction: ChampionshipContextZoneSide.low,
+                ),
+                MatchContextKeyHighlight(
+                  teamId: 2,
+                  direction: ChampionshipContextZoneSide.high,
+                ),
+              ],
+              sourcePaths: ['standings[].all.goals.against'],
+            ),
+          ],
+          contextKeyAvailability: MatchContextKeyAvailability.available,
+        ),
+      );
+      await _pumpPage(
+        tester,
+        repository: _FakeMatchFeedRepository(
+          opportunities: [
+            _opportunity(
+              match: match,
+              retainedTheses: [_thesis(id: 'context', title: 'Contexte')],
+            ),
+          ],
+          matches: [match],
+        ),
+      );
+
+      await tester.tap(find.text('Alpha FC').first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Clés du match'), findsOneWidget);
+      expect(find.text('DÉFENSE'), findsOneWidget);
+      expect(
+        find.text('Beta FC parmi les défenses les plus exposées'),
+        findsOneWidget,
+      );
+      expect(find.text('0.75'), findsOneWidget);
+      expect(find.text('1.80'), findsOneWidget);
+    });
+
+    testWidgets('keeps two context keys as two developed cards', (
+      tester,
+    ) async {
+      final match = _contextKeyMatch(_contextKeyFixtures().take(2).toList());
+      await _pumpPage(
+        tester,
+        repository: _FakeMatchFeedRepository(
+          opportunities: [
+            _opportunity(
+              match: match,
+              retainedTheses: [_thesis(id: 'two-keys', title: 'Contexte')],
+            ),
+          ],
+          matches: [match],
+        ),
+      );
+
+      await tester.tap(find.text('Horizon Athletic Association').first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('2 clés'), findsOneWidget);
+      expect(find.text('HIÉRARCHIE'), findsOneWidget);
+      expect(find.text('FORME'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('renders every retained context key up to four', (
+      tester,
+    ) async {
+      final match = _contextKeyMatch(_contextKeyFixtures());
+      await _pumpPage(
+        tester,
+        repository: _FakeMatchFeedRepository(
+          opportunities: [
+            _opportunity(
+              match: match,
+              retainedTheses: [_thesis(id: 'four-keys', title: 'Contexte')],
+            ),
+          ],
+          matches: [match],
+        ),
+      );
+
+      await tester.tap(find.text('Horizon Athletic Association').first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('4 clés'), findsOneWidget);
+      expect(find.text('HIÉRARCHIE'), findsOneWidget);
+      expect(find.text('FORME'), findsOneWidget);
+      expect(find.text('ATTAQUE'), findsOneWidget);
+      expect(find.text('DÉFENSE'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('renders only the active Lector Tiers and official zones', (
+      tester,
+    ) async {
+      await _pumpPage(
+        tester,
+        repository: _FakeMatchFeedRepository(
+          opportunities: [
+            _opportunity(
+              match: _match(
+                id: 'tiered-standing',
+                homeName: 'Alpha FC',
+                awayName: 'Delta FC',
+                kickoff: _relativeKickoff(0, hour: 18),
+                analysis: _tieredAnalysisData(),
+              ),
+              retainedTheses: [
+                _thesis(id: 'level_gap', title: 'Domination attendue'),
+              ],
+            ),
+          ],
+        ),
+      );
+
+      await tester.tap(find.text('Alpha FC').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Classement'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Tiers Lector'), findsOneWidget);
+      expect(find.text('Tier 1 - Podium'), findsOneWidget);
+      expect(find.text('Tier 3 - Milieu de tableau'), findsOneWidget);
+      expect(find.text('Tier 2 - Haut de tableau'), findsNothing);
+      expect(find.text('Tier 4 - Bas de tableau'), findsNothing);
+
+      await tester.tap(find.text('Enjeux'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Promotion - Champions League'), findsOneWidget);
+      expect(find.text('Relegation'), findsOneWidget);
+      expect(find.text('Tier 1 - Podium'), findsNothing);
     });
 
     testWidgets('opens match detail from a folded All matches league', (
@@ -1153,6 +1476,7 @@ void main() {
 
         expect(find.text('Mon espace'), findsOneWidget);
         expect(find.text('Mes compétitions'), findsOneWidget);
+        expect(find.text('Mes lectures'), findsOneWidget);
         expect(find.text('Mes scénarios'), findsOneWidget);
         expect(find.text('Mes stratégies'), findsOneWidget);
         expect(find.text('Onboarding'), findsNothing);
@@ -1595,6 +1919,27 @@ Future<void> _pumpPage(
   await tester.pumpAndSettle();
 }
 
+Future<void> _pumpMatchDetail(
+  WidgetTester tester, {
+  required MatchBoardItem match,
+  Opportunity? opportunity,
+}) async {
+  tester.view.physicalSize = const Size(390, 844);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(() {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
+
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: CopilotTheme.dark.copyWith(splashFactory: NoSplash.splashFactory),
+      home: MatchDetailPage(match: match, opportunity: opportunity),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
 DecisionProfile _completedProfile() {
   return const DecisionProfile(
     onboardingVersion: 'test',
@@ -1621,6 +1966,7 @@ Opportunity _opportunity({
   List<FootballReading> contradictoryReadings = const [],
   List<ThesisAssessment> thesisAssessments = const [],
   int engineScore = 82,
+  AnalysisMaturity maturity = AnalysisMaturity.established,
 }) {
   final sourceMatch = match ?? _match();
 
@@ -1641,6 +1987,7 @@ Opportunity _opportunity({
     supportingReadings: supportingReadings,
     contradictoryReadings: contradictoryReadings,
     thesisAssessments: thesisAssessments,
+    maturity: maturity,
   );
 }
 
@@ -1703,6 +2050,9 @@ MatchBoardItem _match({
   List<MatchMarket>? markets,
   MatchAnalysisData analysis = const MatchAnalysisData(),
   MatchThesis? thesis,
+  int? homeApiTeamId,
+  int? awayApiTeamId,
+  String? round,
 }) {
   return MatchBoardItem(
     fixture: NormalizedFixture(
@@ -1713,9 +2063,18 @@ MatchBoardItem _match({
         country: CountryInfo(code: countryCode, name: countryName),
         season: 2026,
       ),
-      homeTeam: TeamInfo(id: '$id-home', name: homeName),
-      awayTeam: TeamInfo(id: '$id-away', name: awayName),
+      homeTeam: TeamInfo(
+        id: '$id-home',
+        name: homeName,
+        apiFootballTeamId: homeApiTeamId,
+      ),
+      awayTeam: TeamInfo(
+        id: '$id-away',
+        name: awayName,
+        apiFootballTeamId: awayApiTeamId,
+      ),
       kickoffLabel: kickoffLabel,
+      round: round,
       kickoff: kickoff,
       status: status,
       score: score,
@@ -1778,6 +2137,207 @@ MatchAnalysisData _analysisData({
         goalsAgainst: 1,
       ),
     ],
+  );
+}
+
+MatchBoardItem _contextKeyMatch(List<MatchContextKey> keys) {
+  return _match(
+    id: 'context-key-fixture',
+    homeName: 'Horizon Athletic Association',
+    awayName: 'Metropolitan Football Collective',
+    kickoff: _relativeKickoff(0, hour: 20),
+    homeApiTeamId: 1,
+    awayApiTeamId: 2,
+    analysis: MatchAnalysisData(
+      contextKeys: keys,
+      contextKeyAvailability: MatchContextKeyAvailability.available,
+    ),
+  );
+}
+
+List<MatchContextKey> _contextKeyFixtures() {
+  const hierarchy = MatchContextKey(
+    family: MatchContextKeyFamily.hierarchy,
+    semanticScope: 'official_positioning',
+    subjectTeamIds: [1, 2],
+    facts: {'homeRank': 1, 'awayRank': 8, 'homePoints': 56, 'awayPoints': 34},
+    highlights: [
+      MatchContextKeyHighlight(
+        teamId: 1,
+        direction: ChampionshipContextZoneSide.high,
+      ),
+    ],
+    sourcePaths: ['standings'],
+  );
+  const form = MatchContextKey(
+    family: MatchContextKeyFamily.form,
+    semanticScope: 'recent_form',
+    subjectTeamIds: [1, 2],
+    facts: {
+      'homeForm': 'WWWWD',
+      'awayForm': 'DLWDD',
+      'homePoints': 13,
+      'awayPoints': 6,
+    },
+    highlights: [
+      MatchContextKeyHighlight(
+        teamId: 1,
+        direction: ChampionshipContextZoneSide.high,
+      ),
+    ],
+    sourcePaths: ['standings.form'],
+  );
+  const attack = MatchContextKey(
+    family: MatchContextKeyFamily.attack,
+    semanticScope: 'offensive_production',
+    subjectTeamIds: [1, 2],
+    facts: {'homegoalsForPerGame': 1.92, 'awaygoalsForPerGame': 1.08},
+    highlights: [
+      MatchContextKeyHighlight(
+        teamId: 1,
+        direction: ChampionshipContextZoneSide.high,
+      ),
+    ],
+    sourcePaths: ['standings.goalsFor'],
+  );
+  const defense = MatchContextKey(
+    family: MatchContextKeyFamily.defense,
+    semanticScope: 'defensive_exposure',
+    subjectTeamIds: [1, 2],
+    facts: {'homegoalsAgainstPerGame': 0.87, 'awaygoalsAgainstPerGame': 1.64},
+    highlights: [
+      MatchContextKeyHighlight(
+        teamId: 2,
+        direction: ChampionshipContextZoneSide.high,
+      ),
+    ],
+    sourcePaths: ['standings.goalsAgainst'],
+  );
+  return const [hierarchy, form, attack, defense];
+}
+
+MatchAnalysisData _tieredAnalysisData() {
+  const rows = [
+    TeamStandingSnapshot(
+      teamId: 1,
+      teamName: 'Alpha FC',
+      rank: 1,
+      points: 43,
+      played: 20,
+      wins: 13,
+      draws: 4,
+      losses: 3,
+      goalsFor: 38,
+      goalsAgainst: 16,
+      goalDiff: 22,
+      description: 'Promotion - Champions League',
+    ),
+    TeamStandingSnapshot(
+      teamId: 2,
+      teamName: 'Bravo FC',
+      rank: 2,
+      points: 41,
+      played: 20,
+      wins: 12,
+      draws: 5,
+      losses: 3,
+      goalsFor: 34,
+      goalsAgainst: 18,
+      goalDiff: 16,
+    ),
+    TeamStandingSnapshot(
+      teamId: 3,
+      teamName: 'Charlie FC',
+      rank: 3,
+      points: 28,
+      played: 20,
+      wins: 8,
+      draws: 4,
+      losses: 8,
+      goalsFor: 24,
+      goalsAgainst: 25,
+      goalDiff: -1,
+    ),
+    TeamStandingSnapshot(
+      teamId: 4,
+      teamName: 'Delta FC',
+      rank: 4,
+      points: 22,
+      played: 20,
+      wins: 6,
+      draws: 4,
+      losses: 10,
+      goalsFor: 20,
+      goalsAgainst: 31,
+      goalDiff: -11,
+      description: 'Relegation',
+    ),
+  ];
+  const assignments = [
+    TeamTierAssignment(
+      teamId: 1,
+      teamName: 'Alpha FC',
+      officialRank: 1,
+      points: 43,
+      played: 20,
+      pointsPerGame: 2.15,
+      assignedTier: TierLabel.tier1Podium,
+    ),
+    TeamTierAssignment(
+      teamId: 2,
+      teamName: 'Bravo FC',
+      officialRank: 2,
+      points: 41,
+      played: 20,
+      pointsPerGame: 2.05,
+      assignedTier: TierLabel.tier1Podium,
+    ),
+    TeamTierAssignment(
+      teamId: 3,
+      teamName: 'Charlie FC',
+      officialRank: 3,
+      points: 28,
+      played: 20,
+      pointsPerGame: 1.4,
+      assignedTier: TierLabel.tier3MiddleChampionship,
+    ),
+    TeamTierAssignment(
+      teamId: 4,
+      teamName: 'Delta FC',
+      officialRank: 4,
+      points: 22,
+      played: 20,
+      pointsPerGame: 1.1,
+      assignedTier: TierLabel.tier3MiddleChampionship,
+    ),
+  ];
+
+  return MatchAnalysisData(
+    homeStanding: rows.first,
+    awayStanding: rows.last,
+    leagueStandings: rows,
+    championshipTierSnapshot: ChampionshipTierSnapshot(
+      competitionId: '61',
+      season: 2026,
+      analysisAsOf: DateTime.utc(2026, 9, 5, 8),
+      tierSystemVersion: 'tier-v1',
+      standingsSnapshotIdentity: 'tiered-test-snapshot',
+      status: TierSystemStatus.mature,
+      maturity: TierMaturity.mature,
+      teamCount: rows.length,
+      pointDistribution: null,
+      ppgDistribution: null,
+      boundaryCandidates: const [],
+      confirmedStructuralBoundaries: const [],
+      tierPartitionBoundaries: const [],
+      tierPresence: const {
+        TierLabel.tier1Podium,
+        TierLabel.tier3MiddleChampionship,
+      },
+      teamAssignments: assignments,
+      warnings: const [],
+      unavailabilityReasons: const [],
+    ),
   );
 }
 

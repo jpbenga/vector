@@ -8,6 +8,7 @@ const maxLeagues = 40;
 const maxTeamStatisticsRequests = 120;
 const maxRecentFixtureRequests = 160;
 const maxFixtureStatisticsRequests = 240;
+const maxPlayerStatisticsTeams = 160;
 const defaultRecentFormDaysBack = 180;
 const defaultRecentFormMatches = 5;
 const defaultApiRequestDelayMs = 750;
@@ -55,10 +56,14 @@ Deno.serve(async (request) => {
     teamStatistics: 0,
     recentFixtureRows: 0,
     fixtureStatistics: 0,
+    playerStatisticsRequests: 0,
+    playerStatisticsPages: 0,
+    playerStatisticsPlayers: 0,
     cachedResponses: 0,
     leagueSeasons: {},
   };
   const fixtureStatisticsIds = new Set<number>();
+  const playerStatisticsTeams = new Map<string, { leagueId: number; season: number; teamId: number }>();
   let recentFixtureRequests = 0;
 
   try {
@@ -180,6 +185,13 @@ Deno.serve(async (request) => {
           }
         }
 
+        if (options.includePlayerStatistics) {
+          for (const teamId of teamIdsFromFixtures(fixtures.body)) {
+            const key = `${leagueId}:${leagueSeason}:${teamId}`;
+            playerStatisticsTeams.set(key, { leagueId, season: leagueSeason, teamId });
+          }
+        }
+
         if (options.includeRecentForm || options.includeExpectedGoals) {
           const fixtureTeamContexts = fixtureTeamContextsFromFixtures(
             fixtures.body,
@@ -228,6 +240,31 @@ Deno.serve(async (request) => {
             }
           }
         }
+      }
+    }
+
+    for (const context of [...playerStatisticsTeams.values()].slice(0, maxPlayerStatisticsTeams)) {
+      const firstPage = await fetchAndCache({
+        apiBaseUrl, apiKey, supabaseUrl, serviceRoleKey, runId,
+        endpoint: "/players",
+        query: { league: String(context.leagueId), season: String(context.season), team: String(context.teamId), page: "1" },
+        ttlSeconds: 6 * 60 * 60, requestDelayMs: apiRequestDelayMs,
+      });
+      summary.playerStatisticsRequests += 1;
+      summary.playerStatisticsPages += 1;
+      summary.playerStatisticsPlayers += responseRows(firstPage.body).length;
+      summary.cachedResponses += 1;
+      const total = numberValue(objectValue(firstPage.body.paging)?.total) ?? 1;
+      for (let page = 2; page <= total; page += 1) {
+        const nextPage = await fetchAndCache({
+          apiBaseUrl, apiKey, supabaseUrl, serviceRoleKey, runId,
+          endpoint: "/players",
+          query: { league: String(context.leagueId), season: String(context.season), team: String(context.teamId), page: String(page) },
+          ttlSeconds: 6 * 60 * 60, requestDelayMs: apiRequestDelayMs,
+        });
+        summary.playerStatisticsPages += 1;
+        summary.playerStatisticsPlayers += responseRows(nextPage.body).length;
+        summary.cachedResponses += 1;
       }
     }
 
@@ -296,6 +333,7 @@ type SyncOptions = {
   includeTeamStatistics: boolean;
   includeRecentForm: boolean;
   includeExpectedGoals: boolean;
+  includePlayerStatistics: boolean;
   recentFormDaysBack: number;
   recentFormMatches: number;
 };
@@ -308,6 +346,9 @@ type SyncSummary = {
   teamStatistics: number;
   recentFixtureRows: number;
   fixtureStatistics: number;
+  playerStatisticsRequests: number;
+  playerStatisticsPages: number;
+  playerStatisticsPlayers: number;
   cachedResponses: number;
   leagueSeasons: Record<string, number>;
 };
@@ -370,6 +411,7 @@ function syncOptionsFromPayload(payload: JsonObject): SyncOptions {
   const includeRecentForm = booleanValue(payload.include_recent_form) ?? true;
   const includeExpectedGoals = booleanValue(payload.include_expected_goals) ??
     includeRecentForm;
+  const includePlayerStatistics = booleanValue(payload.include_player_statistics) ?? true;
   const recentFormDaysBack = numberValue(payload.recent_form_days_back) ??
     defaultRecentFormDaysBack;
   const recentFormMatches = numberValue(payload.recent_form_matches) ??
@@ -409,6 +451,7 @@ function syncOptionsFromPayload(payload: JsonObject): SyncOptions {
     includeTeamStatistics,
     includeRecentForm,
     includeExpectedGoals,
+    includePlayerStatistics,
     recentFormDaysBack,
     recentFormMatches,
   };

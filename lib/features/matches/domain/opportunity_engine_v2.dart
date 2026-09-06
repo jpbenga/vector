@@ -3,17 +3,28 @@ import '../../opportunities/domain/opportunity.dart';
 import 'football_analyzer.dart';
 import 'football_reading.dart';
 import 'match_board_item.dart';
+import 'match_context_key_models.dart';
+import 'market_assessment.dart';
+import 'structural_tiers/tier_models.dart';
 
 class MatchIntelligence {
   const MatchIntelligence({
     required this.match,
     required this.analysis,
     required this.thesisAssessments,
+    this.contextKeys = const [],
+    this.betCandidates = const [],
+    this.attentionSignals = const [],
+    this.opportunities = const [],
   });
 
   final MatchBoardItem match;
   final FootballAnalysis analysis;
   final List<ThesisAssessment> thesisAssessments;
+  final List<MatchContextKey> contextKeys;
+  final List<BetCandidate> betCandidates;
+  final List<AttentionSignal> attentionSignals;
+  final List<Opportunity> opportunities;
 }
 
 class OpportunityEngineV2 {
@@ -32,11 +43,329 @@ class OpportunityEngineV2 {
 
   MatchIntelligence buildIntelligence(MatchBoardItem match, {DateTime? asOf}) {
     final analysis = analyzeMatch(match, asOf: asOf);
+    final candidates = _candidates(match, analysis);
+    final assessments = List<ThesisAssessment>.unmodifiable(
+      _assessments(match, analysis),
+    );
+    final betCandidates = List<BetCandidate>.unmodifiable(
+      _betCandidates(match, analysis, candidates),
+    );
+    final opportunities = List<Opportunity>.unmodifiable([
+      for (final candidate in candidates)
+        _analyticalOpportunity(match, analysis, assessments, candidate),
+    ]);
     return MatchIntelligence(
       match: match,
       analysis: analysis,
-      thesisAssessments: List.unmodifiable(_assessments(match, analysis)),
+      thesisAssessments: assessments,
+      contextKeys: List<MatchContextKey>.unmodifiable(
+        match.analysis.contextKeys,
+      ),
+      betCandidates: betCandidates,
+      attentionSignals: List<AttentionSignal>.unmodifiable(
+        _attentionSignals(analysis, candidates),
+      ),
+      opportunities: opportunities,
     );
+  }
+
+  Opportunity _analyticalOpportunity(
+    MatchBoardItem match,
+    FootballAnalysis analysis,
+    List<ThesisAssessment> assessments,
+    _OpportunityCandidate candidate,
+  ) {
+    final thesis = _thesisFor(match, candidate, null);
+    return Opportunity(
+      sourceMatch: match,
+      engineScore: _internalScore(candidate),
+      detectedSignals: [_signalFor(thesis)],
+      retainedTheses: [thesis],
+      compatibleMarkets: const [],
+      supportingReadings: candidate.supportingReadings,
+      contradictoryReadings: candidate.contradictoryReadings,
+      thesisAssessments: assessments,
+      asOf: analysis.asOf,
+      maturity: analysis.maturity,
+    );
+  }
+
+  List<AttentionSignal> _attentionSignals(
+    FootballAnalysis analysis,
+    List<_OpportunityCandidate> candidates,
+  ) {
+    return [
+      for (final reading in analysis.supportingReadings)
+        if (_isDirectAttentionReading(reading.id))
+          AttentionSignal(
+            id: 'reading:${reading.id}:${reading.subjectTeamId}',
+            type: AttentionSignalType.reading,
+            sourceReadingIds: [reading.id],
+          ),
+      for (final candidate in candidates)
+        AttentionSignal(
+          id: 'thesis:${candidate.id}',
+          type: AttentionSignalType.thesis,
+          sourceReadingIds: [
+            for (final reading in candidate.supportingReadings) reading.id,
+          ],
+          thesisId: candidate.id,
+        ),
+    ];
+  }
+
+  bool _isDirectAttentionReading(String id) {
+    return const {
+      'ranking_superiority',
+      'structural_level_gap',
+      'form_advantage',
+      'positive_streak',
+      'negative_streak',
+      'strong_home_team',
+      'weak_home_team',
+      'strong_away_team',
+      'standout_goal_scorer',
+      'weak_away_team',
+      'prolific_attack',
+      'fragile_defense',
+      'open_match_profile',
+      'closed_match_profile',
+    }.contains(id);
+  }
+
+  List<BetCandidate> _betCandidates(
+    MatchBoardItem match,
+    FootballAnalysis analysis,
+    List<_OpportunityCandidate> opportunities,
+  ) {
+    final drafts = <String, _BetCandidateDraft>{};
+
+    void add(
+      MarketIntent intent, {
+      String? subjectTeamId,
+      int? subjectPlayerId,
+      String? subjectPlayerName,
+      ReadingSubjectSide subjectSide = ReadingSubjectSide.match,
+      Iterable<String> readingIds = const [],
+      Iterable<String> thesisIds = const [],
+      Iterable<String> contradictionIds = const [],
+    }) {
+      final market = _marketById(match, intent.marketId);
+      if (market == null) {
+        return;
+      }
+      final selection = _selectionForIntent(
+        market,
+        intent.selection,
+        playerName: intent.playerName,
+      );
+      if (selection == null) {
+        return;
+      }
+      final key = '${market.id}:${selection.id}';
+      final draft = drafts.putIfAbsent(
+        key,
+        () => _BetCandidateDraft(
+          market: market,
+          selection: selection,
+          subjectTeamId: subjectTeamId,
+          subjectPlayerId: subjectPlayerId,
+          subjectPlayerName: subjectPlayerName,
+          subjectSide: subjectSide,
+        ),
+      );
+      draft.readingIds.addAll(readingIds);
+      draft.thesisIds.addAll(thesisIds);
+      draft.contradictionIds.addAll(contradictionIds);
+    }
+
+    for (final opportunity in opportunities) {
+      final subject = _teamForSide(match, opportunity.subjectSide);
+      for (final intent in opportunity.marketIntents) {
+        add(
+          intent,
+          subjectTeamId: subject.id,
+          subjectSide: opportunity.subjectSide,
+          readingIds: [
+            for (final reading in opportunity.supportingReadings) reading.id,
+          ],
+          thesisIds: [opportunity.id],
+          contradictionIds: [
+            for (final reading in opportunity.contradictoryReadings) reading.id,
+          ],
+        );
+      }
+    }
+
+    for (final reading in analysis.supportingReadings) {
+      if (reading.id == 'standout_goal_scorer') {
+        _addGoalScorerCandidate(match, reading, add);
+        continue;
+      }
+      final target = _targetSideForReading(reading);
+      if (target == null) {
+        continue;
+      }
+      final subject = _teamForSide(match, target);
+      for (final intent in _directMarketIntents(reading, target)) {
+        add(
+          intent,
+          subjectTeamId: subject.id,
+          subjectSide: target,
+          readingIds: [reading.id],
+        );
+      }
+    }
+
+    for (final draft in drafts.values) {
+      if (draft.subjectSide == ReadingSubjectSide.match) {
+        continue;
+      }
+      for (final reading in analysis.supportingReadings) {
+        final target = _targetSideForReading(reading);
+        if (target != null && target != draft.subjectSide) {
+          draft.contradictionIds.add(reading.id);
+        }
+      }
+      draft.contradictionIds.removeAll(draft.readingIds);
+    }
+
+    return [
+      for (final draft in drafts.values)
+        BetCandidate(
+          matchId: match.id,
+          marketId: draft.market.id,
+          marketLabel: draft.market.label,
+          selectionId: draft.selection.id,
+          selectionLabel: draft.selection.label,
+          selectionValue: draft.selection.apiFootballValue,
+          odds: draft.selection.odds,
+          subjectTeamId: draft.subjectTeamId,
+          subjectPlayerId: draft.subjectPlayerId,
+          subjectPlayerName: draft.subjectPlayerName,
+          apiFootballBetId: draft.market.apiFootballBetId,
+          bookmakerId: draft.market.bookmakerId,
+          bookmakerName: draft.market.bookmakerName,
+          supportingReadingIds: List.unmodifiable(draft.readingIds),
+          supportingThesisIds: List.unmodifiable(draft.thesisIds),
+          contradictionIds: List.unmodifiable(draft.contradictionIds),
+          maturity: analysis.maturity,
+        ),
+    ];
+  }
+
+  void _addGoalScorerCandidate(
+    MatchBoardItem match,
+    FootballReading reading,
+    void Function(
+      MarketIntent, {
+      String? subjectTeamId,
+      int? subjectPlayerId,
+      String? subjectPlayerName,
+      ReadingSubjectSide subjectSide,
+      Iterable<String> readingIds,
+      Iterable<String> thesisIds,
+      Iterable<String> contradictionIds,
+    })
+    add,
+  ) {
+    final playerId = reading.playerId;
+    final playerName = reading.playerName;
+    if (playerId == null || playerName == null || playerName.isEmpty) return;
+    final market = _marketById(match, 'playerAnytimeScorer');
+    if (market == null) return;
+    final matching = market.selections
+        .where((selection) => _samePlayerName(selection.playerName, playerName))
+        .toList(growable: false);
+    // API-Football exposes no player id in these odds selections. A unique,
+    // exact normalized name is the only accepted fallback; ambiguity abstains.
+    if (matching.length != 1) return;
+    add(
+      MarketIntent(
+        'playerAnytimeScorer',
+        MarketSelectionIntent.yes,
+        playerName: playerName,
+      ),
+      subjectTeamId: reading.subjectTeamId,
+      subjectPlayerId: playerId,
+      subjectPlayerName: playerName,
+      subjectSide: reading.subjectSide,
+      readingIds: [reading.id],
+    );
+  }
+
+  bool _samePlayerName(String? marketName, String playerName) {
+    if (marketName == null) return false;
+    String normalize(String value) =>
+        value.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ');
+    return normalize(marketName) == normalize(playerName);
+  }
+
+  ReadingSubjectSide? _targetSideForReading(FootballReading reading) {
+    switch (reading.id) {
+      case 'weak_home_team':
+        return ReadingSubjectSide.away;
+      case 'weak_away_team':
+        return ReadingSubjectSide.home;
+      case 'ranking_superiority':
+      case 'structural_level_gap':
+      case 'form_advantage':
+      case 'positive_streak':
+      case 'strong_home_team':
+      case 'strong_away_team':
+      case 'prolific_attack':
+      case 'attack_in_form':
+        return reading.subjectSide == ReadingSubjectSide.match
+            ? null
+            : reading.subjectSide;
+      case 'fragile_defense':
+      case 'negative_streak':
+      case 'scoring_difficulty':
+        return reading.subjectSide == ReadingSubjectSide.match
+            ? null
+            : _opponent(reading.subjectSide);
+      default:
+        return null;
+    }
+  }
+
+  List<MarketIntent> _directMarketIntents(
+    FootballReading reading,
+    ReadingSubjectSide target,
+  ) {
+    final resultIntent = MarketIntent('matchResult', _selectionForSide(target));
+    final doubleChanceIntent = MarketIntent(
+      'doubleChance',
+      _doubleChanceForSide(target),
+    );
+    switch (reading.id) {
+      case 'ranking_superiority':
+      case 'structural_level_gap':
+      case 'form_advantage':
+      case 'positive_streak':
+      case 'strong_home_team':
+      case 'strong_away_team':
+      case 'weak_home_team':
+      case 'weak_away_team':
+        return [resultIntent, doubleChanceIntent];
+      case 'prolific_attack':
+      case 'attack_in_form':
+        return [
+          MarketIntent(
+            target == ReadingSubjectSide.home
+                ? 'teamTotalHome'
+                : 'teamTotalAway',
+            MarketSelectionIntent.over05,
+          ),
+          const MarketIntent('goalsTotal', MarketSelectionIntent.over25),
+        ];
+      case 'fragile_defense':
+      case 'negative_streak':
+      case 'scoring_difficulty':
+        return [resultIntent, doubleChanceIntent];
+      default:
+        return const [];
+    }
   }
 
   List<Opportunity> opportunities(
@@ -86,7 +415,9 @@ class OpportunityEngineV2 {
         !profile.isCompetitionEnabled(match.competition.id)) {
       return null;
     }
-
+    // An Opportunity is the result of a selected scenario. A market choice
+    // can refine its available bets, but must never create the scenario by
+    // itself. Direct readings have their own BetCandidates below.
     final candidates = _candidates(
       match,
       analysis,
@@ -105,18 +436,32 @@ class OpportunityEngineV2 {
     });
 
     final selected = candidates.first;
-    final compatibleMarkets = allowRecommendedMarket
-        ? _compatibleMarkets(match, profile, selected)
-        : const <OpportunityMarketCompatibility>[];
-    final recommended = compatibleMarkets
-        .where((market) => market.isRecommended)
-        .firstOrNull;
-    final recommendedMarket = recommended == null
-        ? null
-        : RecommendedMarket(
-            market: recommended.market,
-            selection: recommended.selection,
-          );
+    // [MatchIntelligence] is the immutable output of the single analytical
+    // pass. Profile personalization must only select from this portfolio.
+    final analyticalBetCandidates = intelligence.betCandidates;
+    final compatibleCandidates = allowRecommendedMarket
+        ? analyticalBetCandidates
+              .where(
+                (candidate) =>
+                    candidate.supportingThesisIds.contains(selected.id) &&
+                    profile.enabledMarket(candidate.marketId) != null,
+              )
+              .toList(growable: false)
+        : const <BetCandidate>[];
+    final recommendedCandidate = selectSuggestedBetCandidate(
+      compatibleCandidates,
+    );
+    final compatibleMarkets = [
+      for (final candidate in compatibleCandidates)
+        if (match.recommendedMarketFor(candidate) case final market?)
+          OpportunityMarketCompatibility(
+            thesisId: selected.id,
+            market: market.market,
+            selection: market.selection,
+            isRecommended: candidate == recommendedCandidate,
+          ),
+    ];
+    final recommendedMarket = match.recommendedMarketFor(recommendedCandidate);
     final thesis = _thesisFor(match, selected, recommendedMarket);
 
     return Opportunity(
@@ -130,6 +475,7 @@ class OpportunityEngineV2 {
       contradictoryReadings: selected.contradictoryReadings,
       thesisAssessments: intelligence.thesisAssessments,
       asOf: analysis.asOf,
+      maturity: analysis.maturity,
     );
   }
 
@@ -138,28 +484,91 @@ class OpportunityEngineV2 {
     CompiledDecisionProfile profile,
   ) {
     final match = intelligence.match;
+    if (!profile.isCompleted ||
+        !profile.isCompetitionEnabled(match.competition.id)) {
+      return match.copyWith(
+        profileStatus: MatchProfileStatus.outOfProfile,
+        profileRelevance: MatchProfileRelevance.none,
+        betCandidates: const [],
+        signals: const [],
+      );
+    }
+
+    final marketCandidates = _configuredBetCandidates(intelligence, profile);
     final opportunity = analyzeOpportunityFromIntelligence(
       intelligence,
       profile,
     );
-    if (opportunity != null) {
-      return opportunity.toMatchBoardItem();
-    }
+    final profileReadings = _profileReadings(intelligence.analysis, profile);
+    final supportedTheses = intelligence.thesisAssessments
+        .where(
+          (assessment) =>
+              assessment.isSupported &&
+              profile.isThesisConfigured(assessment.id),
+        )
+        .toList(growable: false);
 
-    final isCompetitionEnabled = profile.isCompetitionEnabled(
-      match.competition.id,
+    final relevance = MatchProfileRelevance(
+      readingMatches: profileReadings.length,
+      thesisMatches: supportedTheses.length,
+      marketMatches: marketCandidates.length,
     );
-    final profileReadings = isCompetitionEnabled
-        ? _profileReadings(intelligence.analysis, profile)
-        : const <FootballReading>[];
-
+    final signals = [
+      ..._signalsForReadings(match, profileReadings),
+      for (final thesis in supportedTheses)
+        MatchSignal(
+          id: 'thesis:${thesis.id}',
+          title: thesis.title,
+          summary: 'Scénario soutenu par l’analyse du match.',
+          proofs: [thesis.id],
+        ),
+      for (final candidate in marketCandidates)
+        MatchSignal(
+          id: 'market:${candidate.marketId}:${candidate.selectionId}',
+          title: candidate.marketLabel,
+          summary: candidate.selectionLabel,
+          proofs: candidate.supportingReadingIds,
+        ),
+    ];
+    final recommendedMarket = match.recommendedMarketFor(
+      selectSuggestedBetCandidate(marketCandidates),
+    );
+    final thesis = opportunity?.primaryThesis;
     return match.copyWith(
-      profileStatus: isCompetitionEnabled
+      primaryMarket: recommendedMarket?.selection,
+      betCandidates: marketCandidates,
+      profileStatus: relevance.isRelevant
           ? MatchProfileStatus.inProfile
           : MatchProfileStatus.outOfProfile,
-      compatibility: _readingCompatibility(profileReadings),
-      signals: _signalsForReadings(match, profileReadings),
+      compatibility: relevance.total,
+      profileRelevance: relevance,
+      signals: signals,
+      thesis: thesis,
     );
+  }
+
+  List<BetCandidate> _configuredBetCandidates(
+    MatchIntelligence intelligence,
+    CompiledDecisionProfile profile,
+  ) {
+    return intelligence.betCandidates
+        .where(
+          (candidate) =>
+              profile.enabledMarket(candidate.marketId) != null &&
+              _isCandidateEnabledByProfile(candidate, profile),
+        )
+        .toList(growable: false);
+  }
+
+  /// A configured market only exposes a bet which has an active analytical
+  /// source: either a direct reading or a selected scenario. This prevents a
+  /// market preference from surfacing bets derived from unrelated readings.
+  bool _isCandidateEnabledByProfile(
+    BetCandidate candidate,
+    CompiledDecisionProfile profile,
+  ) {
+    return candidate.supportingReadingIds.any(profile.isReadingAllowed) ||
+        candidate.supportingThesisIds.any(profile.isThesisConfigured);
   }
 
   List<FootballReading> _profileReadings(
@@ -167,27 +576,12 @@ class OpportunityEngineV2 {
     CompiledDecisionProfile profile,
   ) {
     return analysis.supportingReadings
-        .where((reading) => profile.isReadingAllowed(reading.id))
+        .where(
+          (reading) =>
+              _isDirectAttentionReading(reading.id) &&
+              profile.isReadingAllowed(reading.id),
+        )
         .toList(growable: false);
-  }
-
-  int _readingCompatibility(List<FootballReading> readings) {
-    if (readings.isEmpty) {
-      return 0;
-    }
-
-    final strongest = readings
-        .map(_readingScore)
-        .reduce((a, b) => a > b ? a : b);
-    return (strongest + (readings.length - 1) * 6).clamp(0, 88).toInt();
-  }
-
-  int _readingScore(FootballReading reading) {
-    return switch (reading.strength) {
-      ReadingStrength.strong => 72,
-      ReadingStrength.moderate => 58,
-      ReadingStrength.weak => 42,
-    };
   }
 
   List<MatchSignal> _signalsForReadings(
@@ -220,7 +614,7 @@ class OpportunityEngineV2 {
   String _readingTitle(FootballReading reading, String subjectName) {
     return switch (reading.id) {
       'balanced_hierarchy' => 'Hiérarchie proche',
-      'ranking_superiority' => 'Avantage au classement pour $subjectName',
+      'ranking_superiority' => 'Écart au classement pour $subjectName',
       'structural_level_gap' => 'Écart de niveau pour $subjectName',
       'positive_streak' => 'Dynamique positive pour $subjectName',
       'negative_streak' => 'Dynamique négative pour $subjectName',
@@ -309,7 +703,7 @@ class OpportunityEngineV2 {
         clarityScore: 0,
         evidence: const [
           ThesisEvidenceAssessment(
-            relation: ThesisEvidenceRelation.evidenceUnavailable,
+            relation: ThesisEvidenceRelation.notRelevant,
             family: CopilotArgumentFamily.performance,
             label: 'Aucune combinaison discriminante suffisante.',
           ),
@@ -422,6 +816,12 @@ class OpportunityEngineV2 {
     if (away.status == ThesisAssessmentStatus.notEligible) {
       return away;
     }
+    if (home.status == ThesisAssessmentStatus.notEvaluable) {
+      return home;
+    }
+    if (away.status == ThesisAssessmentStatus.notEvaluable) {
+      return away;
+    }
     return home.clarityScore >= away.clarityScore ? home : away;
   }
 
@@ -435,10 +835,50 @@ class OpportunityEngineV2 {
     final opponent = _teamForSide(match, _opponent(side));
     final evidence = <ThesisEvidenceAssessment>[];
 
-    if (relation?.sameTier ?? false) {
+    if (relation == null ||
+        relation.tierStatus != TierSystemStatus.mature ||
+        relation.tierMaturity != TierMaturity.mature) {
+      return ThesisAssessment(
+        id: 'expected_domination',
+        title: 'Domination attendue',
+        subjectSide: side,
+        status: ThesisAssessmentStatus.notEvaluable,
+        failedGate: 'EG_TIER_SYSTEM_MATURITY',
+        clarityScore: 0,
+        evidence: const [
+          ThesisEvidenceAssessment(
+            relation: ThesisEvidenceRelation.evidenceUnavailable,
+            family: CopilotArgumentFamily.hierarchy,
+            label: 'Tier de championnat indisponible ou immature.',
+          ),
+        ],
+      );
+    }
+
+    if (relation.homeTeamTier == null ||
+        relation.awayTeamTier == null ||
+        relation.ordinalTierGap == null) {
+      return ThesisAssessment(
+        id: 'expected_domination',
+        title: 'Domination attendue',
+        subjectSide: side,
+        status: ThesisAssessmentStatus.notEvaluable,
+        failedGate: 'EG_TIER_ASSIGNMENT_AVAILABLE',
+        clarityScore: 0,
+        evidence: const [
+          ThesisEvidenceAssessment(
+            relation: ThesisEvidenceRelation.evidenceUnavailable,
+            family: CopilotArgumentFamily.hierarchy,
+            label: 'Tier indisponible pour une des deux équipes.',
+          ),
+        ],
+      );
+    }
+
+    if (relation.sameTier) {
       evidence.add(
         ThesisEvidenceAssessment(
-          relation: ThesisEvidenceRelation.resistance,
+          relation: ThesisEvidenceRelation.notRelevant,
           family: CopilotArgumentFamily.hierarchy,
           label: 'Même Tier: domination attendue non éligible.',
         ),
@@ -565,6 +1005,20 @@ class OpportunityEngineV2 {
     MatchBoardItem match,
     FootballAnalysis analysis,
   ) {
+    final homeCreation = _hasAttackCreation(analysis, match.homeTeam.id);
+    final awayCreation = _hasAttackCreation(analysis, match.awayTeam.id);
+    final hasOpenCore =
+        analysis.detected(id: 'open_match_profile').isNotEmpty ||
+        (homeCreation && awayCreation);
+    final hasStrongClosedContradiction =
+        analysis.detected(id: 'closed_match_profile').isNotEmpty ||
+        _bothTeamsHave(analysis, match, 'solid_defense') ||
+        _bothTeamsHave(analysis, match, 'scoring_difficulty') ||
+        _bothTeamsHave(analysis, match, 'low_xg_creation');
+    if (!hasOpenCore || hasStrongClosedContradiction) {
+      return null;
+    }
+
     final supporting = [
       ...analysis.detected(id: 'open_match_profile'),
       ...analysis.detected(id: 'frequent_over_25'),
@@ -572,7 +1026,7 @@ class OpportunityEngineV2 {
       ...analysis.detected(id: 'fragile_defense'),
       ...analysis.detected(id: 'high_xg_conceded'),
     ];
-    if (supporting.length < 3) {
+    if (!_hasIndependentFamilies(supporting, minimum: 2)) {
       return null;
     }
 
@@ -596,6 +1050,19 @@ class OpportunityEngineV2 {
     MatchBoardItem match,
     FootballAnalysis analysis,
   ) {
+    final hasClosedCore =
+        analysis.detected(id: 'closed_match_profile').isNotEmpty ||
+        (_bothTeamsHave(analysis, match, 'solid_defense') &&
+            _bothTeamsHave(analysis, match, 'scoring_difficulty'));
+    final hasStrongOpenContradiction =
+        analysis.detected(id: 'open_match_profile').isNotEmpty ||
+        (_hasAttackCreation(analysis, match.homeTeam.id) &&
+            _hasAttackCreation(analysis, match.awayTeam.id)) ||
+        analysis.detected(id: 'high_xg_conceded').length >= 2;
+    if (!hasClosedCore || hasStrongOpenContradiction) {
+      return null;
+    }
+
     final supporting = [
       ...analysis.detected(id: 'closed_match_profile'),
       ...analysis.detected(id: 'frequent_under_25'),
@@ -603,7 +1070,7 @@ class OpportunityEngineV2 {
       ...analysis.detected(id: 'frequent_clean_sheet'),
       ...analysis.detected(id: 'scoring_difficulty'),
     ];
-    if (supporting.length < 3) {
+    if (!_hasIndependentFamilies(supporting, minimum: 2)) {
       return null;
     }
 
@@ -632,7 +1099,7 @@ class OpportunityEngineV2 {
     }
 
     final favorite = _marketFavorite(match);
-    if (favorite == null || outsider.selection.odds > 4.50) {
+    if (favorite == null) {
       return null;
     }
 
@@ -748,16 +1215,16 @@ class OpportunityEngineV2 {
     MatchBoardItem match,
     FootballAnalysis analysis,
   ) {
-    final homeCreation =
-        analysis.has('high_xg_creation', subjectTeamId: match.homeTeam.id) ||
-        analysis.has('prolific_attack', subjectTeamId: match.homeTeam.id);
-    final awayCreation =
-        analysis.has('high_xg_creation', subjectTeamId: match.awayTeam.id) ||
-        analysis.has('prolific_attack', subjectTeamId: match.awayTeam.id);
+    final homeCreation = _hasAttackCreation(analysis, match.homeTeam.id);
+    final awayCreation = _hasAttackCreation(analysis, match.awayTeam.id);
     final fragile =
         analysis.detected(id: 'fragile_defense').isNotEmpty ||
         analysis.detected(id: 'high_xg_conceded').isNotEmpty;
-    if (!homeCreation || !awayCreation || !fragile) {
+    final hasStrongContradiction =
+        analysis.detected(id: 'closed_match_profile').isNotEmpty ||
+        analysis.detected(id: 'low_xg_creation').isNotEmpty ||
+        _hasStrongReading(analysis, 'scoring_difficulty');
+    if (!homeCreation || !awayCreation || !fragile || hasStrongContradiction) {
       return null;
     }
 
@@ -796,19 +1263,34 @@ class OpportunityEngineV2 {
     for (final side in [ReadingSubjectSide.home, ReadingSubjectSide.away]) {
       final team = _teamForSide(match, side);
       final opponent = _teamForSide(match, _opponent(side));
+      final targetAttack = _readingsFor(analysis, team.id, [
+        'prolific_attack',
+        'high_xg_creation',
+      ]);
+      final opponentDefensiveWeakness = _readingsFor(analysis, opponent.id, [
+        'fragile_defense',
+        'high_xg_conceded',
+      ]);
+      final targetCannotCreate = _readingsFor(analysis, team.id, [
+        'scoring_difficulty',
+        'low_xg_creation',
+      ]);
+      if (targetAttack.isEmpty ||
+          opponentDefensiveWeakness.isEmpty ||
+          targetCannotCreate.isNotEmpty) {
+        continue;
+      }
+
       final supporting = [
+        ...targetAttack,
+        ...opponentDefensiveWeakness,
+        ..._readingsFor(analysis, opponent.id, ['scoring_difficulty']),
         ..._readingsFor(analysis, team.id, [
-          'prolific_attack',
-          'high_xg_creation',
+          'solid_defense',
+          'ranking_superiority',
         ]),
-        ..._readingsFor(analysis, opponent.id, [
-          'fragile_defense',
-          'high_xg_conceded',
-          'scoring_difficulty',
-        ]),
-        ..._readingsFor(analysis, team.id, ['solid_defense']),
       ];
-      if (supporting.length >= 3) {
+      if (_hasIndependentFamilies(supporting, minimum: 2)) {
         return _OpportunityCandidate(
           id: 'one_sided_scoring',
           title: 'Pression offensive à sens unique',
@@ -1058,37 +1540,6 @@ class OpportunityEngineV2 {
     }
   }
 
-  List<OpportunityMarketCompatibility> _compatibleMarkets(
-    MatchBoardItem match,
-    CompiledDecisionProfile profile,
-    _OpportunityCandidate candidate,
-  ) {
-    final result = <OpportunityMarketCompatibility>[];
-    for (final intent in candidate.marketIntents) {
-      final market = _marketById(match, intent.marketId);
-      final preference = profile.enabledMarket(intent.marketId);
-      if (market == null || preference == null) {
-        continue;
-      }
-
-      final selection = _selectionForIntent(market, intent.selection);
-      if (selection == null) {
-        continue;
-      }
-
-      result.add(
-        OpportunityMarketCompatibility(
-          thesisId: candidate.id,
-          market: market,
-          selection: selection,
-          isRecommended: result.isEmpty,
-        ),
-      );
-    }
-
-    return result;
-  }
-
   MatchThesis _thesisFor(
     MatchBoardItem match,
     _OpportunityCandidate candidate,
@@ -1189,6 +1640,38 @@ class OpportunityEngineV2 {
         .toList(growable: false);
   }
 
+  bool _hasAttackCreation(FootballAnalysis analysis, String teamId) {
+    return _readingsFor(analysis, teamId, [
+      'high_xg_creation',
+      'prolific_attack',
+    ]).isNotEmpty;
+  }
+
+  bool _bothTeamsHave(
+    FootballAnalysis analysis,
+    MatchBoardItem match,
+    String readingId,
+  ) {
+    return analysis.has(readingId, subjectTeamId: match.homeTeam.id) &&
+        analysis.has(readingId, subjectTeamId: match.awayTeam.id);
+  }
+
+  bool _hasStrongReading(FootballAnalysis analysis, String readingId) {
+    return analysis
+        .detected(id: readingId)
+        .any((reading) => reading.strength == ReadingStrength.strong);
+  }
+
+  bool _hasIndependentFamilies(
+    Iterable<FootballReading> readings, {
+    required int minimum,
+  }) {
+    return {
+          for (final reading in readings) _familyForReading(reading),
+        }.length >=
+        minimum;
+  }
+
   MatchMarket? _marketById(MatchBoardItem match, String marketId) {
     for (final market in match.availableMarkets) {
       if (market.id == marketId) {
@@ -1199,7 +1682,11 @@ class OpportunityEngineV2 {
     return null;
   }
 
-  MarketOdds? _selectionForIntent(MatchMarket market, _SelectionIntent intent) {
+  MarketOdds? _selectionForIntent(
+    MatchMarket market,
+    _SelectionIntent intent, {
+    String? playerName,
+  }) {
     for (final selection in market.selections) {
       final rawValue = selection.apiFootballValue?.toLowerCase();
       final label = selection.label.toLowerCase();
@@ -1218,7 +1705,12 @@ class OpportunityEngineV2 {
           rawValue == 'under 2.5' || label.contains('under 2.5'),
         _SelectionIntent.over05 =>
           rawValue == 'over 0.5' || label.contains('over 0.5'),
-        _SelectionIntent.yes => rawValue == 'yes' || label == 'oui',
+        _SelectionIntent.yes =>
+          rawValue == 'yes' ||
+              label == 'oui' ||
+              (market.id == 'playerAnytimeScorer' &&
+                  playerName != null &&
+                  _samePlayerName(selection.playerName, playerName)),
         _SelectionIntent.no => rawValue == 'no' || label == 'non',
       };
 
@@ -1353,11 +1845,28 @@ class _OpportunityCandidate {
   }
 }
 
-class _MarketIntent {
-  const _MarketIntent(this.marketId, this.selection);
+typedef _MarketIntent = MarketIntent;
+typedef _SelectionIntent = MarketSelectionIntent;
 
-  final String marketId;
-  final _SelectionIntent selection;
+class _BetCandidateDraft {
+  _BetCandidateDraft({
+    required this.market,
+    required this.selection,
+    required this.subjectTeamId,
+    required this.subjectSide,
+    this.subjectPlayerId,
+    this.subjectPlayerName,
+  });
+
+  final MatchMarket market;
+  final MarketOdds selection;
+  final String? subjectTeamId;
+  final ReadingSubjectSide subjectSide;
+  final int? subjectPlayerId;
+  final String? subjectPlayerName;
+  final Set<String> readingIds = <String>{};
+  final Set<String> thesisIds = <String>{};
+  final Set<String> contradictionIds = <String>{};
 }
 
 class _MarketSide {
@@ -1442,18 +1951,4 @@ int _supportFamilyCount(List<ThesisEvidenceAssessment> evidence) {
     }
   }
   return families.length;
-}
-
-enum _SelectionIntent {
-  home,
-  draw,
-  away,
-  homeOrDraw,
-  homeOrAway,
-  drawOrAway,
-  over25,
-  under25,
-  over05,
-  yes,
-  no,
 }

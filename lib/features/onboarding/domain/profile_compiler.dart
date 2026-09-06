@@ -24,11 +24,13 @@ class ProfileCompiler {
   CompiledDecisionProfile compile(DecisionProfile profile) {
     final competitions = _competitionPreferences(profile);
     final markets = _marketPreferences(profile);
+    final readings = _readingPreferences(profile);
     final opportunityProfiles = _opportunityProfilePreferences(profile);
     final state = _configurationState(
       profile: profile,
       competitions: competitions,
       markets: markets,
+      readings: readings,
       opportunityProfiles: opportunityProfiles,
     );
     final ignoredLegacyQuestionIds = _ignoredLegacyQuestionIds(profile);
@@ -41,6 +43,7 @@ class ProfileCompiler {
       competitions: competitions,
       markets: markets,
       matchTypes: opportunityProfiles,
+      readings: readings,
       compatibility: ProfileCompatibility(
         migratedFromSchemaVersion: _migratedFromSchemaVersion(
           profile,
@@ -72,16 +75,27 @@ class ProfileCompiler {
   }
 
   Map<String, MarketPreference> _marketPreferences(DecisionProfile profile) {
-    final selectedIds = _answerOptionIds(profile, 'markets').toSet();
+    final selectedIds = MarketCatalog.enabledMarketIdsFor(
+      _answerOptionIds(profile, 'markets'),
+    );
 
     return {
       for (final definition in MarketCatalog.values)
         definition.id: MarketPreference(
           id: definition.id,
-          enabled:
-              selectedIds.contains(definition.id) ||
-              definition.sourceOptionIds.any(selectedIds.contains),
+          enabled: selectedIds.contains(definition.id),
           sourceOptionId: definition.sourceOptionIds.first,
+        ),
+    };
+  }
+
+  Map<String, ReadingPreference> _readingPreferences(DecisionProfile profile) {
+    final selectedIds = _answerOptionIds(profile, 'readings').toSet();
+    return {
+      for (final definition in ReadingPreferenceCatalog.values)
+        definition.id: ReadingPreference(
+          id: definition.id,
+          enabled: selectedIds.contains(definition.id),
         ),
     };
   }
@@ -107,6 +121,7 @@ class ProfileCompiler {
     required DecisionProfile profile,
     required Map<String, CompetitionPreference> competitions,
     required Map<String, MarketPreference> markets,
+    required Map<String, ReadingPreference> readings,
     required Map<String, MatchTypePreference> opportunityProfiles,
   }) {
     if (profile.answers.isEmpty) {
@@ -117,11 +132,12 @@ class ProfileCompiler {
       (preference) => preference.enabled,
     );
     final hasMarket = markets.values.any((preference) => preference.enabled);
+    final hasReading = readings.values.any((preference) => preference.enabled);
     final hasOpportunityProfile = opportunityProfiles.values.any(
       (preference) => preference.enabled,
     );
 
-    if (hasCompetition && hasMarket && hasOpportunityProfile) {
+    if (hasCompetition && (hasMarket || hasReading || hasOpportunityProfile)) {
       return ProfileConfigurationState.completed;
     }
 

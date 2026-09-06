@@ -27,7 +27,7 @@ class PickTypeCatalog {
 
   static const prudent = PickTypeOddsBand(
     id: PickType.prudent,
-    minimumOdds: 1.20,
+    minimumOdds: 0,
     maximumOdds: 1.49,
   );
 
@@ -552,6 +552,29 @@ class MarketCatalog {
 
     return null;
   }
+
+  /// Normalizes persisted canonical IDs and UI source option IDs to the IDs
+  /// used by the market toggles. This keeps old profiles editable without
+  /// changing which market they authorize.
+  static Set<String> sourceOptionIdsFor(Iterable<String> ids) {
+    final selected = ids.toSet();
+    return {
+      for (final definition in values)
+        if (selected.contains(definition.id) ||
+            definition.sourceOptionIds.any(selected.contains))
+          ...definition.sourceOptionIds,
+    };
+  }
+
+  static Set<String> enabledMarketIdsFor(Iterable<String> ids) {
+    final selected = ids.toSet();
+    return {
+      for (final definition in values)
+        if (selected.contains(definition.id) ||
+            definition.sourceOptionIds.any(selected.contains))
+          definition.id,
+    };
+  }
 }
 
 class OpportunityProfileDefinition {
@@ -570,6 +593,180 @@ class OpportunityProfileDefinition {
   final List<String> thesisIds;
 
   bool get isSupported => thesisIds.isNotEmpty;
+}
+
+/// Metadata describing a selectable football reading.
+///
+/// This is deliberately descriptive: thresholds and detection remain in the
+/// analysis context, while a user preference only chooses which observed
+/// facts may personalize "Pour moi".
+class ReadingPreferenceDefinition {
+  const ReadingPreferenceDefinition({
+    required this.id,
+    required this.label,
+    required this.description,
+  });
+
+  final String id;
+  final String label;
+  final String description;
+}
+
+class ReadingPreferenceCatalog {
+  const ReadingPreferenceCatalog._();
+
+  static const values = [
+    ReadingPreferenceDefinition(
+      id: 'structural_level_gap',
+      label: 'Écart de niveau structurel',
+      description:
+          'Une différence de niveau est confirmée par le contexte du championnat.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'positive_streak',
+      label: 'Dynamique positive',
+      description: 'Une équipe enchaîne des résultats favorables.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'negative_streak',
+      label: 'Dynamique négative',
+      description: 'Une équipe traverse une série défavorable.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'improving_form',
+      label: 'Forme en hausse',
+      description: 'Les résultats récents progressent.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'declining_form',
+      label: 'Forme en baisse',
+      description: 'Les résultats récents se dégradent.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'strong_home_team',
+      label: 'Solide à domicile',
+      description: 'Une équipe se distingue dans ses matchs à domicile.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'weak_home_team',
+      label: 'Fragile à domicile',
+      description: 'Une équipe rencontre des difficultés à domicile.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'strong_away_team',
+      label: 'Solide à l’extérieur',
+      description: 'Une équipe se distingue dans ses matchs à l’extérieur.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'standout_goal_scorer',
+      label: 'Buteur qui se distingue',
+      description:
+          'Un joueur se détache par sa production de buts au sein de son équipe.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'weak_away_team',
+      label: 'Fragile à l’extérieur',
+      description: 'Une équipe rencontre des difficultés à l’extérieur.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'home_away_mismatch',
+      label: 'Avantage domicile / extérieur',
+      description: 'Les profils domicile et extérieur s’opposent nettement.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'prolific_attack',
+      label: 'Attaque prolifique',
+      description: 'Une équipe produit régulièrement des buts.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'scoring_difficulty',
+      label: 'Production offensive faible',
+      description: 'Une équipe peine à marquer.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'solid_defense',
+      label: 'Défense solide',
+      description: 'Une équipe concède peu.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'fragile_defense',
+      label: 'Défense fragile',
+      description: 'Une équipe concède régulièrement.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'frequent_clean_sheet',
+      label: 'Clean sheets fréquents',
+      description: 'Une équipe garde souvent sa cage inviolée.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'open_match_profile',
+      label: 'Match ouvert',
+      description: 'Les données convergent vers un rythme de buts élevé.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'frequent_over_25',
+      label: 'Tendance over 2,5 buts',
+      description: 'Les matchs récents dépassent souvent 2,5 buts.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'frequent_btts',
+      label: 'BTTS fréquent',
+      description: 'Les deux équipes marquent régulièrement.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'closed_match_profile',
+      label: 'Match fermé',
+      description: 'Les données convergent vers un rythme bas.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'frequent_under_25',
+      label: 'Tendance under 2,5 buts',
+      description: 'Les matchs récents restent souvent sous 2,5 buts.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'high_xg_creation',
+      label: 'Création xG élevée',
+      description: 'Une équipe crée des occasions de qualité.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'low_xg_creation',
+      label: 'Création xG faible',
+      description: 'Une équipe crée peu d’occasions de qualité.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'high_xg_conceded',
+      label: 'xG concédés élevés',
+      description: 'Une équipe concède des occasions de qualité.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'offensive_underperformance',
+      label: 'Sous-performance offensive',
+      description: 'Les buts marqués restent en retrait des occasions créées.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'offensive_overperformance',
+      label: 'Surperformance offensive',
+      description: 'Les buts marqués dépassent les occasions créées.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'defensive_underperformance',
+      label: 'Sous-performance défensive',
+      description: 'Les buts encaissés dépassent les occasions concédées.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'defensive_overperformance',
+      label: 'Surperformance défensive',
+      description: 'Les buts encaissés restent sous les occasions concédées.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'misleading_result',
+      label: 'Résultats à nuancer',
+      description: 'Les résultats ne reflètent pas entièrement les xG.',
+    ),
+  ];
+
+  static bool contains(String readingId) =>
+      values.any((definition) => definition.id == readingId);
 }
 
 class OpportunityProfileCatalog {
@@ -703,9 +900,13 @@ class OpportunityProfileCatalog {
     return _profileIdsByReadingId[readingId] ?? const [];
   }
 
+  static bool isDirectPersonalizationReading(String readingId) {
+    return ReadingPreferenceCatalog.contains(readingId);
+  }
+
   static const Map<String, List<String>> _profileIdsByReadingId = {
-    'balanced_hierarchy': ['ranking_gap'],
-    'ranking_superiority': ['solid_favorite', 'ranking_gap'],
+    'balanced_hierarchy': [],
+    'ranking_superiority': ['solid_favorite'],
     'structural_level_gap': ['solid_favorite', 'ranking_gap'],
     'positive_streak': ['solid_favorite', 'positive_series'],
     'improving_form': ['solid_favorite', 'positive_series'],

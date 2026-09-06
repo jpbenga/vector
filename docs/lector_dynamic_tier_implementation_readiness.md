@@ -74,7 +74,6 @@ Pipeline observe :
 | Match model | `lib/features/matches/domain/match_board_item.dart` | normalized values | `MatchBoardItem.analysis` | Holds `MatchAnalysisData` with home/away standings and `leagueStandings`. | Add/reference `MatchStructuralRelation` or future bundle. |
 | Analyzer | `lib/features/matches/domain/football_analyzer.dart` | `MatchBoardItem` | `FootballAnalysis.readings` | Produces deterministic readings. | Consume `MatchStructuralRelation` for hierarchy readings. |
 | V2 opportunities | `lib/features/matches/domain/opportunity_engine_v2.dart` | `MatchBoardItem`, profile | `Opportunity` | Produces one selected V2 opportunity per match. | Add gates and evaluate all canonical theses before user matching. |
-| Legacy fallback | `lib/features/matches/domain/match_insight_engine.dart` | match/profile | legacy `Opportunity`/`MatchThesis` | Used when V2 empty or analyze fallback. | Must be isolated or removed after V2 matrix migration. |
 | Picks | `lib/features/matches/domain/pick_engine.dart` | opportunities/profile | `GeneratedTicketPick` | Requires recommended market enabled in profile. | Remains user-specific after Match Intelligence. |
 | Presentation | `lib/features/matches/presentation/match_detail_page.dart`, `opportunity_decision_presenter.dart` | `MatchBoardItem`, thesis args | UI cards/copy | Mixes engine output and hardcoded explanation cards. | Consume engine readings/relations only. |
 
@@ -203,7 +202,6 @@ Downstream consumers today :
 
 - `FootballAnalyzer._hierarchyReadings` uses min home/away standing `played` as sample size.
 - `FootballAnalyzer` attack/defense/rhythm uses `TeamStatisticsSnapshot.playedTotal`.
-- legacy `MatchInsightEngine` uses `played` for reliability/performance arguments.
 - UI detail tables display `played`.
 
 PPG audit :
@@ -430,7 +428,6 @@ Required future gate location :
 Current profile intervention points :
 
 - `MatchFeedRepository.opportunitiesFor(profile)` compiles profile before opportunities.
-- `MatchInsightEngine.opportunities` calls V2 first; fallback batch only runs if V2 returns no opportunities.
 - `OpportunityEngineV2.opportunities` returns empty for incomplete profile and filters competitions before `analyzeOpportunity`.
 - `OpportunityEngineV2.analyzeOpportunity` returns null if profile incomplete or competition disabled.
 - V2 filters candidates with `profile.isThesisAllowed(candidate.id)` before selection.
@@ -524,7 +521,6 @@ It does not block pure algorithm implementation, but must be fixed before claimi
 | `test/features/matches/data/api_football_match_adapter_test.dart` | adapter standings/stats/xG mapping | Reuse for `TeamStandingSnapshot.description` and `leagueStandings` completeness | Must update when model adds structural fields. |
 | `test/features/matches/domain/football_analyzer_test.dart` | current readings and xG temporal safety | Reuse for hierarchy migration regression | Existing `structural_level_gap` expectations will change. |
 | `test/features/matches/domain/opportunity_engine_v2_test.dart` | one V2 opportunity, profile gating, market mapping | Reuse for expected_domination gate tests | Existing domination fixture may need Tier relation. |
-| `test/features/matches/domain/match_insight_engine_test.dart` | legacy fallback scenarios | Reuse as compatibility guard | May remain unchanged if V2 path becomes authoritative. |
 | `test/features/matches/presentation/opportunity_decision_presenter_test.dart` | reading copy mapping | Reuse for hierarchy copy nuance | Update copy after Tier-derived structural gap. |
 | `test/features/matches/presentation/matches_home_page_test.dart` | presentation behavior | Reuse for no hardcoded structural text regressions | UI follow-up. |
 | `test/features/tickets/domain/ticket_generator_test.dart` | ticket generation evidence snapshots | Reuse for display ID stability | Generated explanation IDs may need alignment. |
@@ -712,7 +708,6 @@ TIER_UNAVAILABLE_CONFERENCE_LOGIC_UNMODELED
 | `lib/features/matches/data/supabase_match_feed_snapshot_repository.dart` | load/merge snapshots | preserve source/as_of metadata for structural identity | temporal identity | merge semantics | Phase 3/9 |
 | `lib/features/matches/domain/football_analyzer.dart` | readings | consume `MatchStructuralRelation` for hierarchy readings | locked producers | breaking tests | Phase 6 |
 | `lib/features/matches/domain/opportunity_engine_v2.dart` | V2 thesis selection | add Tier Gate, later assessments | Business Matrix compliance | opportunity count changes | Phase 7/8 |
-| `lib/features/matches/domain/match_insight_engine.dart` | V2/legacy orchestration | move toward exhaustive intelligence then matching | profile boundary | fallback interactions | Phase 8 |
 | `lib/features/opportunities/domain/opportunity.dart` | selected opportunity payload | reference readings/assessments/relation as needed | explanation traceability | API shape | Phase 8 |
 | `lib/features/matches/presentation/match_detail_page.dart` | detail UI | replace hardcoded reading cards with engine data | UI integrity | widget churn | Phase 10 |
 | `lib/features/matches/presentation/opportunity_decision_presenter.dart` | reading copy | update hierarchy copy semantics | avoid overclaiming | copy snapshots | Phase 10 |

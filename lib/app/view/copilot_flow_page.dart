@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../access/temporary_access_link_cleaner.dart';
 import '../access/temporary_access_link_repository.dart';
 import '../../core/auth/supabase_auth_controller.dart';
+import '../../core/debug/runtime_personalization_diagnostic.dart';
 import '../../core/di/service_locator.dart';
 import '../../core/identity/identity_controller.dart';
 import '../../core/identity/identity_scope.dart';
@@ -128,6 +129,13 @@ class _CopilotFlowPageState extends State<CopilotFlowPage> {
       _isCheckingSavedProfile = false;
       _lastHydratedScopeKey = token.scope.stableKey;
     });
+    RuntimePersonalizationDiagnostic.instance.recordLifecycle(
+      'compiled profile created',
+      fields: {
+        'scope': token.scope.stableKey,
+        'profilePresent': savedProfile != null,
+      },
+    );
   }
 
   Future<void> _redeemTemporaryAccessLinkIfPresent() async {

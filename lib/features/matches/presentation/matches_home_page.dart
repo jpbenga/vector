@@ -1,9 +1,13 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/deck/lector_deck.dart';
 import '../../../core/auth/supabase_auth_controller.dart';
 import '../../../core/di/service_locator.dart';
+import '../../../core/debug/runtime_personalization_diagnostic.dart';
 import '../../../core/identity/identity_controller.dart';
 import '../../../core/identity/identity_scope.dart';
 import '../../../core/theme/app_colors.dart';
@@ -78,6 +82,8 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
   bool _isTicketPanelExpanded = false;
   bool _isSettlingSavedTickets = false;
   String? _lastTicketSettlementSignature;
+  String? _lastPersonalizationTraceSignature;
+  bool _hasTracedMatchesLoaded = false;
   DateTime _selectedScoresDate = _todayDate();
   bool _hasUserSelectedScoresDate = false;
   _ScoresRedesignMode _scoresMode = _ScoresRedesignMode.forMe;
@@ -149,7 +155,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
               repository.analyzeFor(widget.profile, match),
           ];
           final ticketGenerationResult = const TicketGenerator().generate(
-            opportunities: opportunities,
+            matches: personalizedMatches,
             strategies: widget.ticketStrategies,
             profile: compiledProfile,
           );
@@ -159,6 +165,24 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             metadata: snapshotMetadata,
             allowAutomaticFallback: !_hasUserSelectedScoresDate,
           );
+          _tracePersonalization(
+            profile: widget.profile,
+            compiledProfile: compiledProfile,
+            allMatches: analyzedAllMatches,
+            personalizedMatches: personalizedMatches,
+            selectedDate: effectiveSelectedDate,
+          );
+          if (!_hasTracedMatchesLoaded) {
+            _hasTracedMatchesLoaded = true;
+            RuntimePersonalizationDiagnostic.instance.recordLifecycle(
+              'matches loaded',
+              fields: {
+                'scope': widget.identityScope.stableKey,
+                'matchCount': analyzedAllMatches.length,
+                'snapshotSource': snapshotMetadata?.source,
+              },
+            );
+          }
           _latestOpportunities = opportunities;
           _latestAnalyzedMatches = analyzedAllMatches;
           _scheduleSavedTicketSettlement(analyzedAllMatches);
@@ -167,7 +191,10 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
                 .where((item) => item.matchId == match.id)
                 .firstOrNull;
             if (opportunity != null) {
-              _openOpportunityDetails(opportunity);
+              _openOpportunityDetails(
+                opportunity,
+                match: repository.analyzeFor(widget.profile, match),
+              );
               return;
             }
             _openMatchDetails(repository.analyzeFor(widget.profile, match));
@@ -208,6 +235,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             onOpenStrategies: _openTicketStrategies,
             generator: TicketGeneratorPage(
               profile: compiledProfile,
+              matches: personalizedMatches,
               opportunities: opportunities,
               strategies: widget.ticketStrategies,
               savedTickets: _savedTickets,
@@ -255,6 +283,90 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
       _selectedScoresDate = _dateOnly(selected);
       _hasUserSelectedScoresDate = true;
     });
+  }
+
+  void _tracePersonalization({
+    required DecisionProfile profile,
+    required CompiledDecisionProfile compiledProfile,
+    required List<MatchBoardItem> allMatches,
+    required List<MatchBoardItem> personalizedMatches,
+    required DateTime selectedDate,
+  }) {
+    final diagnostic = RuntimePersonalizationDiagnostic.instance;
+    if (!diagnostic.isEnabled) return;
+
+    final matchesOnDate = allMatches
+        .where(
+          (match) => _isSameCalendarDay(
+            lectorLocalCalendarDateForFixture(match.fixture) ?? _todayDate(),
+            selectedDate,
+          ),
+        )
+        .toList(growable: false);
+    final includedIds = personalizedMatches
+        .where(
+          (match) => _isSameCalendarDay(
+            lectorLocalCalendarDateForFixture(match.fixture) ?? _todayDate(),
+            selectedDate,
+          ),
+        )
+        .map((match) => match.id)
+        .toSet();
+    final traceMatches = [
+      for (final match in matchesOnDate)
+        {
+          'matchId': match.id,
+          'competitionId': match.competition.id,
+          'attentionMatches': match.profileRelevance.readingMatches,
+          'scenarioMatches': match.profileRelevance.thesisMatches,
+          'marketMatches': match.profileRelevance.marketMatches,
+          'included': includedIds.contains(match.id),
+        },
+    ];
+    final profileHash = diagnostic.hashFor(jsonEncode(profile.toJson()));
+    final intelligenceHash = diagnostic.hashFor(
+      jsonEncode([
+        for (final match in allMatches)
+          [
+            match.id,
+            match.analysis.contextKeys.length,
+            match.profileRelevance.readingMatches,
+            match.profileRelevance.thesisMatches,
+            match.profileRelevance.marketMatches,
+          ],
+      ]),
+    );
+    final signature = [
+      profileHash,
+      intelligenceHash,
+      selectedDate.toIso8601String(),
+      includedIds.length,
+    ].join(':');
+    if (signature == _lastPersonalizationTraceSignature) return;
+    _lastPersonalizationTraceSignature = signature;
+    diagnostic.recordForMe(
+      selectedDate: selectedDate,
+      profileHash: profileHash,
+      matchIntelligenceHash: intelligenceHash,
+      matchesOnDate: matchesOnDate.length,
+      matchesInFollowedCompetitions: matchesOnDate
+          .where(
+            (match) =>
+                compiledProfile.isCompetitionEnabled(match.competition.id),
+          )
+          .length,
+      matchesMatchingAttention: matchesOnDate
+          .where((match) => match.profileRelevance.readingMatches > 0)
+          .length,
+      matchesMatchingScenarios: matchesOnDate
+          .where((match) => match.profileRelevance.thesisMatches > 0)
+          .length,
+      matchesMatchingMarkets: matchesOnDate
+          .where((match) => match.profileRelevance.marketMatches > 0)
+          .length,
+      matches: traceMatches,
+    );
+    diagnostic.recordLifecycle('personalization executed');
   }
 
   void _showAccountSheet(BuildContext context) {
@@ -540,11 +652,20 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
     );
   }
 
-  void _openOpportunityDetails(Opportunity opportunity) {
+  void _openOpportunityDetails(
+    Opportunity opportunity, {
+    MatchBoardItem? match,
+  }) {
+    final analyzedMatch =
+        match ??
+        _latestAnalyzedMatches
+            .where((item) => item.id == opportunity.matchId)
+            .firstOrNull ??
+        opportunity.toMatchBoardItem();
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (context) => MatchDetailPage(
-          match: opportunity.toMatchBoardItem(),
+          match: analyzedMatch,
           opportunity: opportunity,
           ticketDraftListenable: _ticketDraftNotifier,
           ticketStrategies: widget.ticketStrategies,
@@ -647,8 +768,7 @@ DateTime _todayDate() {
 }
 
 DateTime _dateOnly(DateTime date) {
-  final local = date.toLocal();
-  return DateTime(local.year, local.month, local.day);
+  return lectorLocalCalendarDate(date);
 }
 
 String _initialsForUser(User? user) {
@@ -743,8 +863,8 @@ DateTime _resolvedScoresDate({
 }) {
   final selectedDay = _dateOnly(selectedDate);
   final hasMatchOnSelectedDate = matches.any((match) {
-    final kickoff = match.fixture.kickoff?.toLocal();
-    return kickoff != null && _isSameCalendarDay(kickoff, selectedDay);
+    final fixtureDay = lectorLocalCalendarDateForFixture(match.fixture);
+    return fixtureDay != null && _isSameCalendarDay(fixtureDay, selectedDay);
   });
   if (hasMatchOnSelectedDate) {
     return selectedDay;
@@ -755,9 +875,9 @@ DateTime _resolvedScoresDate({
   }
 
   for (final match in [...matches]..sort(_ScoresRedesignHome._compareMatches)) {
-    final kickoff = match.fixture.kickoff?.toLocal();
-    if (kickoff != null) {
-      return _dateOnly(kickoff);
+    final fixtureDay = lectorLocalCalendarDateForFixture(match.fixture);
+    if (fixtureDay != null) {
+      return fixtureDay;
     }
   }
 
@@ -948,7 +1068,9 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                               _ForMeReadingFilterBar(
                                 filters: readingFilters,
                                 selectedReadingId: activeReadingId,
-                                totalMatchCount: allStoryMatches.length,
+                                totalMatchCount: _uniqueMatchCount(
+                                  allStoryMatches,
+                                ),
                                 onSelected: (readingId) {
                                   setState(() {
                                     _selectedForMeReadingId = readingId;
@@ -1017,6 +1139,12 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
             ),
           ),
         ),
+        if (RuntimePersonalizationDiagnostic.instance.isEnabled)
+          Positioned(
+            right: 14,
+            bottom: 16 + MediaQuery.paddingOf(context).bottom,
+            child: _RuntimePersonalizationDiagnosticButton(),
+          ),
       ],
     );
   }
@@ -1046,7 +1174,10 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
       _ScoresRedesignMode.generator => const <MatchBoardItem>[],
     };
 
-    return List<MatchBoardItem>.of(source)
+    final uniqueByMatchId = <String, MatchBoardItem>{
+      for (final match in source) match.id: match,
+    };
+    return uniqueByMatchId.values.toList(growable: false)
       ..sort(_ScoresRedesignHome._compareMatches);
   }
 
@@ -1058,11 +1189,11 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
 
   List<MatchBoardItem> _matchesForDate(List<MatchBoardItem> source) {
     return source.where((match) {
-      final kickoff = match.fixture.kickoff?.toLocal();
-      if (kickoff == null) {
+      final fixtureDay = lectorLocalCalendarDateForFixture(match.fixture);
+      if (fixtureDay == null) {
         return _isSameCalendarDay(widget.selectedDate, _todayDate());
       }
-      return _isSameCalendarDay(kickoff, widget.selectedDate);
+      return _isSameCalendarDay(fixtureDay, widget.selectedDate);
     }).toList();
   }
 
@@ -1073,10 +1204,14 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
     return widget.personalizedMatches;
   }
 
+  int _uniqueMatchCount(Iterable<MatchBoardItem> matches) {
+    return matches.map((match) => match.id).toSet().length;
+  }
+
   bool _matchesSelectedCompetition(MatchBoardItem match) {
     final selectedIds = _selectedCompetitionIds;
     if (selectedIds.isEmpty) {
-      return true;
+      return false;
     }
 
     final apiLeagueId = match.competition.apiFootballLeagueId?.toString();
@@ -1100,9 +1235,9 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
     final candidates =
         source.where(_ScoresRedesignHome._hasReadableSignal).toList()
           ..sort((a, b) {
-            final scoreComparison = _profileReadingCount(
+            final scoreComparison = _profileRelevanceCount(
               b,
-            ).compareTo(_profileReadingCount(a));
+            ).compareTo(_profileRelevanceCount(a));
             if (scoreComparison != 0) {
               return scoreComparison;
             }
@@ -1176,7 +1311,11 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
     return _profileReadings(match).map((reading) => reading.id).toSet();
   }
 
-  int _profileReadingCount(MatchBoardItem match) {
+  int _profileRelevanceCount(MatchBoardItem match) {
+    if (match.profileRelevance.isRelevant) {
+      return match.profileRelevance.total;
+    }
+
     final readingCount = _profileReadings(match).length;
     final opportunityBonus = match.thesis?.hasRecommendedMarket == true ? 1 : 0;
     return readingCount + opportunityBonus;
@@ -1206,6 +1345,81 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
       });
 
     return groups;
+  }
+}
+
+class _RuntimePersonalizationDiagnosticButton extends StatelessWidget {
+  const _RuntimePersonalizationDiagnosticButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: IconButton.filledTonal(
+        key: const ValueKey('runtime-personalization-diagnostic'),
+        tooltip: 'Diagnostic Pour moi (dev)',
+        icon: const Icon(Icons.bug_report_outlined),
+        onPressed: () => _showDiagnostic(context),
+      ),
+    );
+  }
+
+  Future<void> _showDiagnostic(BuildContext context) async {
+    final report = RuntimePersonalizationDiagnostic.instance.report();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: SizedBox(
+            height: MediaQuery.sizeOf(context).height * .78,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Diagnostic runtime — Pour moi',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  onPressed: () async {
+                    await Clipboard.setData(ClipboardData(text: report));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Diagnostic copié.')),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.copy_outlined),
+                  label: const Text('Copier diagnostic'),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: .06),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(12),
+                      child: SelectableText(
+                        report,
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -1340,8 +1554,6 @@ class _ForMeReadingCategory {
   };
 
   static const _preferredProfileIds = <String, List<String>>{
-    'balanced_hierarchy': ['ranking_gap'],
-    'ranking_superiority': ['ranking_gap'],
     'structural_level_gap': ['ranking_gap'],
     'positive_streak': ['positive_series'],
     'improving_form': ['positive_series'],
@@ -1368,10 +1580,9 @@ class _ForMeReadingCategory {
 
 String _readingLabelForId(String id, {required String fallback}) {
   return switch (id) {
-    'ranking_gap' ||
-    'ranking_superiority' ||
-    'structural_level_gap' ||
-    'balanced_hierarchy' => 'Avantage classement',
+    'ranking_gap' || 'structural_level_gap' => 'Avantage classement',
+    'ranking_superiority' => 'Écart au classement',
+    'balanced_hierarchy' => 'Hiérarchie équilibrée',
     'positive_streak' || 'improving_form' || 'form_advantage' => 'Forme',
     'negative_streak' || 'declining_form' => 'Dynamique négative',
     'fragile_defense' ||

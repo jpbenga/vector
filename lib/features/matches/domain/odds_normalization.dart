@@ -9,6 +9,7 @@ enum InternalMarketId {
   teamTotalAway,
   cornersTotal,
   cardsTotal,
+  playerAnytimeScorer,
 }
 
 enum InternalSelectionSide { home, draw, away, yes, no, over, under }
@@ -45,12 +46,14 @@ class NormalizedMarketSelection {
     required this.side,
     this.line,
     this.secondarySide,
+    this.playerName,
   });
 
   final InternalMarketId marketId;
   final InternalSelectionSide side;
   final double? line;
   final InternalSelectionSide? secondarySide;
+  final String? playerName;
 
   String get stableId {
     final parts = [
@@ -58,11 +61,15 @@ class NormalizedMarketSelection {
       side.name,
       if (secondarySide != null) secondarySide!.name,
       if (line != null) line!.toStringAsFixed(2),
+      if (playerName != null) _normalizedPlayerName(playerName!),
     ];
 
     return parts.join(':');
   }
 }
+
+String _normalizedPlayerName(String value) =>
+    value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
 
 class OddsNormalizationCatalog {
   const OddsNormalizationCatalog._();
@@ -149,6 +156,12 @@ class OddsNormalizationCatalog {
       displayName: 'Over / Under cartons',
       isMvp: true,
     ),
+    MarketMapping(
+      internalId: InternalMarketId.playerAnytimeScorer,
+      apiFootballBetId: 92,
+      displayName: 'Buteur',
+      isMvp: true,
+    ),
   ];
 
   static BookmakerMapping? bookmakerForApiFootballId(int bookmakerId) {
@@ -198,6 +211,14 @@ class OddsNormalizationCatalog {
         market.internalId,
         rawValue,
       ),
+      InternalMarketId.playerAnytimeScorer =>
+        rawValue.trim().isEmpty
+            ? null
+            : NormalizedMarketSelection(
+                marketId: InternalMarketId.playerAnytimeScorer,
+                side: InternalSelectionSide.yes,
+                playerName: rawValue.trim(),
+              ),
     };
   }
 

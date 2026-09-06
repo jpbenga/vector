@@ -317,7 +317,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       name: 'Nouvelle stratégie',
       isActive: true,
       pickTypes: const [PickType.prudent, PickType.normal],
-      minimumIndividualOdds: 1.20,
+      minimumIndividualOdds: 0,
       maximumIndividualOdds: 2.19,
       minimumSelections: 2,
       maximumSelections: 3,
@@ -1723,7 +1723,7 @@ class _TicketStrategyDialogState extends State<_TicketStrategyDialog> {
                               'minimum-individual-odds-field',
                             ),
                             controller: _minimumIndividualOddsController,
-                            label: 'Min pick',
+                            label: 'Min pick (0 = aucun)',
                             hintText: _defaultMinimumIndividualOdds
                                 .toStringAsFixed(2),
                             onChanged: (_) => setState(() {}),
@@ -1912,8 +1912,8 @@ class _TicketStrategyDialogState extends State<_TicketStrategyDialog> {
     if (_minimumIndividualOdds == null) {
       return 'Indiquez une cote individuelle minimum.';
     }
-    if (_minimumIndividualOdds! < 1.01) {
-      return 'La cote individuelle minimum doit être au moins égale à 1.01.';
+    if (_minimumIndividualOdds! < 0) {
+      return 'La cote individuelle minimum ne peut pas être négative.';
     }
     if (_maximumIndividualOdds != null &&
         _maximumIndividualOdds! < _minimumIndividualOdds!) {
@@ -2028,6 +2028,9 @@ class _TicketStrategyDialogState extends State<_TicketStrategyDialog> {
       minimumTotalOdds: _minimumTotalOdds,
       maximumTotalOdds: _maximumTotalOdds,
       clearsMaximumTotalOdds: _maximumTotalOdds == null,
+      minimumIndividualOddsIsUserDefined:
+          _minimumIndividualOddsController.text.trim().isNotEmpty ||
+          widget.strategy.minimumIndividualOddsIsUserDefined,
     );
   }
 
@@ -2065,6 +2068,9 @@ class _TicketStrategyDialogState extends State<_TicketStrategyDialog> {
           minimumTotalOdds: _minimumTotalOdds,
           maximumTotalOdds: _maximumTotalOdds,
           clearsMaximumTotalOdds: _maximumTotalOdds == null,
+          minimumIndividualOddsIsUserDefined:
+              _minimumIndividualOddsController.text.trim().isNotEmpty ||
+              widget.strategy.minimumIndividualOddsIsUserDefined,
           updatedAt: now,
         ),
       ),

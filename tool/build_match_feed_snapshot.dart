@@ -35,6 +35,7 @@ Future<void> main(List<String> arguments) async {
   final standings = <Object?>[];
   final teamStatistics = <Object?>[];
   final recentLeagueMatches = <Object?>[];
+  final playerStatistics = <Object?>[];
 
   for (final leagueId in _leagueIds) {
     standings.addAll(
@@ -50,6 +51,12 @@ Future<void> main(List<String> arguments) async {
     );
     recentLeagueMatches.addAll(
       _readRecentLeagueMatchesForLeague(
+        Directory(options.explorationDir),
+        leagueId,
+      ),
+    );
+    playerStatistics.addAll(
+      _readPlayerStatisticsResponsesForLeague(
         Directory(options.explorationDir),
         leagueId,
       ),
@@ -91,6 +98,7 @@ Future<void> main(List<String> arguments) async {
       'standings': standings,
       'team_statistics': teamStatistics,
       'recent_league_matches': recentLeagueMatches,
+      'player_statistics': playerStatistics,
     },
   };
 
@@ -106,6 +114,7 @@ Future<void> main(List<String> arguments) async {
   stdout.writeln('Standings rows: ${standings.length}');
   stdout.writeln('Team statistics rows: ${teamStatistics.length}');
   stdout.writeln('Recent league match rows: ${recentLeagueMatches.length}');
+  stdout.writeln('Player statistics rows: ${playerStatistics.length}');
 }
 
 class _SnapshotBuildOptions {
@@ -308,6 +317,23 @@ List<Object?> _readRecentLeagueMatchesForLeague(
     });
   }
 
+  return rows;
+}
+
+List<Object?> _readPlayerStatisticsResponsesForLeague(
+  Directory directory,
+  int leagueId,
+) {
+  if (!directory.existsSync()) return const [];
+  final rows = <Object?>[];
+  for (final file in directory.listSync().whereType<File>()) {
+    final name = file.uri.pathSegments.last;
+    if (!name.startsWith('player_statistics_${leagueId}_') ||
+        !name.endsWith('.json')) {
+      continue;
+    }
+    rows.addAll(_readResponse(file));
+  }
   return rows;
 }
 

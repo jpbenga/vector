@@ -89,15 +89,21 @@ void main(List<String> args) {
   final opportunitiesForDay = opportunities
       .where((opportunity) => onDay(opportunity.kickoff))
       .toList();
+  final personalizedMatches = repository.personalizedFor(profile);
   final generatorResult = const TicketGenerator().generate(
-    opportunities: opportunities,
+    matches: personalizedMatches,
     strategies: [_diagnosticStrategy()],
     profile: compiled,
     targetDate: day,
     generatedAt: day.toUtc(),
   );
-  final generatorCandidates = opportunitiesForDay
-      .map(GeneratedTicketPick.fromOpportunity)
+  final generatorCandidates = personalizedMatches
+      .where((match) => onDay(match.fixture.kickoff))
+      .expand(
+        (match) => match.betCandidates.map(
+          (candidate) => GeneratedTicketPick.fromBetCandidate(match, candidate),
+        ),
+      )
       .whereType<GeneratedTicketPick>()
       .length;
   final producedIds = intelligences
@@ -177,7 +183,7 @@ TicketStrategy _diagnosticStrategy() {
     name: 'Diagnostic',
     isActive: true,
     pickTypes: const [PickType.prudent, PickType.normal, PickType.audacious],
-    minimumIndividualOdds: 1.20,
+    minimumIndividualOdds: 0,
     maximumIndividualOdds: null,
     minimumSelections: 1,
     maximumSelections: 3,
