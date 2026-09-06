@@ -353,6 +353,12 @@ void main() {
       find.byKey(const ValueKey('create-ticket-strategy-button')),
     );
     await tester.pumpAndSettle();
+    final minimumFields = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField && widget.decoration?.labelText == 'Minimum',
+    );
+    await tester.enterText(minimumFields.at(1), '1.01');
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('save-ticket-strategy-button')));
     await tester.pumpAndSettle();
 

@@ -1681,9 +1681,12 @@ void main() {
       await tester.drag(find.byType(ListView), const Offset(0, -420));
       await tester.pumpAndSettle();
 
-      expect(find.text('Se déconnecter'), findsOneWidget);
+      final signOut = find.text('Se déconnecter');
+      expect(signOut, findsOneWidget);
+      await tester.ensureVisible(signOut);
+      await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Se déconnecter'));
+      await tester.tap(signOut);
       await tester.pumpAndSettle();
 
       expect(authController.didSignOut, isTrue);
