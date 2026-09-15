@@ -839,6 +839,10 @@ class AppOpportunityPalette extends ThemeExtension<AppOpportunityPalette> {
   IconData iconForReadingId(String id) {
     return switch (_canonicalOpportunityId(id)) {
       'solid_favorite' ||
+      'strong_home_team' ||
+      'strong_away_team' ||
+      'venue_strength' ||
+      'home_away_mismatch' ||
       'expected_domination' ||
       'favorite_with_protection' ||
       'controlled_favorite' ||
@@ -850,45 +854,53 @@ class AppOpportunityPalette extends ThemeExtension<AppOpportunityPalette> {
       'both_sides_can_score' => Icons.compare_arrows_rounded,
       'closed_match' ||
       'closed_match_profile' ||
-      'convergent_closed_match' => Icons.shield_outlined,
+      'convergent_closed_match' ||
+      'solid_defense' ||
+      'frequent_clean_sheet' ||
+      'frequent_under_25' => Icons.shield_outlined,
       'level_gap' ||
       'ranking_gap' ||
       'ranking_superiority' ||
+      'ranking_inferiority' ||
       'structural_level_gap' ||
-      'balanced_hierarchy' => Icons.trip_origin_rounded,
+      'balanced_hierarchy' ||
+      'early_championship_analysis' => Icons.trip_origin_rounded,
       'credible_outsider' || 'market_favorite' => Icons.star_rounded,
       'fragile_defense' ||
       'defensive_weakness' ||
+      'high_xg_conceded' ||
+      'high_shots_on_target_conceded' ||
+      'defensive_underperformance' ||
       'contradiction' ||
       'conflicting_signals' => Icons.security_update_warning_rounded,
       'prolific_attack' ||
       'strong_attack' ||
+      'attack_in_form' ||
+      'standout_goal_scorer' ||
       'xg_creation' ||
       'high_xg_creation' ||
+      'high_shots_on_target' ||
       'frequent_over_25' ||
       'frequent_btts' => Icons.bolt_rounded,
       'positive_streak' ||
       'strong_recent_form' ||
       'positive_form' ||
-      'improving_form' => Icons.show_chart_rounded,
+      'improving_form' ||
+      'form_advantage' ||
+      'team_better_than_results' => Icons.show_chart_rounded,
       'negative_streak' ||
       'weak_recent_form' ||
       'declining_form' ||
       'scoring_difficulty' ||
       'low_xg_creation' ||
       'offensive_underperformance' ||
-      'team_better_than_results' ||
-      'misleading_result' => Icons.trending_down_rounded,
+      'team_worse_than_results' => Icons.trending_down_rounded,
       'team_in_difficulty' ||
       'team_in_serious_difficulty' ||
       'poor_overall_performance' ||
-      'solid_defense' ||
-      'frequent_under_25' ||
-      'high_xg_conceded' ||
       'offensive_overperformance' ||
       'defensive_overperformance' ||
-      'defensive_underperformance' ||
-      'team_worse_than_results' ||
+      'misleading_result' ||
       'avoid_match' ||
       'insufficient_data' ||
       'post_match_xg_rejected' => Icons.warning_amber_rounded,
@@ -900,6 +912,10 @@ class AppOpportunityPalette extends ThemeExtension<AppOpportunityPalette> {
     return switch (_canonicalOpportunityId(id)) {
       'solid_favorite' ||
       'home_strength' ||
+      'strong_home_team' ||
+      'strong_away_team' ||
+      'venue_strength' ||
+      'home_away_mismatch' ||
       'expected_domination' ||
       'cautious_double_chance' ||
       'favorite_with_protection' ||
@@ -914,51 +930,57 @@ class AppOpportunityPalette extends ThemeExtension<AppOpportunityPalette> {
       'closed_match' ||
       'closed_match_profile' ||
       'closed_match_rhythm' ||
-      'convergent_closed_match' => closedMatchStyle,
+      'convergent_closed_match' ||
+      'solid_defense' ||
+      'frequent_clean_sheet' ||
+      'frequent_under_25' => closedMatchStyle,
       'level_gap' ||
       'ranking_gap' ||
       'ranking_superiority' ||
+      'ranking_inferiority' ||
       'structural_level_gap' ||
-      'balanced_hierarchy' => levelGapStyle,
-      'credible_outsider' || 'market_favorite' => credibleOutsiderStyle,
+      'balanced_hierarchy' ||
+      'early_championship_analysis' => levelGapStyle,
+      'credible_outsider' ||
+      'market_favorite' ||
+      'offensive_overperformance' ||
+      'defensive_overperformance' ||
+      'misleading_result' => credibleOutsiderStyle,
       'fragile_defense' ||
       'defensive_weakness' ||
+      'high_xg_conceded' ||
+      'high_shots_on_target_conceded' ||
+      'defensive_underperformance' ||
       'contradiction' ||
       'conflicting_signals' ||
       'one_sided_scoring' => fragileDefenseStyle,
       'prolific_attack' ||
       'strong_attack' ||
+      'attack_in_form' ||
+      'standout_goal_scorer' ||
       'xg_creation' ||
       'high_xg_creation' ||
+      'high_shots_on_target' ||
       'frequent_over_25' ||
       'frequent_btts' => prolificAttackStyle,
       'positive_streak' ||
       'strong_recent_form' ||
-      'positive_form' => positiveStreakStyle,
+      'positive_form' ||
+      'improving_form' ||
+      'form_advantage' ||
+      'team_better_than_results' => positiveStreakStyle,
       'negative_streak' ||
       'weak_recent_form' ||
       'declining_form' ||
       'scoring_difficulty' ||
       'low_xg_creation' ||
-      'home_away_mismatch' ||
-      'strong_home_team' ||
       'weak_home_team' ||
-      'strong_away_team' ||
       'weak_away_team' ||
       'offensive_underperformance' ||
-      'team_better_than_results' ||
-      'misleading_result' => negativeStreakStyle,
+      'team_worse_than_results' => negativeStreakStyle,
       'team_in_difficulty' ||
       'team_in_serious_difficulty' ||
       'poor_overall_performance' ||
-      'solid_defense' ||
-      'frequent_clean_sheet' ||
-      'frequent_under_25' ||
-      'high_xg_conceded' ||
-      'offensive_overperformance' ||
-      'defensive_overperformance' ||
-      'defensive_underperformance' ||
-      'team_worse_than_results' ||
       'avoid_match' ||
       'insufficient_data' ||
       'post_match_xg_rejected' => strugglingTeamStyle,

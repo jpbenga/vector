@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../domain/football_scenario.dart';
 import '../../onboarding/domain/decision_profile.dart';
 import '../../onboarding/domain/decision_profile_catalogs.dart';
 import 'lector_preferences_sheet.dart';
@@ -126,7 +127,8 @@ class _LectorScenariosPageState extends State<LectorScenariosPage> {
   }
 
   void _toggleScenario(OpportunityProfileDefinition scenario) {
-    if (_isSaving || !scenario.isSupported) {
+    if (_isSaving ||
+        (!scenario.isSupported && !_selectedIds.contains(scenario.id))) {
       return;
     }
 
@@ -494,12 +496,13 @@ class _ScenarioRow extends StatelessWidget {
           ? AppReadingBadgeVariant.combined
           : AppReadingBadgeVariant.soft,
     );
+    final canToggle = !isSaving && (scenario.isSupported || isSelected);
 
     return Material(
       color: AppColors.transparent,
       child: InkWell(
         key: ValueKey('lector-scenario-${scenario.id}'),
-        onTap: isSaving || !scenario.isSupported ? null : onTap,
+        onTap: canToggle ? onTap : null,
         child: IntrinsicHeight(
           child: Row(
             children: [
@@ -571,6 +574,8 @@ class _ScenarioRow extends StatelessWidget {
                                     height: 1.28,
                                   ),
                             ),
+                            const SizedBox(height: AppSpacing.xs),
+                            _ScenarioRequirementSummary(scenario: scenario),
                           ],
                         ),
                       ),
@@ -583,9 +588,7 @@ class _ScenarioRow extends StatelessWidget {
                           activeTrackColor: context.brand.accent,
                           inactiveThumbColor: context.textColors.secondary,
                           inactiveTrackColor: context.surfaces.border,
-                          onChanged: isSaving || !scenario.isSupported
-                              ? null
-                              : (_) => onTap(),
+                          onChanged: canToggle ? (_) => onTap() : null,
                         ),
                       ),
                       Icon(
@@ -621,7 +624,7 @@ class _ComingSoonBadge extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         child: Text(
-          'À venir',
+          'Indisponible',
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
             color: color,
             fontWeight: FontWeight.w900,
@@ -630,6 +633,81 @@ class _ComingSoonBadge extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ScenarioRequirementSummary extends StatelessWidget {
+  const _ScenarioRequirementSummary({required this.scenario});
+
+  final OpportunityProfileDefinition scenario;
+
+  @override
+  Widget build(BuildContext context) {
+    final requirements = scenario.scenario?.requirements ?? const [];
+    if (requirements.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'TOUTES REQUISES',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: scenario.isSupported
+                ? context.brand.accent
+                : context.textColors.weak,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.35,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          requirements.map(_scenarioRequirementLabel).join('  +  '),
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: context.textColors.secondary,
+            height: 1.3,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _scenarioRequirementLabel(ScenarioReadingRequirement requirement) {
+  final reading = switch (requirement.readingId) {
+    'ranking_superiority' => 'Supériorité classement',
+    'ranking_inferiority' => 'Infériorité classement',
+    'form_advantage' => 'Avantage de forme',
+    'structural_level_gap' => 'Écart structurel',
+    'negative_streak' => 'Série négative',
+    'positive_streak' => 'Série positive',
+    'improving_form' => 'Forme en hausse',
+    'declining_form' => 'Forme en baisse',
+    'scoring_difficulty' => 'Difficulté offensive',
+    'fragile_defense' => 'Défense fragile',
+    'solid_defense' => 'Défense solide',
+    'venue_strength' => 'Force domicile/extérieur',
+    'open_match_profile' => 'Profil ouvert',
+    'closed_match_profile' => 'Profil fermé',
+    'prolific_attack' => 'Attaque prolifique',
+    'high_xg_creation' => 'xG créés élevés',
+    'low_xg_creation' => 'xG créés faibles',
+    'high_xg_conceded' => 'xG concédés élevés',
+    'high_shots_on_target' => 'Tirs cadrés élevés',
+    'high_shots_on_target_conceded' => 'Tirs cadrés concédés',
+    _ => requirement.readingId,
+  };
+  final subject = switch (requirement.subject) {
+    ScenarioRequirementSubject.opponent => ' (adversaire)',
+    ScenarioRequirementSubject.home => ' (domicile)',
+    ScenarioRequirementSubject.away => ' (extérieur)',
+    ScenarioRequirementSubject.bothTeams => ' (deux équipes)',
+    ScenarioRequirementSubject.atLeastOneTeam => ' (au moins une équipe)',
+    ScenarioRequirementSubject.subject ||
+    ScenarioRequirementSubject.match => '',
+  };
+  return '$reading$subject';
 }
 
 class _ScenarioEmptyCard extends StatelessWidget {
@@ -730,7 +808,7 @@ class _ScenariosInfoCard extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  'Lector combine plusieurs lectures pour détecter ces situations dans les matchs et identifier les opportunités correspondant à votre profil.',
+                  'Un scénario est détecté uniquement lorsque toutes les lectures indiquées sont réunies pour la bonne équipe ou pour le match. Votre profil intervient ensuite pour choisir les scénarios à suivre.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: context.textColors.secondary,
                     height: 1.3,

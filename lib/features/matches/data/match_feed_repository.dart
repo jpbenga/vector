@@ -284,10 +284,17 @@ List<MatchBoardItem> _attachStructuralRelations({
         match.analysis.asOf ??
         sourceMetadata.sourceAsOf ??
         match.fixture.kickoff;
-    final metadata = metadataRepository.metadataFor(
+    final configuredMetadata = metadataRepository.metadataFor(
       competitionId: match.competition.id,
       season: match.competition.season,
     );
+    final metadata =
+        configuredMetadata ??
+        const StandingsCompetitionStructuralMetadataResolver().resolve(
+          competitionId: match.competition.id,
+          season: match.competition.season,
+          leagueStandings: standings,
+        );
     final result = tierSnapshotEngine.buildSnapshot(
       competitionId: match.competition.id,
       season: match.competition.season,

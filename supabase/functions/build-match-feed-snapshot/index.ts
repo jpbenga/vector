@@ -108,6 +108,7 @@ Deno.serve(async (request) => {
     });
     const summary = coverageSummary({
       rawFixtures: build.rawFixtures,
+      rawLeagueFixtures: build.rawLeagueFixtures,
       rawOdds: build.rawOdds,
       rawStandings: build.rawStandings,
       rawTeamStatistics: build.rawTeamStatistics,
@@ -148,6 +149,7 @@ Deno.serve(async (request) => {
       bookmaker_priority: options.bookmakerPriority,
       raw: {
         fixtures: build.rawFixtures,
+        league_fixtures: build.rawLeagueFixtures,
         odds: build.rawOdds,
         standings: build.rawStandings,
         team_statistics: build.rawTeamStatistics,
@@ -274,6 +276,7 @@ type CachedRawResponse = {
 type SourceBuild = {
   sourceRows: CachedRawResponse[];
   rawFixtures: JsonObject[];
+  rawLeagueFixtures: JsonObject[];
   rawOdds: JsonObject[];
   rawStandings: JsonObject[];
   rawTeamStatistics: JsonObject[];
@@ -318,6 +321,7 @@ async function collectSnapshotSources({
 }): Promise<SourceBuild> {
   const sourceRowsByKey = new Map<string, CachedRawResponse>();
   const rawFixtures: JsonObject[] = [];
+  const rawLeagueFixtures: JsonObject[] = [];
   const rawOdds: JsonObject[] = [];
   const rawStandings: JsonObject[] = [];
   const rawTeamStatistics: JsonObject[] = [];
@@ -361,6 +365,20 @@ async function collectSnapshotSources({
     });
     addSourceRows(standingsRows);
     rawStandings.push(...flatResponseItems(standingsRows));
+
+    const leagueFixtureRows = await cachedResponsesFor({
+      supabaseUrl,
+      serviceRoleKey,
+      endpoint: "/fixtures",
+      filters: {
+        league: String(leagueId),
+        season: String(leagueSeason),
+        timezone: options.timezone,
+      },
+      exactQuery: true,
+    });
+    addSourceRows(leagueFixtureRows);
+    rawLeagueFixtures.push(...flatResponseItems(leagueFixtureRows));
 
     for (const date of dateWindow(options.windowStart, options.windowEnd)) {
       const fixtureRows = await cachedResponsesFor({
@@ -482,6 +500,7 @@ async function collectSnapshotSources({
   return {
     sourceRows: [...sourceRowsByKey.values()],
     rawFixtures,
+    rawLeagueFixtures,
     rawOdds,
     rawStandings,
     rawTeamStatistics,
@@ -496,11 +515,13 @@ async function cachedResponsesFor({
   serviceRoleKey,
   endpoint,
   filters,
+  exactQuery = false,
 }: {
   supabaseUrl: string;
   serviceRoleKey: string;
   endpoint: string;
   filters: Record<string, string>;
+  exactQuery?: boolean;
 }): Promise<CachedRawResponse[]> {
   const query = new URLSearchParams();
   query.set(
@@ -537,9 +558,22 @@ async function cachedResponsesFor({
     );
   }
 
-  return normalizedRows.filter((row) =>
+  const usableRows = normalizedRows.filter((row) =>
     apiFootballErrorMessages(row.response_body).length === 0
   );
+  if (!exactQuery) {
+    return usableRows;
+  }
+  return usableRows.filter((row) => {
+    const queryParams = row.query_params;
+    const keys = Object.keys(queryParams);
+    if (keys.length !== Object.keys(filters).length) {
+      return false;
+    }
+    return Object.entries(filters).every(([key, value]) =>
+      String(queryParams[key] ?? "") === value
+    );
+  });
 }
 
 async function findExistingSnapshot({
@@ -749,6 +783,7 @@ function buildFixtureIndex({
 
 function coverageSummary({
   rawFixtures,
+  rawLeagueFixtures,
   rawOdds,
   rawStandings,
   rawTeamStatistics,
@@ -759,6 +794,7 @@ function coverageSummary({
   sourceRows,
 }: {
   rawFixtures: JsonObject[];
+  rawLeagueFixtures: JsonObject[];
   rawOdds: JsonObject[];
   rawStandings: JsonObject[];
   rawTeamStatistics: JsonObject[];
@@ -770,6 +806,7 @@ function coverageSummary({
 }): JsonObject {
   return {
     fixtures: rawFixtures.length,
+    league_fixtures: rawLeagueFixtures.length,
     odds: rawOdds.length,
     standings: rawStandings.length,
     team_statistics: rawTeamStatistics.length,
@@ -1433,6 +1470,7 @@ function expectedGoalsSnapshots({
     }
 
     snapshots.push({
+      league: row.league,
       team: {
         id: teamId,
         name: stringValue(team.name) ?? "Equipe",

@@ -1,7 +1,6 @@
 import '../../matches/domain/match_board_item.dart';
 import '../../matches/domain/analysis_maturity.dart';
 import '../../matches/domain/football_reading.dart';
-import '../../onboarding/domain/decision_profile_catalogs.dart';
 
 enum ThesisAssessmentStatus {
   supported,
@@ -113,6 +112,7 @@ class Opportunity {
     this.supportingReadings = const [],
     this.contradictoryReadings = const [],
     this.thesisAssessments = const [],
+    this.scenarioIds = const [],
     this.asOf,
     this.maturity = AnalysisMaturity.established,
   });
@@ -126,6 +126,7 @@ class Opportunity {
   final List<FootballReading> supportingReadings;
   final List<FootballReading> contradictoryReadings;
   final List<ThesisAssessment> thesisAssessments;
+  final List<String> scenarioIds;
   final DateTime? asOf;
   final AnalysisMaturity maturity;
 
@@ -141,13 +142,7 @@ class Opportunity {
   MatchThesis get primaryThesis => retainedTheses.first;
 
   List<String> get opportunityProfileIds {
-    final ids = <String>{};
-
-    for (final thesis in retainedTheses) {
-      ids.addAll(OpportunityProfileCatalog.profileIdsForThesis(thesis.id));
-    }
-
-    return List.unmodifiable(ids);
+    return List.unmodifiable(scenarioIds.toSet());
   }
 
   List<CopilotArgument> get copilotArguments {

@@ -16,6 +16,7 @@ import '../../tickets/domain/saved_ticket.dart';
 import '../../tickets/domain/ticket_strategy.dart';
 import '../../tickets/presentation/ticket_builder_panel.dart';
 import '../domain/football_reading.dart';
+import '../domain/football_scenario.dart';
 import '../domain/market_assessment.dart';
 import '../domain/match_board_item.dart';
 import '../domain/match_context_key_models.dart';
@@ -38,6 +39,8 @@ class MatchDetailPage extends StatefulWidget {
     this.onViewSavedTickets,
     this.onOpenTicketSelection,
     this.onOpenGenerator,
+    this.selectedReadingIds = const [],
+    this.selectedScenarioIds = const [],
     super.key,
   });
 
@@ -51,6 +54,8 @@ class MatchDetailPage extends StatefulWidget {
   final VoidCallback? onViewSavedTickets;
   final ValueChanged<TicketDraftSelection>? onOpenTicketSelection;
   final VoidCallback? onOpenGenerator;
+  final List<String> selectedReadingIds;
+  final List<String> selectedScenarioIds;
 
   @override
   State<MatchDetailPage> createState() => _MatchDetailPageState();
@@ -87,7 +92,8 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                       ),
                       if (widget.match.betCandidates.isNotEmpty ||
                           widget.match.profileRelevance.readingMatches > 0 ||
-                          widget.match.profileRelevance.thesisMatches > 0) ...[
+                          widget.match.profileRelevance.scenarioMatches >
+                              0) ...[
                         const SizedBox(height: 12),
                         _LectorBetCandidatesCard(
                           match: widget.match,
@@ -106,6 +112,8 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                       _LectorFreeTabContent(
                         match: widget.match,
                         selectedIndex: _selectedFreeTab,
+                        selectedReadingIds: widget.selectedReadingIds,
+                        selectedScenarioIds: widget.selectedScenarioIds,
                       ),
                     ],
                   ),
@@ -1114,8 +1122,8 @@ class _LectorBetCandidateRow extends StatelessWidget {
     );
     final sourceCount =
         candidate.supportingReadingIds.toSet().length +
-        candidate.supportingThesisIds.toSet().length;
-    final sourceLabel = candidate.supportingThesisIds.isNotEmpty
+        candidate.supportingScenarioIds.toSet().length;
+    final sourceLabel = candidate.supportingScenarioIds.isNotEmpty
         ? 'Scénario soutenu par $sourceCount élément${sourceCount > 1 ? 's' : ''}'
         : 'Lecture configurée';
 
@@ -1305,16 +1313,24 @@ class _LectorFreeTabContent extends StatelessWidget {
   const _LectorFreeTabContent({
     required this.match,
     required this.selectedIndex,
+    required this.selectedReadingIds,
+    required this.selectedScenarioIds,
   });
 
   final MatchBoardItem match;
   final int selectedIndex;
+  final List<String> selectedReadingIds;
+  final List<String> selectedScenarioIds;
 
   @override
   Widget build(BuildContext context) {
     return switch (selectedIndex) {
       0 => _LectorQuickContextCard(match: match),
-      1 => _LectorStandingContextCard(match: match),
+      1 => _LectorStandingContextCard(
+        match: match,
+        selectedReadingIds: selectedReadingIds,
+        selectedScenarioIds: selectedScenarioIds,
+      ),
       2 => _LectorFormContextCard(match: match),
       _ => _LectorInfoContextCard(match: match),
     };
@@ -2388,12 +2404,16 @@ class _ContextDeltaPill extends StatelessWidget {
   }
 }
 
-enum _StandingViewMode { tiers, stakes }
-
 class _LectorStandingContextCard extends StatefulWidget {
-  const _LectorStandingContextCard({required this.match});
+  const _LectorStandingContextCard({
+    required this.match,
+    this.selectedReadingIds = const [],
+    this.selectedScenarioIds = const [],
+  });
 
   final MatchBoardItem match;
+  final List<String> selectedReadingIds;
+  final List<String> selectedScenarioIds;
 
   @override
   State<_LectorStandingContextCard> createState() =>
@@ -2402,16 +2422,63 @@ class _LectorStandingContextCard extends StatefulWidget {
 
 class _LectorStandingContextCardState
     extends State<_LectorStandingContextCard> {
-  _StandingViewMode _mode = _StandingViewMode.tiers;
-
-  MatchBoardItem get match => widget.match;
+  ChampionshipStandingView _selectedView = ChampionshipStandingView.general;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final brand = context.brand;
     final textColors = context.textColors;
-    final standings = _mobileStandingRows(match);
+    final match = widget.match;
+    final views = _standingViews(
+      match,
+      selectedReadingIds: widget.selectedReadingIds,
+      selectedScenarioIds: widget.selectedScenarioIds,
+    );
+    if (views.isEmpty) {
+      return _LectorGlassCard(
+        padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.bar_chart_rounded, color: brand.accent, size: 22),
+                const SizedBox(width: 8),
+                Text(
+                  'CLASSEMENT',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: textColors.primary,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 3),
+            Text(
+              'Position, points et dynamique dans le championnat.',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: textColors.secondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 10),
+            _LectorInfoRow(
+              icon: Icons.info_outline_rounded,
+              label: 'Classement indisponible',
+              trailing: const [TextSpan(text: 'Snapshot incomplet')],
+            ),
+          ],
+        ),
+      );
+    }
+    final selectedView = views.any((item) => item.view == _selectedView)
+        ? _selectedView
+        : ChampionshipStandingView.general;
+    final selectedDefinition = views.firstWhere(
+      (item) => item.view == selectedView,
+    );
+    final standings = match.analysis.standingsFor(selectedView);
 
     if (standings.isEmpty) {
       return _LectorInfoCard(
@@ -2426,13 +2493,16 @@ class _LectorStandingContextCardState
       );
     }
 
-    final tierSnapshot = match.analysis.championshipTierSnapshot;
+    final tierSnapshot = selectedView == ChampionshipStandingView.general
+        ? match.analysis.championshipTierSnapshot
+        : null;
     final hasTierSnapshot =
         tierSnapshot?.status == TierSystemStatus.mature &&
         tierSnapshot!.teamAssignments.isNotEmpty;
-    final hasOfficialZones = standings.any(
-      (standing) => _officialStandingZone(standing) != null,
-    );
+    final hasOfficialZones =
+        selectedView == ChampionshipStandingView.general &&
+        standings.any((standing) => _officialStandingZone(standing) != null);
+    final officialZones = _officialStandingLegendItems(standings);
 
     return _LectorGlassCard(
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
@@ -2456,33 +2526,233 @@ class _LectorStandingContextCardState
           ),
           const SizedBox(height: 3),
           Text(
-            'Position, points et dynamique dans le championnat.',
+            selectedDefinition.description,
             style: theme.textTheme.labelSmall?.copyWith(
               color: textColors.secondary,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 10),
-          _StandingModeSwitch(
-            mode: _mode,
-            onChanged: (mode) => setState(() => _mode = mode),
-          ),
-          const SizedBox(height: 8),
-          _StandingModeExplanation(
-            mode: _mode,
-            hasTierSnapshot: hasTierSnapshot,
-            hasOfficialZones: hasOfficialZones,
+          _StandingViewSelector(
+            views: views,
+            selectedView: selectedView,
+            onSelected: (view) => setState(() => _selectedView = view),
           ),
           const SizedBox(height: 10),
+          if (selectedView == ChampionshipStandingView.general) ...[
+            _StandingUnifiedLegend(
+              officialZones: officialZones,
+              tiers: hasTierSnapshot
+                  ? tierSnapshot.tierPresence.toList()
+                  : const [],
+              hasTierSnapshot: hasTierSnapshot,
+              hasOfficialZones: hasOfficialZones,
+            ),
+            const SizedBox(height: 10),
+          ],
           _MobileStandingTable(
             match: match,
             standings: standings,
-            mode: _mode,
             tierSnapshot: hasTierSnapshot ? tierSnapshot : null,
+            showOfficialZones: selectedView == ChampionshipStandingView.general,
+            lastColumnLabel:
+                selectedView == ChampionshipStandingView.expectedGoals
+                ? 'xG'
+                : 'Pts',
           ),
-          if (_mode == _StandingViewMode.tiers && hasTierSnapshot) ...[
-            const SizedBox(height: 10),
-            _TierLegend(snapshot: tierSnapshot),
+        ],
+      ),
+    );
+  }
+}
+
+class _StandingViewDefinition {
+  const _StandingViewDefinition({
+    required this.view,
+    required this.label,
+    required this.description,
+    this.sourceId,
+    this.isPersonalized = false,
+  });
+
+  final ChampionshipStandingView view;
+  final String label;
+  final String description;
+  final String? sourceId;
+  final bool isPersonalized;
+}
+
+List<_StandingViewDefinition> _standingViews(
+  MatchBoardItem match, {
+  required List<String> selectedReadingIds,
+  required List<String> selectedScenarioIds,
+}) {
+  final result = <ChampionshipStandingView, _StandingViewDefinition>{};
+
+  void add(
+    ChampionshipStandingView view, {
+    String? sourceId,
+    bool personalized = false,
+  }) {
+    if (match.analysis.standingsFor(view).isEmpty || result.containsKey(view)) {
+      return;
+    }
+    final base = _standingViewDefinition(view);
+    result[view] = _StandingViewDefinition(
+      view: view,
+      label: base.label,
+      description: base.description,
+      sourceId: sourceId,
+      isPersonalized: personalized,
+    );
+  }
+
+  add(ChampionshipStandingView.general);
+  for (final readingId in selectedReadingIds) {
+    final view = _standingViewForReading(readingId);
+    if (view != null) add(view, sourceId: readingId, personalized: true);
+  }
+  for (final scenarioId in selectedScenarioIds) {
+    final scenario = FootballScenarioCatalog.byId(scenarioId);
+    if (scenario == null) continue;
+    for (final requirement in scenario.requirements) {
+      final view = _standingViewForReading(requirement.readingId);
+      if (view != null) add(view, sourceId: scenarioId, personalized: true);
+    }
+  }
+  for (final view in const [
+    ChampionshipStandingView.home,
+    ChampionshipStandingView.away,
+    ChampionshipStandingView.form,
+    ChampionshipStandingView.firstLeg,
+    ChampionshipStandingView.secondLeg,
+    ChampionshipStandingView.firstHalf,
+    ChampionshipStandingView.secondHalf,
+  ]) {
+    add(view);
+  }
+  return result.values.toList(growable: false);
+}
+
+ChampionshipStandingView? _standingViewForReading(String readingId) {
+  return switch (readingId) {
+    'strong_home_team' || 'weak_home_team' => ChampionshipStandingView.home,
+    'strong_away_team' ||
+    'weak_away_team' ||
+    'venue_strength' => ChampionshipStandingView.away,
+    'home_away_mismatch' => ChampionshipStandingView.home,
+    'positive_streak' ||
+    'negative_streak' ||
+    'improving_form' ||
+    'declining_form' ||
+    'form_advantage' => ChampionshipStandingView.form,
+    'prolific_attack' ||
+    'scoring_difficulty' ||
+    'high_shots_on_target' => ChampionshipStandingView.attack,
+    'high_xg_creation' ||
+    'low_xg_creation' => ChampionshipStandingView.expectedGoals,
+    'solid_defense' ||
+    'fragile_defense' ||
+    'high_xg_conceded' ||
+    'high_shots_on_target_conceded' => ChampionshipStandingView.defense,
+    'ranking_superiority' ||
+    'ranking_inferiority' ||
+    'structural_level_gap' => ChampionshipStandingView.general,
+    'strong_first_half_team' ||
+    'weak_first_half_team' ||
+    'frequent_halftime_lead' ||
+    'frequent_halftime_draw' => ChampionshipStandingView.firstHalf,
+    'strong_second_half_team' ||
+    'weak_second_half_team' ||
+    'second_half_recovery' => ChampionshipStandingView.secondHalf,
+    _ => null,
+  };
+}
+
+_StandingViewDefinition _standingViewDefinition(ChampionshipStandingView view) {
+  return switch (view) {
+    ChampionshipStandingView.general => const _StandingViewDefinition(
+      view: ChampionshipStandingView.general,
+      label: 'Général',
+      description: 'Position, points, Tiers Lector et enjeux officiels.',
+    ),
+    ChampionshipStandingView.home => const _StandingViewDefinition(
+      view: ChampionshipStandingView.home,
+      label: 'Domicile',
+      description: 'Classement calculé uniquement sur les matchs à domicile.',
+    ),
+    ChampionshipStandingView.away => const _StandingViewDefinition(
+      view: ChampionshipStandingView.away,
+      label: 'Extérieur',
+      description: 'Classement calculé uniquement sur les déplacements.',
+    ),
+    ChampionshipStandingView.form => const _StandingViewDefinition(
+      view: ChampionshipStandingView.form,
+      label: 'Forme',
+      description: 'Classement sur la forme récente disponible.',
+    ),
+    ChampionshipStandingView.firstLeg => const _StandingViewDefinition(
+      view: ChampionshipStandingView.firstLeg,
+      label: 'Aller',
+      description: 'Classement des premières confrontations de la saison.',
+    ),
+    ChampionshipStandingView.secondLeg => const _StandingViewDefinition(
+      view: ChampionshipStandingView.secondLeg,
+      label: 'Retour',
+      description: 'Classement des secondes confrontations de la saison.',
+    ),
+    ChampionshipStandingView.firstHalf => const _StandingViewDefinition(
+      view: ChampionshipStandingView.firstHalf,
+      label: '1re MT',
+      description: 'Classement reconstruit avec les scores à la pause.',
+    ),
+    ChampionshipStandingView.secondHalf => const _StandingViewDefinition(
+      view: ChampionshipStandingView.secondHalf,
+      label: '2e MT',
+      description: 'Classement reconstruit avec les buts après la pause.',
+    ),
+    ChampionshipStandingView.attack => const _StandingViewDefinition(
+      view: ChampionshipStandingView.attack,
+      label: 'Attaque',
+      description: 'Classement des attaques selon les buts marqués.',
+    ),
+    ChampionshipStandingView.defense => const _StandingViewDefinition(
+      view: ChampionshipStandingView.defense,
+      label: 'Défense',
+      description: 'Classement des défenses selon les buts encaissés.',
+    ),
+    ChampionshipStandingView.expectedGoals => const _StandingViewDefinition(
+      view: ChampionshipStandingView.expectedGoals,
+      label: 'xG offensif',
+      description: 'Classement selon la moyenne d’xG offensif disponible.',
+    ),
+  };
+}
+
+class _StandingViewSelector extends StatelessWidget {
+  const _StandingViewSelector({
+    required this.views,
+    required this.selectedView,
+    required this.onSelected,
+  });
+
+  final List<_StandingViewDefinition> views;
+  final ChampionshipStandingView selectedView;
+  final ValueChanged<ChampionshipStandingView> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final item in views) ...[
+            _StandingViewChip(
+              definition: item,
+              isSelected: item.view == selectedView,
+              onPressed: () => onSelected(item.view),
+            ),
+            if (item != views.last) const SizedBox(width: 7),
           ],
         ],
       ),
@@ -2490,126 +2760,196 @@ class _LectorStandingContextCardState
   }
 }
 
-class _StandingModeSwitch extends StatelessWidget {
-  const _StandingModeSwitch({required this.mode, required this.onChanged});
-
-  final _StandingViewMode mode;
-  final ValueChanged<_StandingViewMode> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final surfaces = context.surfaces;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: surfaces.surfaceHover.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(AppRadius.control),
-        border: Border.all(color: surfaces.border),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _StandingModeButton(
-              selected: mode == _StandingViewMode.tiers,
-              icon: Icons.bar_chart_rounded,
-              label: 'Tiers Lector',
-              onPressed: () => onChanged(_StandingViewMode.tiers),
-            ),
-          ),
-          Container(width: 1, height: 30, color: surfaces.border),
-          Expanded(
-            child: _StandingModeButton(
-              selected: mode == _StandingViewMode.stakes,
-              icon: Icons.emoji_events_outlined,
-              label: 'Enjeux',
-              onPressed: () => onChanged(_StandingViewMode.stakes),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StandingModeButton extends StatelessWidget {
-  const _StandingModeButton({
-    required this.selected,
-    required this.icon,
-    required this.label,
+class _StandingViewChip extends StatelessWidget {
+  const _StandingViewChip({
+    required this.definition,
+    required this.isSelected,
     required this.onPressed,
   });
 
-  final bool selected;
-  final IconData icon;
-  final String label;
+  final _StandingViewDefinition definition;
+  final bool isSelected;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    final accent = context.brand.accent;
-    return TextButton.icon(
-      onPressed: onPressed,
-      style: TextButton.styleFrom(
-        minimumSize: const Size.fromHeight(44),
-        foregroundColor: selected ? accent : context.textColors.secondary,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.tight),
+    final sourceId = definition.sourceId;
+    final color = sourceId == null
+        ? context.brand.accent
+        : FootballScenarioCatalog.byId(sourceId) != null
+        ? context.opportunities.scenarioIdentityForProfileId(sourceId).color
+        : context.opportunities.readingIdentityForId(sourceId).color;
+    return Semantics(
+      label: definition.isPersonalized
+          ? '${definition.label}, suggéré par vos préférences'
+          : definition.label,
+      button: true,
+      selected: isSelected,
+      child: OutlinedButton(
+        key: ValueKey('standing-view-${definition.view.name}'),
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: isSelected ? color : context.textColors.secondary,
+          backgroundColor: isSelected
+              ? color.withValues(alpha: 0.13)
+              : AppColors.transparent,
+          side: BorderSide(
+            color: definition.isPersonalized || isSelected
+                ? color.withValues(alpha: 0.78)
+                : context.surfaces.border,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          visualDensity: VisualDensity.compact,
         ),
-      ),
-      icon: Icon(icon, size: 19),
-      label: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: Theme.of(
-          context,
-        ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w900),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (definition.isPersonalized) ...[
+              Icon(Icons.auto_awesome_rounded, size: 13, color: color),
+              const SizedBox(width: 5),
+            ],
+            Text(
+              definition.label,
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _StandingModeExplanation extends StatelessWidget {
-  const _StandingModeExplanation({
-    required this.mode,
+class _StandingUnifiedLegend extends StatelessWidget {
+  const _StandingUnifiedLegend({
+    required this.officialZones,
+    required this.tiers,
     required this.hasTierSnapshot,
     required this.hasOfficialZones,
   });
 
-  final _StandingViewMode mode;
+  final List<_OfficialStandingLegendItem> officialZones;
+  final List<TierLabel> tiers;
   final bool hasTierSnapshot;
   final bool hasOfficialZones;
 
   @override
   Widget build(BuildContext context) {
-    final isTierMode = mode == _StandingViewMode.tiers;
-    final text = isTierMode
-        ? hasTierSnapshot
-              ? 'Les Tiers Lector regroupent les équipes selon les écarts réels de points, indépendamment des places officielles.'
-              : 'Le snapshot courant ne permet pas encore d’afficher les Tiers Lector.'
-        : hasOfficialZones
-        ? 'Les enjeux affichés proviennent uniquement des descriptions officielles disponibles dans ce snapshot.'
-        : 'Aucune zone officielle n’est disponible dans ce snapshot.';
-    return Row(
+    final orderedTiers = [...tiers]
+      ..sort((a, b) => a.ordinal.compareTo(b.ordinal));
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.surfaces.surfaceHover.withValues(alpha: 0.34),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: context.surfaces.border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Lecture du classement',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: context.textColors.primary,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 9),
+            _StandingLegendSection(
+              icon: Icons.emoji_events_outlined,
+              title: 'Enjeux officiels',
+              emptyLabel: hasOfficialZones
+                  ? null
+                  : 'Aucune zone officielle disponible.',
+              children: [
+                for (final zone in officialZones)
+                  _OfficialStandingLegendChip(zone: zone),
+              ],
+            ),
+            const SizedBox(height: 9),
+            Divider(height: 1, color: context.surfaces.border),
+            const SizedBox(height: 9),
+            _StandingLegendSection(
+              icon: Icons.bar_chart_rounded,
+              title: 'Tiers Lector',
+              emptyLabel: hasTierSnapshot
+                  ? null
+                  : 'Tiers non calculables pour ce classement.',
+              children: [
+                for (final entry in orderedTiers.indexed)
+                  _TierLegendItem(
+                    color: _tierBandColor(
+                      context,
+                      entry.$1,
+                      orderedTiers.length,
+                    ),
+                    label: _tierBandLabel(
+                      entry.$1,
+                      orderedTiers.length,
+                      includeTierPrefix: false,
+                    ),
+                  ),
+              ],
+            ),
+            if (hasTierSnapshot || hasOfficialZones) ...[
+              const SizedBox(height: 9),
+              Text(
+                'Numéro coloré : enjeu officiel · bande latérale : Tier Lector',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: context.textColors.secondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StandingLegendSection extends StatelessWidget {
+  const _StandingLegendSection({
+    required this.icon,
+    required this.title,
+    required this.emptyLabel,
+    required this.children,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? emptyLabel;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          Icons.info_outline_rounded,
-          size: 18,
-          color: isTierMode
-              ? context.textColors.secondary
-              : context.semantic.info,
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: context.textColors.secondary,
-              height: 1.3,
-              fontWeight: FontWeight.w600,
+        Row(
+          children: [
+            Icon(icon, size: 17, color: context.brand.accent),
+            const SizedBox(width: 7),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: context.textColors.primary,
+                fontWeight: FontWeight.w900,
+              ),
             ),
-          ),
+          ],
         ),
+        const SizedBox(height: 7),
+        if (emptyLabel != null)
+          Text(
+            emptyLabel!,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: context.textColors.secondary,
+              fontWeight: FontWeight.w700,
+            ),
+          )
+        else
+          Wrap(spacing: 12, runSpacing: 8, children: children),
       ],
     );
   }
@@ -2814,19 +3154,21 @@ class _MobileStandingTable extends StatelessWidget {
   const _MobileStandingTable({
     required this.match,
     required this.standings,
-    required this.mode,
     required this.tierSnapshot,
+    this.showOfficialZones = true,
+    this.lastColumnLabel = 'Pts',
   });
 
   final MatchBoardItem match;
   final List<TeamStandingSnapshot> standings;
-  final _StandingViewMode mode;
   final ChampionshipTierSnapshot? tierSnapshot;
+  final bool showOfficialZones;
+  final String lastColumnLabel;
 
   @override
   Widget build(BuildContext context) {
     final surfaces = context.surfaces;
-    TierLabel? previousTier;
+    final groups = _standingTierGroups(standings, tierSnapshot);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.control),
@@ -2839,35 +3181,20 @@ class _MobileStandingTable extends StatelessWidget {
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: SizedBox(
-            width: 528,
+            width: 584,
             child: Column(
               children: [
-                const _MobileStandingRow.header(),
-                for (final standing in standings)
-                  Builder(
-                    builder: (context) {
-                      final tier = tierSnapshot
-                          ?.assignmentForTeam(standing.teamId)
-                          ?.assignedTier;
-                      final isBoundary =
-                          mode == _StandingViewMode.tiers &&
-                          previousTier != null &&
-                          tier != null &&
-                          tier != previousTier;
-                      if (tier != null) {
-                        previousTier = tier;
-                      }
-                      return _MobileStandingRow(
-                        standing: standing,
-                        team: _standingTeam(match, standing),
-                        highlight: _standingHighlight(match, standing),
-                        tier: mode == _StandingViewMode.tiers ? tier : null,
-                        officialZone: mode == _StandingViewMode.stakes
-                            ? _officialStandingZone(standing)
-                            : null,
-                        isTierBoundary: isBoundary,
-                      );
-                    },
+                _MobileStandingRow.header(
+                  lastColumnLabel: lastColumnLabel,
+                  leadingWidth: 56,
+                ),
+                for (final entry in groups.indexed)
+                  _StandingTierGroupSection(
+                    match: match,
+                    group: entry.$2,
+                    groupIndex: entry.$1,
+                    groupCount: groups.length,
+                    showOfficialZones: showOfficialZones,
                   ),
               ],
             ),
@@ -2878,54 +3205,169 @@ class _MobileStandingTable extends StatelessWidget {
   }
 }
 
+class _StandingTierGroupData {
+  const _StandingTierGroupData({required this.tier, required this.rows});
+
+  final TierLabel? tier;
+  final List<TeamStandingSnapshot> rows;
+}
+
+List<_StandingTierGroupData> _standingTierGroups(
+  List<TeamStandingSnapshot> standings,
+  ChampionshipTierSnapshot? snapshot,
+) {
+  final groups = <_StandingTierGroupData>[];
+  for (final standing in standings) {
+    final tier = snapshot?.assignmentForTeam(standing.teamId)?.assignedTier;
+    if (groups.isEmpty || groups.last.tier != tier) {
+      groups.add(_StandingTierGroupData(tier: tier, rows: [standing]));
+    } else {
+      groups.last.rows.add(standing);
+    }
+  }
+  return groups;
+}
+
+class _StandingTierGroupSection extends StatelessWidget {
+  const _StandingTierGroupSection({
+    required this.match,
+    required this.group,
+    required this.groupIndex,
+    required this.groupCount,
+    required this.showOfficialZones,
+  });
+
+  final MatchBoardItem match;
+  final _StandingTierGroupData group;
+  final int groupIndex;
+  final int groupCount;
+  final bool showOfficialZones;
+
+  @override
+  Widget build(BuildContext context) {
+    final tierColor = group.tier == null
+        ? null
+        : _tierBandColor(context, groupIndex, groupCount);
+    final tierLabel = group.tier == null
+        ? null
+        : _tierBandLabel(groupIndex, groupCount);
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _StandingTierBand(color: tierColor, label: tierLabel),
+          Expanded(
+            child: Column(
+              children: [
+                for (final standing in group.rows)
+                  _MobileStandingRow(
+                    standing: standing,
+                    team: _standingTeam(match, standing),
+                    highlight: _standingHighlight(match, standing),
+                    tierLabel: tierLabel,
+                    officialZone: showOfficialZones
+                        ? _officialStandingZone(standing)
+                        : null,
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StandingTierBand extends StatelessWidget {
+  const _StandingTierBand({required this.color, required this.label});
+
+  final Color? color;
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = context.surfaces.border;
+    return Container(
+      width: 56,
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(color: color ?? borderColor, width: 5),
+          bottom: BorderSide(color: borderColor.withValues(alpha: 0.7)),
+        ),
+      ),
+      alignment: Alignment.center,
+      child: label == null
+          ? const SizedBox.shrink()
+          : Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: RotatedBox(
+                quarterTurns: 3,
+                child: Text(
+                  label!,
+                  maxLines: 1,
+                  overflow: TextOverflow.fade,
+                  softWrap: false,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
+    );
+  }
+}
+
 class _MobileStandingRow extends StatelessWidget {
   const _MobileStandingRow({
     required this.standing,
     required this.team,
     required this.highlight,
-    required this.tier,
+    required this.tierLabel,
     required this.officialZone,
-    required this.isTierBoundary,
+    this.lastColumnLabel = 'Pts',
+    this.leadingWidth = 0,
   }) : isHeader = false;
 
-  const _MobileStandingRow.header()
-    : standing = null,
-      team = null,
-      highlight = _StandingHighlight.none,
-      tier = null,
-      officialZone = null,
-      isTierBoundary = false,
-      isHeader = true;
+  const _MobileStandingRow.header({
+    this.lastColumnLabel = 'Pts',
+    this.leadingWidth = 0,
+  }) : standing = null,
+       team = null,
+       highlight = _StandingHighlight.none,
+       tierLabel = null,
+       officialZone = null,
+       isHeader = true;
 
   final TeamStandingSnapshot? standing;
   final TeamInfo? team;
   final _StandingHighlight highlight;
-  final TierLabel? tier;
+  final String? tierLabel;
   final _OfficialStandingZone? officialZone;
-  final bool isTierBoundary;
   final bool isHeader;
+  final String lastColumnLabel;
+  final double leadingWidth;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final textColors = context.textColors;
     final surfaces = context.surfaces;
-    final groupColor = tier == null
-        ? officialZone?.color(context)
-        : _tierColor(context, tier!);
-    // A tier or official stake category is carried by the rank only. Keeping
-    // the rows neutral makes the table easier to scan while preserving the
-    // classification information in both views.
     final rowColor = AppColors.transparent;
     final borderColor = surfaces.border;
     final textColor = isHeader ? textColors.secondary : textColors.primary;
-    final rankColor = isHeader ? textColor : groupColor ?? textColor;
+    final officialColor = officialZone?.color(context);
+    final rankColor = isHeader ? textColor : officialColor ?? textColor;
 
     if (isHeader) {
       return _MobileStandingRowShell(
         backgroundColor: rowColor,
         borderColor: borderColor,
-        child: _StandingTableCells.header(color: textColor),
+        tierRailColor: null,
+        child: _StandingTableCells.header(
+          color: textColor,
+          lastColumnLabel: lastColumnLabel,
+          leadingWidth: leadingWidth,
+        ),
       );
     }
 
@@ -2933,60 +3375,23 @@ class _MobileStandingRow extends StatelessWidget {
     return _MobileStandingRowShell(
       backgroundColor: rowColor,
       borderColor: borderColor,
-      isTierBoundary: isTierBoundary,
+      tierRailColor: null,
       child: Row(
         children: [
-          _StandingTableCell(
-            _intValue(row.rank),
+          _StandingRankCell(
+            rank: _intValue(row.rank),
             width: 34,
             color: rankColor,
-            bold: true,
+            tierLabel: tierLabel,
+            officialZone: officialZone,
           ),
           SizedBox(
             width: 164,
-            child: Row(
-              children: [
-                SportsAssetBadge(
-                  size: 20,
-                  imageUrl: team?.logoUrl,
-                  fallbackLabel: row.teamName,
-                  backgroundColor: AppColors.transparent,
-                  padding: 1,
-                ),
-                const SizedBox(width: 7),
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        row.teamName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: textColor,
-                          fontWeight: highlight == _StandingHighlight.none
-                              ? FontWeight.w700
-                              : FontWeight.w900,
-                        ),
-                      ),
-                      if (officialZone != null) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          officialZone!.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: textColors.secondary,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
+            child: _StandingTeamCell(
+              team: team,
+              teamName: row.teamName,
+              highlight: highlight,
+              textColor: textColor,
             ),
           ),
           _StandingTableCell(
@@ -3017,7 +3422,9 @@ class _MobileStandingRow extends StatelessWidget {
             color: _goalDiffColor(context, row.goalDiff),
           ),
           _StandingTableCell(
-            _intValue(row.points),
+            row.metricValue == null
+                ? _intValue(row.points)
+                : row.metricValue!.toStringAsFixed(2),
             width: 44,
             color: textColor,
             bold: true,
@@ -3028,15 +3435,160 @@ class _MobileStandingRow extends StatelessWidget {
   }
 }
 
+class _StandingRankCell extends StatelessWidget {
+  const _StandingRankCell({
+    required this.rank,
+    required this.width,
+    required this.color,
+    required this.tierLabel,
+    required this.officialZone,
+  });
+
+  final String rank;
+  final double width;
+  final Color color;
+  final String? tierLabel;
+  final _OfficialStandingZone? officialZone;
+
+  @override
+  Widget build(BuildContext context) {
+    final officialLabel = officialZone?.label;
+    return Semantics(
+      excludeSemantics: true,
+      label: [
+        'Position $rank',
+        ...tierLabel == null ? const <String>[] : [tierLabel],
+        ...officialLabel == null ? const <String>[] : [officialLabel],
+      ].join(', '),
+      child: SizedBox(
+        width: width,
+        child: Text(
+          rank,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StandingTeamCell extends StatelessWidget {
+  const _StandingTeamCell({
+    required this.team,
+    required this.teamName,
+    required this.highlight,
+    required this.textColor,
+  });
+
+  final TeamInfo? team;
+  final String teamName;
+  final _StandingHighlight highlight;
+  final Color textColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final highlightColor = switch (highlight) {
+      _StandingHighlight.home => context.brand.accent,
+      _StandingHighlight.away => context.strategies.violetStyle.color,
+      _StandingHighlight.none => null,
+    };
+    final content = Row(
+      children: [
+        SportsAssetBadge(
+          size: 20,
+          imageUrl: team?.logoUrl,
+          fallbackLabel: teamName,
+          backgroundColor: AppColors.transparent,
+          padding: 1,
+        ),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(
+            teamName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: textColor,
+              fontWeight: highlight == _StandingHighlight.none
+                  ? FontWeight.w700
+                  : FontWeight.w900,
+            ),
+          ),
+        ),
+        if (highlightColor != null) ...[
+          const SizedBox(width: 4),
+          _StandingMatchSidePill(
+            label: highlight == _StandingHighlight.home ? 'DOM.' : 'EXT.',
+            color: highlightColor,
+          ),
+        ],
+      ],
+    );
+
+    if (highlightColor == null) {
+      return content;
+    }
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.tight),
+        border: Border.all(color: highlightColor.withValues(alpha: 0.88)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+        child: content,
+      ),
+    );
+  }
+}
+
+class _StandingMatchSidePill extends StatelessWidget {
+  const _StandingMatchSidePill({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+        border: Border.all(color: color.withValues(alpha: 0.65)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: color,
+            fontSize: 9,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _StandingTableCells extends StatelessWidget {
-  const _StandingTableCells.header({required this.color});
+  const _StandingTableCells.header({
+    required this.color,
+    this.lastColumnLabel = 'Pts',
+    this.leadingWidth = 0,
+  });
 
   final Color color;
+  final String lastColumnLabel;
+  final double leadingWidth;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
+        SizedBox(width: leadingWidth),
         _StandingTableCell('#', width: 34, color: color, isHeader: true),
         _StandingTableCell(
           'Équipe',
@@ -3052,58 +3604,13 @@ class _StandingTableCells extends StatelessWidget {
         _StandingTableCell('BP', width: 42, color: color, isHeader: true),
         _StandingTableCell('BC', width: 42, color: color, isHeader: true),
         _StandingTableCell('Diff', width: 50, color: color, isHeader: true),
-        _StandingTableCell('Pts', width: 44, color: color, isHeader: true),
-      ],
-    );
-  }
-}
-
-class _TierLegend extends StatelessWidget {
-  const _TierLegend({required this.snapshot});
-
-  final ChampionshipTierSnapshot snapshot;
-
-  @override
-  Widget build(BuildContext context) {
-    final tiers = snapshot.tierPresence.toList()
-      ..sort((a, b) => a.ordinal.compareTo(b.ordinal));
-    if (tiers.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.surfaces.surfaceHover.withValues(alpha: 0.34),
-        borderRadius: BorderRadius.circular(AppRadius.control),
-        border: Border.all(color: context.surfaces.border),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Légende des Tiers Lector',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: context.textColors.primary,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 12,
-              runSpacing: 8,
-              children: [
-                for (final tier in tiers)
-                  _TierLegendItem(
-                    color: _tierColor(context, tier),
-                    label: _tierDisplayLabel(tier),
-                  ),
-              ],
-            ),
-          ],
+        _StandingTableCell(
+          lastColumnLabel,
+          width: 44,
+          color: color,
+          isHeader: true,
         ),
-      ),
+      ],
     );
   }
 }
@@ -3120,9 +3627,12 @@ class _TierLegendItem extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          width: 28,
+          height: 4,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(AppRadius.chip),
+          ),
         ),
         const SizedBox(width: 6),
         Text(
@@ -3145,7 +3655,14 @@ class _OfficialStandingZone {
 
   Color color(BuildContext context) {
     return switch (kind) {
-      _OfficialStandingZoneKind.promotion => context.semantic.success,
+      _OfficialStandingZoneKind.championsLeague =>
+        context.strategies.violetStyle.color,
+      _OfficialStandingZoneKind.europaLeague =>
+        context.strategies.amberStyle.color,
+      _OfficialStandingZoneKind.conferenceLeague =>
+        context.strategies.blueStyle.color,
+      _OfficialStandingZoneKind.promotion =>
+        context.strategies.greenStyle.color,
       _OfficialStandingZoneKind.relegation => context.semantic.error,
       _OfficialStandingZoneKind.playoff => context.semantic.warning,
       _OfficialStandingZoneKind.other => context.semantic.info,
@@ -3153,7 +3670,15 @@ class _OfficialStandingZone {
   }
 }
 
-enum _OfficialStandingZoneKind { promotion, relegation, playoff, other }
+enum _OfficialStandingZoneKind {
+  championsLeague,
+  europaLeague,
+  conferenceLeague,
+  promotion,
+  relegation,
+  playoff,
+  other,
+}
 
 _OfficialStandingZone? _officialStandingZone(TeamStandingSnapshot standing) {
   final description = standing.description?.trim();
@@ -3161,7 +3686,13 @@ _OfficialStandingZone? _officialStandingZone(TeamStandingSnapshot standing) {
     return null;
   }
   final normalized = description.toLowerCase();
-  final kind = normalized.contains('relegation')
+  final kind = normalized.contains('champions league')
+      ? _OfficialStandingZoneKind.championsLeague
+      : normalized.contains('europa league')
+      ? _OfficialStandingZoneKind.europaLeague
+      : normalized.contains('conference league')
+      ? _OfficialStandingZoneKind.conferenceLeague
+      : normalized.contains('relegation')
       ? normalized.contains('playoff')
             ? _OfficialStandingZoneKind.playoff
             : _OfficialStandingZoneKind.relegation
@@ -3173,14 +3704,113 @@ _OfficialStandingZone? _officialStandingZone(TeamStandingSnapshot standing) {
   return _OfficialStandingZone(label: description, kind: kind);
 }
 
-Color _tierColor(BuildContext context, TierLabel tier) {
-  return switch (tier) {
-    TierLabel.tier1Podium => context.semantic.success,
-    TierLabel.tier2UpperChampionship => context.semantic.info,
-    TierLabel.tier3MiddleChampionship => context.textColors.secondary,
-    TierLabel.tier4LowerChampionship => context.semantic.warning,
-    TierLabel.tier5Relegation => context.semantic.error,
-  };
+class _OfficialStandingLegendItem {
+  const _OfficialStandingLegendItem({required this.zone, required this.ranks});
+
+  final _OfficialStandingZone zone;
+  final List<int> ranks;
+
+  String get rankLabel => _standingRankRangeLabel(ranks);
+}
+
+List<_OfficialStandingLegendItem> _officialStandingLegendItems(
+  List<TeamStandingSnapshot> standings,
+) {
+  final zonesByLabel = <String, _OfficialStandingLegendItem>{};
+  for (final standing in standings) {
+    final zone = _officialStandingZone(standing);
+    final rank = standing.rank;
+    if (zone == null || rank == null) {
+      continue;
+    }
+    final existing = zonesByLabel[zone.label];
+    if (existing == null) {
+      zonesByLabel[zone.label] = _OfficialStandingLegendItem(
+        zone: zone,
+        ranks: [rank],
+      );
+    } else {
+      existing.ranks.add(rank);
+    }
+  }
+  final zones = zonesByLabel.values.toList()
+    ..sort((a, b) => a.ranks.first.compareTo(b.ranks.first));
+  return zones;
+}
+
+String _standingRankRangeLabel(List<int> ranks) {
+  final ordered = [...ranks]..sort();
+  if (ordered.length == 1) {
+    return ordered.single.toString();
+  }
+  final contiguous = ordered.last - ordered.first + 1 == ordered.length;
+  return contiguous ? '${ordered.first}–${ordered.last}' : ordered.join(', ');
+}
+
+class _OfficialStandingLegendChip extends StatelessWidget {
+  const _OfficialStandingLegendChip({required this.zone});
+
+  final _OfficialStandingLegendItem zone;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = zone.zone.color(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.tight),
+            border: Border.all(color: color),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            child: Text(
+              zone.rankLabel,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 154),
+          child: Text(
+            zone.zone.label,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: context.textColors.secondary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+Color _tierBandColor(BuildContext context, int index, int count) {
+  if (count <= 1) {
+    return context.brand.accent;
+  }
+  return Color.lerp(
+        context.brand.accent,
+        context.strategies.violetStyle.color,
+        index / (count - 1),
+      ) ??
+      context.brand.accent;
+}
+
+String _tierBandLabel(int index, int count, {bool includeTierPrefix = true}) {
+  final letter = String.fromCharCode('A'.codeUnitAt(0) + index);
+  final descriptor = index == 0
+      ? 'Élite'
+      : index == count - 1
+      ? 'Sous pression'
+      : 'Course';
+  return includeTierPrefix ? 'Tier $letter · $descriptor' : descriptor;
 }
 
 String _tierDisplayLabel(TierLabel tier) {
@@ -3198,12 +3828,14 @@ class _MobileStandingRowShell extends StatelessWidget {
     required this.child,
     required this.backgroundColor,
     required this.borderColor,
+    required this.tierRailColor,
     this.isTierBoundary = false,
   });
 
   final Widget child;
   final Color backgroundColor;
   final Color borderColor;
+  final Color? tierRailColor;
   final bool isTierBoundary;
 
   @override
@@ -3212,9 +3844,11 @@ class _MobileStandingRowShell extends StatelessWidget {
       decoration: BoxDecoration(
         color: backgroundColor,
         border: Border(
-          left: BorderSide(color: borderColor, width: 3),
+          left: tierRailColor == null
+              ? BorderSide.none
+              : BorderSide(color: tierRailColor!, width: 3),
           top: isTierBoundary
-              ? BorderSide(color: borderColor, width: 2)
+              ? BorderSide(color: tierRailColor ?? borderColor, width: 2)
               : BorderSide.none,
           bottom: BorderSide(color: borderColor.withValues(alpha: 0.7)),
         ),
@@ -11535,6 +12169,7 @@ class _MarketsSectionState extends State<_MarketsSection> {
         if (widget.match.recommendedMarketFor(candidate) case final market?)
           OpportunityMarketCompatibility(
             thesisId:
+                candidate.supportingScenarioIds.firstOrNull ??
                 candidate.supportingThesisIds.firstOrNull ??
                 'market_assessment',
             market: market.market,

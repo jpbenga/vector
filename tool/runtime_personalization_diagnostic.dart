@@ -107,11 +107,10 @@ void main(List<String> args) {
       .whereType<GeneratedTicketPick>()
       .length;
   final producedIds = intelligences
-      .expand((item) => item.thesisAssessments)
-      .where((assessment) => assessment.isSupported)
-      .map((assessment) => assessment.id)
+      .expand((item) => item.scenarioMatches)
+      .map((scenario) => scenario.scenarioId)
       .toSet();
-  final allowedIds = _allowedThesisIds(compiled);
+  final allowedIds = _allowedScenarioIds(compiled);
 
   stdout.writeln('matches=${matches.length}');
   stdout.writeln('matches_$diagnosticDay=${matchesForDay.length}');
@@ -195,14 +194,11 @@ TicketStrategy _diagnosticStrategy() {
   );
 }
 
-Set<String> _allowedThesisIds(CompiledDecisionProfile compiled) {
-  final ids = <String>{};
-  for (final definition in OpportunityProfileCatalog.values) {
-    if (compiled.isOpportunityProfileEnabled(definition.id)) {
-      ids.addAll(definition.thesisIds);
-    }
-  }
-  return ids;
+Set<String> _allowedScenarioIds(CompiledDecisionProfile compiled) {
+  return {
+    for (final definition in OpportunityProfileCatalog.values)
+      if (compiled.isOpportunityProfileEnabled(definition.id)) definition.id,
+  };
 }
 
 Map<String, int> _matchesByDate(List<MatchBoardItem> matches) {

@@ -1,4 +1,5 @@
 import 'package:copilot/features/onboarding/domain/decision_profile.dart';
+import 'package:copilot/features/onboarding/domain/decision_profile_catalogs.dart';
 import 'package:copilot/features/onboarding/domain/onboarding_answer.dart';
 import 'package:copilot/features/onboarding/domain/onboarding_completion.dart';
 import 'package:copilot/features/onboarding/domain/profile_compiler.dart';
@@ -69,7 +70,7 @@ void main() {
     });
 
     testWidgets(
-      'opportunity profiles are selectable and all MVP families work',
+      'available opportunity profiles are selectable and pending ones are identified',
       (tester) async {
         await _pumpOnboarding(tester);
         await _reachStep(tester, 3);
@@ -81,7 +82,10 @@ void main() {
           findsOneWidget,
         );
         expect(find.text('Équipes en difficulté'), findsOneWidget);
-        expect(find.text('À venir'), findsNothing);
+        final pendingScenarioCount = OpportunityProfileCatalog.values
+            .where((scenario) => !scenario.isSupported)
+            .length;
+        expect(find.text('À venir'), findsNWidgets(pendingScenarioCount));
 
         await _tapText(tester, 'Équipes en difficulté');
         await tester.tap(find.text('Continuer'));

@@ -1,3 +1,6 @@
+import '../match_board_item.dart';
+import 'tier_parameters.dart';
+
 enum CompetitionFormat {
   standardRoundRobin,
   splitLeague,
@@ -11,6 +14,7 @@ enum CompetitionFormat {
 enum StructuralSupportStatus { supportedV1, unsupportedV1, unknown }
 
 enum StructuralAnchorSource {
+  tierDefinition,
   lectorOverride,
   competitionMetadata,
   providerDescription,
@@ -141,6 +145,111 @@ class StaticCompetitionStructuralMetadataRepository
   }
 }
 
+class StandingsCompetitionStructuralMetadataResolver {
+  const StandingsCompetitionStructuralMetadataResolver();
+
+  CompetitionStructuralMetadata? resolve({
+    required String competitionId,
+    required int season,
+    required List<TeamStandingSnapshot> leagueStandings,
+  }) {
+    if (leagueStandings.length < DynamicTierParameters.supportedMinTeams ||
+        leagueStandings.length > DynamicTierParameters.supportedMaxTeams) {
+      return null;
+    }
+
+    final ordered = [...leagueStandings]
+      ..sort((left, right) => (left.rank ?? 0).compareTo(right.rank ?? 0));
+    for (var index = 0; index < ordered.length; index += 1) {
+      final standing = ordered[index];
+      if (standing.rank != index + 1 ||
+          standing.points == null ||
+          standing.played == null ||
+          standing.played! < 0) {
+        return null;
+      }
+    }
+
+    final groups = ordered
+        .map((standing) => _normalized(standing.group))
+        .where((group) => group.isNotEmpty)
+        .toSet();
+    if (groups.length > 1) {
+      return null;
+    }
+
+    final lastDescription = ordered.last.description?.trim();
+    final normalizedLastDescription = _normalized(lastDescription);
+    if (!_isRelegationZoneDescription(normalizedLastDescription)) {
+      return null;
+    }
+
+    var relegationStartIndex = ordered.length - 1;
+    while (relegationStartIndex > 0 &&
+        _normalized(ordered[relegationStartIndex - 1].description) ==
+            normalizedLastDescription) {
+      relegationStartIndex -= 1;
+    }
+    final relegationStartRank = ordered[relegationStartIndex].rank!;
+    if (relegationStartRank <= 3) {
+      return null;
+    }
+
+    return CompetitionStructuralMetadata(
+      competitionId: competitionId,
+      season: season,
+      competitionFormat: CompetitionFormat.standardRoundRobin,
+      supportStatus: StructuralSupportStatus.supportedV1,
+      podiumAnchor: const CompetitionStructuralAnchor(
+        startRank: 1,
+        endRank: 3,
+        source: StructuralAnchorSource.tierDefinition,
+      ),
+      relegationAnchor: CompetitionStructuralAnchor(
+        startRank: relegationStartRank,
+        endRank: ordered.last.rank!,
+        source: StructuralAnchorSource.providerDescription,
+        sourceDescription: lastDescription,
+      ),
+      descriptionPolicy: StandingDescriptionPolicy(
+        mappings: [
+          StandingDescriptionMapping(
+            providerDescription: lastDescription!,
+            target: _relegationMappingTarget(normalizedLastDescription),
+            source: StructuralAnchorSource.providerDescription,
+          ),
+        ],
+      ),
+      anchorMetadataVersion:
+          CompetitionStructuralMetadataCatalog.dynamicAnchorMetadataVersion,
+      competitionFormatVersion:
+          CompetitionStructuralMetadataCatalog.dynamicFormatVersion,
+      structuralMetadataVersion:
+          CompetitionStructuralMetadataCatalog.dynamicStructuralMetadataVersion,
+    );
+  }
+
+  static String _normalized(String? value) => value?.trim().toLowerCase() ?? '';
+
+  static bool _isRelegationZoneDescription(String value) {
+    return value.contains('relegation');
+  }
+
+  static StandingDescriptionMappingTarget _relegationMappingTarget(
+    String value,
+  ) {
+    if (value.contains('playoff') ||
+        value.contains('play-off') ||
+        value.contains('play off')) {
+      return StandingDescriptionMappingTarget.relegationPlayoff;
+    }
+    if (value.contains('group') || value.contains('round')) {
+      return StandingDescriptionMappingTarget.relegationGroup;
+    }
+    return StandingDescriptionMappingTarget.directRelegationAnchor;
+  }
+}
+
 class CompetitionStructuralMetadataCatalog {
   const CompetitionStructuralMetadataCatalog._();
 
@@ -148,40 +257,9 @@ class CompetitionStructuralMetadataCatalog {
   static const structuralMetadataVersion = 'structural-metadata-v1';
   static const anchorMetadataVersion = 'anchor-metadata-v1';
   static const competitionFormatVersion = 'competition-format-v1';
+  static const dynamicAnchorMetadataVersion = 'snapshot-anchor-v2';
+  static const dynamicFormatVersion = 'snapshot-format-v2';
+  static const dynamicStructuralMetadataVersion = 'snapshot-structure-v2';
 
-  // Explicit first V1 seed. This is not a universal fallback rule.
-  static const premierLeague2026 = CompetitionStructuralMetadata(
-    competitionId: '39',
-    season: 2026,
-    competitionFormat: CompetitionFormat.standardRoundRobin,
-    supportStatus: StructuralSupportStatus.supportedV1,
-    podiumAnchor: CompetitionStructuralAnchor(
-      startRank: 1,
-      endRank: 3,
-      source: StructuralAnchorSource.lectorOverride,
-    ),
-    relegationAnchor: CompetitionStructuralAnchor(
-      startRank: 18,
-      endRank: 20,
-      source: StructuralAnchorSource.lectorOverride,
-    ),
-    anchorMetadataVersion: anchorMetadataVersion,
-    competitionFormatVersion: competitionFormatVersion,
-    structuralMetadataVersion: structuralMetadataVersion,
-  );
-
-  static const championsLeague2026 = CompetitionStructuralMetadata(
-    competitionId: '2',
-    season: 2026,
-    competitionFormat: CompetitionFormat.groupedCompetition,
-    supportStatus: StructuralSupportStatus.unsupportedV1,
-    anchorMetadataVersion: anchorMetadataVersion,
-    competitionFormatVersion: competitionFormatVersion,
-    structuralMetadataVersion: structuralMetadataVersion,
-  );
-
-  static const values = <CompetitionStructuralMetadata>[
-    premierLeague2026,
-    championsLeague2026,
-  ];
+  static const values = <CompetitionStructuralMetadata>[];
 }

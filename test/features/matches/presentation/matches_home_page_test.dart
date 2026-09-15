@@ -393,7 +393,7 @@ void main() {
       },
     );
 
-    testWidgets('filters the personalized list locally by selected reading', (
+    testWidgets('filters the personalized list locally by selected scenario', (
       tester,
     ) async {
       MatchBoardItem readingMatch({
@@ -422,7 +422,7 @@ void main() {
       final rankingMatch = readingMatch(
         id: 'ranking-match',
         homeName: 'Ranking FC',
-        readingId: 'structural_level_gap',
+        readingId: 'ranking_gap',
         title: 'Écart de niveau structurel',
       );
       final attackMatch = readingMatch(
@@ -548,13 +548,13 @@ void main() {
         final home = readingMatch(
           id: 'weak-home',
           homeName: 'Home Weak FC',
-          readingId: 'weak_home_team',
+          readingId: 'scenario:struggling_team:home',
           title: 'Home Weak FC fragile à domicile',
         );
         final away = readingMatch(
           id: 'weak-away',
           homeName: 'Away Weak FC',
-          readingId: 'weak_away_team',
+          readingId: 'scenario:struggling_team:away',
           title: 'Away Weak FC fragile à l’extérieur',
         );
         await _pumpPage(
@@ -1208,7 +1208,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('renders only the active Lector Tiers and official zones', (
+    testWidgets('renders the tiers and official zones in one standings view', (
       tester,
     ) async {
       await _pumpPage(
@@ -1236,18 +1236,27 @@ void main() {
       await tester.tap(find.text('Classement'));
       await tester.pumpAndSettle();
 
+      expect(find.text('Lecture du classement'), findsOneWidget);
+      expect(find.text('Enjeux officiels'), findsOneWidget);
       expect(find.text('Tiers Lector'), findsOneWidget);
-      expect(find.text('Tier 1 - Podium'), findsOneWidget);
-      expect(find.text('Tier 3 - Milieu de tableau'), findsOneWidget);
-      expect(find.text('Tier 2 - Haut de tableau'), findsNothing);
-      expect(find.text('Tier 4 - Bas de tableau'), findsNothing);
-
-      await tester.tap(find.text('Enjeux'));
-      await tester.pumpAndSettle();
-
+      expect(find.text('Élite'), findsOneWidget);
+      expect(find.text('Sous pression'), findsOneWidget);
+      expect(find.text('Tier A · Élite'), findsOneWidget);
+      expect(find.text('Tier B · Sous pression'), findsOneWidget);
       expect(find.text('Promotion - Champions League'), findsOneWidget);
       expect(find.text('Relegation'), findsOneWidget);
-      expect(find.text('Tier 1 - Podium'), findsNothing);
+      expect(
+        find.bySemanticsLabel(
+          'Position 1, Tier A · Élite, Promotion - Champions League',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel('Position 3, Tier B · Sous pression'),
+        findsOneWidget,
+      );
+      expect(find.text('DOM.'), findsOneWidget);
+      expect(find.text('EXT.'), findsOneWidget);
     });
 
     testWidgets('opens match detail from a folded All matches league', (

@@ -170,17 +170,17 @@ enum MatchProfileStatus { inProfile, outOfProfile }
 class MatchProfileRelevance {
   const MatchProfileRelevance({
     this.readingMatches = 0,
-    this.thesisMatches = 0,
+    this.scenarioMatches = 0,
     this.marketMatches = 0,
   });
 
   static const none = MatchProfileRelevance();
 
   final int readingMatches;
-  final int thesisMatches;
+  final int scenarioMatches;
   final int marketMatches;
 
-  int get total => readingMatches + thesisMatches + marketMatches;
+  int get total => readingMatches + scenarioMatches + marketMatches;
 
   bool get isRelevant => total > 0;
 }
@@ -304,6 +304,8 @@ class TeamStandingSnapshot {
     this.goalsAgainst,
     this.goalDiff,
     this.form,
+    this.metricValue,
+    this.metricLabel,
   });
 
   final int teamId;
@@ -320,6 +322,58 @@ class TeamStandingSnapshot {
   final int? goalsAgainst;
   final int? goalDiff;
   final String? form;
+
+  /// Optional decimal metric used by non-points ranking views (for example xG).
+  final double? metricValue;
+  final String? metricLabel;
+
+  TeamStandingSnapshot copyWith({
+    int? rank,
+    int? points,
+    int? played,
+    int? wins,
+    int? draws,
+    int? losses,
+    int? goalsFor,
+    int? goalsAgainst,
+    int? goalDiff,
+    String? form,
+    double? metricValue,
+    String? metricLabel,
+  }) {
+    return TeamStandingSnapshot(
+      teamId: teamId,
+      teamName: teamName,
+      group: group,
+      description: description,
+      rank: rank ?? this.rank,
+      points: points ?? this.points,
+      played: played ?? this.played,
+      wins: wins ?? this.wins,
+      draws: draws ?? this.draws,
+      losses: losses ?? this.losses,
+      goalsFor: goalsFor ?? this.goalsFor,
+      goalsAgainst: goalsAgainst ?? this.goalsAgainst,
+      goalDiff: goalDiff ?? this.goalDiff,
+      form: form ?? this.form,
+      metricValue: metricValue ?? this.metricValue,
+      metricLabel: metricLabel ?? this.metricLabel,
+    );
+  }
+}
+
+enum ChampionshipStandingView {
+  general,
+  home,
+  away,
+  form,
+  firstLeg,
+  secondLeg,
+  firstHalf,
+  secondHalf,
+  attack,
+  defense,
+  expectedGoals,
 }
 
 enum RecentMatchVenue { home, away }
@@ -390,6 +444,7 @@ class MatchAnalysisData {
     this.homeStanding,
     this.awayStanding,
     this.leagueStandings = const [],
+    this.standingTables = const {},
     this.championshipTierSnapshot,
     this.structuralRelation,
     this.contextKeys = const [],
@@ -409,6 +464,8 @@ class MatchAnalysisData {
   final TeamStandingSnapshot? homeStanding;
   final TeamStandingSnapshot? awayStanding;
   final List<TeamStandingSnapshot> leagueStandings;
+  final Map<ChampionshipStandingView, List<TeamStandingSnapshot>>
+  standingTables;
   final ChampionshipTierSnapshot? championshipTierSnapshot;
   final MatchStructuralRelation? structuralRelation;
   final List<MatchContextKey> contextKeys;
@@ -427,6 +484,14 @@ class MatchAnalysisData {
       homeStanding != null ||
       awayStanding != null ||
       leagueStandings.isNotEmpty;
+
+  List<TeamStandingSnapshot> standingsFor(ChampionshipStandingView view) {
+    if (view == ChampionshipStandingView.general) {
+      return leagueStandings;
+    }
+    return standingTables[view] ?? const [];
+  }
+
   bool get hasStatistics => homeStatistics != null || awayStatistics != null;
   bool get hasRecentLeagueMatches =>
       homeRecentLeagueMatches.isNotEmpty || awayRecentLeagueMatches.isNotEmpty;
@@ -446,6 +511,7 @@ class MatchAnalysisData {
     TeamStandingSnapshot? homeStanding,
     TeamStandingSnapshot? awayStanding,
     List<TeamStandingSnapshot>? leagueStandings,
+    Map<ChampionshipStandingView, List<TeamStandingSnapshot>>? standingTables,
     ChampionshipTierSnapshot? championshipTierSnapshot,
     MatchStructuralRelation? structuralRelation,
     List<MatchContextKey>? contextKeys,
@@ -465,6 +531,7 @@ class MatchAnalysisData {
       homeStanding: homeStanding ?? this.homeStanding,
       awayStanding: awayStanding ?? this.awayStanding,
       leagueStandings: leagueStandings ?? this.leagueStandings,
+      standingTables: standingTables ?? this.standingTables,
       championshipTierSnapshot:
           championshipTierSnapshot ?? this.championshipTierSnapshot,
       structuralRelation: structuralRelation ?? this.structuralRelation,

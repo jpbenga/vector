@@ -2469,7 +2469,9 @@ class _ModifyGeneratedTicketSheetState
           market: resolved.market,
           selection: resolved.selection,
           thesisId:
-              candidate.supportingThesisIds.firstOrNull ?? 'market_assessment',
+              candidate.supportingScenarioIds.firstOrNull ??
+              candidate.supportingThesisIds.firstOrNull ??
+              'market_assessment',
           isRecommended: candidate.selectionId == pick.selectionId,
         );
       }

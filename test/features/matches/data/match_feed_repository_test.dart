@@ -157,7 +157,7 @@ void main() {
       );
 
       expect(matches.map((match) => match.id), ['fixture-domination']);
-      expect(matches.single.thesis?.id, 'expected_domination');
+      expect(matches.single.thesis?.id, 'ranking_gap');
       expect(analyzer.calls, 2);
     });
 
@@ -171,13 +171,13 @@ void main() {
       final rankingOnly = repository.personalizedFor(
         _profile(markets: ['double_chance'], profiles: ['ranking_gap']),
       );
-      final offensiveOnly = repository.personalizedFor(
-        _profile(markets: ['goals_over_under'], profiles: ['offensive_match']),
+      final difficultyOnly = repository.personalizedFor(
+        _profile(markets: ['goals_over_under'], profiles: ['struggling_team']),
       );
 
       expect(rankingOnly.map((match) => match.id), ['fixture-domination']);
-      expect(offensiveOnly.map((match) => match.id), ['fixture-open']);
-      expect(offensiveOnly.single.thesis?.id, 'convergent_open_match');
+      expect(difficultyOnly.map((match) => match.id), ['fixture-open']);
+      expect(difficultyOnly.single.thesis?.id, 'struggling_team');
       expect(analyzer.calls, 2);
     });
 
@@ -204,7 +204,7 @@ void main() {
         expect(marketMatch.thesis, isNull);
         expect(marketMatch.betCandidates, isNotEmpty);
         expect(marketMatch.profileRelevance.readingMatches, 1);
-        expect(marketMatch.profileRelevance.thesisMatches, 0);
+        expect(marketMatch.profileRelevance.scenarioMatches, 0);
         expect(marketMatch.profileRelevance.marketMatches, 1);
       },
     );
@@ -414,7 +414,7 @@ void main() {
         final opportunities = repository.opportunitiesFor(profile);
         final matches = repository.personalizedFor(profile);
 
-        expect(opportunities, isNotEmpty);
+        expect(opportunities, isEmpty);
         expect(matches.map((match) => match.id), contains('fixture-form'));
         final readingOnlyMatch = matches.singleWhere(
           (match) => match.id == 'fixture-form',
@@ -434,11 +434,11 @@ void main() {
       final beforeRemoval = repository.personalizedFor(
         _profile(
           markets: ['double_chance', 'goals_over_under'],
-          profiles: ['ranking_gap', 'offensive_match'],
+          profiles: ['ranking_gap', 'struggling_team'],
         ),
       );
       final afterRemoval = repository.personalizedFor(
-        _profile(markets: ['goals_over_under'], profiles: ['offensive_match']),
+        _profile(markets: ['goals_over_under'], profiles: ['struggling_team']),
       );
 
       expect(
@@ -480,14 +480,14 @@ void main() {
       final repository = _personalizationRepository(analyzer);
       final saved = _profile(
         markets: ['goals_over_under'],
-        profiles: ['offensive_match'],
+        profiles: ['struggling_team'],
       );
       final reloaded = DecisionProfile.fromJson(saved.toJson());
 
       final matches = repository.personalizedFor(reloaded);
 
       expect(matches.map((match) => match.id), ['fixture-open']);
-      expect(matches.single.thesis?.id, 'convergent_open_match');
+      expect(matches.single.thesis?.id, 'struggling_team');
       expect(analyzer.calls, 2);
     });
   });
@@ -823,6 +823,24 @@ List<FootballReading> _openMatchReadings(String fixtureId) {
       'home-open',
       side: ReadingSubjectSide.home,
       kind: ReadingEvidenceKind.expectedGoals,
+    ),
+    _reading(
+      'negative_streak',
+      'away-open',
+      side: ReadingSubjectSide.away,
+      kind: ReadingEvidenceKind.form,
+    ),
+    _reading(
+      'scoring_difficulty',
+      'away-open',
+      side: ReadingSubjectSide.away,
+      kind: ReadingEvidenceKind.goals,
+    ),
+    _reading(
+      'fragile_defense',
+      'away-open',
+      side: ReadingSubjectSide.away,
+      kind: ReadingEvidenceKind.goals,
     ),
   ];
 }

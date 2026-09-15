@@ -1,3 +1,5 @@
+import '../../matches/domain/football_scenario.dart';
+
 enum ProfileConfigurationState { notStarted, inProgress, completed }
 
 enum PickType { prudent, normal, audacious }
@@ -583,16 +585,16 @@ class OpportunityProfileDefinition {
     required this.label,
     required this.displayLabel,
     required this.description,
-    required this.thesisIds,
   });
 
   final String id;
   final String label;
   final String displayLabel;
   final String description;
-  final List<String> thesisIds;
 
-  bool get isSupported => thesisIds.isNotEmpty;
+  FootballScenarioDefinition? get scenario => FootballScenarioCatalog.byId(id);
+
+  bool get isSupported => scenario?.isAvailable ?? false;
 }
 
 /// Metadata describing a selectable football reading.
@@ -778,14 +780,7 @@ class OpportunityProfileCatalog {
       label: 'Favoris solides',
       displayLabel: 'Dominations attendues',
       description:
-          'Supériorité soutenue par classement, dynamique, attaque, défense et contexte.',
-      thesisIds: [
-        'solid_favorite',
-        'cautious_double_chance',
-        'expected_domination',
-        'favorite_with_protection',
-        'controlled_favorite',
-      ],
+          'Supériorité au classement, avantage de forme et écart structurel réunis.',
     ),
     OpportunityProfileDefinition(
       id: 'struggling_team',
@@ -793,91 +788,63 @@ class OpportunityProfileCatalog {
       displayLabel: 'Équipes en difficulté',
       description:
           'Mauvais résultats, faible création offensive et fragilité défensive.',
-      thesisIds: ['team_in_serious_difficulty'],
     ),
     OpportunityProfileDefinition(
       id: 'offensive_match',
       label: 'Matchs ouverts',
       displayLabel: 'Matchs ouverts',
       description:
-          'Attaques, défenses et xG convergent vers un scénario favorable aux buts.',
-      thesisIds: [
-        'open_match',
-        'convergent_open_match',
-        'both_sides_can_score',
-      ],
+          'Profil ouvert, deux attaques prolifiques et au moins une défense fragile.',
     ),
     OpportunityProfileDefinition(
       id: 'defensive_match',
       label: 'Matchs fermes',
       displayLabel: 'Matchs fermés',
       description:
-          'Défenses, faible création offensive et historiques suggèrent peu de buts.',
-      thesisIds: ['closed_match', 'convergent_closed_match'],
+          'Profil fermé, deux défenses solides et deux attaques en difficulté.',
     ),
     OpportunityProfileDefinition(
       id: 'ranking_gap',
       label: 'Ecarts de niveau',
       displayLabel: 'Écarts de niveau',
       description:
-          'Plusieurs indicateurs montrent une différence structurelle entre les équipes.',
-      thesisIds: ['level_gap', 'expected_domination', 'one_sided_scoring'],
+          'Supériorité au classement et écart structurel concernent la même équipe.',
     ),
     OpportunityProfileDefinition(
       id: 'credible_outsider',
       label: 'Outsiders credibles',
       displayLabel: 'Outsiders crédibles',
       description:
-          'Équipe moins attendue, mais soutenue par forme, contexte ou fragilité adverse.',
-      thesisIds: ['credible_outsider'],
+          'Infériorité théorique compensée par forme, lieu et fragilité adverse.',
     ),
     OpportunityProfileDefinition(
       id: 'fragile_defense',
       label: 'Defenses fragiles',
       displayLabel: 'Défenses fragiles',
-      description:
-          'Défenses qui encaissent beaucoup ou concèdent des occasions dangereuses.',
-      thesisIds: [
-        'convergent_open_match',
-        'one_sided_scoring',
-        'team_in_serious_difficulty',
-      ],
+      description: 'Fragilité, xG concédés et tirs cadrés concédés convergent.',
     ),
     OpportunityProfileDefinition(
       id: 'prolific_attack',
       label: 'Attaques prolifiques',
       displayLabel: 'Attaques prolifiques',
       description:
-          'Attaques qui marquent ou produisent régulièrement des occasions de qualité.',
-      thesisIds: ['both_sides_can_score', 'one_sided_scoring'],
+          'Buts, création xG et tirs cadrés convergent pour la même équipe.',
     ),
     OpportunityProfileDefinition(
       id: 'positive_series',
       label: 'Series positives',
       displayLabel: 'Séries positives',
       description:
-          'Bonnes séries, avec indication si les xG les confirment ou les fragilisent.',
-      thesisIds: ['team_worse_than_results', 'expected_domination'],
+          'Série positive, progression récente et création xG élevée convergent.',
     ),
     OpportunityProfileDefinition(
       id: 'negative_series',
       label: 'Series negatives',
       displayLabel: 'Séries négatives',
       description:
-          'Mauvaises dynamiques, en distinguant difficultés réelles et scores trompeurs.',
-      thesisIds: ['team_better_than_results', 'team_in_serious_difficulty'],
+          'Série négative, dégradation récente et faible création xG convergent.',
     ),
   ];
-
-  static String? profileIdForThesis(String thesisId) {
-    for (final definition in values) {
-      if (definition.thesisIds.contains(thesisId)) {
-        return definition.id;
-      }
-    }
-
-    return null;
-  }
 
   static OpportunityProfileDefinition? byId(String id) {
     for (final definition in values) {
@@ -889,78 +856,9 @@ class OpportunityProfileCatalog {
     return null;
   }
 
-  static List<String> profileIdsForThesis(String thesisId) {
-    return [
-      for (final definition in values)
-        if (definition.thesisIds.contains(thesisId)) definition.id,
-    ];
-  }
-
-  static List<String> profileIdsForReading(String readingId) {
-    return _profileIdsByReadingId[readingId] ?? const [];
-  }
-
   static bool isDirectPersonalizationReading(String readingId) {
     return ReadingPreferenceCatalog.contains(readingId);
   }
-
-  static const Map<String, List<String>> _profileIdsByReadingId = {
-    'balanced_hierarchy': [],
-    'ranking_superiority': ['solid_favorite'],
-    'structural_level_gap': ['solid_favorite', 'ranking_gap'],
-    'positive_streak': ['solid_favorite', 'positive_series'],
-    'improving_form': ['solid_favorite', 'positive_series'],
-    'negative_streak': ['struggling_team', 'negative_series'],
-    'declining_form': ['struggling_team', 'negative_series'],
-    'strong_home_team': ['solid_favorite'],
-    'weak_home_team': ['struggling_team'],
-    'strong_away_team': ['solid_favorite'],
-    'weak_away_team': ['solid_favorite', 'struggling_team'],
-    'home_away_mismatch': ['solid_favorite'],
-    'prolific_attack': ['solid_favorite', 'offensive_match', 'prolific_attack'],
-    'scoring_difficulty': [
-      'struggling_team',
-      'defensive_match',
-      'negative_series',
-    ],
-    'solid_defense': ['solid_favorite', 'defensive_match'],
-    'fragile_defense': [
-      'struggling_team',
-      'offensive_match',
-      'fragile_defense',
-    ],
-    'frequent_clean_sheet': ['solid_favorite', 'defensive_match'],
-    'open_match_profile': ['offensive_match'],
-    'frequent_over_25': ['offensive_match', 'prolific_attack'],
-    'frequent_btts': ['offensive_match', 'prolific_attack'],
-    'closed_match_profile': ['defensive_match'],
-    'frequent_under_25': ['defensive_match'],
-    'high_xg_creation': [
-      'solid_favorite',
-      'offensive_match',
-      'prolific_attack',
-    ],
-    'low_xg_creation': [
-      'struggling_team',
-      'defensive_match',
-      'negative_series',
-    ],
-    'high_xg_conceded': [
-      'struggling_team',
-      'offensive_match',
-      'fragile_defense',
-    ],
-    'offensive_underperformance': ['struggling_team', 'negative_series'],
-    'offensive_overperformance': ['prolific_attack', 'positive_series'],
-    'defensive_underperformance': [
-      'struggling_team',
-      'fragile_defense',
-      'negative_series',
-    ],
-    'defensive_overperformance': ['defensive_match', 'positive_series'],
-    'misleading_result': ['credible_outsider', 'positive_series'],
-    'conflicting_signals': ['credible_outsider'],
-  };
 }
 
 typedef MatchTypeDefinition = OpportunityProfileDefinition;
@@ -969,10 +867,6 @@ class MatchTypeCatalog {
   const MatchTypeCatalog._();
 
   static const values = OpportunityProfileCatalog.values;
-
-  static String? matchTypeIdForThesis(String thesisId) {
-    return OpportunityProfileCatalog.profileIdForThesis(thesisId);
-  }
 }
 
 double _normalizeOdds(double odds) => (odds * 100).round() / 100;

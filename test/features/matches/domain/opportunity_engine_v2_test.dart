@@ -7,6 +7,7 @@ import 'package:copilot/features/matches/domain/structural_tiers/tier_models.dar
 import 'package:copilot/features/matches/domain/football_reading.dart';
 import 'package:copilot/features/onboarding/domain/compiled_decision_profile.dart';
 import 'package:copilot/features/onboarding/domain/decision_profile.dart';
+import 'package:copilot/features/onboarding/domain/decision_profile_catalogs.dart';
 import 'package:copilot/features/onboarding/domain/onboarding_answer.dart';
 import 'package:copilot/features/onboarding/domain/profile_compiler.dart';
 import 'package:copilot/features/opportunities/domain/opportunity.dart';
@@ -23,11 +24,12 @@ void main() {
 
       expect(opportunities, hasLength(1));
       final opportunity = opportunities.single;
-      expect(opportunity.retainedTheses.single.id, 'expected_domination');
-      expect(opportunity.supportingReadings.length, greaterThanOrEqualTo(3));
+      expect(opportunity.retainedTheses.single.id, 'ranking_gap');
+      expect(opportunity.scenarioIds, ['ranking_gap']);
+      expect(opportunity.supportingReadings, hasLength(2));
       expect(opportunity.recommendedMarket?.market.id, 'doubleChance');
       expect(opportunity.recommendedMarket?.selection.label, '1X');
-      expect(opportunity.argumentCount, greaterThanOrEqualTo(3));
+      expect(opportunity.argumentCount, 2);
       expect(
         opportunity.copilotArguments.map((argument) => argument.subjectName),
         everyElement(isNot(startsWith('api-team-'))),
@@ -60,10 +62,7 @@ void main() {
         ], _profile(markets: ['match_result'], profiles: ['ranking_gap']));
 
         expect(opportunities, hasLength(1));
-        expect(
-          opportunities.single.retainedTheses.single.id,
-          'expected_domination',
-        );
+        expect(opportunities.single.retainedTheses.single.id, 'ranking_gap');
         expect(opportunities.single.recommendedMarket, isNull);
         expect(opportunities.single.compatibleMarkets, isEmpty);
         expect(
@@ -73,30 +72,117 @@ void main() {
       },
     );
 
-    test('can produce avoid_match without proposing a market', () {
-      final opportunities =
-          OpportunityEngineV2(
-            analyzer: _StaticAnalyzer([
-              _reading(
-                'balanced_hierarchy',
-                'fixture',
-                ReadingSubjectSide.match,
-              ),
-              _reading(
-                'conflicting_signals',
-                'fixture',
-                ReadingSubjectSide.match,
-              ),
-            ]),
-          ).opportunities(
-            [_balancedConflictingMatch()],
-            _profile(markets: ['double_chance'], profiles: ['solid_favorite']),
-          );
+    test('detects every strict scenario before user personalization', () {
+      final intelligence = _expectedDominationEngine().buildIntelligence(
+        _match(),
+      );
 
-      expect(opportunities, hasLength(1));
-      expect(opportunities.single.retainedTheses.single.id, 'avoid_match');
-      expect(opportunities.single.recommendedMarket, isNull);
-      expect(opportunities.single.compatibleMarkets, isEmpty);
+      expect(
+        intelligence.scenarioMatches.map((scenario) => scenario.scenarioId),
+        containsAll(['solid_favorite', 'ranking_gap']),
+      );
+      expect(
+        intelligence.opportunities.expand(
+          (opportunity) => opportunity.scenarioIds,
+        ),
+        containsAll(['solid_favorite', 'ranking_gap']),
+      );
+      expect(
+        intelligence.betCandidates.expand(
+          (candidate) => candidate.supportingScenarioIds,
+        ),
+        containsAll(['solid_favorite', 'ranking_gap']),
+      );
+    });
+
+    test('keeps multiple configured scenarios for the same match', () {
+      final opportunities = _expectedDominationEngine().opportunities(
+        [_match()],
+        _profile(
+          markets: ['double_chance'],
+          profiles: ['solid_favorite', 'ranking_gap'],
+        ),
+      );
+
+      expect(opportunities, hasLength(2));
+      expect(
+        opportunities.expand((opportunity) => opportunity.scenarioIds),
+        containsAll(['solid_favorite', 'ranking_gap']),
+      );
+    });
+
+    test('does not use a different scenario as an alternative', () {
+      final engine = OpportunityEngineV2(
+        analyzer: _StaticAnalyzer([
+          _reading(
+            'structural_level_gap',
+            'api-team-10',
+            ReadingSubjectSide.home,
+          ),
+          _reading(
+            'ranking_superiority',
+            'api-team-10',
+            ReadingSubjectSide.home,
+          ),
+        ]),
+      );
+
+      expect(
+        engine.opportunities([
+          _match(),
+        ], _profile(markets: ['double_chance'], profiles: ['solid_favorite'])),
+        isEmpty,
+      );
+      expect(
+        engine
+            .opportunities([
+              _match(),
+            ], _profile(markets: ['double_chance'], profiles: ['ranking_gap']))
+            .single
+            .scenarioIds,
+        ['ranking_gap'],
+      );
+    });
+
+    test(
+      'exposes only scenarios supported by the current reading pipeline',
+      () {
+        expect(
+          OpportunityProfileCatalog.byId('solid_favorite')?.isSupported,
+          isTrue,
+        );
+        expect(
+          OpportunityProfileCatalog.byId('offensive_match')?.isSupported,
+          isFalse,
+        );
+        expect(
+          OpportunityProfileCatalog.byId('positive_series')?.isSupported,
+          isFalse,
+        );
+      },
+    );
+
+    test('does not turn an explanatory thesis into a scenario', () {
+      final engine = OpportunityEngineV2(
+        analyzer: _StaticAnalyzer([
+          _reading('balanced_hierarchy', 'fixture', ReadingSubjectSide.match),
+          _reading('conflicting_signals', 'fixture', ReadingSubjectSide.match),
+        ]),
+      );
+      final match = _balancedConflictingMatch();
+      final intelligence = engine.buildIntelligence(match);
+      final opportunities = engine.opportunities([
+        match,
+      ], _profile(markets: ['double_chance'], profiles: ['solid_favorite']));
+
+      expect(
+        intelligence.thesisAssessments
+            .singleWhere((assessment) => assessment.id == 'avoid_match')
+            .isSupported,
+        isTrue,
+      );
+      expect(intelligence.scenarioMatches, isEmpty);
+      expect(opportunities, isEmpty);
     });
 
     test('does not create opportunities for incomplete profiles', () {
@@ -115,13 +201,10 @@ void main() {
       'keeps EARLY analysis visible but excludes automatic opportunities',
       () {
         final engine = OpportunityEngineV2(
-          analyzer: _StaticAnalyzer([
-            _reading(
-              'ranking_superiority',
-              'api-team-10',
-              ReadingSubjectSide.home,
-            ),
-          ], maturity: AnalysisMaturity.early),
+          analyzer: _StaticAnalyzer(
+            _expectedDominationReadings(),
+            maturity: AnalysisMaturity.early,
+          ),
         );
         final intelligence = engine.buildIntelligence(_match());
         final opportunities = engine.opportunities([
@@ -131,6 +214,17 @@ void main() {
         expect(intelligence.analysis.maturity, AnalysisMaturity.early);
         expect(intelligence.analysis.readings, isNotEmpty);
         expect(intelligence.thesisAssessments, isNotEmpty);
+        expect(intelligence.scenarioMatches, isNotEmpty);
+        expect(
+          intelligence.betCandidates,
+          everyElement(
+            isA<BetCandidate>().having(
+              (candidate) => candidate.isAutomaticallyUsable,
+              'isAutomaticallyUsable',
+              isFalse,
+            ),
+          ),
+        );
         expect(opportunities, isEmpty);
       },
     );

@@ -53,6 +53,7 @@ Deno.serve(async (request) => {
     fixtures: 0,
     odds: 0,
     standings: 0,
+    leagueFixtureRows: 0,
     teamStatistics: 0,
     recentFixtureRows: 0,
     fixtureStatistics: 0,
@@ -118,6 +119,27 @@ Deno.serve(async (request) => {
         requestDelayMs: apiRequestDelayMs,
       });
       summary.standings += 1;
+      summary.cachedResponses += 1;
+
+      // Keep the complete league fixture history in the cache. The snapshot
+      // builder uses it to derive first/second-leg and half-time tables
+      // without making any additional API calls during match analysis.
+      const leagueFixtures = await fetchAndCache({
+        apiBaseUrl,
+        apiKey,
+        supabaseUrl,
+        serviceRoleKey,
+        runId,
+        endpoint: "/fixtures",
+        query: {
+          league: String(leagueId),
+          season: String(leagueSeason),
+          timezone: options.timezone,
+        },
+        ttlSeconds: 6 * 60 * 60,
+        requestDelayMs: apiRequestDelayMs,
+      });
+      summary.leagueFixtureRows += responseRows(leagueFixtures.body).length;
       summary.cachedResponses += 1;
 
       for (const date of dateWindow(options.windowStart, options.windowEnd)) {
@@ -343,6 +365,7 @@ type SyncSummary = {
   fixtures: number;
   odds: number;
   standings: number;
+  leagueFixtureRows: number;
   teamStatistics: number;
   recentFixtureRows: number;
   fixtureStatistics: number;

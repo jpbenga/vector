@@ -555,6 +555,7 @@ void main() {
           ],
           'expected_goals': [
             {
+              'league': {'id': 39},
               'team': {'id': 10, 'name': 'Home'},
               'asOf': '2026-07-30T08:00:00Z',
               'sampleSize': 5,
@@ -584,7 +585,157 @@ void main() {
         match.analysis.homeExpectedGoals?.goalsMinusXgFor5,
         closeTo(4.18, 0.001),
       );
+      expect(
+        match
+            .analysis
+            .standingTables[ChampionshipStandingView.expectedGoals]
+            ?.single
+            .metricValue,
+        1.66,
+      );
     });
+
+    test(
+      'builds dynamic standing views from split and historical fixtures',
+      () {
+        final snapshot = {
+          'captured_at': '2026-09-01T00:00:00Z',
+          'raw': {
+            'fixtures': [
+              {
+                'fixture': {
+                  'id': 300,
+                  'date': '2026-09-10T20:00:00Z',
+                  'status': {'short': 'NS'},
+                },
+                'league': {'id': 61, 'name': 'Ligue 1', 'country': 'France'},
+                'teams': {
+                  'home': {'id': 10, 'name': 'Home'},
+                  'away': {'id': 11, 'name': 'Away'},
+                },
+              },
+            ],
+            'odds': <Object?>[],
+            'standings': [
+              {
+                'league': {
+                  'id': 61,
+                  'standings': [
+                    [
+                      {
+                        'rank': 1,
+                        'team': {'id': 10, 'name': 'Home'},
+                        'points': 9,
+                        'goalsDiff': 5,
+                        'all': {
+                          'played': 4,
+                          'win': 3,
+                          'draw': 0,
+                          'lose': 1,
+                          'goals': {'for': 8, 'against': 3},
+                        },
+                        'home': {
+                          'played': 2,
+                          'win': 2,
+                          'draw': 0,
+                          'lose': 0,
+                          'goals': {'for': 5, 'against': 1},
+                        },
+                        'away': {
+                          'played': 2,
+                          'win': 1,
+                          'draw': 0,
+                          'lose': 1,
+                          'goals': {'for': 3, 'against': 2},
+                        },
+                        'form': 'WWLW',
+                      },
+                      {
+                        'rank': 2,
+                        'team': {'id': 11, 'name': 'Away'},
+                        'points': 7,
+                        'goalsDiff': 1,
+                        'all': {
+                          'played': 4,
+                          'win': 2,
+                          'draw': 1,
+                          'lose': 1,
+                          'goals': {'for': 6, 'against': 5},
+                        },
+                        'home': {
+                          'played': 2,
+                          'win': 1,
+                          'draw': 1,
+                          'lose': 0,
+                          'goals': {'for': 3, 'against': 1},
+                        },
+                        'away': {
+                          'played': 2,
+                          'win': 1,
+                          'draw': 0,
+                          'lose': 1,
+                          'goals': {'for': 3, 'against': 4},
+                        },
+                        'form': 'WDDL',
+                      },
+                    ],
+                  ],
+                },
+              },
+            ],
+            'league_fixtures': [
+              {
+                'fixture': {
+                  'id': 100,
+                  'date': '2026-08-01T18:00:00Z',
+                  'status': {'short': 'FT'},
+                },
+                'league': {'id': 61},
+                'teams': {
+                  'home': {'id': 10, 'name': 'Home'},
+                  'away': {'id': 11, 'name': 'Away'},
+                },
+                'goals': {'home': 1, 'away': 0},
+                'score': {
+                  'halftime': {'home': 1, 'away': 0},
+                  'fulltime': {'home': 1, 'away': 0},
+                },
+              },
+              {
+                'fixture': {
+                  'id': 101,
+                  'date': '2026-08-20T18:00:00Z',
+                  'status': {'short': 'FT'},
+                },
+                'league': {'id': 61},
+                'teams': {
+                  'home': {'id': 11, 'name': 'Away'},
+                  'away': {'id': 10, 'name': 'Home'},
+                },
+                'goals': {'home': 2, 'away': 2},
+                'score': {
+                  'halftime': {'home': 0, 'away': 1},
+                  'fulltime': {'home': 2, 'away': 2},
+                },
+              },
+            ],
+          },
+        };
+
+        final match = const ApiFootballMatchAdapter()
+            .fromSnapshot(snapshot)
+            .single;
+        final tables = match.analysis.standingTables;
+
+        expect(tables[ChampionshipStandingView.home]!.first.teamId, 10);
+        expect(tables[ChampionshipStandingView.away]!.first.teamId, 10);
+        expect(tables[ChampionshipStandingView.form]!.first.teamId, 10);
+        expect(tables[ChampionshipStandingView.firstLeg], hasLength(2));
+        expect(tables[ChampionshipStandingView.secondLeg], hasLength(2));
+        expect(tables[ChampionshipStandingView.firstHalf], hasLength(2));
+        expect(tables[ChampionshipStandingView.secondHalf], hasLength(2));
+      },
+    );
   });
 }
 

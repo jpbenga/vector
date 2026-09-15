@@ -318,7 +318,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
           'matchId': match.id,
           'competitionId': match.competition.id,
           'attentionMatches': match.profileRelevance.readingMatches,
-          'scenarioMatches': match.profileRelevance.thesisMatches,
+          'scenarioMatches': match.profileRelevance.scenarioMatches,
           'marketMatches': match.profileRelevance.marketMatches,
           'included': includedIds.contains(match.id),
         },
@@ -331,7 +331,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             match.id,
             match.analysis.contextKeys.length,
             match.profileRelevance.readingMatches,
-            match.profileRelevance.thesisMatches,
+            match.profileRelevance.scenarioMatches,
             match.profileRelevance.marketMatches,
           ],
       ]),
@@ -359,7 +359,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
           .where((match) => match.profileRelevance.readingMatches > 0)
           .length,
       matchesMatchingScenarios: matchesOnDate
-          .where((match) => match.profileRelevance.thesisMatches > 0)
+          .where((match) => match.profileRelevance.scenarioMatches > 0)
           .length,
       matchesMatchingMarkets: matchesOnDate
           .where((match) => match.profileRelevance.marketMatches > 0)
@@ -633,6 +633,10 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
       MaterialPageRoute<void>(
         builder: (context) => MatchDetailPage(
           match: match,
+          selectedReadingIds: widget.profile.optionIdsFor('readings'),
+          selectedScenarioIds: widget.profile.optionIdsFor(
+            'opportunity_profiles',
+          ),
           ticketDraftListenable: _ticketDraftNotifier,
           ticketStrategies: widget.ticketStrategies,
           onToggleTicket: _toggleTicketSelection,
@@ -667,6 +671,10 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
         builder: (context) => MatchDetailPage(
           match: analyzedMatch,
           opportunity: opportunity,
+          selectedReadingIds: widget.profile.optionIdsFor('readings'),
+          selectedScenarioIds: widget.profile.optionIdsFor(
+            'opportunity_profiles',
+          ),
           ticketDraftListenable: _ticketDraftNotifier,
           ticketStrategies: widget.ticketStrategies,
           onToggleTicket: _toggleTicketSelection,
@@ -1430,6 +1438,13 @@ class _ForMeReading {
   final String label;
 }
 
+class _ForMeScenario {
+  const _ForMeScenario({required this.label, required this.summary});
+
+  final String label;
+  final String summary;
+}
+
 class _ForMeReadingFilter {
   const _ForMeReadingFilter({
     required this.id,
@@ -1471,44 +1486,16 @@ class _ForMeReadingCategory {
     String runtimeId, {
     required Set<String> selectedProfileIds,
   }) {
-    final candidates = <String>{
-      ...?_preferredProfileIds[runtimeId],
-      ...OpportunityProfileCatalog.profileIdsForReading(runtimeId),
-      ...OpportunityProfileCatalog.profileIdsForThesis(runtimeId),
-    };
-    if (candidates.isEmpty) {
+    final scenarioId = runtimeId.startsWith('scenario:')
+        ? runtimeId.split(':').elementAtOrNull(1)
+        : OpportunityProfileCatalog.byId(runtimeId)?.id;
+    if (scenarioId == null ||
+        (selectedProfileIds.isNotEmpty &&
+            !selectedProfileIds.contains(scenarioId))) {
       return null;
     }
-
-    final selected = selectedProfileIds.isEmpty
-        ? candidates
-        : candidates.where(selectedProfileIds.contains).toSet();
-    if (selected.isEmpty) {
-      return null;
-    }
-
-    final id = _orderedProfileIds
-        .where(selected.contains)
-        .cast<String?>()
-        .firstOrNull;
-    if (id == null) {
-      return null;
-    }
-    return _categoriesByProfileId[id];
+    return _categoriesByProfileId[scenarioId];
   }
-
-  static const _orderedProfileIds = [
-    'ranking_gap',
-    'positive_series',
-    'negative_series',
-    'fragile_defense',
-    'prolific_attack',
-    'offensive_match',
-    'defensive_match',
-    'solid_favorite',
-    'struggling_team',
-    'credible_outsider',
-  ];
 
   static const _categoriesByProfileId = {
     'ranking_gap': _ForMeReadingCategory(
@@ -1551,30 +1538,6 @@ class _ForMeReadingCategory {
       id: 'credible_outsider',
       label: 'Outsider crédible',
     ),
-  };
-
-  static const _preferredProfileIds = <String, List<String>>{
-    'structural_level_gap': ['ranking_gap'],
-    'positive_streak': ['positive_series'],
-    'improving_form': ['positive_series'],
-    'negative_streak': ['negative_series'],
-    'declining_form': ['negative_series'],
-    'fragile_defense': ['fragile_defense'],
-    'high_xg_conceded': ['fragile_defense'],
-    'defensive_underperformance': ['fragile_defense'],
-    'prolific_attack': ['prolific_attack'],
-    'high_xg_creation': ['prolific_attack'],
-    'attack_in_form': ['prolific_attack'],
-    'open_match_profile': ['offensive_match'],
-    'frequent_over_25': ['offensive_match'],
-    'frequent_btts': ['offensive_match'],
-    'closed_match_profile': ['defensive_match'],
-    'frequent_under_25': ['defensive_match'],
-    'expected_domination': ['solid_favorite'],
-    'solid_favorite': ['solid_favorite'],
-    'controlled_favorite': ['solid_favorite'],
-    'team_in_serious_difficulty': ['struggling_team'],
-    'credible_outsider': ['credible_outsider'],
   };
 }
 
@@ -2932,7 +2895,6 @@ class _TodayStoriesSection extends StatelessWidget {
         else
           for (var index = 0; index < matches.length; index++) ...[
             _TodayStoryCard(
-              rank: index + 1,
               match: matches[index],
               onTap: () => onOpenMatch(matches[index]),
             ),
@@ -2945,23 +2907,23 @@ class _TodayStoriesSection extends StatelessWidget {
 }
 
 class _TodayStoryCard extends StatelessWidget {
-  const _TodayStoryCard({
-    required this.rank,
-    required this.match,
-    required this.onTap,
-  });
+  const _TodayStoryCard({required this.match, required this.onTap});
 
-  final int rank;
   final MatchBoardItem match;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final thesisId = match.thesis?.id ?? match.signals.firstOrNull?.id ?? '';
-    final hasOpportunity = match.thesis?.hasRecommendedMarket == true;
-    final readingCount = _convergentReadingCount(match);
-    final tags = _representativeReadingTags(match);
+    final readings = _representativeReadingTags(match);
+    final scenarios = _representativeScenarios(match);
+    final readingCount = readings.isNotEmpty
+        ? readings.length
+        : match.profileRelevance.readingMatches;
+    final actionColor = scenarios.isNotEmpty
+        ? context.strategies.violetStyle.color
+        : readings.isNotEmpty
+        ? context.opportunities.readingIdentityForId(readings.first.id).color
+        : context.brand.accent;
 
     return Material(
       color: context.surfaces.surface.withValues(alpha: 0.72),
@@ -2973,66 +2935,67 @@ class _TodayStoryCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.card),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(10, 11, 8, 11),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+          padding: const EdgeInsets.fromLTRB(14, 11, 12, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _StoryRankMeta(rank: rank, match: match),
-              const SizedBox(width: 10),
-              SizedBox(width: 112, child: _StoryTeams(match: match)),
-              Container(
-                width: 1,
-                height: 76,
-                margin: const EdgeInsets.symmetric(horizontal: 10),
-                color: context.surfaces.border,
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _StoryRelevanceLabel(
-                      readingCount: readingCount,
-                      hasOpportunity: hasOpportunity,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    _StoryReadingTags(tags: tags),
-                    if (_storySummary(match).isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        _storySummary(match),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: context.textColors.secondary,
-                          height: 1.2,
-                          fontWeight: FontWeight.w600,
-                        ),
+              _StoryCompetitionHeader(match: match, readingCount: readingCount),
+              const SizedBox(height: 9),
+              Divider(height: 1, color: context.surfaces.border),
+              const SizedBox(height: 10),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 680;
+                  final insights = _StoryInsights(
+                    scenarios: scenarios,
+                    readings: readings,
+                    fallbackSummary: _storySummary(match),
+                  );
+                  final action = IconButton.outlined(
+                    onPressed: onTap,
+                    tooltip: 'Voir l’analyse',
+                    icon: Icon(Icons.chevron_right_rounded, color: actionColor),
+                    style: IconButton.styleFrom(
+                      side: BorderSide(color: context.surfaces.border),
+                      backgroundColor: context.surfaces.surfaceHover.withValues(
+                        alpha: 0.4,
                       ),
+                    ),
+                  );
+
+                  if (compact) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(child: _StoryTeams(match: match)),
+                            const SizedBox(width: 8),
+                            action,
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        insights,
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SizedBox(width: 260, child: _StoryTeams(match: match)),
+                      Container(
+                        width: 1,
+                        height: 84,
+                        margin: const EdgeInsets.symmetric(horizontal: 14),
+                        color: context.surfaces.border,
+                      ),
+                      Expanded(child: insights),
+                      const SizedBox(width: 10),
+                      action,
                     ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 6),
-              IconButton.outlined(
-                onPressed: onTap,
-                tooltip: 'Voir l’analyse',
-                icon: Icon(
-                  Icons.chevron_right_rounded,
-                  color: thesisId.isEmpty
-                      ? context.textColors.secondary
-                      : context.opportunities
-                            .badgeFor(
-                              thesisId,
-                              variant: AppReadingBadgeVariant.soft,
-                            )
-                            .foreground,
-                ),
-                style: IconButton.styleFrom(
-                  side: BorderSide(color: context.surfaces.border),
-                  backgroundColor: context.surfaces.surfaceHover.withValues(
-                    alpha: 0.4,
-                  ),
-                ),
+                  );
+                },
               ),
             ],
           ),
@@ -3042,42 +3005,221 @@ class _TodayStoryCard extends StatelessWidget {
   }
 }
 
-class _StoryRelevanceLabel extends StatelessWidget {
-  const _StoryRelevanceLabel({
+class _StoryCompetitionHeader extends StatelessWidget {
+  const _StoryCompetitionHeader({
+    required this.match,
     required this.readingCount,
-    required this.hasOpportunity,
   });
 
+  final MatchBoardItem match;
   final int readingCount;
-  final bool hasOpportunity;
 
   @override
   Widget build(BuildContext context) {
-    final countLabel = readingCount == 1
-        ? '1 lecture'
-        : '$readingCount lectures';
-    final label = hasOpportunity ? '$countLabel · opportunité' : countLabel;
-    final color = hasOpportunity
-        ? context.opportunities.levelGap
-        : context.brand.accent;
+    final theme = Theme.of(context);
+    final logo = SportsAssetBadge(
+      size: 24,
+      imageUrl: match.competition.logoUrl,
+      fallbackLabel: match.competition.name,
+      backgroundColor: AppColors.transparent,
+      padding: 1,
+    );
+    final competitionName = Text(
+      match.competition.name,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.labelLarge?.copyWith(
+        color: context.textColors.primary,
+        fontWeight: FontWeight.w900,
+      ),
+    );
+    final kickoff = Text(
+      _fixtureTime(match.fixture),
+      style: theme.textTheme.labelMedium?.copyWith(
+        color: context.textColors.secondary,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 480) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  logo,
+                  const SizedBox(width: 8),
+                  Expanded(child: competitionName),
+                  if (readingCount > 0) ...[
+                    const SizedBox(width: 8),
+                    _StoryRelevanceLabel(readingCount: readingCount),
+                  ],
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 32, top: 2),
+                child: kickoff,
+              ),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            logo,
+            const SizedBox(width: 8),
+            Flexible(child: competitionName),
+            const SizedBox(width: 7),
+            Text(
+              '·',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: context.textColors.secondary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(width: 7),
+            kickoff,
+            const Spacer(),
+            if (readingCount > 0) ...[
+              const SizedBox(width: 10),
+              _StoryRelevanceLabel(readingCount: readingCount),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _StoryInsights extends StatelessWidget {
+  const _StoryInsights({
+    required this.scenarios,
+    required this.readings,
+    required this.fallbackSummary,
+  });
+
+  final List<_ForMeScenario> scenarios;
+  final List<_ForMeReading> readings;
+  final String fallbackSummary;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final scenario in scenarios) ...[
+          _StoryScenarioPanel(scenario: scenario),
+          const SizedBox(height: 7),
+        ],
+        _StoryReadingTags(tags: readings),
+        if (scenarios.isEmpty && fallbackSummary.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(
+            fallbackSummary,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: context.textColors.secondary,
+              height: 1.2,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _StoryScenarioPanel extends StatelessWidget {
+  const _StoryScenarioPanel({required this.scenario});
+
+  final _ForMeScenario scenario;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = context.strategies.violetStyle.color;
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: color.withValues(alpha: 0.68)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.track_changes_rounded, color: color, size: 23),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'SCÉNARIO',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.7,
+                    ),
+                  ),
+                  Text(
+                    scenario.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  if (scenario.summary.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      scenario.summary,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: context.textColors.secondary,
+                        height: 1.18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StoryRelevanceLabel extends StatelessWidget {
+  const _StoryRelevanceLabel({required this.readingCount});
+
+  final int readingCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = readingCount == 1 ? '1 lecture' : '$readingCount lectures';
 
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          hasOpportunity ? Icons.auto_awesome_rounded : Icons.bar_chart_rounded,
-          color: color,
-          size: 17,
-        ),
+        Icon(Icons.bar_chart_rounded, color: context.brand.accent, size: 16),
         const SizedBox(width: 5),
-        Expanded(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: context.textColors.primary,
-              fontWeight: FontWeight.w900,
-            ),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: context.textColors.primary,
+            fontWeight: FontWeight.w900,
           ),
         ),
       ],
@@ -3100,8 +3242,8 @@ class _StoryReadingTags extends StatelessWidget {
       spacing: 6,
       runSpacing: 5,
       children: [
-        for (final tag in tags.take(3))
-          _StoryScenarioPill(
+        for (final tag in tags)
+          _StoryReadingPill(
             label: tag.label,
             style: context.opportunities.badgeFor(
               tag.id,
@@ -3122,18 +3264,45 @@ List<_ForMeReading> _representativeReadingTags(MatchBoardItem match) {
     }
   }
 
+  for (final signal in match.signals) {
+    if (signal.id.startsWith('scenario:') || signal.id.startsWith('market:')) {
+      continue;
+    }
+    add(signal.id, _readingLabelForId(signal.id, fallback: signal.title));
+  }
   final thesis = match.thesis;
   if (thesis != null) {
     for (final argument in thesis.arguments) {
       final id = FootballReadingCopyCatalog.readingIdFor(argument);
       add(id, FootballReadingCopyCatalog.titleFor(argument));
     }
-    add(thesis.id, _readingLabelForId(thesis.id, fallback: thesis.title));
-  }
-  for (final signal in match.signals) {
-    add(signal.id, _readingLabelForId(signal.id, fallback: signal.title));
   }
   return readingsById.values.toList(growable: false);
+}
+
+List<_ForMeScenario> _representativeScenarios(MatchBoardItem match) {
+  final scenariosByRuntimeId = <String, _ForMeScenario>{};
+  for (final signal in match.signals) {
+    if (!signal.id.startsWith('scenario:')) {
+      continue;
+    }
+    final parts = signal.id.split(':');
+    if (parts.length < 2 || parts[1].isEmpty) {
+      continue;
+    }
+    final scenarioId = parts[1];
+    final catalogLabel = OpportunityProfileCatalog.byId(
+      scenarioId,
+    )?.displayLabel;
+    final signalLabel = signal.title.trim();
+    scenariosByRuntimeId[signal.id] = _ForMeScenario(
+      label: signalLabel.isNotEmpty
+          ? signalLabel
+          : catalogLabel ?? 'Scénario détecté',
+      summary: signal.summary.trim(),
+    );
+  }
+  return scenariosByRuntimeId.values.toList(growable: false);
 }
 
 String _storySummary(MatchBoardItem match) {
@@ -3150,58 +3319,6 @@ String _storySummary(MatchBoardItem match) {
   return '';
 }
 
-class _StoryRankMeta extends StatelessWidget {
-  const _StoryRankMeta({required this.rank, required this.match});
-
-  final int rank;
-  final MatchBoardItem match;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Column(
-      children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: context.surfaces.backgroundSecondary,
-            shape: BoxShape.circle,
-            border: Border.all(color: context.surfaces.border),
-          ),
-          child: SizedBox.square(
-            dimension: 26,
-            child: Center(
-              child: Text(
-                '$rank',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: context.textColors.primary,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          _competitionShortLabel(match.competition.name),
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: context.textColors.secondary,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          _fixtureTime(match.fixture),
-          style: theme.textTheme.labelMedium?.copyWith(
-            color: context.textColors.secondary,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _StoryTeams extends StatelessWidget {
   const _StoryTeams({required this.match});
 
@@ -3213,7 +3330,7 @@ class _StoryTeams extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _StoryTeamLine(team: match.homeTeam),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         _StoryTeamLine(team: match.awayTeam),
       ],
     );
@@ -3230,7 +3347,7 @@ class _StoryTeamLine extends StatelessWidget {
     return Row(
       children: [
         SportsAssetBadge(
-          size: 21,
+          size: 28,
           imageUrl: team.logoUrl,
           fallbackLabel: team.name,
           borderRadius: AppRadius.chip,
@@ -3244,7 +3361,7 @@ class _StoryTeamLine extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: Theme.of(
               context,
-            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w900),
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
           ),
         ),
       ],
@@ -3252,8 +3369,8 @@ class _StoryTeamLine extends StatelessWidget {
   }
 }
 
-class _StoryScenarioPill extends StatelessWidget {
-  const _StoryScenarioPill({
+class _StoryReadingPill extends StatelessWidget {
+  const _StoryReadingPill({
     required this.label,
     required this.style,
     required this.icon,
@@ -3267,9 +3384,9 @@ class _StoryScenarioPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: context.surfaces.surfaceHover.withValues(alpha: 0.46),
+        color: style.background,
         borderRadius: BorderRadius.circular(AppRadius.chip),
-        border: Border.all(color: context.surfaces.border),
+        border: Border.all(color: style.border),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -3283,7 +3400,7 @@ class _StoryScenarioPill extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: style.foreground,
                   fontWeight: FontWeight.w900,
                 ),
@@ -3716,51 +3833,12 @@ String? _compactReadingLabel(MatchBoardItem match) {
   return 'Lecture';
 }
 
-int _convergentReadingCount(MatchBoardItem match) {
-  final thesis = match.thesis;
-  if (thesis != null) {
-    final supportingArguments = thesis.arguments.where((argument) {
-      return argument.family != CopilotArgumentFamily.market &&
-          argument.family != CopilotArgumentFamily.contradiction;
-    }).length;
-    if (supportingArguments > 0) {
-      return supportingArguments;
-    }
-    if (thesis.supportingEvidence.isNotEmpty) {
-      return thesis.supportingEvidence.length;
-    }
-  }
-  return match.signals.length;
-}
-
 String _freeReadingCopy(String value) {
   return value
       .replaceAll('Marché recommandé', 'Lecture recommandée')
       .replaceAll('marché recommandé', 'lecture recommandée')
       .replaceAll('Cote', 'Signal')
       .replaceAll('cote', 'signal');
-}
-
-String _competitionShortLabel(String competitionName) {
-  final lower = competitionName.toLowerCase();
-  if (lower.contains('premier')) {
-    return 'PL';
-  }
-  if (lower.contains('liga')) {
-    return 'LALIGA';
-  }
-  if (lower.contains('champions')) {
-    return 'UCL';
-  }
-  if (lower.contains('bundes')) {
-    return 'BUNDES';
-  }
-  if (lower.contains('ligue 1')) {
-    return 'L1';
-  }
-  return competitionName.length <= 6
-      ? competitionName.toUpperCase()
-      : competitionName.substring(0, 3).toUpperCase();
 }
 
 String _fixtureTime(NormalizedFixture fixture) {
@@ -8510,12 +8588,12 @@ class _ForMeProfileBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final thesis = opportunity.primaryThesis;
-    final profileId = OpportunityProfileCatalog.profileIdForThesis(thesis.id);
+    final profileId = opportunity.scenarioIds.firstOrNull;
     final label =
-        OpportunityProfileCatalog.byId(profileId ?? '')?.label ??
+        OpportunityProfileCatalog.byId(profileId ?? '')?.displayLabel ??
         OpportunityDecisionPresenter.opportunityTitleFromTheses([thesis]);
     final badge = context.opportunities.badgeFor(
-      thesis.id,
+      profileId ?? thesis.id,
       variant: AppReadingBadgeVariant.combined,
     );
     final isSolidFavorite = thesis.id == 'solid_favorite';

@@ -120,31 +120,6 @@ class CompiledDecisionProfile {
     return preference;
   }
 
-  bool isThesisAllowed(String thesisId) {
-    if (!isCompleted) {
-      return false;
-    }
-
-    final profileId = OpportunityProfileCatalog.profileIdForThesis(thesisId);
-    if (profileId == null) {
-      return true;
-    }
-
-    return OpportunityProfileCatalog.profileIdsForThesis(
-      thesisId,
-    ).any(isOpportunityProfileEnabled);
-  }
-
-  bool isThesisConfigured(String thesisId) {
-    if (!isCompleted) {
-      return false;
-    }
-
-    return OpportunityProfileCatalog.profileIdsForThesis(
-      thesisId,
-    ).any(isOpportunityProfileEnabled);
-  }
-
   bool isReadingAllowed(String readingId) {
     if (!isCompleted ||
         !canFilterReadings ||

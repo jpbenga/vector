@@ -1,7 +1,9 @@
 import '../../onboarding/domain/compiled_decision_profile.dart';
 import '../../opportunities/domain/opportunity.dart';
+import 'analysis_maturity.dart';
 import 'football_analyzer.dart';
 import 'football_reading.dart';
+import 'football_scenario.dart';
 import 'match_board_item.dart';
 import 'match_context_key_models.dart';
 import 'market_assessment.dart';
@@ -15,6 +17,7 @@ class MatchIntelligence {
     this.contextKeys = const [],
     this.betCandidates = const [],
     this.attentionSignals = const [],
+    this.scenarioMatches = const [],
     this.opportunities = const [],
   });
 
@@ -24,13 +27,18 @@ class MatchIntelligence {
   final List<MatchContextKey> contextKeys;
   final List<BetCandidate> betCandidates;
   final List<AttentionSignal> attentionSignals;
+  final List<FootballScenarioMatch> scenarioMatches;
   final List<Opportunity> opportunities;
 }
 
 class OpportunityEngineV2 {
-  const OpportunityEngineV2({this.analyzer = const FootballAnalyzer()});
+  const OpportunityEngineV2({
+    this.analyzer = const FootballAnalyzer(),
+    this.scenarioDetector = const FootballScenarioDetector(),
+  });
 
   final FootballAnalyzer analyzer;
+  final FootballScenarioDetector scenarioDetector;
 
   FootballAnalysis analyzeMatch(MatchBoardItem match, {DateTime? asOf}) {
     return analyzer.analyze(match, asOf: asOf);
@@ -43,16 +51,34 @@ class OpportunityEngineV2 {
 
   MatchIntelligence buildIntelligence(MatchBoardItem match, {DateTime? asOf}) {
     final analysis = analyzeMatch(match, asOf: asOf);
-    final candidates = _candidates(match, analysis);
+    final thesisCandidates = _candidates(match, analysis);
+    final scenarioMatches = List<FootballScenarioMatch>.unmodifiable(
+      scenarioDetector.detect(
+        analysis: analysis,
+        homeTeamId: match.homeTeam.id,
+        awayTeamId: match.awayTeam.id,
+      ),
+    );
+    final scenarioCandidates = _scenarioCandidates(
+      match,
+      analysis,
+      scenarioMatches,
+    );
     final assessments = List<ThesisAssessment>.unmodifiable(
       _assessments(match, analysis),
     );
     final betCandidates = List<BetCandidate>.unmodifiable(
-      _betCandidates(match, analysis, candidates),
+      _betCandidates(match, analysis, scenarioCandidates),
     );
     final opportunities = List<Opportunity>.unmodifiable([
-      for (final candidate in candidates)
-        _analyticalOpportunity(match, analysis, assessments, candidate),
+      for (final candidate in scenarioCandidates)
+        _analyticalOpportunity(
+          match,
+          analysis,
+          assessments,
+          candidate,
+          scenarioId: candidate.id,
+        ),
     ]);
     return MatchIntelligence(
       match: match,
@@ -63,8 +89,9 @@ class OpportunityEngineV2 {
       ),
       betCandidates: betCandidates,
       attentionSignals: List<AttentionSignal>.unmodifiable(
-        _attentionSignals(analysis, candidates),
+        _attentionSignals(analysis, thesisCandidates, scenarioMatches),
       ),
+      scenarioMatches: scenarioMatches,
       opportunities: opportunities,
     );
   }
@@ -73,8 +100,9 @@ class OpportunityEngineV2 {
     MatchBoardItem match,
     FootballAnalysis analysis,
     List<ThesisAssessment> assessments,
-    _OpportunityCandidate candidate,
-  ) {
+    _OpportunityCandidate candidate, {
+    String? scenarioId,
+  }) {
     final thesis = _thesisFor(match, candidate, null);
     return Opportunity(
       sourceMatch: match,
@@ -87,12 +115,14 @@ class OpportunityEngineV2 {
       thesisAssessments: assessments,
       asOf: analysis.asOf,
       maturity: analysis.maturity,
+      scenarioIds: [?scenarioId],
     );
   }
 
   List<AttentionSignal> _attentionSignals(
     FootballAnalysis analysis,
     List<_OpportunityCandidate> candidates,
+    List<FootballScenarioMatch> scenarioMatches,
   ) {
     return [
       for (final reading in analysis.supportingReadings)
@@ -110,6 +140,15 @@ class OpportunityEngineV2 {
             for (final reading in candidate.supportingReadings) reading.id,
           ],
           thesisId: candidate.id,
+        ),
+      for (final scenario in scenarioMatches)
+        AttentionSignal(
+          id: 'scenario:${scenario.scenarioId}:${scenario.subjectTeamId}',
+          type: AttentionSignalType.scenario,
+          sourceReadingIds: [
+            for (final reading in scenario.supportingReadings) reading.id,
+          ],
+          scenarioId: scenario.scenarioId,
         ),
     ];
   }
@@ -133,6 +172,77 @@ class OpportunityEngineV2 {
     }.contains(id);
   }
 
+  List<_OpportunityCandidate> _scenarioCandidates(
+    MatchBoardItem match,
+    FootballAnalysis analysis,
+    List<FootballScenarioMatch> scenarioMatches,
+  ) {
+    return [
+      for (final scenario in scenarioMatches)
+        ?_candidateForScenario(match, analysis, scenario),
+    ];
+  }
+
+  _OpportunityCandidate? _candidateForScenario(
+    MatchBoardItem match,
+    FootballAnalysis analysis,
+    FootballScenarioMatch scenario,
+  ) {
+    final side = scenario.subjectSide;
+    final team = side == ReadingSubjectSide.match
+        ? null
+        : _teamForSide(match, side);
+    final contradictions = side == ReadingSubjectSide.match
+        ? analysis.contradictoryReadings
+        : _contradictionsFor(analysis, scenario.subjectTeamId);
+
+    return switch (scenario.scenarioId) {
+      'solid_favorite' => _OpportunityCandidate(
+        id: scenario.scenarioId,
+        title: 'Domination attendue',
+        summary:
+            '${team!.name} réunit la supériorité au classement, l’avantage de forme et l’écart structurel requis.',
+        subjectSide: side,
+        supportingReadings: scenario.supportingReadings,
+        contradictoryReadings: contradictions,
+        marketIntents: [
+          _MarketIntent('matchResult', _selectionForSide(side)),
+          _MarketIntent('doubleChance', _doubleChanceForSide(side)),
+        ],
+        priority: 90,
+      ),
+      'struggling_team' => _OpportunityCandidate(
+        id: scenario.scenarioId,
+        title: 'Équipe en difficulté',
+        summary:
+            '${team!.name} cumule série négative, difficulté à marquer et fragilité défensive.',
+        subjectSide: side,
+        supportingReadings: scenario.supportingReadings,
+        contradictoryReadings: contradictions,
+        marketIntents: [
+          _MarketIntent('matchResult', _selectionForSide(_opponent(side))),
+          _MarketIntent('doubleChance', _doubleChanceForSide(_opponent(side))),
+        ],
+        priority: 72,
+      ),
+      'ranking_gap' => _OpportunityCandidate(
+        id: scenario.scenarioId,
+        title: 'Écart de niveau',
+        summary:
+            '${team!.name} possède conjointement la supériorité au classement et l’avantage structurel requis.',
+        subjectSide: side,
+        supportingReadings: scenario.supportingReadings,
+        contradictoryReadings: contradictions,
+        marketIntents: [
+          _MarketIntent('matchResult', _selectionForSide(side)),
+          _MarketIntent('doubleChance', _doubleChanceForSide(side)),
+        ],
+        priority: 80,
+      ),
+      _ => null,
+    };
+  }
+
   List<BetCandidate> _betCandidates(
     MatchBoardItem match,
     FootballAnalysis analysis,
@@ -147,7 +257,7 @@ class OpportunityEngineV2 {
       String? subjectPlayerName,
       ReadingSubjectSide subjectSide = ReadingSubjectSide.match,
       Iterable<String> readingIds = const [],
-      Iterable<String> thesisIds = const [],
+      Iterable<String> scenarioIds = const [],
       Iterable<String> contradictionIds = const [],
     }) {
       final market = _marketById(match, intent.marketId);
@@ -175,7 +285,7 @@ class OpportunityEngineV2 {
         ),
       );
       draft.readingIds.addAll(readingIds);
-      draft.thesisIds.addAll(thesisIds);
+      draft.scenarioIds.addAll(scenarioIds);
       draft.contradictionIds.addAll(contradictionIds);
     }
 
@@ -189,7 +299,7 @@ class OpportunityEngineV2 {
           readingIds: [
             for (final reading in opportunity.supportingReadings) reading.id,
           ],
-          thesisIds: [opportunity.id],
+          scenarioIds: [opportunity.id],
           contradictionIds: [
             for (final reading in opportunity.contradictoryReadings) reading.id,
           ],
@@ -247,7 +357,8 @@ class OpportunityEngineV2 {
           bookmakerId: draft.market.bookmakerId,
           bookmakerName: draft.market.bookmakerName,
           supportingReadingIds: List.unmodifiable(draft.readingIds),
-          supportingThesisIds: List.unmodifiable(draft.thesisIds),
+          supportingThesisIds: const [],
+          supportingScenarioIds: List.unmodifiable(draft.scenarioIds),
           contradictionIds: List.unmodifiable(draft.contradictionIds),
           maturity: analysis.maturity,
         ),
@@ -264,7 +375,7 @@ class OpportunityEngineV2 {
       String? subjectPlayerName,
       ReadingSubjectSide subjectSide,
       Iterable<String> readingIds,
-      Iterable<String> thesisIds,
+      Iterable<String> scenarioIds,
       Iterable<String> contradictionIds,
     })
     add,
@@ -373,8 +484,12 @@ class OpportunityEngineV2 {
     CompiledDecisionProfile profile,
   ) {
     final opportunities = [
-      for (final match in matches) analyzeOpportunity(match, profile),
-    ].whereType<Opportunity>().toList()..sort(_compareOpportunities);
+      for (final match in matches)
+        ..._personalizedOpportunitiesFromIntelligence(
+          buildIntelligence(match),
+          profile,
+        ),
+    ]..sort(_compareOpportunities);
 
     return opportunities;
   }
@@ -385,8 +500,8 @@ class OpportunityEngineV2 {
   ) {
     final opportunities = [
       for (final intelligence in intelligences)
-        analyzeOpportunityFromIntelligence(intelligence, profile),
-    ].whereType<Opportunity>().toList()..sort(_compareOpportunities);
+        ..._personalizedOpportunitiesFromIntelligence(intelligence, profile),
+    ]..sort(_compareOpportunities);
 
     return opportunities;
   }
@@ -409,22 +524,40 @@ class OpportunityEngineV2 {
     CompiledDecisionProfile profile, {
     bool allowRecommendedMarket = true,
   }) {
+    final opportunities = _personalizedOpportunitiesFromIntelligence(
+      intelligence,
+      profile,
+      allowRecommendedMarket: allowRecommendedMarket,
+    );
+    return opportunities.firstOrNull;
+  }
+
+  List<Opportunity> _personalizedOpportunitiesFromIntelligence(
+    MatchIntelligence intelligence,
+    CompiledDecisionProfile profile, {
+    bool allowRecommendedMarket = true,
+  }) {
     final match = intelligence.match;
     final analysis = intelligence.analysis;
     if (!profile.isCompleted ||
-        !profile.isCompetitionEnabled(match.competition.id)) {
-      return null;
+        !profile.isCompetitionEnabled(match.competition.id) ||
+        !analysis.maturity.allowsAutomaticOpportunity) {
+      return const [];
     }
-    // An Opportunity is the result of a selected scenario. A market choice
-    // can refine its available bets, but must never create the scenario by
-    // itself. Direct readings have their own BetCandidates below.
-    final candidates = _candidates(
+
+    // Scenarios are detected globally from strict reading contracts. The
+    // profile only selects from these immutable results afterwards.
+    final selectedScenarioMatches = intelligence.scenarioMatches
+        .where(
+          (scenario) =>
+              profile.isOpportunityProfileEnabled(scenario.scenarioId),
+        )
+        .toList(growable: false);
+    final candidates = _scenarioCandidates(
       match,
       analysis,
-    ).where((candidate) => profile.isThesisAllowed(candidate.id)).toList();
-    if (candidates.isEmpty) {
-      return null;
-    }
+      selectedScenarioMatches,
+    );
 
     candidates.sort((a, b) {
       final clarityComparison = b.clarityScore.compareTo(a.clarityScore);
@@ -435,15 +568,29 @@ class OpportunityEngineV2 {
       return b.priority.compareTo(a.priority);
     });
 
-    final selected = candidates.first;
-    // [MatchIntelligence] is the immutable output of the single analytical
-    // pass. Profile personalization must only select from this portfolio.
-    final analyticalBetCandidates = intelligence.betCandidates;
+    return [
+      for (final selected in candidates)
+        _personalizedOpportunity(
+          intelligence,
+          profile,
+          selected,
+          allowRecommendedMarket: allowRecommendedMarket,
+        ),
+    ];
+  }
+
+  Opportunity _personalizedOpportunity(
+    MatchIntelligence intelligence,
+    CompiledDecisionProfile profile,
+    _OpportunityCandidate selected, {
+    required bool allowRecommendedMarket,
+  }) {
+    final match = intelligence.match;
     final compatibleCandidates = allowRecommendedMarket
-        ? analyticalBetCandidates
+        ? intelligence.betCandidates
               .where(
                 (candidate) =>
-                    candidate.supportingThesisIds.contains(selected.id) &&
+                    candidate.supportingScenarioIds.contains(selected.id) &&
                     profile.enabledMarket(candidate.marketId) != null,
               )
               .toList(growable: false)
@@ -474,8 +621,9 @@ class OpportunityEngineV2 {
       supportingReadings: selected.supportingReadings,
       contradictoryReadings: selected.contradictoryReadings,
       thesisAssessments: intelligence.thesisAssessments,
-      asOf: analysis.asOf,
-      maturity: analysis.maturity,
+      scenarioIds: [selected.id],
+      asOf: intelligence.analysis.asOf,
+      maturity: intelligence.analysis.maturity,
     );
   }
 
@@ -500,28 +648,22 @@ class OpportunityEngineV2 {
       profile,
     );
     final profileReadings = _profileReadings(intelligence.analysis, profile);
-    final supportedTheses = intelligence.thesisAssessments
+    final selectedScenarioMatches = intelligence.scenarioMatches
         .where(
-          (assessment) =>
-              assessment.isSupported &&
-              profile.isThesisConfigured(assessment.id),
+          (scenario) =>
+              profile.isOpportunityProfileEnabled(scenario.scenarioId),
         )
         .toList(growable: false);
 
     final relevance = MatchProfileRelevance(
       readingMatches: profileReadings.length,
-      thesisMatches: supportedTheses.length,
+      scenarioMatches: selectedScenarioMatches.length,
       marketMatches: marketCandidates.length,
     );
     final signals = [
       ..._signalsForReadings(match, profileReadings),
-      for (final thesis in supportedTheses)
-        MatchSignal(
-          id: 'thesis:${thesis.id}',
-          title: thesis.title,
-          summary: 'Scénario soutenu par l’analyse du match.',
-          proofs: [thesis.id],
-        ),
+      for (final scenario in selectedScenarioMatches)
+        _signalForScenario(match, intelligence.analysis, scenario),
       for (final candidate in marketCandidates)
         MatchSignal(
           id: 'market:${candidate.marketId}:${candidate.selectionId}',
@@ -547,6 +689,20 @@ class OpportunityEngineV2 {
     );
   }
 
+  MatchSignal _signalForScenario(
+    MatchBoardItem match,
+    FootballAnalysis analysis,
+    FootballScenarioMatch scenario,
+  ) {
+    final candidate = _candidateForScenario(match, analysis, scenario);
+    return MatchSignal(
+      id: 'scenario:${scenario.scenarioId}:${scenario.subjectTeamId}',
+      title: candidate?.title ?? scenario.scenarioId,
+      summary: candidate?.summary ?? 'Scénario soutenu par l’analyse du match.',
+      proofs: [for (final reading in scenario.supportingReadings) reading.id],
+    );
+  }
+
   List<BetCandidate> _configuredBetCandidates(
     MatchIntelligence intelligence,
     CompiledDecisionProfile profile,
@@ -568,7 +724,9 @@ class OpportunityEngineV2 {
     CompiledDecisionProfile profile,
   ) {
     return candidate.supportingReadingIds.any(profile.isReadingAllowed) ||
-        candidate.supportingThesisIds.any(profile.isThesisConfigured);
+        candidate.supportingScenarioIds.any(
+          profile.isOpportunityProfileEnabled,
+        );
   }
 
   List<FootballReading> _profileReadings(
@@ -1865,7 +2023,7 @@ class _BetCandidateDraft {
   final int? subjectPlayerId;
   final String? subjectPlayerName;
   final Set<String> readingIds = <String>{};
-  final Set<String> thesisIds = <String>{};
+  final Set<String> scenarioIds = <String>{};
   final Set<String> contradictionIds = <String>{};
 }
 

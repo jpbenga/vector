@@ -97,16 +97,14 @@ void main() {
           .where((match) => onDay(match.fixture.kickoff))
           .toList();
       final producedIds = intelligences
-          .expand((item) => item.thesisAssessments)
-          .where((assessment) => assessment.isSupported)
-          .map((assessment) => assessment.id)
+          .expand((item) => item.scenarioMatches)
+          .map((scenario) => scenario.scenarioId)
           .toSet();
-      final allowedIds = <String>{};
-      for (final definition in OpportunityProfileCatalog.values) {
-        if (compiled.isOpportunityProfileEnabled(definition.id)) {
-          allowedIds.addAll(definition.thesisIds);
-        }
-      }
+      final allowedIds = {
+        for (final definition in OpportunityProfileCatalog.values)
+          if (compiled.isOpportunityProfileEnabled(definition.id))
+            definition.id,
+      };
 
       // ignore: avoid_print
       print('matches=${matches.length}');

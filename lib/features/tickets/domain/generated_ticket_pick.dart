@@ -65,8 +65,10 @@ class GeneratedTicketPick {
       odds: _normalizeOdds(candidate.odds),
       pickType: pickType,
       thesisId:
-          candidate.supportingThesisIds.firstOrNull ?? 'market_assessment',
-      opportunityProfileIds: const [],
+          candidate.supportingScenarioIds.firstOrNull ??
+          candidate.supportingThesisIds.firstOrNull ??
+          'market_assessment',
+      opportunityProfileIds: candidate.supportingScenarioIds,
       engineScore: candidate.supportingReadingIds.length,
     );
   }

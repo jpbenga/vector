@@ -37,6 +37,7 @@ class BetCandidate {
     required this.odds,
     required this.supportingReadingIds,
     required this.supportingThesisIds,
+    this.supportingScenarioIds = const [],
     required this.contradictionIds,
     required this.maturity,
     this.subjectTeamId,
@@ -62,6 +63,7 @@ class BetCandidate {
   final String? bookmakerName;
   final List<String> supportingReadingIds;
   final List<String> supportingThesisIds;
+  final List<String> supportingScenarioIds;
   final List<String> contradictionIds;
   final AnalysisMaturity maturity;
 
@@ -125,9 +127,11 @@ enum _BetCandidateSupportDepth {
 }
 
 _BetCandidateSupportDepth _supportDepthFor(BetCandidate candidate) {
-  final hasThesis = candidate.supportingThesisIds.toSet().isNotEmpty;
+  final hasScenarioOrThesis =
+      candidate.supportingScenarioIds.toSet().isNotEmpty ||
+      candidate.supportingThesisIds.toSet().isNotEmpty;
   final readingCount = candidate.supportingReadingIds.toSet().length;
-  if (hasThesis && readingCount > 0) {
+  if (hasScenarioOrThesis && readingCount > 0) {
     return _BetCandidateSupportDepth.thesisAndReadings;
   }
   if (readingCount > 1) {
@@ -136,12 +140,12 @@ _BetCandidateSupportDepth _supportDepthFor(BetCandidate candidate) {
   if (readingCount == 1) {
     return _BetCandidateSupportDepth.singleReading;
   }
-  return hasThesis
+  return hasScenarioOrThesis
       ? _BetCandidateSupportDepth.thesisOnly
       : _BetCandidateSupportDepth.none;
 }
 
-enum AttentionSignalType { reading, thesis, market, convergence }
+enum AttentionSignalType { reading, scenario, thesis, market, convergence }
 
 class AttentionSignal {
   const AttentionSignal({
@@ -149,6 +153,7 @@ class AttentionSignal {
     required this.type,
     this.sourceReadingIds = const [],
     this.thesisId,
+    this.scenarioId,
     this.marketId,
   });
 
@@ -156,5 +161,6 @@ class AttentionSignal {
   final AttentionSignalType type;
   final List<String> sourceReadingIds;
   final String? thesisId;
+  final String? scenarioId;
   final String? marketId;
 }

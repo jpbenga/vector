@@ -281,6 +281,28 @@ void main() {
         );
       },
     );
+
+    test('repository attaches mature Tiers to Eliteserien 2026', () {
+      final repository = SnapshotMatchFeedRepository(
+        snapshot: _eliteserienSnapshotPayload(),
+      );
+      final match = repository.allMatches().single;
+      final snapshot = match.analysis.championshipTierSnapshot;
+
+      expect(snapshot, isNotNull);
+      expect(snapshot!.status, TierSystemStatus.mature);
+      expect(snapshot.teamAssignments, hasLength(16));
+      expect(snapshot.tierPresence, isNotEmpty);
+      expect(
+        snapshot.assignmentForTeam(327)?.assignedTier,
+        TierLabel.tier1Podium,
+      );
+      expect(
+        snapshot.assignmentForTeam(334)?.assignedTier,
+        TierLabel.tier5Relegation,
+      );
+      expect(match.analysis.structuralRelation, isNotNull);
+    });
   });
 }
 
@@ -416,6 +438,126 @@ Map<String, Object?> _snapshotPayload({bool twoFixtures = false}) {
                         ? 'Relegation'
                         : null,
                     'all': {'played': 20},
+                  },
+              ],
+            ],
+          },
+        },
+      ],
+      'odds': const <Object?>[],
+      'team_statistics': const <Object?>[],
+      'recent_league_matches': const <Object?>[],
+      'expected_goals': const <Object?>[],
+      'predictions': const <Object?>[],
+    },
+  };
+}
+
+Map<String, Object?> _eliteserienSnapshotPayload() {
+  const points = [
+    38,
+    37,
+    34,
+    25,
+    24,
+    22,
+    22,
+    21,
+    20,
+    18,
+    17,
+    15,
+    15,
+    13,
+    12,
+    10,
+  ];
+  const teamIds = [
+    327,
+    759,
+    325,
+    321,
+    329,
+    319,
+    333,
+    2159,
+    326,
+    331,
+    2149,
+    332,
+    2143,
+    757,
+    320,
+    334,
+  ];
+  const teamNames = [
+    'Bodo/Glimt',
+    'Viking',
+    'Tromso',
+    'Lillestrom',
+    'Molde',
+    'Brann',
+    'Sarpsborg 08 FF',
+    'Ham-Kam',
+    'Valerenga',
+    'Rosenborg',
+    'Fredrikstad',
+    'Sandefjord',
+    'KFUM Oslo',
+    'Aalesund',
+    'Kristiansund BK',
+    'Start',
+  ];
+  return {
+    'schema_version': 1,
+    'source': 'api-football',
+    'captured_at': '2026-07-30T07:55:00Z',
+    'as_of': '2026-07-30T07:55:00Z',
+    'raw': {
+      'fixtures': [
+        {
+          'fixture': {
+            'id': 103001,
+            'date': '2026-07-30T18:00:00Z',
+            'status': {'short': 'NS'},
+          },
+          'league': {
+            'id': 103,
+            'name': 'Eliteserien',
+            'country': 'Norway',
+            'season': 2026,
+          },
+          'teams': {
+            'home': {'id': 327, 'name': 'Bodo/Glimt'},
+            'away': {'id': 334, 'name': 'Start'},
+          },
+        },
+      ],
+      'standings': [
+        {
+          'league': {
+            'id': 103,
+            'season': 2026,
+            'standings': [
+              [
+                for (var index = 0; index < teamIds.length; index += 1)
+                  {
+                    'rank': index + 1,
+                    'team': {'id': teamIds[index], 'name': teamNames[index]},
+                    'points': points[index],
+                    'group': 'Eliteserien',
+                    'description': index < 3
+                        ? 'European qualification'
+                        : index == 13
+                        ? 'Eliteserien (Relegation)'
+                        : index >= 14
+                        ? 'Relegation - OBOS-ligaen'
+                        : null,
+                    'all': {
+                      'played': index == 0 || index == 2 || index == 15
+                          ? 16
+                          : 15,
+                    },
                   },
               ],
             ],

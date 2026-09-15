@@ -12,6 +12,72 @@ class _FixtureOdds {
   final List<MatchMarket> availableMarkets;
 }
 
+class _StandingAccumulator {
+  final Map<int, _StandingAccumulatorRow> _rows = {};
+
+  Iterable<TeamStandingSnapshot> get rows => _rows.values.map(
+    (row) => TeamStandingSnapshot(
+      teamId: row.teamId,
+      teamName: row.teamName,
+      points: row.wins * 3 + row.draws,
+      played: row.played,
+      wins: row.wins,
+      draws: row.draws,
+      losses: row.losses,
+      goalsFor: row.goalsFor,
+      goalsAgainst: row.goalsAgainst,
+      goalDiff: row.goalsFor - row.goalsAgainst,
+    ),
+  );
+
+  void addMatch({
+    required int homeId,
+    required String homeName,
+    required int awayId,
+    required String awayName,
+    required int homeGoals,
+    required int awayGoals,
+  }) {
+    final home = _rows.putIfAbsent(
+      homeId,
+      () => _StandingAccumulatorRow(teamId: homeId, teamName: homeName),
+    );
+    final away = _rows.putIfAbsent(
+      awayId,
+      () => _StandingAccumulatorRow(teamId: awayId, teamName: awayName),
+    );
+    home.played += 1;
+    away.played += 1;
+    home.goalsFor += homeGoals;
+    home.goalsAgainst += awayGoals;
+    away.goalsFor += awayGoals;
+    away.goalsAgainst += homeGoals;
+    if (homeGoals > awayGoals) {
+      home.wins += 1;
+      away.losses += 1;
+    } else if (homeGoals < awayGoals) {
+      away.wins += 1;
+      home.losses += 1;
+    } else {
+      home.draws += 1;
+      away.draws += 1;
+    }
+  }
+}
+
+class _StandingAccumulatorRow {
+  _StandingAccumulatorRow({required this.teamId, required this.teamName});
+
+  final int teamId;
+  final String teamName;
+  int played = 0;
+  int wins = 0;
+  int draws = 0;
+  int losses = 0;
+  int goalsFor = 0;
+  int goalsAgainst = 0;
+}
+
 class ApiFootballMatchAdapter {
   const ApiFootballMatchAdapter();
 
@@ -22,9 +88,19 @@ class ApiFootballMatchAdapter {
     final capturedAt = _dateTimeValue(snapshot['captured_at']);
     final fixtures = _list(raw['fixtures']);
     final oddsByFixtureId = _oddsByFixtureId(_list(raw['odds']));
-    final standingsByLeagueId = _standingsByLeagueId(_list(raw['standings']));
-    final standingsByLeagueTeamId = _standingsByLeagueTeamId(
+    final expectedGoalsRows = _list(raw['expected_goals']);
+    final standingTablesByLeagueId = _standingTablesByLeagueId(
       _list(raw['standings']),
+      _list(raw['league_fixtures']),
+      expectedGoalsRows,
+      capturedAt,
+    );
+    final standingsByLeagueId = {
+      for (final entry in standingTablesByLeagueId.entries)
+        entry.key: entry.value[ChampionshipStandingView.general] ?? const [],
+    };
+    final standingsByLeagueTeamId = _standingsByLeagueTeamId(
+      standingsByLeagueId,
     );
     final statisticsByLeagueTeamId = _statisticsByLeagueTeamId(
       _list(raw['team_statistics']),
@@ -47,6 +123,7 @@ class ApiFootballMatchAdapter {
         fixtureJson,
         oddsByFixtureId,
         standingsByLeagueId,
+        standingTablesByLeagueId,
         standingsByLeagueTeamId,
         statisticsByLeagueTeamId,
         recentMatchesByLeagueTeamId,
@@ -67,6 +144,8 @@ class ApiFootballMatchAdapter {
     Object? fixtureJson,
     Map<int, _FixtureOdds> oddsByFixtureId,
     Map<int, List<TeamStandingSnapshot>> standingsByLeagueId,
+    Map<int, Map<ChampionshipStandingView, List<TeamStandingSnapshot>>>
+    standingTablesByLeagueId,
     Map<String, TeamStandingSnapshot> standingsByLeagueTeamId,
     Map<String, TeamStatisticsSnapshot> statisticsByLeagueTeamId,
     Map<String, List<TeamRecentMatchSnapshot>> recentMatchesByLeagueTeamId,
@@ -161,6 +240,9 @@ class ApiFootballMatchAdapter {
         leagueStandings: leagueId == null
             ? const []
             : standingsByLeagueId[leagueId] ?? const [],
+        standingTables: leagueId == null
+            ? const {}
+            : standingTablesByLeagueId[leagueId] ?? const {},
         homeStatistics: _statisticsFor(
           statisticsByLeagueTeamId,
           leagueId,
@@ -293,34 +375,28 @@ class ApiFootballMatchAdapter {
   }
 
   Map<String, TeamStandingSnapshot> _standingsByLeagueTeamId(
-    List<Object?> standingsRows,
+    Map<int, List<TeamStandingSnapshot>> standingsByLeagueId,
   ) {
     final result = <String, TeamStandingSnapshot>{};
 
-    for (final row in standingsRows) {
-      final league = _map(_map(row)['league']);
-      final leagueId = _intValue(league['id']);
-      if (leagueId == null) {
-        continue;
-      }
-
-      for (final groupJson in _list(league['standings'])) {
-        for (final standingJson in _list(groupJson)) {
-          final standing = _standingSnapshot(standingJson);
-          if (standing != null) {
-            result[_standingKey(leagueId, standing.teamId)] = standing;
-          }
-        }
+    for (final entry in standingsByLeagueId.entries) {
+      for (final standing in entry.value) {
+        result[_standingKey(entry.key, standing.teamId)] = standing;
       }
     }
 
     return result;
   }
 
-  Map<int, List<TeamStandingSnapshot>> _standingsByLeagueId(
+  Map<int, Map<ChampionshipStandingView, List<TeamStandingSnapshot>>>
+  _standingTablesByLeagueId(
     List<Object?> standingsRows,
+    List<Object?> leagueFixtures,
+    List<Object?> expectedGoalsRows,
+    DateTime? capturedAt,
   ) {
-    final result = <int, List<TeamStandingSnapshot>>{};
+    final result =
+        <int, Map<ChampionshipStandingView, List<TeamStandingSnapshot>>>{};
 
     for (final row in standingsRows) {
       final league = _map(_map(row)['league']);
@@ -329,28 +405,59 @@ class ApiFootballMatchAdapter {
         continue;
       }
 
-      final leagueStandings = <TeamStandingSnapshot>[];
+      final general = <TeamStandingSnapshot>[];
+      final home = <TeamStandingSnapshot>[];
+      final away = <TeamStandingSnapshot>[];
+      final form = <TeamStandingSnapshot>[];
       for (final groupJson in _list(league['standings'])) {
         for (final standingJson in _list(groupJson)) {
-          final standing = _standingSnapshot(standingJson);
-          if (standing != null) {
-            leagueStandings.add(standing);
-          }
+          final generalStanding = _standingSnapshot(standingJson, 'all');
+          final homeStanding = _standingSnapshot(standingJson, 'home');
+          final awayStanding = _standingSnapshot(standingJson, 'away');
+          final formStanding = _formStandingSnapshot(standingJson);
+          if (generalStanding != null) general.add(generalStanding);
+          if (homeStanding != null) home.add(homeStanding);
+          if (awayStanding != null) away.add(awayStanding);
+          if (formStanding != null) form.add(formStanding);
         }
       }
 
-      leagueStandings.sort((a, b) {
-        final aRank = a.rank ?? 999;
-        final bRank = b.rank ?? 999;
-        return aRank.compareTo(bRank);
-      });
-      result[leagueId] = List.unmodifiable(leagueStandings);
+      general.sort((a, b) => (a.rank ?? 999).compareTo(b.rank ?? 999));
+      final rankedGeneral = List<TeamStandingSnapshot>.unmodifiable(general);
+      result[leagueId] = {
+        ChampionshipStandingView.general: rankedGeneral,
+        ChampionshipStandingView.home: _rankByPoints(home),
+        ChampionshipStandingView.away: _rankByPoints(away),
+        ChampionshipStandingView.form: _rankByPoints(form),
+        ChampionshipStandingView.attack: _rankByAttack(rankedGeneral),
+        ChampionshipStandingView.defense: _rankByDefense(rankedGeneral),
+      };
+    }
+
+    final expectedGoalsByLeague = _expectedGoalsStandingsByLeagueId(
+      expectedGoalsRows,
+    );
+    for (final entry in expectedGoalsByLeague.entries) {
+      final tables = result.putIfAbsent(entry.key, () => {});
+      tables[ChampionshipStandingView.expectedGoals] = entry.value;
+    }
+
+    final historical = _historicalStandingTables(
+      leagueFixtures,
+      capturedAt: capturedAt,
+    );
+    for (final entry in historical.entries) {
+      final tables = result.putIfAbsent(entry.key, () => {});
+      tables.addAll(entry.value);
     }
 
     return result;
   }
 
-  TeamStandingSnapshot? _standingSnapshot(Object? standingJson) {
+  TeamStandingSnapshot? _standingSnapshot(
+    Object? standingJson,
+    String segment,
+  ) {
     final standing = _map(standingJson);
     final team = _map(standing['team']);
     final teamId = _intValue(team['id']);
@@ -359,25 +466,258 @@ class ApiFootballMatchAdapter {
       return null;
     }
 
-    final all = _map(standing['all']);
-    final goals = _map(all['goals']);
+    final split = _map(standing[segment]);
+    if (split.isEmpty) {
+      return null;
+    }
+    final goals = _map(split['goals']);
+    final wins = _intValue(split['win']);
+    final draws = _intValue(split['draw']);
 
     return TeamStandingSnapshot(
       teamId: teamId,
       teamName: teamName ?? 'Équipe',
       group: _stringValue(standing['group']),
-      description: _stringValue(standing['description']),
-      rank: _intValue(standing['rank']),
-      points: _intValue(standing['points']),
-      played: _intValue(all['played']),
-      wins: _intValue(all['win']),
-      draws: _intValue(all['draw']),
-      losses: _intValue(all['lose']),
+      description: segment == 'all'
+          ? _stringValue(standing['description'])
+          : null,
+      rank: segment == 'all' ? _intValue(standing['rank']) : null,
+      points: segment == 'all'
+          ? _intValue(standing['points'])
+          : wins == null || draws == null
+          ? null
+          : wins * 3 + draws,
+      played: _intValue(split['played']),
+      wins: wins,
+      draws: draws,
+      losses: _intValue(split['lose']),
       goalsFor: _intValue(goals['for']),
       goalsAgainst: _intValue(goals['against']),
       goalDiff: _intValue(standing['goalsDiff']),
       form: _stringValue(standing['form']),
     );
+  }
+
+  TeamStandingSnapshot? _formStandingSnapshot(Object? standingJson) {
+    final standing = _map(standingJson);
+    final team = _map(standing['team']);
+    final teamId = _intValue(team['id']);
+    if (teamId == null) return null;
+    final results = (_stringValue(standing['form']) ?? '')
+        .toUpperCase()
+        .split('')
+        .where((result) => const {'W', 'D', 'L'}.contains(result))
+        .toList(growable: false);
+    if (results.isEmpty) {
+      return null;
+    }
+    final wins = results.where((result) => result == 'W').length;
+    final draws = results.where((result) => result == 'D').length;
+    final losses = results.where((result) => result == 'L').length;
+    return TeamStandingSnapshot(
+      teamId: teamId,
+      teamName: _stringValue(team['name']) ?? 'Équipe',
+      group: _stringValue(standing['group']),
+      points: wins * 3 + draws,
+      played: results.length,
+      wins: wins,
+      draws: draws,
+      losses: losses,
+      form: results.join(),
+    );
+  }
+
+  List<TeamStandingSnapshot> _rankByPoints(
+    Iterable<TeamStandingSnapshot> source,
+  ) {
+    final rows = [...source]
+      ..sort((a, b) {
+        final points = (b.points ?? -1).compareTo(a.points ?? -1);
+        if (points != 0) return points;
+        final difference = (b.goalDiff ?? -999).compareTo(a.goalDiff ?? -999);
+        if (difference != 0) return difference;
+        final goals = (b.goalsFor ?? -1).compareTo(a.goalsFor ?? -1);
+        if (goals != 0) return goals;
+        return a.teamName.compareTo(b.teamName);
+      });
+    return List.unmodifiable([
+      for (final entry in rows.indexed) entry.$2.copyWith(rank: entry.$1 + 1),
+    ]);
+  }
+
+  List<TeamStandingSnapshot> _rankByAttack(
+    Iterable<TeamStandingSnapshot> source,
+  ) {
+    final rows = [...source]
+      ..sort((a, b) {
+        final goals = (b.goalsFor ?? -1).compareTo(a.goalsFor ?? -1);
+        return goals != 0 ? goals : a.teamName.compareTo(b.teamName);
+      });
+    return List.unmodifiable([
+      for (final entry in rows.indexed) entry.$2.copyWith(rank: entry.$1 + 1),
+    ]);
+  }
+
+  List<TeamStandingSnapshot> _rankByDefense(
+    Iterable<TeamStandingSnapshot> source,
+  ) {
+    final rows = [...source]
+      ..sort((a, b) {
+        final goals = (a.goalsAgainst ?? 999).compareTo(b.goalsAgainst ?? 999);
+        return goals != 0 ? goals : a.teamName.compareTo(b.teamName);
+      });
+    return List.unmodifiable([
+      for (final entry in rows.indexed) entry.$2.copyWith(rank: entry.$1 + 1),
+    ]);
+  }
+
+  Map<int, List<TeamStandingSnapshot>> _expectedGoalsStandingsByLeagueId(
+    List<Object?> rows,
+  ) {
+    final grouped = <int, List<TeamStandingSnapshot>>{};
+    for (final row in rows) {
+      final root = _map(row);
+      final leagueId = _intValue(_map(root['league'])['id']);
+      final team = _map(root['team']);
+      final teamId = _intValue(team['id']);
+      final value =
+          _doubleValue(_map(root['season'])['xgForAverage']) ??
+          _doubleValue(_map(root['rolling'])['xgFor5']);
+      if (leagueId == null || teamId == null || value == null) {
+        continue;
+      }
+      grouped
+          .putIfAbsent(leagueId, () => [])
+          .add(
+            TeamStandingSnapshot(
+              teamId: teamId,
+              teamName: _stringValue(team['name']) ?? 'Équipe',
+              played: _intValue(root['sampleSize']),
+              metricValue: value,
+              metricLabel: 'xG offensif',
+            ),
+          );
+    }
+    return {
+      for (final entry in grouped.entries)
+        entry.key: List.unmodifiable([
+          for (final indexed
+              in (entry.value..sort(
+                    (a, b) =>
+                        (b.metricValue ?? -1).compareTo(a.metricValue ?? -1),
+                  ))
+                  .indexed)
+            indexed.$2.copyWith(rank: indexed.$1 + 1),
+        ]),
+    };
+  }
+
+  Map<int, Map<ChampionshipStandingView, List<TeamStandingSnapshot>>>
+  _historicalStandingTables(
+    List<Object?> fixtureRows, {
+    required DateTime? capturedAt,
+  }) {
+    final rows = [...fixtureRows]
+      ..sort((a, b) {
+        final aDate = _dateTimeValue(_map(_map(a)['fixture'])['date']);
+        final bDate = _dateTimeValue(_map(_map(b)['fixture'])['date']);
+        return (aDate ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(
+          bDate ?? DateTime.fromMillisecondsSinceEpoch(0),
+        );
+      });
+    final accumulators =
+        <int, Map<ChampionshipStandingView, _StandingAccumulator>>{};
+    final pairMeetings = <String, int>{};
+    final seenFixtures = <int>{};
+
+    _StandingAccumulator accumulator(
+      int leagueId,
+      ChampionshipStandingView view,
+    ) {
+      return accumulators
+          .putIfAbsent(leagueId, () => {})
+          .putIfAbsent(view, _StandingAccumulator.new);
+    }
+
+    for (final fixtureJson in rows) {
+      final root = _map(fixtureJson);
+      final fixture = _map(root['fixture']);
+      final fixtureId = _intValue(fixture['id']);
+      if (fixtureId != null && !seenFixtures.add(fixtureId)) continue;
+      final date = _dateTimeValue(fixture['date']);
+      if (date != null && capturedAt != null && !date.isBefore(capturedAt)) {
+        continue;
+      }
+      final status = _stringValue(_map(fixture['status'])['short']);
+      if (!const {'FT', 'AET', 'PEN'}.contains(status)) continue;
+
+      final leagueId = _intValue(_map(root['league'])['id']);
+      final teams = _map(root['teams']);
+      final home = _map(teams['home']);
+      final away = _map(teams['away']);
+      final homeId = _intValue(home['id']);
+      final awayId = _intValue(away['id']);
+      if (leagueId == null || homeId == null || awayId == null) continue;
+      final homeName = _stringValue(home['name']) ?? 'Équipe';
+      final awayName = _stringValue(away['name']) ?? 'Équipe';
+      final score = _map(root['score']);
+      final fulltime = _map(score['fulltime']);
+      final goals = _map(root['goals']);
+      final homeGoals = _intValue(fulltime['home']) ?? _intValue(goals['home']);
+      final awayGoals = _intValue(fulltime['away']) ?? _intValue(goals['away']);
+      if (homeGoals == null || awayGoals == null) continue;
+
+      final lowTeamId = homeId < awayId ? homeId : awayId;
+      final highTeamId = homeId < awayId ? awayId : homeId;
+      final pairKey = '$leagueId:$lowTeamId:$highTeamId';
+      final meetingIndex = pairMeetings[pairKey] ?? 0;
+      pairMeetings[pairKey] = meetingIndex + 1;
+      if (meetingIndex < 2) {
+        accumulator(
+          leagueId,
+          meetingIndex == 0
+              ? ChampionshipStandingView.firstLeg
+              : ChampionshipStandingView.secondLeg,
+        ).addMatch(
+          homeId: homeId,
+          homeName: homeName,
+          awayId: awayId,
+          awayName: awayName,
+          homeGoals: homeGoals,
+          awayGoals: awayGoals,
+        );
+      }
+
+      final halftime = _map(score['halftime']);
+      final halftimeHome = _intValue(halftime['home']);
+      final halftimeAway = _intValue(halftime['away']);
+      if (halftimeHome == null || halftimeAway == null) continue;
+      accumulator(leagueId, ChampionshipStandingView.firstHalf).addMatch(
+        homeId: homeId,
+        homeName: homeName,
+        awayId: awayId,
+        awayName: awayName,
+        homeGoals: halftimeHome,
+        awayGoals: halftimeAway,
+      );
+      accumulator(leagueId, ChampionshipStandingView.secondHalf).addMatch(
+        homeId: homeId,
+        homeName: homeName,
+        awayId: awayId,
+        awayName: awayName,
+        homeGoals: homeGoals - halftimeHome,
+        awayGoals: awayGoals - halftimeAway,
+      );
+    }
+
+    return {
+      for (final leagueEntry in accumulators.entries)
+        leagueEntry.key: {
+          for (final viewEntry in leagueEntry.value.entries)
+            if (viewEntry.value.rows.isNotEmpty)
+              viewEntry.key: _rankByPoints(viewEntry.value.rows),
+        },
+    };
   }
 
   Map<String, TeamStatisticsSnapshot> _statisticsByLeagueTeamId(
