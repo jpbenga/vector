@@ -2916,9 +2916,7 @@ class _TodayStoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final readings = _representativeReadingTags(match);
     final scenarios = _representativeScenarios(match);
-    final readingCount = readings.isNotEmpty
-        ? readings.length
-        : match.profileRelevance.readingMatches;
+    final readingCount = _storyReadingCount(match, readings);
     final actionColor = scenarios.isNotEmpty
         ? context.strategies.violetStyle.color
         : readings.isNotEmpty
@@ -3276,8 +3274,38 @@ List<_ForMeReading> _representativeReadingTags(MatchBoardItem match) {
       final id = FootballReadingCopyCatalog.readingIdFor(argument);
       add(id, FootballReadingCopyCatalog.titleFor(argument));
     }
+    // Some legacy/demo opportunities only expose their retained thesis and do
+    // not carry the underlying reading signals. Keep that thesis visible as a
+    // presentation fallback without mixing it with explicit scenario signals.
+    if (thesis.arguments.isEmpty) {
+      add(thesis.id, _readingLabelForId(thesis.id, fallback: thesis.title));
+    }
   }
   return readingsById.values.toList(growable: false);
+}
+
+int _storyReadingCount(
+  MatchBoardItem match,
+  List<_ForMeReading> displayedReadings,
+) {
+  final thesis = match.thesis;
+  if (thesis != null) {
+    final supportingArguments = thesis.arguments.where((argument) {
+      return argument.family != CopilotArgumentFamily.market &&
+          argument.family != CopilotArgumentFamily.contradiction;
+    }).length;
+    if (supportingArguments > 0) {
+      return supportingArguments;
+    }
+    if (thesis.supportingEvidence.isNotEmpty) {
+      return thesis.supportingEvidence.length;
+    }
+  }
+
+  if (match.profileRelevance.readingMatches > 0) {
+    return match.profileRelevance.readingMatches;
+  }
+  return displayedReadings.length;
 }
 
 List<_ForMeScenario> _representativeScenarios(MatchBoardItem match) {
