@@ -16,6 +16,7 @@ void main() {
     void Function()? onRemoveFromTicket,
     void Function()? onOpenCurrentTicket,
     void Function()? onOpenReadings,
+    void Function()? onOpenExplorer,
   }) {
     return LectorDeckCapabilities(
       onOpenForMe: onOpenForMe ?? _noop,
@@ -29,6 +30,7 @@ void main() {
       onRemoveFromTicket: onRemoveFromTicket ?? _noop,
       onOpenCurrentTicket: onOpenCurrentTicket ?? _noop,
       onOpenReadings: onOpenReadings ?? _noop,
+      onOpenExplorer: onOpenExplorer ?? _noop,
     );
   }
 
@@ -45,7 +47,7 @@ void main() {
     ];
   }
 
-  test('for me exposes only All and Generator in V1', () {
+  test('for me exposes Explorer before All and Generator', () {
     expect(
       ids(
         LectorDeckContext(
@@ -54,8 +56,22 @@ void main() {
           today: DateTime(2026, 9, 1),
         ),
       ),
-      ['all', 'generator'],
+      ['explorer', 'all', 'generator'],
     );
+  });
+
+  test('for me exposes the temporary exploration filter count', () {
+    final actions = resolver.resolve(
+      context: const LectorDeckContext(
+        scope: LectorDeckScope.forMe,
+        activeExplorationFilterCount: 4,
+      ),
+      capabilities: capabilities(),
+    );
+
+    final explorer = actions.singleWhere((action) => action.id == 'explorer');
+    expect(explorer.isPrimary, isTrue);
+    expect(explorer.badgeCount, 4);
   });
 
   test('all can expose Today only outside today', () {

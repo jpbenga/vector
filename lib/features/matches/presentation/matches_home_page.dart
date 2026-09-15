@@ -36,6 +36,7 @@ import '../data/match_feed_repository.dart';
 import '../data/match_feed_repository_loader.dart';
 import '../data/saved_match_favorites_store.dart';
 import '../domain/match_board_item.dart';
+import 'lector_explorer_sheet.dart';
 import 'lector_preferences_sheet.dart';
 import 'lector_space_page.dart';
 import 'match_detail_page.dart';
@@ -87,6 +88,10 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
   DateTime _selectedScoresDate = _todayDate();
   bool _hasUserSelectedScoresDate = false;
   _ScoresRedesignMode _scoresMode = _ScoresRedesignMode.forMe;
+  LectorExplorationSelection? _explorationSelection;
+
+  DecisionProfile get _effectiveProfile =>
+      _explorationSelection?.applyTo(widget.profile) ?? widget.profile;
 
   @override
   void initState() {
@@ -106,6 +111,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
       _savedTickets = const [];
       _isTicketPanelExpanded = false;
       _lastTicketSettlementSignature = null;
+      _explorationSelection = null;
       _loadSavedTickets();
     }
   }
@@ -141,21 +147,30 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             );
           }
 
-          final compiledProfile = const ProfileCompiler().compile(
-            widget.profile,
+          final baseProfile = widget.profile;
+          final effectiveProfile = _effectiveProfile;
+          final compiledProfile = const ProfileCompiler().compile(baseProfile);
+          final effectiveCompiledProfile = const ProfileCompiler().compile(
+            effectiveProfile,
           );
-          final opportunities = repository.opportunitiesFor(widget.profile);
-          final personalizedMatches = repository.personalizedFor(
-            widget.profile,
+          final opportunities = repository.opportunitiesFor(effectiveProfile);
+          final personalizedMatches = _explorationMatches(
+            repository.personalizedFor(effectiveProfile),
           );
+          final generatorMatches = _explorationSelection == null
+              ? personalizedMatches
+              : repository.personalizedFor(baseProfile);
+          final generatorOpportunities = _explorationSelection == null
+              ? opportunities
+              : repository.opportunitiesFor(baseProfile);
           final allMatches = repository.allMatches();
           final snapshotMetadata = repository.snapshotMetadata;
           final analyzedAllMatches = [
             for (final match in allMatches)
-              repository.analyzeFor(widget.profile, match),
+              repository.analyzeFor(effectiveProfile, match),
           ];
           final ticketGenerationResult = const TicketGenerator().generate(
-            matches: personalizedMatches,
+            matches: generatorMatches,
             strategies: widget.ticketStrategies,
             profile: compiledProfile,
           );
@@ -166,8 +181,8 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             allowAutomaticFallback: !_hasUserSelectedScoresDate,
           );
           _tracePersonalization(
-            profile: widget.profile,
-            compiledProfile: compiledProfile,
+            profile: effectiveProfile,
+            compiledProfile: effectiveCompiledProfile,
             allMatches: analyzedAllMatches,
             personalizedMatches: personalizedMatches,
             selectedDate: effectiveSelectedDate,
@@ -193,15 +208,28 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             if (opportunity != null) {
               _openOpportunityDetails(
                 opportunity,
-                match: repository.analyzeFor(widget.profile, match),
+                match: repository.analyzeFor(effectiveProfile, match),
               );
               return;
             }
-            _openMatchDetails(repository.analyzeFor(widget.profile, match));
+            _openMatchDetails(repository.analyzeFor(effectiveProfile, match));
+          }
+
+          void openGeneratorOpportunity(Opportunity opportunity) {
+            final sourceMatch = allMatches
+                .where((match) => match.id == opportunity.matchId)
+                .firstOrNull;
+            _openOpportunityDetails(
+              opportunity,
+              match: sourceMatch == null
+                  ? opportunity.toMatchBoardItem()
+                  : repository.analyzeFor(baseProfile, sourceMatch),
+              selectionProfile: baseProfile,
+            );
           }
 
           return _ScoresRedesignHome(
-            profile: widget.profile,
+            profile: effectiveProfile,
             identityScope: widget.identityScope,
             matches: analyzedAllMatches,
             personalizedMatches: personalizedMatches,
@@ -230,19 +258,25 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             hasActiveStrategies: widget.ticketStrategies.any(
               (strategy) => strategy.isActive,
             ),
+            explorationFilterCount:
+                _explorationSelection?.activeFilterCount ?? 0,
+            onOpenExplorer: () => _openLectorExplorer(
+              repository: repository,
+              selectedDate: effectiveSelectedDate,
+            ),
             onOpenTicketHistory: _openTicketHistorySheet,
             onRecalculateTickets: _refreshTicketProposals,
             onOpenStrategies: _openTicketStrategies,
             generator: TicketGeneratorPage(
               profile: compiledProfile,
-              matches: personalizedMatches,
-              opportunities: opportunities,
+              matches: generatorMatches,
+              opportunities: generatorOpportunities,
               strategies: widget.ticketStrategies,
               savedTickets: _savedTickets,
               onEditProfile: _openLectorSpace,
               onEditStrategies: _openTicketStrategies,
               onCreateManualTicket: _startManualTicketFromGenerator,
-              onOpenOpportunity: _openOpportunityDetails,
+              onOpenOpportunity: openGeneratorOpportunity,
               onSaveTicket: _upsertSavedTicket,
               onDeleteSavedTicket: _deleteSavedTicket,
             ),
@@ -282,6 +316,60 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
     setState(() {
       _selectedScoresDate = _dateOnly(selected);
       _hasUserSelectedScoresDate = true;
+    });
+  }
+
+  List<MatchBoardItem> _explorationMatches(
+    List<MatchBoardItem> personalizedMatches,
+  ) {
+    if (_explorationSelection == null) {
+      return personalizedMatches;
+    }
+    return personalizedMatches
+        .where(
+          (match) =>
+              match.profileRelevance.readingMatches > 0 ||
+              match.profileRelevance.scenarioMatches > 0,
+        )
+        .toList(growable: false);
+  }
+
+  Future<void> _openLectorExplorer({
+    required MatchFeedRepository repository,
+    required DateTime selectedDate,
+  }) async {
+    final selection = await showLectorExplorerSheet(
+      context: context,
+      profile: widget.profile,
+      currentSelection: _explorationSelection,
+      resultCountFor: (candidate) {
+        final candidateProfile = candidate.applyTo(widget.profile);
+        return repository
+            .personalizedFor(candidateProfile)
+            .where(
+              (match) =>
+                  (match.profileRelevance.readingMatches > 0 ||
+                      match.profileRelevance.scenarioMatches > 0) &&
+                  _isSameCalendarDay(
+                    lectorLocalCalendarDateForFixture(match.fixture) ??
+                        _todayDate(),
+                    selectedDate,
+                  ),
+            )
+            .map((match) => match.id)
+            .toSet()
+            .length;
+      },
+    );
+    if (selection == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _explorationSelection = selection.matchesProfile(widget.profile)
+          ? null
+          : selection;
+      _scoresMode = _ScoresRedesignMode.forMe;
     });
   }
 
@@ -628,13 +716,17 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
     );
   }
 
-  void _openMatchDetails(MatchBoardItem match) {
+  void _openMatchDetails(
+    MatchBoardItem match, {
+    DecisionProfile? selectionProfile,
+  }) {
+    final detailProfile = selectionProfile ?? _effectiveProfile;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (context) => MatchDetailPage(
           match: match,
-          selectedReadingIds: widget.profile.optionIdsFor('readings'),
-          selectedScenarioIds: widget.profile.optionIdsFor(
+          selectedReadingIds: detailProfile.optionIdsFor('readings'),
+          selectedScenarioIds: detailProfile.optionIdsFor(
             'opportunity_profiles',
           ),
           ticketDraftListenable: _ticketDraftNotifier,
@@ -659,7 +751,9 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
   void _openOpportunityDetails(
     Opportunity opportunity, {
     MatchBoardItem? match,
+    DecisionProfile? selectionProfile,
   }) {
+    final detailProfile = selectionProfile ?? _effectiveProfile;
     final analyzedMatch =
         match ??
         _latestAnalyzedMatches
@@ -671,8 +765,8 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
         builder: (context) => MatchDetailPage(
           match: analyzedMatch,
           opportunity: opportunity,
-          selectedReadingIds: widget.profile.optionIdsFor('readings'),
-          selectedScenarioIds: widget.profile.optionIdsFor(
+          selectedReadingIds: detailProfile.optionIdsFor('readings'),
+          selectedScenarioIds: detailProfile.optionIdsFor(
             'opportunity_profiles',
           ),
           ticketDraftListenable: _ticketDraftNotifier,
@@ -926,6 +1020,8 @@ class _ScoresRedesignHome extends StatefulWidget {
     required this.hasGeneratorResults,
     required this.hasSavedTickets,
     required this.hasActiveStrategies,
+    required this.explorationFilterCount,
+    required this.onOpenExplorer,
     required this.onOpenTicketHistory,
     required this.onRecalculateTickets,
     required this.onOpenStrategies,
@@ -950,6 +1046,8 @@ class _ScoresRedesignHome extends StatefulWidget {
   final bool hasGeneratorResults;
   final bool hasSavedTickets;
   final bool hasActiveStrategies;
+  final int explorationFilterCount;
+  final VoidCallback onOpenExplorer;
   final VoidCallback onOpenTicketHistory;
   final VoidCallback onRecalculateTickets;
   final VoidCallback onOpenStrategies;
@@ -1090,14 +1188,11 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                               _TodayStoriesSection(
                                 matches: storyMatches,
                                 totalMatchCount: filteredStoryMatches.length,
-                                selectedReadingId: activeReadingId,
                                 onOpenMatch: _openStoryMatch,
-                                onSeeAll: hasMoreStories
+                                isExpanded: _areAllStoriesVisible,
+                                onToggleExpanded: hasMoreStories
                                     ? _toggleStoryMatchesVisibility
                                     : null,
-                                seeAllLabel: _areAllStoriesVisible
-                                    ? 'Réduire'
-                                    : 'Voir tout (${filteredStoryMatches.length})',
                               ),
                             ] else
                               _AllMatchesDenseSection(
@@ -1129,6 +1224,7 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
               hasGeneratorResults: widget.hasGeneratorResults,
               hasSavedTickets: widget.hasSavedTickets,
               hasActiveStrategies: widget.hasActiveStrategies,
+              activeExplorationFilterCount: widget.explorationFilterCount,
             ),
             capabilities: LectorDeckCapabilities(
               onOpenForMe: widget.mode == _ScoresRedesignMode.forMe
@@ -1144,6 +1240,7 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
               onOpenTicketHistory: widget.onOpenTicketHistory,
               onRecalculate: widget.onRecalculateTickets,
               onOpenStrategies: widget.onOpenStrategies,
+              onOpenExplorer: widget.onOpenExplorer,
             ),
           ),
         ),
@@ -2828,23 +2925,22 @@ class _TodayStoriesSection extends StatelessWidget {
   const _TodayStoriesSection({
     required this.matches,
     required this.totalMatchCount,
-    required this.selectedReadingId,
     required this.onOpenMatch,
-    required this.onSeeAll,
-    required this.seeAllLabel,
+    required this.isExpanded,
+    required this.onToggleExpanded,
   });
 
   final List<MatchBoardItem> matches;
   final int totalMatchCount;
-  final String? selectedReadingId;
   final ValueChanged<MatchBoardItem> onOpenMatch;
-  final VoidCallback? onSeeAll;
-  final String seeAllLabel;
+  final bool isExpanded;
+  final VoidCallback? onToggleExpanded;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final showsSeeAll = onSeeAll != null;
+    final canToggle = onToggleExpanded != null;
+    final hiddenMatchCount = totalMatchCount - matches.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2881,8 +2977,6 @@ class _TodayStoriesSection extends StatelessWidget {
                 ],
               ),
             ),
-            if (showsSeeAll)
-              TextButton(onPressed: onSeeAll, child: Text(seeAllLabel)),
           ],
         ),
         const SizedBox(height: 10),
@@ -2901,6 +2995,38 @@ class _TodayStoriesSection extends StatelessWidget {
             if (index != matches.length - 1)
               const SizedBox(height: AppSpacing.sm),
           ],
+        if (matches.isNotEmpty && canToggle) ...[
+          const SizedBox(height: AppSpacing.md),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: onToggleExpanded,
+              icon: Icon(
+                isExpanded
+                    ? Icons.keyboard_arrow_up_rounded
+                    : Icons.keyboard_arrow_down_rounded,
+              ),
+              label: Text(
+                isExpanded
+                    ? 'Réduire la liste'
+                    : hiddenMatchCount == 1
+                    ? 'Afficher 1 autre rencontre'
+                    : 'Afficher les $hiddenMatchCount autres rencontres',
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: context.brand.accent,
+                backgroundColor: context.brand.accent.withValues(alpha: 0.06),
+                side: BorderSide(
+                  color: context.brand.accent.withValues(alpha: 0.55),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                textStyle: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }

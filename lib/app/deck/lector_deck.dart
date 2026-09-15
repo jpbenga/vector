@@ -25,6 +25,7 @@ class LectorDeckContext {
     this.hasGeneratorResults = false,
     this.hasSavedTickets = false,
     this.hasActiveStrategies = false,
+    this.activeExplorationFilterCount = 0,
     this.ticketState = LectorDeckTicketState.unavailable,
   });
 
@@ -34,6 +35,7 @@ class LectorDeckContext {
   final bool hasGeneratorResults;
   final bool hasSavedTickets;
   final bool hasActiveStrategies;
+  final int activeExplorationFilterCount;
   final LectorDeckTicketState ticketState;
 
   bool get isTodaySelected {
@@ -60,6 +62,7 @@ class LectorDeckContext {
       hasGeneratorResults,
       hasSavedTickets,
       hasActiveStrategies,
+      activeExplorationFilterCount,
       ticketState,
     );
   }
@@ -79,6 +82,7 @@ class LectorDeckCapabilities {
     this.onRemoveFromTicket,
     this.onOpenCurrentTicket,
     this.onOpenReadings,
+    this.onOpenExplorer,
   });
 
   final VoidCallback? onOpenForMe;
@@ -92,6 +96,7 @@ class LectorDeckCapabilities {
   final VoidCallback? onRemoveFromTicket;
   final VoidCallback? onOpenCurrentTicket;
   final VoidCallback? onOpenReadings;
+  final VoidCallback? onOpenExplorer;
 }
 
 @immutable
@@ -103,6 +108,7 @@ class LectorDeckAction {
     required this.type,
     required this.onPressed,
     this.isPrimary = false,
+    this.badgeCount = 0,
   });
 
   final String id;
@@ -111,6 +117,7 @@ class LectorDeckAction {
   final LectorDeckActionType type;
   final VoidCallback onPressed;
   final bool isPrimary;
+  final int badgeCount;
 }
 
 class LectorDeckActionResolver {
@@ -121,15 +128,30 @@ class LectorDeckActionResolver {
     required LectorDeckCapabilities capabilities,
   }) {
     return switch (context.scope) {
-      LectorDeckScope.forMe => _forMe(capabilities),
+      LectorDeckScope.forMe => _forMe(context, capabilities),
       LectorDeckScope.all => _all(context, capabilities),
       LectorDeckScope.generator => _generator(context, capabilities),
       LectorDeckScope.matchDetail => _matchDetail(context, capabilities),
     };
   }
 
-  List<LectorDeckAction> _forMe(LectorDeckCapabilities capabilities) {
+  List<LectorDeckAction> _forMe(
+    LectorDeckContext context,
+    LectorDeckCapabilities capabilities,
+  ) {
     return [
+      if (capabilities.onOpenExplorer != null)
+        _action(
+          id: 'explorer',
+          icon: context.activeExplorationFilterCount > 0
+              ? Icons.filter_alt_rounded
+              : Icons.filter_alt_outlined,
+          label: 'Explorer',
+          type: LectorDeckActionType.action,
+          onPressed: capabilities.onOpenExplorer!,
+          isPrimary: true,
+          badgeCount: context.activeExplorationFilterCount,
+        ),
       if (capabilities.onOpenAll != null)
         _action(
           id: 'all',
@@ -344,6 +366,7 @@ class LectorDeckActionResolver {
     required LectorDeckActionType type,
     required VoidCallback onPressed,
     bool isPrimary = false,
+    int badgeCount = 0,
   }) {
     return LectorDeckAction(
       id: id,
@@ -352,6 +375,7 @@ class LectorDeckActionResolver {
       type: type,
       onPressed: onPressed,
       isPrimary: isPrimary,
+      badgeCount: badgeCount,
     );
   }
 }
@@ -645,7 +669,47 @@ class _DeckActionButton extends StatelessWidget {
                           : AppColors.transparent,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(action.icon, size: 20, color: color),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.center,
+                      children: [
+                        Icon(action.icon, size: 20, color: color),
+                        if (action.badgeCount > 0)
+                          Positioned(
+                            right: -3,
+                            top: -3,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: context.brand.accent,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: context.surfaces.surface,
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: SizedBox.square(
+                                dimension: 15,
+                                child: Center(
+                                  child: Text(
+                                    action.badgeCount > 9
+                                        ? '9+'
+                                        : '${action.badgeCount}',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall
+                                        ?.copyWith(
+                                          color: context.brand.onAccent,
+                                          fontSize: 8,
+                                          fontWeight: FontWeight.w900,
+                                          height: 1,
+                                        ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),

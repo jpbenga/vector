@@ -479,7 +479,6 @@ class _LectorMatchHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final brand = context.brand;
-    final textColors = context.textColors;
     final venueLabel = _venueValue(match.fixture.venue);
     final roundLabel = _fixtureRoundLabel(match.fixture.round);
 
@@ -508,7 +507,7 @@ class _LectorMatchHero extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleSmall?.copyWith(
-                        color: textColors.primary,
+                        color: AppColors.textPrimary,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -555,7 +554,7 @@ class _LectorMatchHero extends StatelessWidget {
               children: [
                 Icon(
                   Icons.stadium_outlined,
-                  color: textColors.secondary,
+                  color: AppColors.textSecondary,
                   size: 18,
                 ),
                 const SizedBox(width: 8),
@@ -565,7 +564,7 @@ class _LectorMatchHero extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: textColors.secondary,
+                      color: AppColors.textSecondary,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -588,7 +587,6 @@ class _HeroTeamBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final textColors = context.textColors;
 
     return Column(
       crossAxisAlignment: alignRight
@@ -609,7 +607,7 @@ class _HeroTeamBlock extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           textAlign: alignRight ? TextAlign.right : TextAlign.left,
           style: theme.textTheme.titleMedium?.copyWith(
-            color: textColors.primary,
+            color: AppColors.textPrimary,
             fontWeight: FontWeight.w900,
             height: 1.05,
           ),
@@ -628,7 +626,6 @@ class _HeroStatusBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final brand = context.brand;
-    final textColors = context.textColors;
     final score = match.fixture.score;
     final isLive = match.fixture.status == FixtureStatus.live;
     final isFinished = match.fixture.status == FixtureStatus.finished;
@@ -653,7 +650,7 @@ class _HeroStatusBlock extends StatelessWidget {
             Text(
               '${score.home} - ${score.away}',
               style: theme.textTheme.displaySmall?.copyWith(
-                color: textColors.primary,
+                color: AppColors.textPrimary,
                 fontWeight: FontWeight.w900,
                 height: 1,
               ),
@@ -662,7 +659,7 @@ class _HeroStatusBlock extends StatelessWidget {
             Text(
               '-',
               style: theme.textTheme.headlineLarge?.copyWith(
-                color: textColors.primary,
+                color: AppColors.textPrimary,
                 fontWeight: FontWeight.w900,
                 height: 1,
               ),
@@ -5503,11 +5500,6 @@ class _LectorGlassCard extends StatelessWidget {
                 ),
               ),
             ),
-            Positioned.fill(
-              child: ColoredBox(
-                color: surfaces.surface.withValues(alpha: 0.34),
-              ),
-            ),
           ],
           Padding(padding: padding, child: child),
         ],
@@ -5550,18 +5542,11 @@ void _showScenarioReadingsSheet(
     backgroundColor: AppColors.transparent,
     barrierColor: context.surfaces.scrim.withValues(alpha: 0.56),
     builder: (context) {
-      return DraggableScrollableSheet(
-        expand: false,
-        minChildSize: 0.48,
-        initialChildSize: 0.78,
-        maxChildSize: 0.96,
-        builder: (context, scrollController) {
-          return _ScenarioReadingsSheet(
-            match: match,
-            opportunity: opportunity,
-            scrollController: scrollController,
-          );
-        },
+      return ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.92,
+        ),
+        child: _ScenarioReadingsSheet(match: match, opportunity: opportunity),
       );
     },
   );
@@ -5571,12 +5556,10 @@ class _ScenarioReadingsSheet extends StatefulWidget {
   const _ScenarioReadingsSheet({
     required this.match,
     required this.opportunity,
-    required this.scrollController,
   });
 
   final MatchBoardItem match;
   final Opportunity? opportunity;
-  final ScrollController scrollController;
 
   @override
   State<_ScenarioReadingsSheet> createState() => _ScenarioReadingsSheetState();
@@ -5617,6 +5600,7 @@ class _ScenarioReadingsSheetState extends State<_ScenarioReadingsSheet> {
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: AppSpacing.xs),
           Container(
@@ -5634,15 +5618,16 @@ class _ScenarioReadingsSheetState extends State<_ScenarioReadingsSheet> {
               onClose: () => Navigator.of(context).pop(),
             ),
           ),
-          Expanded(
+          Flexible(
             child: ListView(
-              controller: widget.scrollController,
+              shrinkWrap: true,
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
               children: [
                 if (reading.supports.isNotEmpty)
                   _ScenarioEvidenceSection(
-                    title:
-                        'Ce qui soutient cette lecture (${reading.supports.length})',
+                    title: 'Ce qui confirme la lecture',
+                    subtitle:
+                        '${reading.supports.length} ${reading.supports.length == 1 ? 'signal convergent' : 'signaux convergents'}',
                     items: reading.supports,
                     color: context.brand.accent,
                     icon: Icons.check_circle_outline_rounded,
@@ -5663,10 +5648,7 @@ class _ScenarioReadingsSheetState extends State<_ScenarioReadingsSheet> {
                 if (reading.resistances.isEmpty &&
                     reading.contradictions.isEmpty) ...[
                   const SizedBox(height: AppSpacing.xs),
-                  const _ScenarioEmptyEvidenceLine(
-                    message:
-                        'Aucune résistance ou contradiction explicite produite.',
-                  ),
+                  const _ScenarioNoCounterEvidenceCard(),
                 ],
                 if (reading.limits.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.xs),
@@ -5716,118 +5698,130 @@ class _ScenarioReadingHeader extends StatelessWidget {
     );
     final accent = badge.foreground;
 
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: accent.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(AppRadius.odds),
-            border: Border.all(color: accent.withValues(alpha: 0.46)),
-          ),
-          child: SizedBox.square(
-            dimension: 36,
-            child: Icon(identity.icon, color: accent, size: 21),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        Row(
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppRadius.odds),
+                border: Border.all(color: accent.withValues(alpha: 0.46)),
+              ),
+              child: SizedBox.square(
+                dimension: 42,
+                child: Icon(identity.icon, color: accent, size: 23),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(
+                    'LECTURE LECTOR',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: accent,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    reading.title,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: context.textColors.primary,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0,
+                      height: 1.12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Fermer',
+              onPressed: onClose,
+              icon: Icon(
+                Icons.close_rounded,
+                color: context.textColors.primary,
+                size: 24,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        _ScenarioReadingMeta(reading: reading, accent: accent),
+        if (reading.summary != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(AppRadius.input),
+              border: Border.all(color: accent.withValues(alpha: 0.22)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.auto_awesome_rounded, color: accent, size: 17),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      reading.title,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: context.textColors.primary,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0,
-                        height: 1.12,
+                      reading.summary!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: context.textColors.secondary,
+                        fontWeight: FontWeight.w600,
+                        height: 1.3,
                       ),
                     ),
                   ),
-                  if (reading.strength != null) ...[
-                    const SizedBox(width: AppSpacing.xs),
-                    _ScenarioImpactPill(
-                      label: _scenarioReadingStrengthLabel(reading.strength!),
-                      color: accent,
-                    ),
-                  ],
                 ],
               ),
-              const SizedBox(height: 3),
-              _ScenarioReadingMeta(reading: reading),
-              if (reading.summary != null) ...[
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  reading.summary!,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: context.textColors.secondary,
-                    fontWeight: FontWeight.w600,
-                    height: 1.3,
-                  ),
-                ),
-              ],
-            ],
+            ),
           ),
-        ),
-        IconButton(
-          tooltip: 'Fermer',
-          onPressed: onClose,
-          icon: Icon(
-            Icons.close_rounded,
-            color: context.textColors.primary,
-            size: 24,
-          ),
-        ),
+        ],
       ],
     );
   }
 }
 
 class _ScenarioReadingMeta extends StatelessWidget {
-  const _ScenarioReadingMeta({required this.reading});
+  const _ScenarioReadingMeta({required this.reading, required this.accent});
 
   final _ScenarioReading reading;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
-    final items = <Widget>[
-      Text(
-        reading.category,
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-          color: context.brand.accent,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-      if (reading.strength != null) ...[
-        Text(' · ', style: TextStyle(color: context.textColors.secondary)),
-        Text(
-          _scenarioReadingStrengthLabel(reading.strength!),
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: context.textColors.secondary,
-            fontWeight: FontWeight.w800,
+    return Wrap(
+      spacing: 7,
+      runSpacing: 5,
+      children: [
+        _ScenarioImpactPill(label: reading.category, color: accent),
+        if (reading.strength != null)
+          _ScenarioImpactPill(
+            label: _scenarioReadingStrengthLabel(reading.strength!),
+            color: accent,
           ),
-        ),
       ],
-    ];
-
-    return Wrap(children: items);
+    );
   }
 }
 
 class _ScenarioEvidenceSection extends StatelessWidget {
   const _ScenarioEvidenceSection({
     required this.title,
+    required this.subtitle,
     required this.items,
     required this.color,
     required this.icon,
   });
 
   final String title;
+  final String subtitle;
   final List<_ScenarioEvidenceDetail> items;
   final Color color;
   final IconData icon;
@@ -5848,20 +5842,17 @@ class _ScenarioEvidenceSection extends StatelessWidget {
             _ScenarioEvidenceSectionHeader(
               icon: icon,
               title: title,
+              subtitle: subtitle,
               color: color,
             ),
-            const SizedBox(height: AppSpacing.xs),
+            const SizedBox(height: AppSpacing.sm),
             for (final indexed in items.indexed) ...[
               _ScenarioEvidenceRow(
-                index: indexed.$1 + 1,
                 item: indexed.$2,
                 color: color,
+                icon: Icons.arrow_upward_rounded,
               ),
-              if (indexed.$1 < items.length - 1)
-                Divider(
-                  height: 14,
-                  color: context.surfaces.border.withValues(alpha: 0.78),
-                ),
+              if (indexed.$1 < items.length - 1) const SizedBox(height: 7),
             ],
           ],
         ),
@@ -5896,16 +5887,19 @@ class _ScenarioCounterEvidenceSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _ScenarioEvidenceSectionHeader(
-              icon: Icons.error_outline_rounded,
-              title: 'Ce qui contredit ou tempère cette lecture ($count)',
+              icon: Icons.shield_outlined,
+              title: 'Points de vigilance',
+              subtitle:
+                  '$count ${count == 1 ? 'élément à considérer' : 'éléments à considérer'}',
               color: contradictionColor,
             ),
             if (resistances.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.xs),
               _ScenarioEvidenceSubsection(
-                title: 'Résistances (${resistances.length})',
+                title: 'À nuancer (${resistances.length})',
                 items: resistances,
                 color: context.semantic.warning,
+                icon: Icons.balance_rounded,
               ),
             ],
             if (resistances.isNotEmpty && contradictions.isNotEmpty)
@@ -5916,9 +5910,10 @@ class _ScenarioCounterEvidenceSection extends StatelessWidget {
             if (contradictions.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.xs),
               _ScenarioEvidenceSubsection(
-                title: 'Contradictions (${contradictions.length})',
+                title: 'Signaux contraires (${contradictions.length})',
                 items: contradictions,
                 color: contradictionColor,
+                icon: Icons.south_east_rounded,
               ),
             ],
           ],
@@ -5933,11 +5928,13 @@ class _ScenarioEvidenceSubsection extends StatelessWidget {
     required this.title,
     required this.items,
     required this.color,
+    required this.icon,
   });
 
   final String title;
   final List<_ScenarioEvidenceDetail> items;
   final Color color;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -5953,16 +5950,8 @@ class _ScenarioEvidenceSubsection extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         for (final indexed in items.indexed) ...[
-          _ScenarioEvidenceRow(
-            index: indexed.$1 + 1,
-            item: indexed.$2,
-            color: color,
-          ),
-          if (indexed.$1 < items.length - 1)
-            Divider(
-              height: 14,
-              color: context.surfaces.border.withValues(alpha: 0.78),
-            ),
+          _ScenarioEvidenceRow(item: indexed.$2, color: color, icon: icon),
+          if (indexed.$1 < items.length - 1) const SizedBox(height: 7),
         ],
       ],
     );
@@ -6001,16 +5990,78 @@ class _ScenarioEmptyEvidenceLine extends StatelessWidget {
   }
 }
 
+class _ScenarioNoCounterEvidenceCard extends StatelessWidget {
+  const _ScenarioNoCounterEvidenceCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final color = context.semantic.success;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        border: Border.all(color: color.withValues(alpha: 0.28)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.13),
+                borderRadius: BorderRadius.circular(AppRadius.chip),
+              ),
+              child: SizedBox.square(
+                dimension: 30,
+                child: Icon(
+                  Icons.verified_user_outlined,
+                  color: color,
+                  size: 18,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Aucun signal contraire détecté',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: context.textColors.primary,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Les données disponibles ne présentent pas de résistance explicite à cette lecture.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.textColors.secondary,
+                      height: 1.25,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ScenarioEvidenceRow extends StatelessWidget {
   const _ScenarioEvidenceRow({
-    required this.index,
     required this.item,
     required this.color,
+    required this.icon,
   });
 
-  final int index;
   final _ScenarioEvidenceDetail item;
   final Color color;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -6019,64 +6070,68 @@ class _ScenarioEvidenceRow extends StatelessWidget {
     final description = item.description;
     final strengthLabel = item.strengthLabel;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 22,
-          height: 22,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: color.withValues(alpha: 0.8)),
-          ),
-          child: Text(
-            '$index',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w900,
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.surfaces.surface.withValues(alpha: 0.68),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppRadius.chip),
+              ),
+              child: SizedBox.square(
+                dimension: 28,
+                child: Icon(icon, color: color, size: 16),
+              ),
             ),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: context.textColors.primary,
-                        fontWeight: FontWeight.w900,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: context.textColors.primary,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      if (strengthLabel != null) ...[
+                        const SizedBox(width: 8),
+                        _ScenarioImpactPill(label: strengthLabel, color: color),
+                      ],
+                    ],
+                  ),
+                  if (description != null) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      description,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: context.textColors.secondary,
+                        fontSize: 11,
+                        height: 1.28,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ),
-                  if (strengthLabel != null) ...[
-                    const SizedBox(width: 8),
-                    _ScenarioImpactPill(label: strengthLabel, color: color),
                   ],
                 ],
               ),
-              if (description != null) ...[
-                const SizedBox(height: 2),
-                Text(
-                  description,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: context.textColors.secondary,
-                    fontSize: 11,
-                    height: 1.28,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

@@ -594,7 +594,7 @@ void main() {
     );
 
     testWidgets(
-      'Voir tout expands only every personalized story for the selected date',
+      'the bottom list action expands only personalized stories for the selected date',
       (tester) async {
         MatchBoardItem readingMatch(String id, String home, int dayOffset) {
           return _match(
@@ -630,14 +630,18 @@ void main() {
           ),
         );
 
-        expect(find.text('Voir tout (5)'), findsOneWidget);
+        expect(find.text('Afficher les 2 autres rencontres'), findsOneWidget);
         expect(find.text('Home 0'), findsWidgets);
         expect(find.text('Home 1'), findsWidgets);
         expect(find.text('Home 2'), findsWidgets);
         expect(find.text('1 lecture'), findsNWidgets(3));
         expect(find.text('Tomorrow Club'), findsNothing);
 
-        await tester.tap(find.text('Voir tout (5)'));
+        await tester.ensureVisible(
+          find.text('Afficher les 2 autres rencontres'),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Afficher les 2 autres rencontres'));
         await tester.pumpAndSettle();
 
         expect(find.text('Home 3'), findsOneWidget);
@@ -645,7 +649,7 @@ void main() {
         expect(find.text('Home 4'), findsOneWidget);
         expect(find.text('Away Home 4'), findsOneWidget);
         expect(find.text('Tomorrow Club'), findsNothing);
-        expect(find.text('Réduire'), findsOneWidget);
+        expect(find.text('Réduire la liste'), findsOneWidget);
       },
     );
 
@@ -694,11 +698,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Écart au classement'), findsOneWidget);
-      expect(find.text('Ce qui soutient cette lecture (2)'), findsOneWidget);
-      expect(
-        find.text('Aucune résistance ou contradiction explicite produite.'),
-        findsOneWidget,
-      );
+      expect(find.text('Ce qui confirme la lecture'), findsOneWidget);
+      expect(find.text('2 signaux convergents'), findsOneWidget);
+      expect(find.text('Aucun signal contraire détecté'), findsOneWidget);
       expect(
         find.text('Signal-only FC possède 6 rangs d’avance.'),
         findsWidgets,
@@ -835,13 +837,12 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Domination attendue pour Alpha FC'), findsOneWidget);
-        expect(find.text('Ce qui soutient cette lecture (1)'), findsOneWidget);
-        expect(
-          find.text('Ce qui contredit ou tempère cette lecture (2)'),
-          findsOneWidget,
-        );
-        expect(find.text('Résistances (1)'), findsOneWidget);
-        expect(find.text('Contradictions (1)'), findsOneWidget);
+        expect(find.text('Ce qui confirme la lecture'), findsOneWidget);
+        expect(find.text('1 signal convergent'), findsOneWidget);
+        expect(find.text('Points de vigilance'), findsOneWidget);
+        expect(find.text('2 éléments à considérer'), findsOneWidget);
+        expect(find.text('À nuancer (1)'), findsOneWidget);
+        expect(find.text('Signaux contraires (1)'), findsOneWidget);
         expect(
           find.text('Alpha FC reste sur une série favorable.'),
           findsOneWidget,
@@ -925,15 +926,9 @@ void main() {
         await tester.tap(find.text('Voir les 1 lectures'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Ce qui soutient cette lecture (1)'), findsOneWidget);
-        expect(
-          find.text('Ce qui contredit ou tempère cette lecture (1)'),
-          findsOneWidget,
-        );
-        expect(
-          find.text('Aucune résistance ou contradiction explicite produite.'),
-          findsNothing,
-        );
+        expect(find.text('Ce qui confirme la lecture'), findsOneWidget);
+        expect(find.text('Points de vigilance'), findsOneWidget);
+        expect(find.text('Aucun signal contraire détecté'), findsNothing);
       },
     );
 
@@ -1364,6 +1359,34 @@ void main() {
         find.byKey(const ValueKey('lector-floating-dock-Générateur')),
         findsNothing,
       );
+    });
+
+    testWidgets('opens temporary readings and scenarios Explorer from dock', (
+      tester,
+    ) async {
+      await _pumpPage(
+        tester,
+        repository: _FakeMatchFeedRepository(opportunities: const []),
+      );
+
+      await tester.tap(find.byKey(const ValueKey('lector-floating-dock-logo')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('lector-floating-dock-Explorer')),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey('lector-floating-dock-Explorer')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('EXPLORATION RAPIDE'), findsOneWidget);
+      expect(find.text('Changer les propositions'), findsOneWidget);
+      expect(find.textContaining('Lectures ·'), findsOneWidget);
+      expect(find.textContaining('Scénarios ·'), findsOneWidget);
+      expect(find.text('Sélection actuelle de votre profil.'), findsOneWidget);
     });
 
     testWidgets(
