@@ -187,18 +187,21 @@ class AppTextPalette extends ThemeExtension<AppTextPalette> {
     required this.secondary,
     required this.weak,
     required this.disabled,
+    required this.onImage,
   });
 
   final Color primary;
   final Color secondary;
   final Color weak;
   final Color disabled;
+  final Color onImage;
 
   static const vectorDark = AppTextPalette(
     primary: AppColors.textPrimary,
     secondary: AppColors.textSecondary,
     weak: AppColors.textWeak,
     disabled: AppColors.textDisabled,
+    onImage: AppColors.textPrimary,
   );
 
   static const vectorLight = AppTextPalette(
@@ -206,6 +209,7 @@ class AppTextPalette extends ThemeExtension<AppTextPalette> {
     secondary: AppLightColors.textSecondary,
     weak: AppLightColors.textWeak,
     disabled: AppLightColors.textDisabled,
+    onImage: AppColors.textPrimary,
   );
 
   static const gold = AppTextPalette(
@@ -213,6 +217,7 @@ class AppTextPalette extends ThemeExtension<AppTextPalette> {
     secondary: AppGoldColors.textSecondary,
     weak: AppGoldColors.textWeak,
     disabled: AppGoldColors.textDisabled,
+    onImage: AppColors.textPrimary,
   );
 
   static const aurora = AppTextPalette(
@@ -220,6 +225,7 @@ class AppTextPalette extends ThemeExtension<AppTextPalette> {
     secondary: AppAuroraColors.textSecondary,
     weak: AppAuroraColors.textWeak,
     disabled: AppAuroraColors.textDisabled,
+    onImage: AppColors.textPrimary,
   );
 
   @override
@@ -228,12 +234,14 @@ class AppTextPalette extends ThemeExtension<AppTextPalette> {
     Color? secondary,
     Color? weak,
     Color? disabled,
+    Color? onImage,
   }) {
     return AppTextPalette(
       primary: primary ?? this.primary,
       secondary: secondary ?? this.secondary,
       weak: weak ?? this.weak,
       disabled: disabled ?? this.disabled,
+      onImage: onImage ?? this.onImage,
     );
   }
 
@@ -245,6 +253,7 @@ class AppTextPalette extends ThemeExtension<AppTextPalette> {
       secondary: Color.lerp(secondary, other.secondary, t)!,
       weak: Color.lerp(weak, other.weak, t)!,
       disabled: Color.lerp(disabled, other.disabled, t)!,
+      onImage: Color.lerp(onImage, other.onImage, t)!,
     );
   }
 }

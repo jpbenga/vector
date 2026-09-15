@@ -507,7 +507,7 @@ class _LectorMatchHero extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleSmall?.copyWith(
-                        color: AppColors.textPrimary,
+                        color: context.textColors.onImage,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -554,7 +554,7 @@ class _LectorMatchHero extends StatelessWidget {
               children: [
                 Icon(
                   Icons.stadium_outlined,
-                  color: AppColors.textSecondary,
+                  color: context.textColors.onImage.withValues(alpha: 0.72),
                   size: 18,
                 ),
                 const SizedBox(width: 8),
@@ -564,7 +564,7 @@ class _LectorMatchHero extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
+                      color: context.textColors.onImage.withValues(alpha: 0.72),
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -607,7 +607,7 @@ class _HeroTeamBlock extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           textAlign: alignRight ? TextAlign.right : TextAlign.left,
           style: theme.textTheme.titleMedium?.copyWith(
-            color: AppColors.textPrimary,
+            color: context.textColors.onImage,
             fontWeight: FontWeight.w900,
             height: 1.05,
           ),
@@ -650,7 +650,7 @@ class _HeroStatusBlock extends StatelessWidget {
             Text(
               '${score.home} - ${score.away}',
               style: theme.textTheme.displaySmall?.copyWith(
-                color: AppColors.textPrimary,
+                color: context.textColors.onImage,
                 fontWeight: FontWeight.w900,
                 height: 1,
               ),
@@ -659,7 +659,7 @@ class _HeroStatusBlock extends StatelessWidget {
             Text(
               '-',
               style: theme.textTheme.headlineLarge?.copyWith(
-                color: AppColors.textPrimary,
+                color: context.textColors.onImage,
                 fontWeight: FontWeight.w900,
                 height: 1,
               ),
