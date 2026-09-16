@@ -26,9 +26,11 @@ void main() {
 
       expect(
         find.text('TOUTES REQUISES'),
-        findsNWidgets(FootballScenarioCatalog.values
-            .where((scenario) => scenario.isAvailable)
-            .length),
+        findsNWidgets(
+          FootballScenarioCatalog.values
+              .where((scenario) => scenario.isAvailable)
+              .length,
+        ),
       );
       expect(
         find.text(
@@ -39,9 +41,11 @@ void main() {
       );
       expect(
         find.text('Indisponible'),
-        findsNWidgets(FootballScenarioCatalog.values
-            .where((scenario) => !scenario.isAvailable)
-            .length),
+        findsNWidgets(
+          FootballScenarioCatalog.values
+              .where((scenario) => !scenario.isAvailable)
+              .length,
+        ),
       );
 
       final availableScenario = find.byKey(
@@ -63,8 +67,10 @@ void main() {
       await tester.tap(secondAvailableScenario);
       await tester.pumpAndSettle();
       expect(savedProfiles, hasLength(2));
-      expect(savedProfiles.last.optionIdsFor('opportunity_profiles'),
-          containsAll(['solid_favorite', 'offensive_match']));
+      expect(
+        savedProfiles.last.optionIdsFor('opportunity_profiles'),
+        containsAll(['solid_favorite', 'offensive_match']),
+      );
     },
   );
 }

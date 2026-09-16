@@ -295,12 +295,14 @@ void main() {
     await tester.tap(positiveReading);
     await tester.pumpAndSettle();
     expect(
-      tester.widget<Switch>(
-        find.descendant(
-          of: find.byKey(const ValueKey('reading-positive_streak')),
-          matching: find.byType(Switch),
-        ),
-      ).value,
+      tester
+          .widget<Switch>(
+            find.descendant(
+              of: find.byKey(const ValueKey('reading-positive_streak')),
+              matching: find.byType(Switch),
+            ),
+          )
+          .value,
       isTrue,
     );
     await tester.tap(find.text('Enregistrer'));

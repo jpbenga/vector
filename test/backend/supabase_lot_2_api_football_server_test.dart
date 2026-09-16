@@ -62,9 +62,8 @@ void main() {
       final collectorEndpoints = RegExp(
         r'endpoint:\s*"(/[^"]+)"',
       ).allMatches(functionSource).map((match) => match.group(1)!).toSet();
-      final allowedEndpoints = RegExp(
-        r"'(/[^']+)'",
-      ).allMatches(eventAndInjuryMigration)
+      final allowedEndpoints = RegExp(r"'(/[^']+)'")
+          .allMatches(eventAndInjuryMigration)
           .map((match) => match.group(1)!)
           .toSet();
       expect(collectorEndpoints, isNotEmpty);
