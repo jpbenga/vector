@@ -54,6 +54,26 @@ void main() {
       expect(function, contains('build-match-feed-snapshot'));
       expect(function, contains('API_FOOTBALL_SYNC_SECRET'));
       expect(function, contains('admin_operation_runs'));
+      expect(
+        function,
+        isNot(contains('numberValue(payload.bookmaker_id) ?? 16')),
+        reason: 'manual reruns must collect all bookmakers by default too',
+      );
+      expect(
+        function,
+        contains('if (bookmakerId !== undefined)'),
+        reason: 'a bookmaker filter remains an explicit diagnostic override',
+      );
+    });
+
+    test('returns detailed collection coverage and daily alerts data', () {
+      expect(function, contains('daily_football_sync_runs'));
+      expect(function, contains('api_football_latest_league_sync_health'));
+      expect(function, contains('api_football_latest_league_snapshot_health'));
+      expect(function, contains('enrichPipelineHealth'));
+      expect(function, contains('sync_error_message'));
+      expect(function, contains('snapshot_player_statistics'));
+      expect(function, contains('daily_runs: dailyRuns'));
     });
 
     test('creates hashed one-hour tester links without exposing tokens', () {

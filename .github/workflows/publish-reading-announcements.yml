@@ -1,0 +1,36 @@
+name: Publish pre-match reading announcements
+
+on:
+  schedule:
+    - cron: '15 4 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'UTC match date (YYYY-MM-DD), defaults to today'
+        required: false
+
+jobs:
+  publish:
+    if: ${{ vars.READING_BILAN_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      TZ: Europe/Paris
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.2'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Freeze readings from published pre-match snapshots
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          MATCH_DATE: ${{ inputs.date }}
+        run: |
+          if [ -n "$MATCH_DATE" ]; then
+            dart run tool/publish_match_reading_announcements.dart "--date=$MATCH_DATE"
+          else
+            dart run tool/publish_match_reading_announcements.dart
+          fi

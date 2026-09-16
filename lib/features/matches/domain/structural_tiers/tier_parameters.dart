@@ -16,6 +16,8 @@ class DynamicTierParameters {
   static const minRawGapCandidate = 3;
   static const candidateRobustZ = 2.5;
   static const candidateGapRatio = 3.0;
+  static const cohesiveCandidateGapRatio = 2.0;
+  static const cohesiveCandidateSegmentationGain = 0.40;
 
   static const madNormalizationFactor = 1.4826;
   static const iqrNormalizationFactor = 1.349;
@@ -37,6 +39,7 @@ class DynamicTierParameters {
   static const boundaryScoreConfirm = 60.0;
   static const boundaryScoreStrong = 78.0;
   static const boundaryScoreWeakMax = 50.0;
+  static const cohesiveBoundaryScoreFloor = boundaryScoreStrong;
 
   static const segmentMinSizeDefault = 2;
 

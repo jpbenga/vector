@@ -25,11 +25,30 @@ class CopilotCalendar extends StatefulWidget {
 
 class _CopilotCalendarState extends State<CopilotCalendar> {
   final ScrollController _controller = ScrollController();
+  late DateTime _windowCenterDate;
 
   @override
   void initState() {
     super.initState();
+    _windowCenterDate = _dayOnly(widget.selectedDate);
     WidgetsBinding.instance.addPostFrameCallback((_) => _centerToday());
+  }
+
+  @override
+  void didUpdateWidget(covariant CopilotCalendar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_isSameDay(oldWidget.selectedDate, widget.selectedDate)) {
+      return;
+    }
+
+    final selectedDay = _dayOnly(widget.selectedDate);
+    final halfWindow = widget.visibleWindowDays ~/ 2;
+    final firstVisible = _windowCenterDate.subtract(Duration(days: halfWindow));
+    final lastVisible = _windowCenterDate.add(Duration(days: halfWindow));
+    if (selectedDay.isBefore(firstVisible) ||
+        selectedDay.isAfter(lastVisible)) {
+      _windowCenterDate = selectedDay;
+    }
   }
 
   @override
@@ -41,15 +60,19 @@ class _CopilotCalendarState extends State<CopilotCalendar> {
   @override
   Widget build(BuildContext context) {
     final today = _dayOnly(DateTime.now());
-    final selectedDay = _dayOnly(widget.selectedDate);
     final halfWindow = widget.visibleWindowDays ~/ 2;
     final dates = [
       for (var offset = -halfWindow; offset <= halfWindow; offset++)
-        DateTime(selectedDay.year, selectedDay.month, selectedDay.day + offset),
+        DateTime(
+          _windowCenterDate.year,
+          _windowCenterDate.month,
+          _windowCenterDate.day + offset,
+        ),
     ];
 
     return SizedBox(
-      height: 54,
+      key: const ValueKey('home-calendar-navigation'),
+      height: 48,
       child: Row(
         children: [
           Expanded(
@@ -127,7 +150,7 @@ class _CopilotCalendarDay extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isToday = _isSameDay(date, today);
-    final textColor = isSelected || isToday
+    final textColor = isSelected
         ? context.brand.accent
         : context.textColors.secondary;
 
@@ -136,8 +159,15 @@ class _CopilotCalendarDay extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.chip),
-        child: Padding(
-          padding: EdgeInsets.zero,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            color: isSelected
+                ? context.brand.accent.withValues(alpha: 0.11)
+                : AppColors.transparent,
+            borderRadius: BorderRadius.circular(AppRadius.chip),
+          ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -157,14 +187,12 @@ class _CopilotCalendarDay extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: textColor,
-                  fontWeight: isSelected || isToday
-                      ? FontWeight.w900
-                      : FontWeight.w700,
+                  fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
                 ),
               ),
               const SizedBox(height: AppSpacing.xxs),
               FractionallySizedBox(
-                widthFactor: isSelected || isToday ? 0.58 : 0,
+                widthFactor: isSelected ? 0.58 : 0,
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 160),
                   height: 2,

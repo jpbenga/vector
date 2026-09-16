@@ -265,6 +265,7 @@ class _CompetitionPreferencesEditorState
                         icon: Icons.emoji_events_outlined,
                         imageUrl: competition.logoUrl,
                         fallbackLabel: competition.name,
+                        contrastPlate: true,
                         title: competition.name,
                         subtitle: competition.countryName,
                         isSelected: isSelected,
@@ -319,8 +320,11 @@ class _ReadingPreferencesEditor extends StatefulWidget {
 }
 
 class _ReadingPreferencesEditorState extends State<_ReadingPreferencesEditor> {
+  final TextEditingController _searchController = TextEditingController();
   late Set<String> _selectedIds;
   bool _isSaving = false;
+  bool _showSelectedOnly = false;
+  String? _expandedGroupId = 'ranking_form';
 
   @override
   void initState() {
@@ -329,46 +333,183 @@ class _ReadingPreferencesEditorState extends State<_ReadingPreferencesEditor> {
   }
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final readings = ReadingPreferenceCatalog.values;
-
-    return _PreferenceEditorScaffold(
-      title: 'Mes lectures',
-      subtitle:
-          'Choisissez les faits observés qui peuvent faire apparaître un match dans Pour moi.',
-      isSaving: _isSaving,
-      selectedCount: _selectedIds.length,
-      onClear: _selectedIds.isEmpty
-          ? null
-          : () {
-              setState(_selectedIds.clear);
-            },
-      onSave: _save,
-      child: ListView.separated(
-        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-        itemCount: readings.length,
-        separatorBuilder: (_, _) =>
-            const SizedBox(height: _PreferenceScale.rowGap),
-        itemBuilder: (context, index) {
-          final reading = readings[index];
-          final isSelected = _selectedIds.contains(reading.id);
-
-          return _PreferenceToggleTile(
-            icon: _readingPreferenceIcon(reading.id),
-            title: reading.label,
-            subtitle: reading.description,
-            isSelected: isSelected,
-            onChanged: (value) {
-              setState(() {
-                if (value) {
-                  _selectedIds.add(reading.id);
-                } else {
-                  _selectedIds.remove(reading.id);
+    final query = _searchController.text.trim().toLowerCase();
+    final selectedCount = ReadingPreferenceCatalog.values
+        .where((reading) => _selectedIds.contains(reading.id))
+        .length;
+    final visibleGroups = [
+      for (final group in _readingPreferenceGroups)
+        (
+          group: group,
+          readings: group.readings
+              .where((reading) {
+                if (_showSelectedOnly && !_selectedIds.contains(reading.id)) {
+                  return false;
                 }
-              });
-            },
-          );
-        },
+                return query.isEmpty ||
+                    reading.label.toLowerCase().contains(query) ||
+                    reading.description.toLowerCase().contains(query) ||
+                    group.label.toLowerCase().contains(query);
+              })
+              .toList(growable: false),
+        ),
+    ]..removeWhere((entry) => entry.readings.isEmpty);
+
+    return SafeArea(
+      child: FractionallySizedBox(
+        heightFactor: _PreferenceScale.editorHeightFactor,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            _PreferenceScale.sheetHorizontalPadding,
+            0,
+            _PreferenceScale.sheetHorizontalPadding,
+            _PreferenceScale.sheetBottomPadding,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _ReadingPreferencesHeader(count: selectedCount),
+              const SizedBox(height: AppSpacing.sm),
+              Expanded(
+                child: ListView(
+                  children: [
+                    _ReadingSelectionSummary(
+                      count: selectedCount,
+                      isActive: _showSelectedOnly,
+                      onTap: () => setState(
+                        () => _showSelectedOnly = !_showSelectedOnly,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    TextField(
+                      key: const ValueKey('reading-search'),
+                      controller: _searchController,
+                      onChanged: (_) => setState(() {}),
+                      textInputAction: TextInputAction.search,
+                      decoration: InputDecoration(
+                        hintText: 'Rechercher une lecture',
+                        prefixIcon: const Icon(Icons.search_rounded),
+                        suffixIcon: query.isEmpty
+                            ? null
+                            : IconButton(
+                                tooltip: 'Effacer la recherche',
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() {});
+                                },
+                                icon: const Icon(Icons.close_rounded),
+                              ),
+                        filled: true,
+                        fillColor: context.surfaces.surface.withValues(
+                          alpha: 0.70,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.input),
+                          borderSide: BorderSide(
+                            color: context.surfaces.border,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    _ReadingSectionHeading(
+                      title: query.isNotEmpty
+                          ? 'Résultats'
+                          : _showSelectedOnly
+                          ? 'Lectures suivies'
+                          : 'Parcourir par thème',
+                      count: query.isNotEmpty
+                          ? visibleGroups.fold<int>(
+                              0,
+                              (sum, entry) => sum + entry.readings.length,
+                            )
+                          : _showSelectedOnly
+                          ? selectedCount
+                          : _readingPreferenceGroups.length,
+                      onSelectAll:
+                          _isSaving ||
+                              selectedCount ==
+                                  ReadingPreferenceCatalog.values.length
+                          ? null
+                          : () => setState(() {
+                              _selectedIds.addAll(
+                                ReadingPreferenceCatalog.values.map(
+                                  (reading) => reading.id,
+                                ),
+                              );
+                            }),
+                      onDeselectAll: _isSaving || selectedCount == 0
+                          ? null
+                          : () => setState(_selectedIds.clear),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    if (visibleGroups.isEmpty)
+                      const _PreferenceEmptyState(
+                        icon: Icons.search_off_rounded,
+                        title: 'Aucune lecture trouvée',
+                        subtitle:
+                            'Essayez un autre terme ou affichez toutes les lectures.',
+                      )
+                    else
+                      for (final entry in visibleGroups) ...[
+                        _ReadingGroupCard(
+                          group: entry.group,
+                          readings: entry.readings,
+                          selectedIds: _selectedIds,
+                          isExpanded:
+                              query.isNotEmpty ||
+                              _expandedGroupId == entry.group.id,
+                          isSaving: _isSaving,
+                          onToggleExpanded: () => setState(() {
+                            _expandedGroupId =
+                                _expandedGroupId == entry.group.id
+                                ? null
+                                : entry.group.id;
+                          }),
+                          onSelectGroup: () => setState(() {
+                            _selectedIds.addAll(
+                              entry.group.readings.map((reading) => reading.id),
+                            );
+                          }),
+                          onDeselectGroup: () => setState(() {
+                            _selectedIds.removeAll(
+                              entry.group.readings.map((reading) => reading.id),
+                            );
+                          }),
+                          onToggleReading: (reading) => setState(() {
+                            if (!_selectedIds.add(reading.id)) {
+                              _selectedIds.remove(reading.id);
+                            }
+                          }),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                      ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              SizedBox(
+                height: _PreferenceScale.compactButtonHeight,
+                child: FilledButton(
+                  onPressed: _isSaving ? null : _save,
+                  child: _isSaving
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Enregistrer'),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -406,8 +547,633 @@ IconData _readingPreferenceIcon(String readingId) {
     'high_xg_creation' ||
     'low_xg_creation' ||
     'high_xg_conceded' => Icons.query_stats_rounded,
+    'strong_first_half_team' ||
+    'weak_first_half_team' ||
+    'frequent_halftime_lead' ||
+    'frequent_halftime_draw' ||
+    'strong_second_half_team' ||
+    'weak_second_half_team' ||
+    'early_scoring_0_15' ||
+    'early_conceding_0_15' ||
+    'pre_halftime_scoring_31_45' ||
+    'pre_halftime_conceding_31_45' ||
+    'late_scoring_76_90' ||
+    'late_conceding_76_90' => Icons.timelapse_rounded,
+    'high_shot_volume' ||
+    'low_shot_volume' ||
+    'high_shots_on_target' ||
+    'low_shot_accuracy' ||
+    'high_shots_conceded' ||
+    'high_shots_on_target_conceded' => Icons.sports_soccer_rounded,
+    'high_corner_creation' ||
+    'high_corners_conceded' ||
+    'high_total_corners_profile' ||
+    'low_total_corners_profile' => Icons.flag_outlined,
+    'high_card_rate' ||
+    'low_card_rate' ||
+    'high_total_cards_profile' => Icons.style_outlined,
     _ => Icons.insights_outlined,
   };
+}
+
+class _ReadingPreferenceGroup {
+  const _ReadingPreferenceGroup({
+    required this.id,
+    required this.label,
+    required this.icon,
+    required this.ids,
+  });
+
+  final String id;
+  final String label;
+  final IconData icon;
+  final Set<String> ids;
+
+  List<ReadingPreferenceDefinition> get readings => [
+    for (final reading in ReadingPreferenceCatalog.values)
+      if (ids.contains(reading.id)) reading,
+  ];
+}
+
+const _namedReadingPreferenceGroups = <_ReadingPreferenceGroup>[
+  _ReadingPreferenceGroup(
+    id: 'ranking_form',
+    label: 'Classement et forme',
+    icon: Icons.trending_up_rounded,
+    ids: {
+      'structural_level_gap',
+      'positive_streak',
+      'negative_streak',
+      'improving_form',
+      'declining_form',
+    },
+  ),
+  _ReadingPreferenceGroup(
+    id: 'venue',
+    label: 'Domicile et extérieur',
+    icon: Icons.home_outlined,
+    ids: {
+      'strong_home_team',
+      'weak_home_team',
+      'strong_away_team',
+      'weak_away_team',
+      'home_away_mismatch',
+    },
+  ),
+  _ReadingPreferenceGroup(
+    id: 'attack_xg',
+    label: 'Attaque et xG',
+    icon: Icons.track_changes_rounded,
+    ids: {
+      'prolific_attack',
+      'scoring_difficulty',
+      'high_xg_creation',
+      'low_xg_creation',
+      'offensive_underperformance',
+      'offensive_overperformance',
+    },
+  ),
+  _ReadingPreferenceGroup(
+    id: 'defense',
+    label: 'Défense',
+    icon: Icons.shield_outlined,
+    ids: {
+      'solid_defense',
+      'fragile_defense',
+      'frequent_clean_sheet',
+      'high_xg_conceded',
+      'defensive_underperformance',
+      'defensive_overperformance',
+    },
+  ),
+  _ReadingPreferenceGroup(
+    id: 'goals',
+    label: 'Profil de buts',
+    icon: Icons.sports_soccer_rounded,
+    ids: {
+      'open_match_profile',
+      'frequent_over_25',
+      'frequent_btts',
+      'closed_match_profile',
+      'frequent_under_25',
+    },
+  ),
+  _ReadingPreferenceGroup(
+    id: 'match_periods',
+    label: 'Moments du match',
+    icon: Icons.timelapse_rounded,
+    ids: {
+      'strong_first_half_team',
+      'weak_first_half_team',
+      'frequent_halftime_lead',
+      'frequent_halftime_draw',
+      'strong_lead_retention',
+      'weak_lead_retention',
+      'second_half_recovery',
+      'strong_second_half_team',
+      'weak_second_half_team',
+      'early_scoring_0_15',
+      'early_conceding_0_15',
+      'pre_halftime_scoring_31_45',
+      'pre_halftime_conceding_31_45',
+      'late_scoring_76_90',
+      'late_conceding_76_90',
+    },
+  ),
+  _ReadingPreferenceGroup(
+    id: 'shots_corners',
+    label: 'Tirs et corners',
+    icon: Icons.flag_outlined,
+    ids: {
+      'high_shot_volume',
+      'low_shot_volume',
+      'high_shots_on_target',
+      'low_shot_accuracy',
+      'high_shots_conceded',
+      'high_shots_on_target_conceded',
+      'high_corner_creation',
+      'high_corners_conceded',
+      'high_total_corners_profile',
+      'low_total_corners_profile',
+    },
+  ),
+  _ReadingPreferenceGroup(
+    id: 'cards',
+    label: 'Cartons',
+    icon: Icons.style_outlined,
+    ids: {
+      'high_card_rate',
+      'low_card_rate',
+      'high_total_cards_profile',
+      'second_half_cards_profile',
+    },
+  ),
+  _ReadingPreferenceGroup(
+    id: 'players',
+    label: 'Joueurs et absences',
+    icon: Icons.groups_outlined,
+    ids: {
+      'standout_goal_scorer',
+      'high_volume_shooter',
+      'accurate_shooter',
+      'standout_creator',
+      'identified_penalty_taker',
+      'key_player_unavailable',
+    },
+  ),
+  _ReadingPreferenceGroup(
+    id: 'context',
+    label: 'Contexte',
+    icon: Icons.info_outline_rounded,
+    ids: {'misleading_result'},
+  ),
+];
+
+List<_ReadingPreferenceGroup> get _readingPreferenceGroups {
+  final classifiedIds = {
+    for (final group in _namedReadingPreferenceGroups) ...group.ids,
+  };
+  final otherIds = {
+    for (final reading in ReadingPreferenceCatalog.values)
+      if (!classifiedIds.contains(reading.id)) reading.id,
+  };
+  return [
+    ..._namedReadingPreferenceGroups,
+    if (otherIds.isNotEmpty)
+      _ReadingPreferenceGroup(
+        id: 'other',
+        label: 'Autres lectures',
+        icon: Icons.insights_outlined,
+        ids: otherIds,
+      ),
+  ];
+}
+
+class _ReadingPreferencesHeader extends StatelessWidget {
+  const _ReadingPreferencesHeader({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = context.brand.accent;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Mes lectures',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                'Choisissez les faits observés que Lector doit rechercher pour vous.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.textColors.secondary,
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: 0.08),
+            shape: BoxShape.circle,
+            border: Border.all(color: accent.withValues(alpha: 0.50)),
+          ),
+          child: SizedBox.square(
+            dimension: 34,
+            child: Center(
+              child: Text(
+                '$count',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: accent,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReadingSelectionSummary extends StatelessWidget {
+  const _ReadingSelectionSummary({
+    required this.count,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  final int count;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final identity = context.opportunities.scenarioIdentityForProfileId(
+      'ranking_gap',
+    );
+    final badge = identity.badgeFor(AppReadingBadgeVariant.combined);
+    return Material(
+      color: isActive
+          ? badge.background
+          : context.surfaces.surface.withValues(alpha: 0.70),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        side: BorderSide(color: badge.border),
+      ),
+      child: InkWell(
+        key: const ValueKey('reading-followed-summary'),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          child: Row(
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: badge.background,
+                  borderRadius: BorderRadius.circular(AppRadius.control),
+                ),
+                child: SizedBox.square(
+                  dimension: 44,
+                  child: Icon(identity.icon, color: badge.iconColor, size: 22),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: '$count',
+                            style: TextStyle(color: context.brand.accent),
+                          ),
+                          TextSpan(
+                            text:
+                                ' lecture${count == 1 ? '' : 's'} suivie${count == 1 ? '' : 's'}',
+                          ),
+                        ],
+                      ),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      isActive
+                          ? 'Afficher à nouveau toutes les lectures.'
+                          : 'Retrouvez les lectures qui alimentent Pour moi.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.textColors.secondary,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Icon(Icons.chevron_right_rounded, color: badge.iconColor),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReadingSectionHeading extends StatelessWidget {
+  const _ReadingSectionHeading({
+    required this.title,
+    required this.count,
+    required this.onSelectAll,
+    required this.onDeselectAll,
+  });
+
+  final String title;
+  final int count;
+  final VoidCallback? onSelectAll;
+  final VoidCallback? onDeselectAll;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: AppSpacing.sm,
+      children: [
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: '$title · '),
+              TextSpan(
+                text: '$count',
+                style: TextStyle(color: context.brand.accent),
+              ),
+            ],
+          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
+        ),
+        Wrap(
+          spacing: AppSpacing.xs,
+          children: [
+            TextButton(
+              key: const ValueKey('reading-select-all'),
+              onPressed: onSelectAll,
+              child: const Text('Tout sélectionner'),
+            ),
+            TextButton(
+              key: const ValueKey('reading-deselect-all'),
+              onPressed: onDeselectAll,
+              child: const Text('Tout désélectionner'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ReadingGroupCard extends StatelessWidget {
+  const _ReadingGroupCard({
+    required this.group,
+    required this.readings,
+    required this.selectedIds,
+    required this.isExpanded,
+    required this.isSaving,
+    required this.onToggleExpanded,
+    required this.onSelectGroup,
+    required this.onDeselectGroup,
+    required this.onToggleReading,
+  });
+
+  final _ReadingPreferenceGroup group;
+  final List<ReadingPreferenceDefinition> readings;
+  final Set<String> selectedIds;
+  final bool isExpanded;
+  final bool isSaving;
+  final VoidCallback onToggleExpanded;
+  final VoidCallback onSelectGroup;
+  final VoidCallback onDeselectGroup;
+  final ValueChanged<ReadingPreferenceDefinition> onToggleReading;
+
+  @override
+  Widget build(BuildContext context) {
+    final allReadings = group.readings;
+    final selectedCount = allReadings
+        .where((reading) => selectedIds.contains(reading.id))
+        .length;
+    final accent = context.brand.accent;
+
+    return Material(
+      color: context.surfaces.surface.withValues(alpha: 0.70),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        side: BorderSide(
+          color: isExpanded
+              ? accent.withValues(alpha: 0.55)
+              : context.surfaces.border,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          InkWell(
+            key: ValueKey('reading-category-${group.id}'),
+            onTap: onToggleExpanded,
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              child: Row(
+                children: [
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(AppRadius.control),
+                      border: Border.all(color: accent.withValues(alpha: 0.35)),
+                    ),
+                    child: SizedBox.square(
+                      dimension: 40,
+                      child: Icon(group.icon, color: accent, size: 20),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          group.label,
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w900),
+                        ),
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(
+                          '${allReadings.length} lectures · $selectedCount suivie${selectedCount == 1 ? '' : 's'}',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: context.textColors.secondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    '$selectedCount/${allReadings.length}',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: accent,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xxs),
+                  Icon(
+                    isExpanded
+                        ? Icons.keyboard_arrow_down_rounded
+                        : Icons.chevron_right_rounded,
+                    color: context.textColors.secondary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (isExpanded) ...[
+            Divider(height: 1, color: context.surfaces.border),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+              child: Column(
+                children: [
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Wrap(
+                      spacing: AppSpacing.xs,
+                      children: [
+                        TextButton(
+                          key: ValueKey('reading-select-group-${group.id}'),
+                          onPressed:
+                              isSaving || selectedCount == allReadings.length
+                              ? null
+                              : onSelectGroup,
+                          child: const Text('Tout sélectionner dans ce thème'),
+                        ),
+                        TextButton(
+                          key: ValueKey('reading-deselect-group-${group.id}'),
+                          onPressed: isSaving || selectedCount == 0
+                              ? null
+                              : onDeselectGroup,
+                          child: const Text('Tout retirer'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  for (final entry in readings.indexed) ...[
+                    if (entry.$1 > 0)
+                      Divider(height: 1, color: context.surfaces.border),
+                    _ReadingChoiceRow(
+                      reading: entry.$2,
+                      isSelected: selectedIds.contains(entry.$2.id),
+                      isSaving: isSaving,
+                      onToggle: () => onToggleReading(entry.$2),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ReadingChoiceRow extends StatelessWidget {
+  const _ReadingChoiceRow({
+    required this.reading,
+    required this.isSelected,
+    required this.isSaving,
+    required this.onToggle,
+  });
+
+  final ReadingPreferenceDefinition reading;
+  final bool isSelected;
+  final bool isSaving;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = context.brand.accent;
+    return InkWell(
+      key: ValueKey('reading-${reading.id}'),
+      onTap: isSaving ? null : onToggle,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+        child: Row(
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(AppRadius.control),
+                border: Border.all(color: accent.withValues(alpha: 0.28)),
+              ),
+              child: SizedBox.square(
+                dimension: 34,
+                child: Icon(
+                  _readingPreferenceIcon(reading.id),
+                  color: accent,
+                  size: 18,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    reading.label,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    reading.description,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.textColors.secondary,
+                      height: 1.28,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Transform.scale(
+              scale: _PreferenceScale.switchScale,
+              child: Switch(
+                value: isSelected,
+                activeThumbColor: context.brand.onAccent,
+                activeTrackColor: accent,
+                inactiveThumbColor: context.textColors.secondary,
+                inactiveTrackColor: context.surfaces.border,
+                onChanged: isSaving ? null : (_) => onToggle(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _MarketPreferencesEditor extends StatefulWidget {
@@ -1914,6 +2680,7 @@ class _PreferenceToggleTile extends StatelessWidget {
     required this.onChanged,
     this.imageUrl,
     this.fallbackLabel,
+    this.contrastPlate = false,
   });
 
   final IconData icon;
@@ -1923,6 +2690,7 @@ class _PreferenceToggleTile extends StatelessWidget {
   final ValueChanged<bool> onChanged;
   final String? imageUrl;
   final String? fallbackLabel;
+  final bool contrastPlate;
 
   @override
   Widget build(BuildContext context) {
@@ -1951,6 +2719,7 @@ class _PreferenceToggleTile extends StatelessWidget {
                 imageUrl: imageUrl,
                 fallbackLabel: fallbackLabel ?? title,
                 isSelected: isSelected,
+                contrastPlate: contrastPlate,
               ),
               const SizedBox(width: AppSpacing.xs),
               Expanded(
@@ -1997,12 +2766,14 @@ class _PreferenceTileLeading extends StatelessWidget {
     required this.fallbackLabel,
     required this.isSelected,
     this.imageUrl,
+    this.contrastPlate = false,
   });
 
   final IconData icon;
   final String fallbackLabel;
   final bool isSelected;
   final String? imageUrl;
+  final bool contrastPlate;
 
   @override
   Widget build(BuildContext context) {
@@ -2013,8 +2784,9 @@ class _PreferenceTileLeading extends StatelessWidget {
         imageUrl: logoUrl,
         fallbackLabel: fallbackLabel,
         icon: icon,
-        backgroundColor: context.surfaces.surface,
-        padding: 2,
+        backgroundColor: contrastPlate ? null : context.surfaces.surface,
+        padding: contrastPlate ? null : 2,
+        contrastPlate: contrastPlate,
       );
     }
 

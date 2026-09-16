@@ -1,6 +1,6 @@
 # Backend Daily Football Sync MVP
 
-Date : 2026-08-13
+Date : 2026-08-13 (mise a jour : 2026-09-16)
 
 ## Objectif
 
@@ -31,13 +31,20 @@ latine arrivent trop tard dans les donnees API, on pourra decaler a 04:00 UTC.
 Fenetre technique par defaut :
 
 ```text
-Resultats : J-2 -> J-1
+Resultats : J-7 -> J-1
 Feed front : J -> J+3
-Collecte API : J-2 -> J+3
+Collecte feed API : J -> J+3
+Collecte resultats API : J-7 -> J-1
 ```
 
-La collecte couvre donc les resultats recents et les 4 jours a venir, mais le
-snapshot expose au front reste centre sur les matchs a venir.
+Les deux collectes sont separees : les cotes et les enrichissements ne sont
+pas redemandes pour les jours passes. Les resultats finaux sont archives dans
+des snapshots dedoublonnes ; le feed front reste centre sur les matchs a venir.
+
+Les pages joueurs ne sont pas repaginees par le cron glissant quotidien.
+Elles sont opt-in dans `api-football-sync` et rafraichies par un second planning
+hebdomadaire, reparti sur les sept jours. Cela conserve les statistiques
+joueurs sans multiplier leur cout par 40 chaque nuit.
 
 ## Saison courante
 
@@ -81,6 +88,8 @@ Supabase Cron
   -> daily-football-sync par ligue
   -> api-football-sync
   -> api_football_cached_responses
+  -> sync-match-results (J-7 a J-1, scores finaux)
+  -> match_result_snapshots
   -> build-match-feed-snapshot apres collecte terminee
   -> match_feed_snapshots scopes league:<id>
   -> Flutter read model fusionne les snapshots par ligue
@@ -152,6 +161,32 @@ API_FOOTBALL_REQUEST_DELAY_MS=750
 Soit environ 80 requetes/minute maximum en pratique, avant meme de compter le
 temps reseau et Supabase.
 
+La migration
+`supabase/migrations/20260916170000_backend_api_football_quota_guard.sql`
+ajoute en plus une reservation atomique avant chaque appel fournisseur :
+
+- plafond global Ultra de 75 000 requetes par jour UTC ;
+- plafond global de 450 requetes sur toute fenetre glissante de 60 secondes ;
+- compteur partage entre les crons et les lancements manuels ;
+- refus de l'appel avant de contacter API-Football si un plafond est atteint.
+
+Le compteur du jour d'installation est initialise depuis
+`api_football_sync_runs.response_summary.cachedResponses`, afin qu'un
+deploiement en cours de journee ne remette jamais le budget a zero.
+
+La cadence sequentielle de `750 ms` reste volontairement bien plus basse que
+le plafond Ultra : environ 80 requetes/minute par collecteur.
+
+Si la fenetre ne contient aucun match a venir, la collecte quotidienne s'arrete
+apres les sources de ligue et l'orchestrateur valide le cycle sans publier de
+snapshot vide. Cela evite les enrichissements joueurs et matchs historiques
+inutiles pour une ligue sans affiche pre-match.
+
+La migration
+`supabase/migrations/20260916193000_backend_service_role_snapshot_timeout.sql`
+porte a 30 secondes le delai SQL du role serveur pour permettre l'insertion
+des gros snapshots immuables, sans modifier le delai des roles clients.
+
 La collecte reste sequentielle :
 
 - pas de fan-out agressif ;
@@ -221,8 +256,7 @@ A configurer dans Vercel :
 ```text
 SUPABASE_URL
 API_FOOTBALL_TIMEZONE=Europe/Paris
-API_FOOTBALL_LEAGUE_IDS=39,61,140,78,135,94,95,88,144,179,203,197,119,207,218,40,62,136,79,141,106,210,209,283,253,71,128,262,307,98,188,103,113,164,169,244,292
-API_FOOTBALL_BOOKMAKER_ID=16
+API_FOOTBALL_LEAGUE_IDS=2,3,848,39,61,140,78,135,94,95,88,144,179,203,197,119,207,218,40,62,136,79,141,106,210,209,283,253,71,128,262,307,98,188,103,113,164,169,244,292
 API_FOOTBALL_RESULTS_DAYS_BACK=2
 API_FOOTBALL_FUTURE_DAYS=3
 API_FOOTBALL_REQUEST_DELAY_MS=750
@@ -269,13 +303,19 @@ mais chaque job doit appeler l'orchestrateur complet :
 00:00 UTC -> daily-football-sync ligue 1
 00:04 UTC -> daily-football-sync ligue 2
 ...
-02:24 UTC -> daily-football-sync ligue 37
+02:36 UTC -> daily-football-sync ligue 40
 ```
 
 `00:00 UTC` correspond a environ `02:00` en France en aout.
 
 L'espacement de 4 minutes entre chaque ligue evite le fan-out agressif et garde
-la consommation API tres largement sous la limite Pro de 300 requetes/minute.
+la consommation API tres largement sous la limite Ultra de 450 requetes/minute.
+
+Un second job `api-football-enrichment-<id>` existe pour chaque ligue. Il ne
+tourne qu'une fois par semaine avec `include_player_statistics: true`. Les 40
+ligues sont reparties entre les sept jours et plusieurs heures afin d'eviter un
+pic hebdomadaire. Le job quotidien garde explicitement
+`include_player_statistics: false`.
 
 Chaque job appelle une Edge Function en `POST` avec les headers :
 
@@ -289,13 +329,13 @@ Body commun aux runs orchestres :
 ```json
 {
   "league_ids": [61],
-  "results_days_back": 2,
+  "results_days_back": 7,
   "future_days": 3,
-  "bookmaker_id": 16,
   "api_request_delay_ms": 750,
   "include_team_statistics": true,
   "include_recent_form": true,
-  "include_expected_goals": true
+  "include_expected_goals": true,
+  "include_player_statistics": false
 }
 ```
 
@@ -310,7 +350,6 @@ Body interne envoye par `daily-football-sync` au builder de snapshot :
 ```json
 {
   "league_ids": [61],
-  "bookmaker_id": 16,
   "window_start": "YYYY-MM-DD",
   "window_end": "YYYY-MM-DD",
   "force_rebuild": false,
@@ -321,6 +360,10 @@ Body interne envoye par `daily-football-sync` au builder de snapshot :
 
 Le builder complete `season_by_league` depuis les reponses `/leagues` en cache
 avec la meme logique de couverture de fenetre que la collecte.
+Les runs normaux ne filtrent pas `/odds` par bookmaker : une seule requete
+recupere les bookmakers disponibles, puis l'adaptateur applique la priorite
+Unibet, Bet365, Pinnacle, Betfair, 1xBet et Bwin. `bookmaker_id` reste accepte
+uniquement comme override manuel de diagnostic.
 Chaque snapshot porte un `scope_key` du type `league:61`. L'ancien scope global
 reste supporte pour compatibilite, mais il ne doit plus etre utilise pour le
 cron complet MVP.
@@ -349,8 +392,7 @@ curl -X POST \
   -H "Content-Type: application/json" \
   -d '{
     "league_ids": [61, 62],
-    "bookmaker_id": 16,
-    "results_days_back": 2,
+    "results_days_back": 7,
     "future_days": 3,
     "api_request_delay_ms": 750
   }'
@@ -385,9 +427,11 @@ Puis coller le SQL dans Supabase SQL Editor.
 Le SQL genere :
 
 - supprime les anciens jobs `api-football-*` ;
-- cree 37 jobs `api-football-league-<id>` qui appellent
+- cree 40 jobs `api-football-league-<id>` qui appellent
   `daily-football-sync` ;
-- laisse `daily-football-sync` calculer les fenetres `J-2 -> J-1` et
+- cree 40 jobs `api-football-enrichment-<id>` repartis sur la semaine pour les
+  statistiques joueurs ;
+- laisse `daily-football-sync` calculer les fenetres `J-7 -> J-1` et
   `J -> J+3` ;
 - utilise `API_FOOTBALL_SYNC_SECRET` depuis `.env`.
 
@@ -400,9 +444,9 @@ Le generateur cree aussi un SQL d'execution immediate :
 pbcopy < /tmp/lector_api_football_run_now.sql
 ```
 
-Ce SQL planifie 37 jobs temporaires `api-football-run-now-*` :
+Ce SQL planifie 40 jobs temporaires `api-football-run-now-*` :
 
-- 37 runs orchestres, un par ligue ;
+- 40 runs orchestres, un par ligue ;
 - meme cadence que le cron quotidien ;
 - chaque job temporaire s'auto-supprime apres execution.
 

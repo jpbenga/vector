@@ -34,7 +34,7 @@ void main() {
       expect(profile.competitions['61']?.apiFootballLeagueId, 61);
       expect(profile.competitions['39']?.enabled, isTrue);
       expect(profile.competitions['135']?.enabled, isFalse);
-      expect(profile.competitions['2'], isNull);
+      expect(profile.competitions['2']?.enabled, isFalse);
       expect(profile.markets['doubleChance']?.enabled, isTrue);
       expect(profile.markets['doubleChance']?.sourceOptionId, 'double_chance');
       expect(profile.markets['matchResult']?.enabled, isTrue);

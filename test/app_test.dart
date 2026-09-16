@@ -274,11 +274,35 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       find.text(
-        'Choisissez les faits observés qui peuvent faire apparaître un match dans Pour moi.',
+        'Choisissez les faits observés que Lector doit rechercher pour vous.',
       ),
       findsOneWidget,
     );
-    await tester.tap(find.text('Dynamique positive').last);
+    await tester.enterText(
+      find.byKey(const ValueKey('reading-search')),
+      'Dynamique positive',
+    );
+    await tester.pumpAndSettle();
+    final positiveReading = find.byKey(
+      const ValueKey('reading-positive_streak'),
+    );
+    await tester.dragUntilVisible(
+      positiveReading,
+      find.byType(ListView).last,
+      const Offset(0, -180),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(positiveReading);
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<Switch>(
+        find.descendant(
+          of: find.byKey(const ValueKey('reading-positive_streak')),
+          matching: find.byType(Switch),
+        ),
+      ).value,
+      isTrue,
+    );
     await tester.tap(find.text('Enregistrer'));
     await tester.pumpAndSettle();
     expect(profileStore.savedProfile?.optionIdsFor('readings'), [

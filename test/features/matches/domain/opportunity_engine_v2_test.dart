@@ -153,11 +153,15 @@ void main() {
         );
         expect(
           OpportunityProfileCatalog.byId('offensive_match')?.isSupported,
-          isFalse,
+          isTrue,
         );
         expect(
           OpportunityProfileCatalog.byId('positive_series')?.isSupported,
-          isFalse,
+          isTrue,
+        );
+        expect(
+          OpportunityProfileCatalog.byId('credible_outsider')?.isSupported,
+          isTrue,
         );
       },
     );
@@ -281,6 +285,82 @@ void main() {
       expect(intelligence.betCandidates.single.isAutomaticallyUsable, isTrue);
       expect(personalized.betCandidates, hasLength(1));
       expect(personalized.profileStatus, MatchProfileStatus.inProfile);
+    });
+
+    test(
+      'keeps an analysis-backed bet recommendation when bookmaker odds are absent',
+      () {
+        final engine = OpportunityEngineV2(
+          analyzer: _StaticAnalyzer([
+            _reading(
+              'strong_home_team',
+              'api-team-10',
+              ReadingSubjectSide.home,
+            ),
+          ]),
+        );
+        final match = _match().copyWith(availableMarkets: const []);
+
+        final intelligence = engine.buildIntelligence(match);
+        final personalized = engine.personalizeMatchFromIntelligence(
+          intelligence,
+          _profile(
+            markets: ['match_result'],
+            profiles: [],
+            readings: ['strong_home_team'],
+          ),
+        );
+
+        expect(intelligence.betCandidates, isEmpty);
+        expect(
+          intelligence.betRecommendations.map(
+            (recommendation) => recommendation.marketId,
+          ),
+          containsAll(['matchResult', 'doubleChance']),
+        );
+        expect(personalized.betCandidates, isEmpty);
+        expect(personalized.betRecommendations, hasLength(1));
+        expect(
+          personalized.betRecommendations.single.selectionLabel,
+          'Victoire de Home',
+        );
+        expect(
+          personalized.betRecommendations.single.hasAvailableOdds,
+          isFalse,
+        );
+      },
+    );
+
+    test('turns an established domestic reading into a UEFA bet candidate', () {
+      final engine = OpportunityEngineV2(
+        analyzer: _StaticAnalyzer([
+          _reading(
+            'strong_home_team',
+            'api-team-10',
+            ReadingSubjectSide.home,
+          ).copyWith(
+            competitionScope: ReadingCompetitionScope.domestic,
+            sourceCompetitionId: '39',
+            sourceCompetitionName: 'Premier League',
+          ),
+        ]),
+      );
+
+      final intelligence = engine.buildIntelligence(
+        _match(
+          competition: const CompetitionInfo(
+            id: '2',
+            name: 'UEFA Champions League',
+            country: CountryInfo(code: 'INT', name: 'Europe'),
+            season: 2026,
+            apiFootballLeagueId: 2,
+          ),
+        ),
+      );
+
+      expect(intelligence.betCandidates, hasLength(1));
+      expect(intelligence.betCandidates.single.selectionLabel, '1X');
+      expect(intelligence.betCandidates.single.isAutomaticallyUsable, isTrue);
     });
 
     test(
@@ -745,6 +825,7 @@ CompiledDecisionProfile _profile({
 }
 
 MatchBoardItem _match({
+  CompetitionInfo? competition,
   String homeName = 'Home',
   String awayName = 'Away',
   int homeRank = 2,
@@ -760,12 +841,14 @@ MatchBoardItem _match({
   return MatchBoardItem(
     fixture: NormalizedFixture(
       id: 'fixture',
-      competition: const CompetitionInfo(
-        id: '39',
-        name: 'Premier League',
-        country: CountryInfo(code: 'GB', name: 'Angleterre'),
-        season: 2026,
-      ),
+      competition:
+          competition ??
+          const CompetitionInfo(
+            id: '39',
+            name: 'Premier League',
+            country: CountryInfo(code: 'GB', name: 'Angleterre'),
+            season: 2026,
+          ),
       homeTeam: TeamInfo(
         id: 'api-team-10',
         name: homeName,

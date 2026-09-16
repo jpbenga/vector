@@ -41,6 +41,7 @@ import 'lector_preferences_sheet.dart';
 import 'lector_space_page.dart';
 import 'match_detail_page.dart';
 import 'opportunity_decision_presenter.dart';
+import 'reading_bilan_section.dart';
 import 'widgets/copilot_calendar.dart';
 import 'widgets/sports_asset_badge.dart';
 
@@ -234,7 +235,6 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             matches: analyzedAllMatches,
             personalizedMatches: personalizedMatches,
             opportunities: opportunities,
-            snapshotMetadata: snapshotMetadata,
             selectedDate: effectiveSelectedDate,
             mode: _scoresMode,
             onModeChanged: (mode) {
@@ -854,13 +854,14 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
   }
 }
 
-enum _ScoresRedesignMode { forMe, all, generator }
+enum _ScoresRedesignMode { forMe, all, generator, bilan }
 
 LectorDeckScope _deckScopeForMode(_ScoresRedesignMode mode) {
   return switch (mode) {
     _ScoresRedesignMode.forMe => LectorDeckScope.forMe,
     _ScoresRedesignMode.all => LectorDeckScope.all,
     _ScoresRedesignMode.generator => LectorDeckScope.generator,
+    _ScoresRedesignMode.bilan => LectorDeckScope.all,
   };
 }
 
@@ -1007,7 +1008,6 @@ class _ScoresRedesignHome extends StatefulWidget {
     required this.matches,
     required this.personalizedMatches,
     required this.opportunities,
-    required this.snapshotMetadata,
     required this.selectedDate,
     required this.mode,
     required this.onModeChanged,
@@ -1033,7 +1033,6 @@ class _ScoresRedesignHome extends StatefulWidget {
   final List<MatchBoardItem> matches;
   final List<MatchBoardItem> personalizedMatches;
   final List<Opportunity> opportunities;
-  final MatchFeedSnapshotMetadata? snapshotMetadata;
   final DateTime selectedDate;
   final _ScoresRedesignMode mode;
   final ValueChanged<_ScoresRedesignMode> onModeChanged;
@@ -1080,6 +1079,7 @@ class _ScoresRedesignHome extends StatefulWidget {
 class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
   bool _areAllStoriesVisible = false;
   String? _selectedForMeReadingId;
+  double _dateTransitionDirection = 1;
 
   @override
   void didUpdateWidget(covariant _ScoresRedesignHome oldWidget) {
@@ -1087,6 +1087,10 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
     if (oldWidget.mode != widget.mode ||
         !_isSameCalendarDay(oldWidget.selectedDate, widget.selectedDate)) {
       _areAllStoriesVisible = false;
+    }
+    if (!_isSameCalendarDay(oldWidget.selectedDate, widget.selectedDate)) {
+      _dateTransitionDirection =
+          widget.selectedDate.isAfter(oldWidget.selectedDate) ? 1 : -1;
     }
   }
 
@@ -1117,6 +1121,7 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
       _ScoresRedesignMode.forMe => 'Ma sélection',
       _ScoresRedesignMode.all => 'Tous les matchs',
       _ScoresRedesignMode.generator => 'Générateur',
+      _ScoresRedesignMode.bilan => 'Bilan',
     };
     final listSubtitle = switch (widget.mode) {
       _ScoresRedesignMode.forMe =>
@@ -1124,6 +1129,7 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
       _ScoresRedesignMode.all => 'Essayez un autre jour ou un autre mode.',
       _ScoresRedesignMode.generator =>
         'Configurez vos sélections depuis les paramètres Lector.',
+      _ScoresRedesignMode.bilan => 'Toutes les lectures annoncées.',
     };
     final showsStories = widget.mode == _ScoresRedesignMode.forMe;
     final hasMoreStories = filteredStoryMatches.length > 3;
@@ -1147,62 +1153,94 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                             onOpenProfile: widget.onOpenProfile,
                             onOpenTheme: widget.onOpenTheme,
                           ),
-                          const SizedBox(height: 6),
-                          CopilotCalendar(
-                            selectedDate: widget.selectedDate,
-                            visibleWindowDays: 7,
-                            onDateSelected: widget.onDateSelected,
-                            onChooseDate: widget.onChooseDate,
-                          ),
-                          _SnapshotFreshnessLine(
-                            metadata: widget.snapshotMetadata,
-                            selectedDate: widget.selectedDate,
-                          ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 8),
+                          if (widget.mode != _ScoresRedesignMode.bilan) ...[
+                            CopilotCalendar(
+                              selectedDate: widget.selectedDate,
+                              visibleWindowDays: 7,
+                              onDateSelected: widget.onDateSelected,
+                              onChooseDate: widget.onChooseDate,
+                            ),
+                            const SizedBox(height: 8),
+                          ],
                           _ScoresModeControl(
                             selected: widget.mode,
                             onChanged: widget.onModeChanged,
                           ),
-                          const SizedBox(height: 14),
-                          if (showsGenerator)
-                            SizedBox(
-                              height: _generatorViewportHeight(context),
-                              child: widget.generator,
-                            )
-                          else ...[
-                            if (showsStories) ...[
-                              _ForMeReadingFilterBar(
-                                filters: readingFilters,
-                                selectedReadingId: activeReadingId,
-                                totalMatchCount: _uniqueMatchCount(
-                                  allStoryMatches,
+                          const SizedBox(height: 8),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 220),
+                            reverseDuration: const Duration(milliseconds: 170),
+                            switchInCurve: Curves.easeOutCubic,
+                            switchOutCurve: Curves.easeInCubic,
+                            transitionBuilder: (child, animation) {
+                              return FadeTransition(
+                                opacity: animation,
+                                child: SlideTransition(
+                                  position: Tween<Offset>(
+                                    begin: Offset(
+                                      0.045 * _dateTransitionDirection,
+                                      0,
+                                    ),
+                                    end: Offset.zero,
+                                  ).animate(animation),
+                                  child: child,
                                 ),
-                                onSelected: (readingId) {
-                                  setState(() {
-                                    _selectedForMeReadingId = readingId;
-                                    _areAllStoriesVisible = false;
-                                  });
-                                },
+                              );
+                            },
+                            child: KeyedSubtree(
+                              key: ValueKey(
+                                '${widget.mode.name}-${_dateOnly(widget.selectedDate).toIso8601String()}',
                               ),
-                              const SizedBox(height: 18),
-                              _TodayStoriesSection(
-                                matches: storyMatches,
-                                totalMatchCount: filteredStoryMatches.length,
-                                onOpenMatch: _openStoryMatch,
-                                isExpanded: _areAllStoriesVisible,
-                                onToggleExpanded: hasMoreStories
-                                    ? _toggleStoryMatchesVisibility
-                                    : null,
-                              ),
-                            ] else
-                              _AllMatchesDenseSection(
-                                title: listTitle,
-                                emptySubtitle: listSubtitle,
-                                initiallyExpanded: false,
-                                groups: competitionGroups,
-                                onOpenMatch: widget.onOpenMatch,
-                              ),
-                          ],
+                              child: widget.mode == _ScoresRedesignMode.bilan
+                                  ? const ReadingBilanSection()
+                                  : showsGenerator
+                                  ? SizedBox(
+                                      height: _generatorViewportHeight(context),
+                                      child: widget.generator,
+                                    )
+                                  : showsStories
+                                  ? Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        _ForMeReadingFilterBar(
+                                          filters: readingFilters,
+                                          selectedReadingId: activeReadingId,
+                                          totalMatchCount: _uniqueMatchCount(
+                                            allStoryMatches,
+                                          ),
+                                          onSelected: (readingId) {
+                                            setState(() {
+                                              _selectedForMeReadingId =
+                                                  readingId;
+                                              _areAllStoriesVisible = false;
+                                            });
+                                          },
+                                        ),
+                                        const SizedBox(height: 8),
+                                        _TodayStoriesSection(
+                                          selectedDate: widget.selectedDate,
+                                          matches: storyMatches,
+                                          totalMatchCount:
+                                              filteredStoryMatches.length,
+                                          onOpenMatch: _openStoryMatch,
+                                          isExpanded: _areAllStoriesVisible,
+                                          onToggleExpanded: hasMoreStories
+                                              ? _toggleStoryMatchesVisibility
+                                              : null,
+                                        ),
+                                      ],
+                                    )
+                                  : _AllMatchesDenseSection(
+                                      title: listTitle,
+                                      emptySubtitle: listSubtitle,
+                                      initiallyExpanded: false,
+                                      groups: competitionGroups,
+                                      onOpenMatch: widget.onOpenMatch,
+                                    ),
+                            ),
+                          ),
                           const SizedBox(height: 96),
                         ],
                       ),
@@ -1213,37 +1251,38 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
             ],
           ),
         ),
-        Positioned(
-          left: 14,
-          bottom: 16 + MediaQuery.paddingOf(context).bottom,
-          child: LectorDeck(
-            maxWidth: MediaQuery.sizeOf(context).width - 28,
-            deckContext: LectorDeckContext(
-              scope: _deckScopeForMode(widget.mode),
-              selectedDate: widget.selectedDate,
-              hasGeneratorResults: widget.hasGeneratorResults,
-              hasSavedTickets: widget.hasSavedTickets,
-              hasActiveStrategies: widget.hasActiveStrategies,
-              activeExplorationFilterCount: widget.explorationFilterCount,
-            ),
-            capabilities: LectorDeckCapabilities(
-              onOpenForMe: widget.mode == _ScoresRedesignMode.forMe
-                  ? null
-                  : () => widget.onModeChanged(_ScoresRedesignMode.forMe),
-              onOpenAll: widget.mode == _ScoresRedesignMode.all
-                  ? null
-                  : () => widget.onModeChanged(_ScoresRedesignMode.all),
-              onOpenGenerator: widget.mode == _ScoresRedesignMode.generator
-                  ? null
-                  : () => widget.onModeChanged(_ScoresRedesignMode.generator),
-              onGoToday: () => widget.onDateSelected(_todayDate()),
-              onOpenTicketHistory: widget.onOpenTicketHistory,
-              onRecalculate: widget.onRecalculateTickets,
-              onOpenStrategies: widget.onOpenStrategies,
-              onOpenExplorer: widget.onOpenExplorer,
+        if (widget.mode != _ScoresRedesignMode.bilan)
+          Positioned(
+            left: 14,
+            bottom: 16 + MediaQuery.paddingOf(context).bottom,
+            child: LectorDeck(
+              maxWidth: MediaQuery.sizeOf(context).width - 28,
+              deckContext: LectorDeckContext(
+                scope: _deckScopeForMode(widget.mode),
+                selectedDate: widget.selectedDate,
+                hasGeneratorResults: widget.hasGeneratorResults,
+                hasSavedTickets: widget.hasSavedTickets,
+                hasActiveStrategies: widget.hasActiveStrategies,
+                activeExplorationFilterCount: widget.explorationFilterCount,
+              ),
+              capabilities: LectorDeckCapabilities(
+                onOpenForMe: widget.mode == _ScoresRedesignMode.forMe
+                    ? null
+                    : () => widget.onModeChanged(_ScoresRedesignMode.forMe),
+                onOpenAll: widget.mode == _ScoresRedesignMode.all
+                    ? null
+                    : () => widget.onModeChanged(_ScoresRedesignMode.all),
+                onOpenGenerator: widget.mode == _ScoresRedesignMode.generator
+                    ? null
+                    : () => widget.onModeChanged(_ScoresRedesignMode.generator),
+                onGoToday: () => widget.onDateSelected(_todayDate()),
+                onOpenTicketHistory: widget.onOpenTicketHistory,
+                onRecalculate: widget.onRecalculateTickets,
+                onOpenStrategies: widget.onOpenStrategies,
+                onOpenExplorer: widget.onOpenExplorer,
+              ),
             ),
           ),
-        ),
         if (RuntimePersonalizationDiagnostic.instance.isEnabled)
           Positioned(
             right: 14,
@@ -1277,6 +1316,7 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
       _ScoresRedesignMode.forMe => _matchesForDate(_forMeMatches()),
       _ScoresRedesignMode.all => dateMatches,
       _ScoresRedesignMode.generator => const <MatchBoardItem>[],
+      _ScoresRedesignMode.bilan => const <MatchBoardItem>[],
     };
 
     final uniqueByMatchId = <String, MatchBoardItem>{
@@ -1333,7 +1373,11 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
   }
 
   Set<String> get _selectedReadingIds {
-    return widget.profile.optionIdsFor('opportunity_profiles').toSet();
+    return {
+      ...widget.profile.optionIdsFor('readings'),
+      ...widget.profile.optionIdsFor('opportunity_profiles'),
+      ...widget.profile.optionIdsFor('match_types'),
+    };
   }
 
   List<MatchBoardItem> _storyMatches(List<MatchBoardItem> source) {
@@ -1570,9 +1614,9 @@ class _ForMeReadingFilterBuilder {
   }
 }
 
-/// Presentation categories stay aligned with saved preference ids. Runtime
-/// readings carry a subject team in their copy, so they must never be used as
-/// a filter identity or a filter label.
+/// Presentation categories keep scenario ids stable while exposing direct
+/// reading preferences as filter sections as well. Runtime readings carry a
+/// subject team in their copy, so only their canonical ids are used here.
 class _ForMeReadingCategory {
   const _ForMeReadingCategory({required this.id, required this.label});
 
@@ -1586,12 +1630,89 @@ class _ForMeReadingCategory {
     final scenarioId = runtimeId.startsWith('scenario:')
         ? runtimeId.split(':').elementAtOrNull(1)
         : OpportunityProfileCatalog.byId(runtimeId)?.id;
-    if (scenarioId == null ||
+    if (scenarioId != null) {
+      if (selectedProfileIds.isNotEmpty &&
+          !selectedProfileIds.contains(scenarioId)) {
+        return null;
+      }
+      return _categoriesByProfileId[scenarioId];
+    }
+
+    final readingCategoryId = _readingCategoryId(runtimeId);
+    if (readingCategoryId == null ||
         (selectedProfileIds.isNotEmpty &&
-            !selectedProfileIds.contains(scenarioId))) {
+            !selectedProfileIds.any(
+              (selectedId) =>
+                  selectedId == runtimeId ||
+                  _readingCategoryId(selectedId) == readingCategoryId,
+            ))) {
       return null;
     }
-    return _categoriesByProfileId[scenarioId];
+    return _categoriesByReadingId[readingCategoryId];
+  }
+
+  static String? _readingCategoryId(String readingId) {
+    return switch (readingId) {
+      'structural_level_gap' ||
+      'ranking_superiority' ||
+      'ranking_gap' => 'ranking',
+      'positive_streak' ||
+      'negative_streak' ||
+      'improving_form' ||
+      'declining_form' ||
+      'form_advantage' => 'form',
+      'strong_home_team' ||
+      'weak_home_team' ||
+      'strong_away_team' ||
+      'weak_away_team' ||
+      'home_away_mismatch' => 'venue',
+      'prolific_attack' ||
+      'scoring_difficulty' ||
+      'high_xg_creation' ||
+      'low_xg_creation' ||
+      'attack_in_form' ||
+      'offensive_underperformance' ||
+      'offensive_overperformance' => 'attack',
+      'solid_defense' ||
+      'fragile_defense' ||
+      'frequent_clean_sheet' ||
+      'high_xg_conceded' ||
+      'defensive_underperformance' ||
+      'defensive_overperformance' => 'defense',
+      'open_match_profile' ||
+      'frequent_over_25' ||
+      'frequent_btts' ||
+      'closed_match_profile' ||
+      'frequent_under_25' => 'goals',
+      'standout_goal_scorer' => 'scorers',
+      'strong_first_half_team' ||
+      'weak_first_half_team' ||
+      'frequent_halftime_lead' ||
+      'frequent_halftime_draw' ||
+      'strong_second_half_team' ||
+      'weak_second_half_team' ||
+      'early_scoring_0_15' ||
+      'early_conceding_0_15' ||
+      'pre_halftime_scoring_31_45' ||
+      'pre_halftime_conceding_31_45' ||
+      'late_scoring_76_90' ||
+      'late_conceding_76_90' => 'periods',
+      'high_shot_volume' ||
+      'low_shot_volume' ||
+      'high_shots_on_target' ||
+      'low_shot_accuracy' ||
+      'high_shots_conceded' ||
+      'high_shots_on_target_conceded' => 'shots',
+      'high_corner_creation' ||
+      'high_corners_conceded' ||
+      'high_total_corners_profile' ||
+      'low_total_corners_profile' => 'corners',
+      'high_card_rate' ||
+      'low_card_rate' ||
+      'high_total_cards_profile' => 'cards',
+      'misleading_result' => 'context',
+      _ => null,
+    };
   }
 
   static const _categoriesByProfileId = {
@@ -1636,6 +1757,21 @@ class _ForMeReadingCategory {
       label: 'Outsider crédible',
     ),
   };
+
+  static const _categoriesByReadingId = {
+    'ranking': _ForMeReadingCategory(id: 'ranking', label: 'Classement'),
+    'form': _ForMeReadingCategory(id: 'form', label: 'Forme'),
+    'venue': _ForMeReadingCategory(id: 'venue', label: 'Domicile / extérieur'),
+    'attack': _ForMeReadingCategory(id: 'attack', label: 'Attaque / xG'),
+    'defense': _ForMeReadingCategory(id: 'defense', label: 'Défense'),
+    'goals': _ForMeReadingCategory(id: 'goals', label: 'Buts'),
+    'scorers': _ForMeReadingCategory(id: 'scorers', label: 'Buteurs'),
+    'periods': _ForMeReadingCategory(id: 'periods', label: 'Mi-temps'),
+    'shots': _ForMeReadingCategory(id: 'shots', label: 'Tirs'),
+    'corners': _ForMeReadingCategory(id: 'corners', label: 'Corners'),
+    'cards': _ForMeReadingCategory(id: 'cards', label: 'Cartons'),
+    'context': _ForMeReadingCategory(id: 'context', label: 'Contexte'),
+  };
 }
 
 String _readingLabelForId(String id, {required String fallback}) {
@@ -1645,6 +1781,29 @@ String _readingLabelForId(String id, {required String fallback}) {
     'balanced_hierarchy' => 'Hiérarchie équilibrée',
     'positive_streak' || 'improving_form' || 'form_advantage' => 'Forme',
     'negative_streak' || 'declining_form' => 'Dynamique négative',
+    'strong_first_half_team' || 'frequent_halftime_lead' => 'Première mi-temps',
+    'weak_first_half_team' || 'frequent_halftime_draw' => 'Lecture à la pause',
+    'strong_second_half_team' => 'Seconde mi-temps',
+    'weak_second_half_team' => 'Fragile après la pause',
+    'early_scoring_0_15' => 'Marque entre 0–15 min',
+    'early_conceding_0_15' => 'Concède entre 0–15 min',
+    'pre_halftime_scoring_31_45' => 'Marque entre 31–45 min',
+    'pre_halftime_conceding_31_45' => 'Concède entre 31–45 min',
+    'late_scoring_76_90' => 'Marque entre 76–90 min',
+    'late_conceding_76_90' => 'Concède entre 76–90 min',
+    'high_shot_volume' => 'Volume de tirs élevé',
+    'low_shot_volume' => 'Faible volume de tirs',
+    'high_shots_on_target' => 'Nombreux tirs cadrés',
+    'low_shot_accuracy' => 'Difficulté à cadrer',
+    'high_shots_conceded' => 'Concède beaucoup de tirs',
+    'high_shots_on_target_conceded' => 'Concède des tirs cadrés',
+    'high_corner_creation' => 'Obtient beaucoup de corners',
+    'high_corners_conceded' => 'Concède beaucoup de corners',
+    'high_total_corners_profile' => 'Match riche en corners',
+    'low_total_corners_profile' => 'Match pauvre en corners',
+    'high_card_rate' => 'Beaucoup de cartons',
+    'low_card_rate' => 'Équipe disciplinée',
+    'high_total_cards_profile' => 'Match riche en cartons',
     'fragile_defense' ||
     'high_xg_conceded' ||
     'defensive_underperformance' => 'Défense fragile',
@@ -2663,6 +2822,8 @@ class _HeaderAccountRow extends StatelessWidget {
   }
 }
 
+const _homeNavigationControlHeight = 48.0;
+
 class _ScoresModeControl extends StatelessWidget {
   const _ScoresModeControl({required this.selected, required this.onChanged});
 
@@ -2671,35 +2832,55 @@ class _ScoresModeControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.surfaces.backgroundSecondary,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: context.surfaces.border),
-      ),
-      child: Row(
-        children: [
-          _ScoresModeTab(
-            icon: Icons.person_outline_rounded,
-            label: 'Pour moi',
-            isSelected: selected == _ScoresRedesignMode.forMe,
-            onTap: () => onChanged(_ScoresRedesignMode.forMe),
-          ),
-          _ModeDivider(),
-          _ScoresModeTab(
-            icon: Icons.format_list_bulleted_rounded,
-            label: 'Tous',
-            isSelected: selected == _ScoresRedesignMode.all,
-            onTap: () => onChanged(_ScoresRedesignMode.all),
-          ),
-          _ModeDivider(),
-          _ScoresModeTab(
-            icon: Icons.auto_awesome_rounded,
-            label: 'Générateur',
-            isSelected: selected == _ScoresRedesignMode.generator,
-            onTap: () => onChanged(_ScoresRedesignMode.generator),
-          ),
-        ],
+    return SizedBox(
+      key: const ValueKey('home-primary-navigation'),
+      height: _homeNavigationControlHeight,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: context.surfaces.backgroundSecondary,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          border: Border.all(color: context.surfaces.border),
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 470;
+            return Row(
+              children: [
+                _ScoresModeTab(
+                  icon: Icons.person_outline_rounded,
+                  label: 'Pour moi',
+                  compact: compact,
+                  isSelected: selected == _ScoresRedesignMode.forMe,
+                  onTap: () => onChanged(_ScoresRedesignMode.forMe),
+                ),
+                _ModeDivider(),
+                _ScoresModeTab(
+                  icon: Icons.format_list_bulleted_rounded,
+                  label: 'Tous',
+                  compact: compact,
+                  isSelected: selected == _ScoresRedesignMode.all,
+                  onTap: () => onChanged(_ScoresRedesignMode.all),
+                ),
+                _ModeDivider(),
+                _ScoresModeTab(
+                  icon: Icons.auto_awesome_rounded,
+                  label: 'Générateur',
+                  compact: compact,
+                  isSelected: selected == _ScoresRedesignMode.generator,
+                  onTap: () => onChanged(_ScoresRedesignMode.generator),
+                ),
+                _ModeDivider(),
+                _ScoresModeTab(
+                  icon: Icons.insights_outlined,
+                  label: 'Bilan',
+                  compact: compact,
+                  isSelected: selected == _ScoresRedesignMode.bilan,
+                  onTap: () => onChanged(_ScoresRedesignMode.bilan),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -2721,12 +2902,14 @@ class _ScoresModeTab extends StatelessWidget {
     required this.label,
     required this.isSelected,
     required this.onTap,
+    this.compact = false,
   });
 
   final IconData icon;
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -2739,15 +2922,17 @@ class _ScoresModeTab extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.card),
         child: SizedBox(
-          height: 46,
+          height: _homeNavigationControlHeight,
           child: Stack(
             alignment: Alignment.center,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(icon, size: 17, color: color),
-                  const SizedBox(width: AppSpacing.xs),
+                  if (!compact) ...[
+                    Icon(icon, size: 17, color: color),
+                    const SizedBox(width: AppSpacing.xs),
+                  ],
                   Flexible(
                     child: Text(
                       label,
@@ -2756,6 +2941,7 @@ class _ScoresModeTab extends StatelessWidget {
                       style: Theme.of(context).textTheme.labelLarge?.copyWith(
                         color: color,
                         fontWeight: FontWeight.w900,
+                        fontSize: compact ? 12 : null,
                       ),
                     ),
                   ),
@@ -2798,7 +2984,8 @@ class _ForMeReadingFilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 82,
+      key: const ValueKey('home-reading-navigation'),
+      height: _homeNavigationControlHeight,
       child: ListView(
         scrollDirection: Axis.horizontal,
         clipBehavior: Clip.none,
@@ -2860,11 +3047,15 @@ class _ForMeReadingFilterTile extends StatelessWidget {
         ? context.brand.accent.withValues(alpha: 0.12)
         : context.surfaces.surface.withValues(alpha: 0.64);
 
-    return SizedBox(
+    return ConstrainedBox(
       key: readingId == null
           ? const ValueKey('for-me-filter-all')
           : ValueKey('for-me-filter-$readingId'),
-      width: 94,
+      constraints: const BoxConstraints(
+        minWidth: 86,
+        maxWidth: 180,
+        minHeight: _homeNavigationControlHeight,
+      ),
       child: Material(
         color: AppColors.transparent,
         shape: RoundedRectangleBorder(
@@ -2884,31 +3075,43 @@ class _ForMeReadingFilterTile extends StatelessWidget {
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xs,
-                vertical: AppSpacing.xs,
+                horizontal: AppSpacing.sm,
+                vertical: 7,
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(icon, color: accent, size: 20),
-                  const SizedBox(height: AppSpacing.xxs),
-                  Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: context.textColors.primary,
-                      fontWeight: FontWeight.w800,
-                      height: 1.12,
+                  Icon(icon, color: accent, size: 18),
+                  const SizedBox(width: AppSpacing.xs),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: context.textColors.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '($count)',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: context.textColors.secondary,
-                      fontWeight: FontWeight.w700,
+                  const SizedBox(width: AppSpacing.xs),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: SizedBox.square(
+                      dimension: 26,
+                      child: Center(
+                        child: Text(
+                          '$count',
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: accent,
+                                fontWeight: FontWeight.w900,
+                              ),
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -2923,6 +3126,7 @@ class _ForMeReadingFilterTile extends StatelessWidget {
 
 class _TodayStoriesSection extends StatelessWidget {
   const _TodayStoriesSection({
+    required this.selectedDate,
     required this.matches,
     required this.totalMatchCount,
     required this.onOpenMatch,
@@ -2930,6 +3134,7 @@ class _TodayStoriesSection extends StatelessWidget {
     required this.onToggleExpanded,
   });
 
+  final DateTime selectedDate;
   final List<MatchBoardItem> matches;
   final int totalMatchCount;
   final ValueChanged<MatchBoardItem> onOpenMatch;
@@ -2958,7 +3163,7 @@ class _TodayStoriesSection extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'À suivre aujourd’hui',
+                    _storySectionTitle(selectedDate),
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w900,
                     ),
@@ -3029,6 +3234,23 @@ class _TodayStoriesSection extends StatelessWidget {
         ],
       ],
     );
+  }
+
+  String _storySectionTitle(DateTime date) {
+    if (_isSameCalendarDay(date, _todayDate())) {
+      return 'À suivre aujourd’hui';
+    }
+    final day = switch (date.weekday) {
+      DateTime.monday => 'lundi',
+      DateTime.tuesday => 'mardi',
+      DateTime.wednesday => 'mercredi',
+      DateTime.thursday => 'jeudi',
+      DateTime.friday => 'vendredi',
+      DateTime.saturday => 'samedi',
+      DateTime.sunday => 'dimanche',
+      _ => '',
+    };
+    return 'À suivre $day';
   }
 }
 
@@ -3145,8 +3367,7 @@ class _StoryCompetitionHeader extends StatelessWidget {
       size: 24,
       imageUrl: match.competition.logoUrl,
       fallbackLabel: match.competition.name,
-      backgroundColor: AppColors.transparent,
-      padding: 1,
+      contrastPlate: true,
     );
     final competitionName = Text(
       match.competition.name,
@@ -3678,7 +3899,7 @@ class _DenseCompetitionSectionState extends State<_DenseCompetitionSection> {
                       size: 24,
                       imageUrl: widget.group.competition.logoUrl,
                       fallbackLabel: widget.group.competition.name,
-                      backgroundColor: AppColors.transparent,
+                      contrastPlate: true,
                       icon: Icons.emoji_events_rounded,
                     ),
                     const SizedBox(width: AppSpacing.sm),
@@ -4498,8 +4719,7 @@ class _FavoriteCompetitionLine extends StatelessWidget {
                 size: 30,
                 imageUrl: competition.competition.logoUrl,
                 fallbackLabel: competition.competition.name,
-                backgroundColor: AppColors.transparent,
-                padding: 0,
+                contrastPlate: true,
                 icon: Icons.emoji_events_rounded,
               ),
               const SizedBox(width: AppSpacing.md),
@@ -5620,8 +5840,7 @@ class _CompetitionMatchSection extends StatelessWidget {
                       imageUrl: competition.competition.logoUrl,
                       fallbackLabel: competition.competition.name,
                       borderRadius: AppRadius.input,
-                      backgroundColor: AppColors.transparent,
-                      padding: 0,
+                      contrastPlate: true,
                       icon: Icons.emoji_events_rounded,
                     ),
                     const SizedBox(width: AppSpacing.md),
@@ -8390,6 +8609,7 @@ class _ForMeCompetitionLine extends StatelessWidget {
           imageUrl: opportunity.competition.logoUrl,
           fallbackLabel: opportunity.competition.name,
           borderRadius: 5,
+          contrastPlate: true,
           icon: Icons.emoji_events_rounded,
         ),
         const SizedBox(width: 10),
@@ -8915,6 +9135,7 @@ class _OpportunitySignals extends StatelessWidget {
               imageUrl: opportunity.competition.logoUrl,
               fallbackLabel: opportunity.competition.name,
               borderRadius: 5,
+              contrastPlate: true,
               icon: Icons.emoji_events_rounded,
             ),
             const SizedBox(width: 8),

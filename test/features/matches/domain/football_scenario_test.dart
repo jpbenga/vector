@@ -123,7 +123,7 @@ void main() {
       );
     });
 
-    test('does not detect contracts whose required readings are pending', () {
+    test('detects the open-match contract when every reading is present', () {
       final matches = const FootballScenarioDetector().detect(
         analysis: _analysis([
           _reading('open_match_profile', 'fixture', ReadingSubjectSide.match),
@@ -137,7 +137,7 @@ void main() {
 
       expect(
         matches.where((match) => match.scenarioId == 'offensive_match'),
-        isEmpty,
+        hasLength(1),
       );
     });
 
@@ -180,6 +180,111 @@ void main() {
       expect(matches.single.subjectSide, ReadingSubjectSide.match);
       expect(matches.single.supportingReadings, hasLength(4));
     });
+
+    for (final scenario in <String, List<(String, String, ReadingSubjectSide)>>{
+      'first_half_advantage': [
+        ('strong_first_half_team', 'home', ReadingSubjectSide.home),
+        ('weak_first_half_team', 'away', ReadingSubjectSide.away),
+        ('frequent_halftime_lead', 'home', ReadingSubjectSide.home),
+      ],
+      'early_goal_pressure': [
+        ('early_scoring_0_15', 'home', ReadingSubjectSide.home),
+        ('early_conceding_0_15', 'away', ReadingSubjectSide.away),
+        ('high_shots_on_target', 'home', ReadingSubjectSide.home),
+      ],
+      'late_goal_pressure': [
+        ('late_scoring_76_90', 'home', ReadingSubjectSide.home),
+        ('late_conceding_76_90', 'away', ReadingSubjectSide.away),
+        ('strong_second_half_team', 'home', ReadingSubjectSide.home),
+      ],
+      'corner_pressure': [
+        ('high_corner_creation', 'home', ReadingSubjectSide.home),
+        ('high_corners_conceded', 'away', ReadingSubjectSide.away),
+        ('high_shot_volume', 'home', ReadingSubjectSide.home),
+      ],
+      'second_half_swing': [
+        ('strong_second_half_team', 'home', ReadingSubjectSide.home),
+        ('weak_second_half_team', 'away', ReadingSubjectSide.away),
+        ('second_half_recovery', 'home', ReadingSubjectSide.home),
+      ],
+    }.entries) {
+      test('${scenario.key} needs every reading on the correct side', () {
+        final readings = [
+          for (final item in scenario.value)
+            _reading(item.$1, item.$2, item.$3),
+        ];
+        List<FootballScenarioMatch> detect(List<FootballReading> input) =>
+            const FootballScenarioDetector()
+                .detect(
+                  analysis: _analysis(input),
+                  homeTeamId: 'home',
+                  awayTeamId: 'away',
+                )
+                .where((match) => match.scenarioId == scenario.key)
+                .toList();
+        expect(detect(readings), hasLength(1));
+        for (var index = 0; index < readings.length; index += 1) {
+          expect(detect([...readings]..removeAt(index)), isEmpty);
+        }
+      });
+    }
+
+    test('disciplinary tension requires both teams and the match profile', () {
+      final readings = [
+        _reading('high_card_rate', 'home', ReadingSubjectSide.home),
+        _reading('high_card_rate', 'away', ReadingSubjectSide.away),
+        _reading(
+          'high_total_cards_profile',
+          'fixture',
+          ReadingSubjectSide.match,
+        ),
+      ];
+      List<FootballScenarioMatch> detect(List<FootballReading> input) =>
+          const FootballScenarioDetector()
+              .detect(
+                analysis: _analysis(input),
+                homeTeamId: 'home',
+                awayTeamId: 'away',
+              )
+              .where((match) => match.scenarioId == 'disciplinary_tension')
+              .toList();
+      expect(detect(readings), hasLength(1));
+      for (var index = 0; index < readings.length; index += 1) {
+        expect(detect([...readings]..removeAt(index)), isEmpty);
+      }
+    });
+
+    test('scorer exposure requires the scorer to be the same shooter', () {
+      List<FootballScenarioMatch> detect(int shooterId) =>
+          const FootballScenarioDetector()
+              .detect(
+                analysis: _analysis([
+                  _reading(
+                    'standout_goal_scorer',
+                    'home',
+                    ReadingSubjectSide.home,
+                    playerId: 7,
+                  ),
+                  _reading(
+                    'high_volume_shooter',
+                    'home',
+                    ReadingSubjectSide.home,
+                    playerId: shooterId,
+                  ),
+                  _reading(
+                    'high_shots_on_target_conceded',
+                    'away',
+                    ReadingSubjectSide.away,
+                  ),
+                ]),
+                homeTeamId: 'home',
+                awayTeamId: 'away',
+              )
+              .where((match) => match.scenarioId == 'standout_scorer_exposure')
+              .toList();
+      expect(detect(7), hasLength(1));
+      expect(detect(8), isEmpty);
+    });
   });
 }
 
@@ -196,11 +301,17 @@ FootballReading _reading(
   String teamId,
   ReadingSubjectSide side, {
   bool isContradiction = false,
+  int? playerId,
 }) {
   return FootballReading(
     id: id,
     subjectTeamId: teamId,
     subjectSide: side,
+    subjectKind: playerId == null
+        ? ReadingSubjectKind.team
+        : ReadingSubjectKind.player,
+    playerId: playerId,
+    playerName: playerId == null ? null : 'Player $playerId',
     status: ReadingStatus.detected,
     strength: ReadingStrength.moderate,
     evidence: const [],

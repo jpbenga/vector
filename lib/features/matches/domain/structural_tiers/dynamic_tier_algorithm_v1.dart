@@ -523,16 +523,8 @@ class DynamicTierAlgorithmV1 {
       final rawGap = distribution.adjacentGaps[gapIndex];
       final robustZ = robustZForGap(rawGap, distribution);
       final gapRatio = gapRatioForGap(rawGap, distribution);
-      final detected =
-          rawGap >= DynamicTierParameters.minRawGapCandidate &&
-          (robustZ >= DynamicTierParameters.candidateRobustZ ||
-              gapRatio >= DynamicTierParameters.candidateGapRatio);
       final eligible =
           rawGap > 0 && !_insideMandatoryAnchor(input, boundaryIndex);
-      if (!detected) {
-        continue;
-      }
-
       final segmentationGain = segmentationGainForSplit(
         distribution.points,
         boundaryIndex,
@@ -542,11 +534,36 @@ class DynamicTierAlgorithmV1 {
           distribution.points.length - boundaryIndex >=
               DynamicTierParameters.segmentMinSizeDefault &&
           segmentationGain >= DynamicTierParameters.segmentationGainMin;
-      final rawBoundaryScore = boundaryEvidenceScore(
+      final distributionOutlierDetected =
+          robustZ >= DynamicTierParameters.candidateRobustZ ||
+          gapRatio >= DynamicTierParameters.candidateGapRatio;
+      // A league can contain several sizeable gaps, which inflates the global
+      // baseline and hides a real internal cluster. In that case only, accept
+      // a split that is both materially wide and strongly cohesive.
+      final cohesiveFallbackDetected =
+          !distributionOutlierDetected &&
+          segmentationValid &&
+          gapRatio >= DynamicTierParameters.cohesiveCandidateGapRatio &&
+          segmentationGain >=
+              DynamicTierParameters.cohesiveCandidateSegmentationGain;
+      final detected =
+          rawGap >= DynamicTierParameters.minRawGapCandidate &&
+          (distributionOutlierDetected || cohesiveFallbackDetected);
+      if (!detected) {
+        continue;
+      }
+
+      final evidenceScore = boundaryEvidenceScore(
         robustZ: robustZ,
         gapRatio: gapRatio,
         segmentationGain: segmentationGain,
       );
+      final rawBoundaryScore = cohesiveFallbackDetected
+          ? math.max(
+              evidenceScore,
+              DynamicTierParameters.cohesiveBoundaryScoreFloor,
+            )
+          : evidenceScore;
 
       if (!eligible) {
         warnings.add(TierWarning.anchorInternalOutlier);

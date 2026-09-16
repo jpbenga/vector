@@ -11,6 +11,7 @@ import 'package:copilot/features/matches/domain/football_reading.dart';
 import 'package:copilot/features/matches/domain/analysis_maturity.dart';
 import 'package:copilot/features/matches/domain/match_board_item.dart';
 import 'package:copilot/features/matches/domain/match_context_key_models.dart';
+import 'package:copilot/features/matches/domain/market_assessment.dart';
 import 'package:copilot/features/matches/domain/structural_tiers/tier_models.dart';
 import 'package:copilot/features/matches/presentation/lector_space_page.dart';
 import 'package:copilot/features/matches/presentation/lector_strategies_page.dart';
@@ -29,6 +30,57 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
   group('MatchesHomePage redesign', () {
+    testWidgets('keeps the three home navigation levels equally high', (
+      tester,
+    ) async {
+      await _pumpPage(
+        tester,
+        repository: const _FakeMatchFeedRepository(
+          opportunities: [],
+          matches: [],
+        ),
+      );
+
+      final calendarSize = tester.getSize(
+        find.byKey(const ValueKey('home-calendar-navigation')),
+      );
+      final primarySize = tester.getSize(
+        find.byKey(const ValueKey('home-primary-navigation')),
+      );
+      final readingSize = tester.getSize(
+        find.byKey(const ValueKey('home-reading-navigation')),
+      );
+
+      expect(calendarSize.height, 48);
+      expect(primarySize.height, calendarSize.height);
+      expect(readingSize.height, calendarSize.height);
+    });
+
+    testWidgets('opens the global Bilan without the daily match calendar', (
+      tester,
+    ) async {
+      await _pumpPage(
+        tester,
+        repository: const _FakeMatchFeedRepository(
+          opportunities: [],
+          matches: [],
+        ),
+      );
+
+      await tester.tap(find.text('Bilan'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Bilan des lectures'), findsOneWidget);
+      expect(
+        find.textContaining('Vos préférences ne changent pas ce bilan.'),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('home-calendar-navigation')),
+        findsNothing,
+      );
+    });
+
     testWidgets('starts on For me with Lector readings', (tester) async {
       await _pumpPage(
         tester,
@@ -446,21 +498,87 @@ void main() {
       );
 
       expect(find.text('Tout'), findsOneWidget);
-      expect(find.text('(2)'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('for-me-filter-all')),
+          matching: find.text('2'),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Avantage classement'), findsWidgets);
       expect(find.text('Attaque efficace'), findsWidgets);
 
-      await tester.tap(find.text('Avantage classement').first);
+      final rankingFilter = find.byKey(
+        const ValueKey('for-me-filter-ranking_gap'),
+      );
+      final filterList = find.ancestor(
+        of: rankingFilter,
+        matching: find.byType(ListView),
+      );
+      await tester.drag(filterList, const Offset(-220, 0));
+      await tester.pumpAndSettle();
+      await tester.tap(rankingFilter);
       await tester.pumpAndSettle();
 
       expect(find.text('Ranking FC'), findsOneWidget);
       expect(find.text('Attack FC'), findsNothing);
 
-      await tester.tap(find.text('Attaque efficace').first);
+      final attackFilter = find.byKey(
+        const ValueKey('for-me-filter-prolific_attack'),
+      );
+      await tester.ensureVisible(attackFilter);
+      await tester.tap(attackFilter);
       await tester.pumpAndSettle();
 
       expect(find.text('Ranking FC'), findsNothing);
       expect(find.text('Attack FC'), findsOneWidget);
+    });
+
+    testWidgets('builds filter sections from selected reading preferences', (
+      tester,
+    ) async {
+      final xgMatch =
+          _match(
+            id: 'xg-reading-match',
+            homeName: 'xG FC',
+            awayName: 'Away xG FC',
+            kickoff: _relativeKickoff(0, hour: 20),
+          ).copyWith(
+            signals: [
+              MatchSignal(
+                id: 'high_xg_creation',
+                title: 'Création xG élevée',
+                summary: 'Création xG élevée détectée.',
+                proofs: const ['Signal xG confirmé.'],
+              ),
+            ],
+          );
+
+      await _pumpPage(
+        tester,
+        profile: _completedProfile().withOptionIds('readings', [
+          'high_xg_creation',
+          'fragile_defense',
+        ]),
+        repository: _FakeMatchFeedRepository(
+          opportunities: const [],
+          matches: [xgMatch],
+          personalizedMatches: [xgMatch],
+        ),
+      );
+
+      expect(find.text('Tout'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('for-me-filter-attack')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('for-me-filter-attack')),
+          matching: find.text('Attaque / xG'),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets(
@@ -507,7 +625,7 @@ void main() {
           findsOneWidget,
         );
         expect(
-          find.descendant(of: filter, matching: find.text('(2)')),
+          find.descendant(of: filter, matching: find.text('2')),
           findsOneWidget,
         );
 
@@ -581,7 +699,7 @@ void main() {
           findsOneWidget,
         );
         expect(
-          find.descendant(of: filter, matching: find.text('(2)')),
+          find.descendant(of: filter, matching: find.text('2')),
           findsOneWidget,
         );
 
@@ -692,9 +810,9 @@ void main() {
       await tester.tap(find.text('Signal-only FC').first);
       await tester.pumpAndSettle();
 
-      expect(find.text('Voir les 2 lectures'), findsOneWidget);
+      expect(find.text('Voir le détail'), findsOneWidget);
 
-      await tester.tap(find.text('Voir les 2 lectures'));
+      await tester.tap(find.text('Voir le détail'));
       await tester.pumpAndSettle();
 
       expect(find.text('Écart au classement'), findsOneWidget);
@@ -716,6 +834,54 @@ void main() {
         findsNothing,
       );
     });
+
+    testWidgets(
+      'shows the analytical bet direction when bookmaker odds are unavailable',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(390, 844));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        final match =
+            _match(
+              id: 'unpriced-recommendation',
+              homeName: 'Fram Reykjavik',
+              awayName: 'Breidablik',
+              kickoff: _relativeKickoff(0, hour: 21),
+            ).copyWith(
+              betRecommendations: const [
+                BetRecommendation(
+                  matchId: 'unpriced-recommendation',
+                  marketId: 'matchResult',
+                  marketLabel: 'Résultat du match',
+                  selectionIntent: MarketSelectionIntent.home,
+                  selectionLabel: 'Victoire de Fram Reykjavik',
+                  supportingReadingIds: [
+                    'structural_level_gap',
+                    'strong_home_team',
+                    'weak_away_team',
+                  ],
+                  supportingScenarioIds: ['ranking_gap'],
+                  contradictionIds: [],
+                  maturity: AnalysisMaturity.established,
+                ),
+              ],
+            );
+
+        await _pumpMatchDetail(tester, match: match);
+
+        expect(find.text('Victoire de Fram Reykjavik'), findsOneWidget);
+        expect(find.text('Cote indisponible'), findsOneWidget);
+        expect(
+          find.text('Paris liés à vos lectures et scénarios'),
+          findsNothing,
+        );
+        expect(find.text('Contexte').hitTestable(), findsOneWidget);
+        expect(
+          find.textContaining('ajout au ticket indisponible'),
+          findsOneWidget,
+        );
+      },
+    );
 
     testWidgets(
       'shows engine support, resistance and contradiction in reading sheet',
@@ -833,7 +999,7 @@ void main() {
 
         await tester.tap(find.text('Alpha FC').first);
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Voir les 1 lectures'));
+        await tester.tap(find.text('Voir le détail'));
         await tester.pumpAndSettle();
 
         expect(find.text('Domination attendue pour Alpha FC'), findsOneWidget);
@@ -923,7 +1089,7 @@ void main() {
 
         await tester.tap(find.text('Alpha FC').first);
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Voir les 1 lectures'));
+        await tester.tap(find.text('Voir le détail'));
         await tester.pumpAndSettle();
 
         expect(find.text('Ce qui confirme la lecture'), findsOneWidget);
@@ -968,12 +1134,8 @@ void main() {
       await tester.tap(find.text(_calendarLabel(previousDay)));
       await tester.pumpAndSettle();
 
-      expect(
-        find.textContaining(
-          'Aucune donnée snapshot pour le ${_shortDateLabel(previousDay)}',
-        ),
-        findsOneWidget,
-      );
+      expect(find.textContaining('snapshot'), findsNothing);
+      expect(find.text(_calendarLabel(previousDay)), findsOneWidget);
     });
 
     testWidgets(
@@ -1203,56 +1365,58 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('renders the tiers and official zones in one standings view', (
-      tester,
-    ) async {
-      await _pumpPage(
-        tester,
-        repository: _FakeMatchFeedRepository(
-          opportunities: [
-            _opportunity(
-              match: _match(
-                id: 'tiered-standing',
-                homeName: 'Alpha FC',
-                awayName: 'Delta FC',
-                kickoff: _relativeKickoff(0, hour: 18),
-                analysis: _tieredAnalysisData(),
+    testWidgets(
+      'renders actual dynamic tier ids and official zones in one standings view',
+      (tester) async {
+        await _pumpPage(
+          tester,
+          repository: _FakeMatchFeedRepository(
+            opportunities: [
+              _opportunity(
+                match: _match(
+                  id: 'tiered-standing',
+                  homeName: 'Alpha FC',
+                  awayName: 'Delta FC',
+                  kickoff: _relativeKickoff(0, hour: 18),
+                  analysis: _tieredAnalysisData(),
+                ),
+                retainedTheses: [
+                  _thesis(id: 'level_gap', title: 'Domination attendue'),
+                ],
               ),
-              retainedTheses: [
-                _thesis(id: 'level_gap', title: 'Domination attendue'),
-              ],
-            ),
-          ],
-        ),
-      );
+            ],
+          ),
+        );
 
-      await tester.tap(find.text('Alpha FC').first);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Classement'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Alpha FC').first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Classement'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Lecture du classement'), findsOneWidget);
-      expect(find.text('Enjeux officiels'), findsOneWidget);
-      expect(find.text('Tiers Lector'), findsOneWidget);
-      expect(find.text('Élite'), findsOneWidget);
-      expect(find.text('Sous pression'), findsOneWidget);
-      expect(find.text('Tier A · Élite'), findsOneWidget);
-      expect(find.text('Tier B · Sous pression'), findsOneWidget);
-      expect(find.text('Promotion - Champions League'), findsOneWidget);
-      expect(find.text('Relegation'), findsOneWidget);
-      expect(
-        find.bySemanticsLabel(
-          'Position 1, Tier A · Élite, Promotion - Champions League',
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.bySemanticsLabel('Position 3, Tier B · Sous pression'),
-        findsOneWidget,
-      );
-      expect(find.text('DOM.'), findsOneWidget);
-      expect(find.text('EXT.'), findsOneWidget);
-    });
+        expect(find.text('Lecture du classement'), findsOneWidget);
+        expect(find.text('Enjeux officiels'), findsOneWidget);
+        expect(find.text('Tiers Lector'), findsOneWidget);
+        expect(find.text('T1 · Podium'), findsOneWidget);
+        expect(find.text('T3 · Milieu de tableau'), findsOneWidget);
+        expect(find.text('T1'), findsOneWidget);
+        expect(find.text('T3'), findsOneWidget);
+        expect(find.text('T2'), findsNothing);
+        expect(find.text('Promotion - Champions League'), findsOneWidget);
+        expect(find.text('Relegation'), findsOneWidget);
+        expect(
+          find.bySemanticsLabel(
+            'Position 1, Tier 1 - Podium, Promotion - Champions League',
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.bySemanticsLabel('Position 3, Tier 3 - Milieu de tableau'),
+          findsOneWidget,
+        );
+        expect(find.text('DOM.'), findsOneWidget);
+        expect(find.text('EXT.'), findsOneWidget);
+      },
+    );
 
     testWidgets('opens match detail from a folded All matches league', (
       tester,
@@ -2387,10 +2551,6 @@ DateTime _dayOnly(DateTime date) {
 
 String _calendarLabel(DateTime date) {
   return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}';
-}
-
-String _shortDateLabel(DateTime date) {
-  return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}';
 }
 
 MatchMarket _doubleChanceMarket() {

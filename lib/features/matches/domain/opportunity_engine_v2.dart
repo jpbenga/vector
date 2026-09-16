@@ -16,6 +16,7 @@ class MatchIntelligence {
     required this.thesisAssessments,
     this.contextKeys = const [],
     this.betCandidates = const [],
+    this.betRecommendations = const [],
     this.attentionSignals = const [],
     this.scenarioMatches = const [],
     this.opportunities = const [],
@@ -26,6 +27,7 @@ class MatchIntelligence {
   final List<ThesisAssessment> thesisAssessments;
   final List<MatchContextKey> contextKeys;
   final List<BetCandidate> betCandidates;
+  final List<BetRecommendation> betRecommendations;
   final List<AttentionSignal> attentionSignals;
   final List<FootballScenarioMatch> scenarioMatches;
   final List<Opportunity> opportunities;
@@ -67,8 +69,13 @@ class OpportunityEngineV2 {
     final assessments = List<ThesisAssessment>.unmodifiable(
       _assessments(match, analysis),
     );
+    final betRecommendations = List<BetRecommendation>.unmodifiable(
+      _betRecommendations(match, analysis, scenarioCandidates),
+    );
     final betCandidates = List<BetCandidate>.unmodifiable(
-      _betCandidates(match, analysis, scenarioCandidates),
+      betRecommendations
+          .map((recommendation) => recommendation.pricedCandidate)
+          .whereType<BetCandidate>(),
     );
     final opportunities = List<Opportunity>.unmodifiable([
       for (final candidate in scenarioCandidates)
@@ -88,6 +95,7 @@ class OpportunityEngineV2 {
         match.analysis.contextKeys,
       ),
       betCandidates: betCandidates,
+      betRecommendations: betRecommendations,
       attentionSignals: List<AttentionSignal>.unmodifiable(
         _attentionSignals(analysis, thesisCandidates, scenarioMatches),
       ),
@@ -165,6 +173,40 @@ class OpportunityEngineV2 {
       'strong_away_team',
       'standout_goal_scorer',
       'weak_away_team',
+      'strong_first_half_team',
+      'weak_first_half_team',
+      'frequent_halftime_lead',
+      'frequent_halftime_draw',
+      'strong_lead_retention',
+      'weak_lead_retention',
+      'second_half_recovery',
+      'strong_second_half_team',
+      'weak_second_half_team',
+      'early_scoring_0_15',
+      'early_conceding_0_15',
+      'pre_halftime_scoring_31_45',
+      'pre_halftime_conceding_31_45',
+      'late_scoring_76_90',
+      'late_conceding_76_90',
+      'high_shot_volume',
+      'low_shot_volume',
+      'high_shots_on_target',
+      'low_shot_accuracy',
+      'high_shots_conceded',
+      'high_shots_on_target_conceded',
+      'high_corner_creation',
+      'high_corners_conceded',
+      'high_total_corners_profile',
+      'low_total_corners_profile',
+      'high_card_rate',
+      'low_card_rate',
+      'high_total_cards_profile',
+      'second_half_cards_profile',
+      'high_volume_shooter',
+      'accurate_shooter',
+      'standout_creator',
+      'identified_penalty_taker',
+      'key_player_unavailable',
       'prolific_attack',
       'fragile_defense',
       'open_match_profile',
@@ -239,16 +281,75 @@ class OpportunityEngineV2 {
         ],
         priority: 80,
       ),
+      'offensive_match' ||
+      'defensive_match' ||
+      'disciplinary_tension' => _OpportunityCandidate(
+        id: scenario.scenarioId,
+        title: switch (scenario.scenarioId) {
+          'offensive_match' => 'Match ouvert',
+          'defensive_match' => 'Match fermé',
+          _ => 'Rencontre sous tension disciplinaire',
+        },
+        summary:
+            'Toutes les lectures du scénario sont présentes pour les deux équipes.',
+        subjectSide: side,
+        supportingReadings: scenario.supportingReadings,
+        contradictoryReadings: contradictions,
+        marketIntents: scenario.scenarioId == 'disciplinary_tension'
+            ? const []
+            : [
+                _MarketIntent(
+                  'goalsTotal',
+                  scenario.scenarioId == 'offensive_match'
+                      ? _SelectionIntent.over25
+                      : _SelectionIntent.under25,
+                ),
+              ],
+        priority: 70,
+      ),
+      'fragile_defense' ||
+      'prolific_attack' ||
+      'positive_series' ||
+      'negative_series' ||
+      'credible_outsider' ||
+      'first_half_advantage' ||
+      'early_goal_pressure' ||
+      'late_goal_pressure' ||
+      'corner_pressure' ||
+      'second_half_swing' ||
+      'standout_scorer_exposure' => _OpportunityCandidate(
+        id: scenario.scenarioId,
+        title: switch (scenario.scenarioId) {
+          'fragile_defense' => 'Défense fragile',
+          'prolific_attack' => 'Attaque prolifique',
+          'positive_series' => 'Série positive',
+          'negative_series' => 'Série négative',
+          'credible_outsider' => 'Outsider crédible',
+          'second_half_swing' => 'Bascule après la pause',
+          'standout_scorer_exposure' => 'Buteur particulièrement exposé',
+          'first_half_advantage' => 'Avantage à la pause',
+          'early_goal_pressure' => 'Pression pour un but précoce',
+          'late_goal_pressure' => 'Pression pour un but tardif',
+          _ => 'Pression favorable aux corners',
+        },
+        summary:
+            '${team!.name} réunit toutes les lectures requises pour ce scénario.',
+        subjectSide: side,
+        supportingReadings: scenario.supportingReadings,
+        contradictoryReadings: contradictions,
+        marketIntents: const [],
+        priority: 70,
+      ),
       _ => null,
     };
   }
 
-  List<BetCandidate> _betCandidates(
+  List<BetRecommendation> _betRecommendations(
     MatchBoardItem match,
     FootballAnalysis analysis,
     List<_OpportunityCandidate> opportunities,
   ) {
-    final drafts = <String, _BetCandidateDraft>{};
+    final drafts = <String, _BetRecommendationDraft>{};
 
     void add(
       MarketIntent intent, {
@@ -260,24 +361,12 @@ class OpportunityEngineV2 {
       Iterable<String> scenarioIds = const [],
       Iterable<String> contradictionIds = const [],
     }) {
-      final market = _marketById(match, intent.marketId);
-      if (market == null) {
-        return;
-      }
-      final selection = _selectionForIntent(
-        market,
-        intent.selection,
-        playerName: intent.playerName,
-      );
-      if (selection == null) {
-        return;
-      }
-      final key = '${market.id}:${selection.id}';
+      final key =
+          '${intent.marketId}:${intent.selection.name}:${intent.playerName ?? ''}';
       final draft = drafts.putIfAbsent(
         key,
-        () => _BetCandidateDraft(
-          market: market,
-          selection: selection,
+        () => _BetRecommendationDraft(
+          intent: intent,
           subjectTeamId: subjectTeamId,
           subjectPlayerId: subjectPlayerId,
           subjectPlayerName: subjectPlayerName,
@@ -290,11 +379,13 @@ class OpportunityEngineV2 {
     }
 
     for (final opportunity in opportunities) {
-      final subject = _teamForSide(match, opportunity.subjectSide);
+      final subjectTeamId = opportunity.subjectSide == ReadingSubjectSide.match
+          ? null
+          : _teamForSide(match, opportunity.subjectSide).id;
       for (final intent in opportunity.marketIntents) {
         add(
           intent,
-          subjectTeamId: subject.id,
+          subjectTeamId: subjectTeamId,
           subjectSide: opportunity.subjectSide,
           readingIds: [
             for (final reading in opportunity.supportingReadings) reading.id,
@@ -309,7 +400,7 @@ class OpportunityEngineV2 {
 
     for (final reading in analysis.supportingReadings) {
       if (reading.id == 'standout_goal_scorer') {
-        _addGoalScorerCandidate(match, reading, add);
+        _addGoalScorerRecommendation(reading, add);
         continue;
       }
       final target = _targetSideForReading(reading);
@@ -342,31 +433,63 @@ class OpportunityEngineV2 {
 
     return [
       for (final draft in drafts.values)
-        BetCandidate(
-          matchId: match.id,
-          marketId: draft.market.id,
-          marketLabel: draft.market.label,
-          selectionId: draft.selection.id,
-          selectionLabel: draft.selection.label,
-          selectionValue: draft.selection.apiFootballValue,
-          odds: draft.selection.odds,
-          subjectTeamId: draft.subjectTeamId,
-          subjectPlayerId: draft.subjectPlayerId,
-          subjectPlayerName: draft.subjectPlayerName,
-          apiFootballBetId: draft.market.apiFootballBetId,
-          bookmakerId: draft.market.bookmakerId,
-          bookmakerName: draft.market.bookmakerName,
-          supportingReadingIds: List.unmodifiable(draft.readingIds),
-          supportingThesisIds: const [],
-          supportingScenarioIds: List.unmodifiable(draft.scenarioIds),
-          contradictionIds: List.unmodifiable(draft.contradictionIds),
-          maturity: analysis.maturity,
-        ),
+        _recommendationFor(match, analysis, draft),
     ];
   }
 
-  void _addGoalScorerCandidate(
+  BetRecommendation _recommendationFor(
     MatchBoardItem match,
+    FootballAnalysis analysis,
+    _BetRecommendationDraft draft,
+  ) {
+    final market = _marketById(match, draft.intent.marketId);
+    final selection = market == null
+        ? null
+        : _selectionForRecommendation(market, draft.intent);
+    final readingIds = List<String>.unmodifiable(draft.readingIds);
+    final scenarioIds = List<String>.unmodifiable(draft.scenarioIds);
+    final contradictionIds = List<String>.unmodifiable(draft.contradictionIds);
+    final candidate = market == null || selection == null
+        ? null
+        : BetCandidate(
+            matchId: match.id,
+            marketId: market.id,
+            marketLabel: market.label,
+            selectionId: selection.id,
+            selectionLabel: selection.label,
+            selectionValue: selection.apiFootballValue,
+            odds: selection.odds,
+            subjectTeamId: draft.subjectTeamId,
+            subjectPlayerId: draft.subjectPlayerId,
+            subjectPlayerName: draft.subjectPlayerName,
+            apiFootballBetId: market.apiFootballBetId,
+            bookmakerId: market.bookmakerId,
+            bookmakerName: market.bookmakerName,
+            supportingReadingIds: readingIds,
+            supportingThesisIds: const [],
+            supportingScenarioIds: scenarioIds,
+            contradictionIds: contradictionIds,
+            maturity: analysis.maturity,
+          );
+
+    return BetRecommendation(
+      matchId: match.id,
+      marketId: draft.intent.marketId,
+      marketLabel: market?.label ?? _marketLabel(draft.intent.marketId),
+      selectionIntent: draft.intent.selection,
+      selectionLabel: selection?.label ?? _selectionLabel(match, draft.intent),
+      subjectTeamId: draft.subjectTeamId,
+      subjectPlayerId: draft.subjectPlayerId,
+      subjectPlayerName: draft.subjectPlayerName,
+      supportingReadingIds: readingIds,
+      supportingScenarioIds: scenarioIds,
+      contradictionIds: contradictionIds,
+      maturity: analysis.maturity,
+      pricedCandidate: candidate,
+    );
+  }
+
+  void _addGoalScorerRecommendation(
     FootballReading reading,
     void Function(
       MarketIntent, {
@@ -383,14 +506,6 @@ class OpportunityEngineV2 {
     final playerId = reading.playerId;
     final playerName = reading.playerName;
     if (playerId == null || playerName == null || playerName.isEmpty) return;
-    final market = _marketById(match, 'playerAnytimeScorer');
-    if (market == null) return;
-    final matching = market.selections
-        .where((selection) => _samePlayerName(selection.playerName, playerName))
-        .toList(growable: false);
-    // API-Football exposes no player id in these odds selections. A unique,
-    // exact normalized name is the only accepted fallback; ambiguity abstains.
-    if (matching.length != 1) return;
     add(
       MarketIntent(
         'playerAnytimeScorer',
@@ -410,6 +525,58 @@ class OpportunityEngineV2 {
     String normalize(String value) =>
         value.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ');
     return normalize(marketName) == normalize(playerName);
+  }
+
+  MarketOdds? _selectionForRecommendation(
+    MatchMarket market,
+    MarketIntent intent,
+  ) {
+    if (market.id == 'playerAnytimeScorer' && intent.playerName != null) {
+      final matching = market.selections
+          .where(
+            (selection) =>
+                _samePlayerName(selection.playerName, intent.playerName!),
+          )
+          .toList(growable: false);
+      // API-Football exposes no player id in these odds selections. A unique,
+      // exact normalized name is the only accepted priced fallback.
+      return matching.length == 1 ? matching.single : null;
+    }
+    return _selectionForIntent(
+      market,
+      intent.selection,
+      playerName: intent.playerName,
+    );
+  }
+
+  String _marketLabel(String marketId) {
+    return switch (marketId) {
+      'matchResult' => 'Résultat du match',
+      'doubleChance' => 'Double chance',
+      'goalsTotal' => 'Total de buts',
+      'teamTotalHome' => 'Buts de l’équipe à domicile',
+      'teamTotalAway' => 'Buts de l’équipe à l’extérieur',
+      'bothTeamsToScore' => 'Les deux équipes marquent',
+      'playerAnytimeScorer' => 'Buteur à tout moment',
+      _ => marketId,
+    };
+  }
+
+  String _selectionLabel(MatchBoardItem match, MarketIntent intent) {
+    return switch (intent.selection) {
+      MarketSelectionIntent.home => 'Victoire de ${match.homeTeam.name}',
+      MarketSelectionIntent.draw => 'Match nul',
+      MarketSelectionIntent.away => 'Victoire de ${match.awayTeam.name}',
+      MarketSelectionIntent.homeOrDraw => '${match.homeTeam.name} ou nul (1X)',
+      MarketSelectionIntent.homeOrAway => 'Une équipe gagne (12)',
+      MarketSelectionIntent.drawOrAway => '${match.awayTeam.name} ou nul (X2)',
+      MarketSelectionIntent.over25 => 'Plus de 2,5 buts',
+      MarketSelectionIntent.under25 => 'Moins de 2,5 buts',
+      MarketSelectionIntent.over05 => 'Plus de 0,5 but',
+      MarketSelectionIntent.yes =>
+        intent.playerName == null ? 'Oui' : '${intent.playerName} marque',
+      MarketSelectionIntent.no => 'Non',
+    };
   }
 
   ReadingSubjectSide? _targetSideForReading(FootballReading reading) {
@@ -638,11 +805,16 @@ class OpportunityEngineV2 {
         profileStatus: MatchProfileStatus.outOfProfile,
         profileRelevance: MatchProfileRelevance.none,
         betCandidates: const [],
+        betRecommendations: const [],
         signals: const [],
       );
     }
 
     final marketCandidates = _configuredBetCandidates(intelligence, profile);
+    final betRecommendations = _configuredBetRecommendations(
+      intelligence,
+      profile,
+    );
     final opportunity = analyzeOpportunityFromIntelligence(
       intelligence,
       profile,
@@ -679,6 +851,7 @@ class OpportunityEngineV2 {
     return match.copyWith(
       primaryMarket: recommendedMarket?.selection,
       betCandidates: marketCandidates,
+      betRecommendations: betRecommendations,
       profileStatus: relevance.isRelevant
           ? MatchProfileStatus.inProfile
           : MatchProfileStatus.outOfProfile,
@@ -716,6 +889,19 @@ class OpportunityEngineV2 {
         .toList(growable: false);
   }
 
+  List<BetRecommendation> _configuredBetRecommendations(
+    MatchIntelligence intelligence,
+    CompiledDecisionProfile profile,
+  ) {
+    return intelligence.betRecommendations
+        .where(
+          (recommendation) =>
+              profile.enabledMarket(recommendation.marketId) != null &&
+              _isRecommendationEnabledByProfile(recommendation, profile),
+        )
+        .toList(growable: false);
+  }
+
   /// A configured market only exposes a bet which has an active analytical
   /// source: either a direct reading or a selected scenario. This prevents a
   /// market preference from surfacing bets derived from unrelated readings.
@@ -725,6 +911,16 @@ class OpportunityEngineV2 {
   ) {
     return candidate.supportingReadingIds.any(profile.isReadingAllowed) ||
         candidate.supportingScenarioIds.any(
+          profile.isOpportunityProfileEnabled,
+        );
+  }
+
+  bool _isRecommendationEnabledByProfile(
+    BetRecommendation recommendation,
+    CompiledDecisionProfile profile,
+  ) {
+    return recommendation.supportingReadingIds.any(profile.isReadingAllowed) ||
+        recommendation.supportingScenarioIds.any(
           profile.isOpportunityProfileEnabled,
         );
   }
@@ -773,6 +969,8 @@ class OpportunityEngineV2 {
     return switch (reading.id) {
       'balanced_hierarchy' => 'Hiérarchie proche',
       'ranking_superiority' => 'Écart au classement pour $subjectName',
+      'ranking_inferiority' => '$subjectName derrière au classement',
+      'venue_strength' => '$subjectName solide dans ce lieu',
       'structural_level_gap' => 'Écart de niveau pour $subjectName',
       'positive_streak' => 'Dynamique positive pour $subjectName',
       'negative_streak' => 'Dynamique négative pour $subjectName',
@@ -804,6 +1002,50 @@ class OpportunityEngineV2 {
       'defensive_overperformance' =>
         'Surperformance défensive pour $subjectName',
       'misleading_result' => 'Résultats à nuancer pour $subjectName',
+      'strong_first_half_team' => '$subjectName solide en première mi-temps',
+      'weak_first_half_team' => '$subjectName fragile en première mi-temps',
+      'frequent_halftime_lead' => '$subjectName souvent devant à la pause',
+      'frequent_halftime_draw' => '$subjectName souvent à égalité à la pause',
+      'strong_lead_retention' =>
+        '$subjectName conserve son avantage à la pause',
+      'weak_lead_retention' =>
+        '$subjectName perd souvent son avantage à la pause',
+      'second_half_recovery' => '$subjectName réagit après la pause',
+      'strong_second_half_team' => '$subjectName solide en seconde mi-temps',
+      'weak_second_half_team' => '$subjectName fragile en seconde mi-temps',
+      'early_scoring_0_15' => '$subjectName marque souvent entre 0 et 15 min',
+      'early_conceding_0_15' =>
+        '$subjectName concède souvent entre 0 et 15 min',
+      'pre_halftime_scoring_31_45' =>
+        '$subjectName marque souvent entre 31 et 45 min',
+      'pre_halftime_conceding_31_45' =>
+        '$subjectName concède souvent entre 31 et 45 min',
+      'late_scoring_76_90' => '$subjectName marque souvent entre 76 et 90 min',
+      'late_conceding_76_90' =>
+        '$subjectName concède souvent entre 76 et 90 min',
+      'high_shot_volume' => '$subjectName produit beaucoup de tirs',
+      'low_shot_volume' => '$subjectName produit peu de tirs',
+      'high_shots_on_target' => '$subjectName cadre beaucoup de tirs',
+      'low_shot_accuracy' => '$subjectName cadre difficilement',
+      'high_shots_conceded' => '$subjectName concède beaucoup de tirs',
+      'high_shots_on_target_conceded' =>
+        '$subjectName concède beaucoup de tirs cadrés',
+      'high_corner_creation' => '$subjectName obtient beaucoup de corners',
+      'high_corners_conceded' => '$subjectName concède beaucoup de corners',
+      'high_total_corners_profile' =>
+        'Match riche en corners pour $subjectName',
+      'low_total_corners_profile' =>
+        'Match pauvre en corners pour $subjectName',
+      'high_card_rate' => '$subjectName reçoit beaucoup de cartons',
+      'low_card_rate' => '$subjectName est disciplinée',
+      'high_total_cards_profile' => 'Match riche en cartons pour $subjectName',
+      'second_half_cards_profile' =>
+        '$subjectName reçoit surtout des cartons après la pause',
+      'high_volume_shooter' => '$subjectName tire beaucoup',
+      'accurate_shooter' => '$subjectName cadre fréquemment',
+      'standout_creator' => '$subjectName se distingue à la création',
+      'identified_penalty_taker' => '$subjectName tire les penalties',
+      'key_player_unavailable' => 'Joueur important absent pour $subjectName',
       _ => 'Lecture détectée pour $subjectName',
     };
   }
@@ -2006,18 +2248,16 @@ class _OpportunityCandidate {
 typedef _MarketIntent = MarketIntent;
 typedef _SelectionIntent = MarketSelectionIntent;
 
-class _BetCandidateDraft {
-  _BetCandidateDraft({
-    required this.market,
-    required this.selection,
+class _BetRecommendationDraft {
+  _BetRecommendationDraft({
+    required this.intent,
     required this.subjectTeamId,
     required this.subjectSide,
     this.subjectPlayerId,
     this.subjectPlayerName,
   });
 
-  final MatchMarket market;
-  final MarketOdds selection;
+  final MarketIntent intent;
   final String? subjectTeamId;
   final ReadingSubjectSide subjectSide;
   final int? subjectPlayerId;

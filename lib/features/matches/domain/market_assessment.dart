@@ -22,6 +22,49 @@ class MarketIntent {
   final String? playerName;
 }
 
+/// An analysis-backed betting direction, whether or not a bookmaker price is
+/// currently present in the snapshot.
+///
+/// This is intentionally distinct from [BetCandidate]: the recommendation
+/// explains how a reading can be translated into a configured market, while
+/// the candidate is the real, priced selection that may enter the ticket
+/// pipeline.
+class BetRecommendation {
+  const BetRecommendation({
+    required this.matchId,
+    required this.marketId,
+    required this.marketLabel,
+    required this.selectionIntent,
+    required this.selectionLabel,
+    required this.supportingReadingIds,
+    required this.supportingScenarioIds,
+    required this.contradictionIds,
+    required this.maturity,
+    this.subjectTeamId,
+    this.subjectPlayerId,
+    this.subjectPlayerName,
+    this.pricedCandidate,
+  });
+
+  final String matchId;
+  final String marketId;
+  final String marketLabel;
+  final MarketSelectionIntent selectionIntent;
+  final String selectionLabel;
+  final String? subjectTeamId;
+  final int? subjectPlayerId;
+  final String? subjectPlayerName;
+  final List<String> supportingReadingIds;
+  final List<String> supportingScenarioIds;
+  final List<String> contradictionIds;
+  final AnalysisMaturity maturity;
+  final BetCandidate? pricedCandidate;
+
+  bool get hasAvailableOdds => pricedCandidate != null;
+  bool get isAutomaticallyUsable =>
+      pricedCandidate?.isAutomaticallyUsable ?? false;
+}
+
 /// A real bookmaker selection justified by the match analysis.
 ///
 /// It is deliberately profile-independent: user preferences decide whether it

@@ -76,7 +76,6 @@ Payload minimal :
   "window_start": "2026-08-11",
   "window_end": "2026-08-16",
   "league_ids": [2, 3, 62, 88],
-  "bookmaker_id": 16,
   "include_team_statistics": true,
   "include_recent_form": true,
   "include_expected_goals": true,
@@ -84,8 +83,13 @@ Payload minimal :
 }
 ```
 
-La saison active est resolue par ligue via `/leagues?current=true`. Le champ
-`season` ne doit etre utilise que comme fallback technique lors d'un test isole.
+La saison active est resolue par ligue depuis la couverture de dates renvoyee
+par `/leagues?id=<league_id>`. Le champ `season` ne doit etre utilise que comme
+override technique lors d'un test isole.
+
+`bookmaker_id` est un filtre optionnel de diagnostic. Le pipeline normal
+l'omet afin que la reponse `/odds` contienne tous les bookmakers disponibles
+en une seule requete.
 
 Endpoints collectes :
 
@@ -140,8 +144,7 @@ curl -X POST \
   -d '{
     "window_start": "2026-08-11",
     "window_end": "2026-08-16",
-    "league_ids": [2, 3, 62, 88],
-    "bookmaker_id": 16
+    "league_ids": [2, 3, 62, 88]
   }'
 ```
 

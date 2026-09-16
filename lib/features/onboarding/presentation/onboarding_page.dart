@@ -797,7 +797,7 @@ class _CompetitionCountryCard extends StatelessWidget {
                               imageUrl: competition.logoUrl,
                               fallbackLabel: competition.name,
                               borderRadius: 6,
-                              padding: 2,
+                              contrastPlate: true,
                             ),
                             const SizedBox(width: 10),
                             Expanded(child: Text(competition.name)),

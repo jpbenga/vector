@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('Supabase Lot 2 API-Football server foundation', () {
     late String migration;
-    late String enrichmentMigration;
+    late String eventAndInjuryMigration;
     late String functionSource;
     late String envExample;
 
@@ -13,8 +13,8 @@ void main() {
       migration = File(
         'supabase/migrations/20260811103000_backend_lot_2_api_football_server.sql',
       ).readAsStringSync();
-      enrichmentMigration = File(
-        'supabase/migrations/20260812103000_backend_lot_3c_snapshot_enrichment.sql',
+      eventAndInjuryMigration = File(
+        'supabase/migrations/20260916190000_backend_allow_fixture_events_and_injuries_cache.sql',
       ).readAsStringSync();
       functionSource = File(
         'supabase/functions/api-football-sync/index.ts',
@@ -58,23 +58,17 @@ void main() {
       );
     });
 
-    test('limits Lot 2 cache to raw API-Football endpoints', () {
-      final cacheTable = _tableBlock(
-        migration,
-        'api_football_cached_responses',
-      );
-      final cacheEndpointContract = '$cacheTable\n$enrichmentMigration';
-
-      for (final endpoint in [
-        '/leagues',
-        '/fixtures',
-        '/standings',
-        '/teams/statistics',
-        '/fixtures/statistics',
-        '/odds',
-      ]) {
-        expect(cacheEndpointContract, contains("'$endpoint'"));
-      }
+    test('cache allows every endpoint fetched by the sync function', () {
+      final collectorEndpoints = RegExp(
+        r'endpoint:\s*"(/[^"]+)"',
+      ).allMatches(functionSource).map((match) => match.group(1)!).toSet();
+      final allowedEndpoints = RegExp(
+        r"'(/[^']+)'",
+      ).allMatches(eventAndInjuryMigration)
+          .map((match) => match.group(1)!)
+          .toSet();
+      expect(collectorEndpoints, isNotEmpty);
+      expect(allowedEndpoints, containsAll(collectorEndpoints));
 
       expect(
         migration.toLowerCase(),
@@ -135,6 +129,13 @@ void main() {
       expect(functionSource, contains('sha256Hex'));
       expect(functionSource, contains('sortedObject(options.query)'));
       expect(functionSource, contains('rateLimitHeaders(response.headers)'));
+      expect(functionSource, contains('reserveApiFootballRequest(options)'));
+      expect(
+        functionSource,
+        contains('/rest/v1/rpc/reserve_api_football_request'),
+      );
+      expect(functionSource, contains('apiFootballDailyRequestLimit = 75000'));
+      expect(functionSource, contains('apiFootballMinuteRequestLimit = 450'));
     });
 
     test('collects factual recent form and historical fixture statistics', () {

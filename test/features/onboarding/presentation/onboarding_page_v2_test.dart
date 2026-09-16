@@ -20,7 +20,7 @@ void main() {
         expect(find.text('Compétitions suivies'), findsOneWidget);
         expect(find.text('1'), findsOneWidget);
         expect(find.text('France'), findsOneWidget);
-        expect(find.text('UEFA Champions League'), findsNothing);
+        expect(find.text('UEFA Champions League'), findsOneWidget);
         expect(find.text('Allemagne'), findsOneWidget);
         expect(
           find.text('Sélectionnez au moins une compétition.'),
@@ -117,7 +117,7 @@ void main() {
       expect(compiled.profileSchemaVersion, 3);
       expect(compiled.configurationState.name, 'completed');
       expect(compiled.competitions['61']?.enabled, isTrue);
-      expect(compiled.competitions['2'], isNull);
+      expect(compiled.competitions['2']?.enabled, isFalse);
       expect(compiled.markets['doubleChance']?.enabled, isTrue);
       expect(compiled.opportunityProfiles['solid_favorite']?.enabled, isTrue);
     });

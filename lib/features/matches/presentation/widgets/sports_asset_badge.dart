@@ -10,6 +10,7 @@ class SportsAssetBadge extends StatelessWidget {
     this.backgroundColor,
     this.padding,
     this.icon,
+    this.contrastPlate = false,
     super.key,
   });
 
@@ -20,31 +21,60 @@ class SportsAssetBadge extends StatelessWidget {
   final Color? backgroundColor;
   final double? padding;
   final IconData? icon;
+  final bool contrastPlate;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
+    final showsContrastPlate = contrastPlate && hasImage;
+    final plateForeground = isDark
+        ? colorScheme.surface
+        : colorScheme.onSurface;
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color:
-            backgroundColor ??
-            colorScheme.surfaceContainerHigh.withValues(alpha: 0.30),
+        color: showsContrastPlate
+            ? (isDark
+                  ? colorScheme.onSurface.withValues(alpha: 0.92)
+                  : colorScheme.surfaceContainerLowest)
+            : backgroundColor ??
+                  colorScheme.surfaceContainerHigh.withValues(alpha: 0.30),
         borderRadius: BorderRadius.circular(borderRadius),
+        border: showsContrastPlate
+            ? Border.all(
+                color: colorScheme.outlineVariant.withValues(
+                  alpha: isDark ? 0.72 : 0.45,
+                ),
+              )
+            : null,
+        boxShadow: showsContrastPlate && isDark
+            ? [
+                BoxShadow(
+                  color: colorScheme.shadow.withValues(alpha: 0.24),
+                  blurRadius: 7,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : null,
       ),
       child: SizedBox.square(
         dimension: size,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(borderRadius),
           child: Padding(
-            padding: EdgeInsets.all(padding ?? (hasImage ? 1 : 3)),
+            padding: EdgeInsets.all(
+              padding ??
+                  (hasImage ? (showsContrastPlate ? size * 0.11 : 1) : 3),
+            ),
             child: Center(
               child: _AssetImage(
                 imageUrl: imageUrl,
                 fallback: _FallbackAssetLabel(
                   fallbackLabel: fallbackLabel,
                   icon: icon,
+                  foregroundColor: showsContrastPlate ? plateForeground : null,
                 ),
               ),
             ),
@@ -98,10 +128,15 @@ class _AssetImage extends StatelessWidget {
 }
 
 class _FallbackAssetLabel extends StatelessWidget {
-  const _FallbackAssetLabel({required this.fallbackLabel, required this.icon});
+  const _FallbackAssetLabel({
+    required this.fallbackLabel,
+    required this.icon,
+    this.foregroundColor,
+  });
 
   final String fallbackLabel;
   final IconData? icon;
+  final Color? foregroundColor;
 
   String get label => fallbackLabel.trim().isEmpty
       ? '?'
@@ -111,17 +146,18 @@ class _FallbackAssetLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final resolvedForeground = foregroundColor ?? colorScheme.onSurfaceVariant;
     final fallbackIcon = icon;
 
     if (fallbackIcon != null) {
-      return Icon(fallbackIcon, size: 16, color: colorScheme.onSurfaceVariant);
+      return Icon(fallbackIcon, size: 16, color: resolvedForeground);
     }
 
     return Center(
       child: Text(
         label,
         style: theme.textTheme.labelSmall?.copyWith(
-          color: colorScheme.onSurfaceVariant,
+          color: resolvedForeground,
           fontWeight: FontWeight.w900,
         ),
       ),
