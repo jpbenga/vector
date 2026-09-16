@@ -51,8 +51,7 @@ Payload minimal :
   "timezone": "Europe/Paris",
   "window_start": "2026-08-11",
   "window_end": "2026-08-16",
-  "league_ids": [2, 3, 62, 88],
-  "bookmaker_id": 16
+  "league_ids": [2, 3, 62, 88]
 }
 ```
 
@@ -67,7 +66,8 @@ Champs :
 - `window_start` / `window_end` : fenetre calendrier, maximum 7 jours ;
 - `league_ids` : ligues API-Football, maximum 40 ;
 - `bookmaker_id` : optionnel, permet de reprendre uniquement le cache odds du
-  bookmaker cible ;
+  bookmaker cible pour un diagnostic. Il doit etre omis dans le pipeline
+  normal afin de conserver tous les bookmakers disponibles ;
 - `bookmaker_priority` : optionnel, remplace la priorite bookmaker par defaut ;
 - `as_of` : optionnel, force l'identite temporelle du snapshot ;
 - `recent_form_days_back` : optionnel, fenetre historique utilisee par le job de
@@ -120,6 +120,8 @@ La fonction insere une enveloppe V1 :
     "team_statistics": [],
     "recent_league_matches": [],
     "expected_goals": [],
+    "player_statistics": [],
+    "domestic_team_contexts": [],
     "predictions": []
   }
 }
@@ -136,6 +138,12 @@ equipe, dans la limite de `recent_form_matches`.
 `raw.expected_goals` est derive depuis les caches `/fixtures/statistics` des
 matchs recents deja termines. Ces xG sont factuels et historiques : ils ne sont
 jamais des predictions du match a venir.
+
+Pour une rencontre UEFA, `raw.domestic_team_contexts` relie chaque equipe au
+championnat national trouve dans les classements deja collectes. Le snapshot
+embarque alors les classements, statistiques, forme et joueurs domestiques
+disponibles. Cette jointure ne fait aucun appel API supplementaire et
+n'applique aucun coefficient arbitraire entre championnats.
 
 `raw.predictions` reste volontairement vide tant que les predictions API ne sont
 pas collectees et isolees comme donnees non factuelles.
@@ -218,8 +226,7 @@ curl -X POST \
     "timezone": "Europe/Paris",
     "window_start": "2026-08-11",
     "window_end": "2026-08-16",
-    "league_ids": [61, 62],
-    "bookmaker_id": 16
+    "league_ids": [61, 62]
   }'
 ```
 

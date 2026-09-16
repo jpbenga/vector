@@ -1,11 +1,10 @@
 type JsonObject = Record<string, unknown>;
 
 const defaultTimezone = "Europe/Paris";
-const defaultResultsDaysBack = 2;
+const defaultResultsDaysBack = 7;
 const defaultFutureDays = 3;
 const defaultDatabaseSizeLimitBytes = 500 * 1024 * 1024;
 const defaultApiRequestDelayMs = 750;
-const defaultBookmakerId = 16;
 const defaultRecentFormDaysBack = 180;
 const defaultRecentFormMatches = 5;
 
@@ -39,6 +38,7 @@ Deno.serve(async (request) => {
   let runId: string | null = null;
   let syncResponse: JsonObject = {};
   let snapshotResponse: JsonObject = {};
+  let resultResponse: JsonObject = {};
 
   try {
     await markStaleDailyRuns({
@@ -59,12 +59,31 @@ Deno.serve(async (request) => {
       payload: syncPayload(options),
     });
 
-    snapshotResponse = await callFunction({
+    resultResponse = await callFunction({
       supabaseUrl,
-      name: "build-match-feed-snapshot",
+      name: "sync-match-results",
       syncSecret,
-      payload: snapshotPayload(options, syncResponse),
+      payload: {
+        league_ids: options.leagueIds,
+        season_by_league: objectValue(objectValue(syncResponse.summary)?.leagueSeasons),
+        fallback_season: options.season,
+        timezone: options.timezone,
+        window_start: options.resultsWindowStart,
+        window_end: options.resultsWindowEnd,
+        api_request_delay_ms: options.apiRequestDelayMs,
+      },
     });
+
+    snapshotResponse = numberValue(
+        objectValue(syncResponse.summary)?.upcomingFixtures,
+      ) === 0
+      ? { ok: true, skipped: "no_upcoming_fixtures" }
+      : await callFunction({
+        supabaseUrl,
+        name: "build-match-feed-snapshot",
+        syncSecret,
+        payload: snapshotPayload(options, syncResponse),
+      });
 
     const databaseSizeBytes = await currentDatabaseSizeBytes({
       supabaseUrl,
@@ -74,9 +93,11 @@ Deno.serve(async (request) => {
       databaseSizeBytes,
       options.databaseSizeLimitBytes,
     );
-    const apiRequestCount = apiRequestCountFromSyncResponse(syncResponse);
+    const apiRequestCount = apiRequestCountFromSyncResponse(syncResponse) +
+      (numberValue(objectValue(resultResponse.summary)?.providerRequests) ?? 0);
     const snapshotId = stringValue(snapshotResponse.snapshotId);
     const status = booleanValue(syncResponse.ok) === true &&
+        booleanValue(resultResponse.ok) === true &&
         booleanValue(snapshotResponse.ok) === true
       ? "succeeded"
       : "partial";
@@ -89,6 +110,7 @@ Deno.serve(async (request) => {
       options,
       syncResponse,
       snapshotResponse,
+      resultResponse,
       apiRequestCount,
       snapshotId,
       storage,
@@ -105,6 +127,7 @@ Deno.serve(async (request) => {
       storage,
       sync: syncResponse,
       snapshot: snapshotResponse,
+      results: resultResponse,
     }, status === "succeeded" ? 200 : 207);
   } catch (error) {
     if (runId !== null) {
@@ -120,7 +143,9 @@ Deno.serve(async (request) => {
         options,
         syncResponse,
         snapshotResponse,
-        apiRequestCount: apiRequestCountFromSyncResponse(syncResponse),
+        resultResponse,
+        apiRequestCount: apiRequestCountFromSyncResponse(syncResponse) +
+          (numberValue(objectValue(resultResponse.summary)?.providerRequests) ?? 0),
         snapshotId: stringValue(snapshotResponse.snapshotId),
         storage: storageSummary(
           databaseSizeBytes,
@@ -136,6 +161,7 @@ Deno.serve(async (request) => {
       error: error instanceof Error ? error.message : String(error),
       sync: syncResponse,
       snapshot: snapshotResponse,
+      results: resultResponse,
     }, 500);
   }
 });
@@ -156,6 +182,7 @@ type DailyOptions = {
   includeTeamStatistics: boolean;
   includeRecentForm: boolean;
   includeExpectedGoals: boolean;
+  includePlayerStatistics: boolean;
   recentFormDaysBack: number;
   recentFormMatches: number;
 };
@@ -173,7 +200,7 @@ function dailyOptionsFromPayload(payload: JsonObject): DailyOptions {
   const resultsDaysBack = boundedInteger(
     numberValue(payload.results_days_back),
     1,
-    3,
+    7,
     defaultResultsDaysBack,
   );
   const futureDays = boundedInteger(
@@ -215,7 +242,10 @@ function dailyOptionsFromPayload(payload: JsonObject): DailyOptions {
     season: numberValue(payload.season),
     timezone,
     leagueIds,
-    bookmakerId: numberValue(payload.bookmaker_id) ?? defaultBookmakerId,
+    // No bookmaker filter by default: one /odds request can then return every
+    // available bookmaker and the client applies its existing priority order.
+    // A bookmaker remains an explicit diagnostic override only.
+    bookmakerId: numberValue(payload.bookmaker_id),
     apiRequestDelayMs: boundedInteger(
       numberValue(payload.api_request_delay_ms),
       0,
@@ -238,6 +268,10 @@ function dailyOptionsFromPayload(payload: JsonObject): DailyOptions {
       true,
     includeRecentForm: booleanValue(payload.include_recent_form) ?? true,
     includeExpectedGoals: booleanValue(payload.include_expected_goals) ?? true,
+    // Player collection is intentionally opt-in. Daily rolling odds refreshes
+    // stay light; the weekly enrichment schedule enables it explicitly.
+    includePlayerStatistics:
+      booleanValue(payload.include_player_statistics) ?? false,
     recentFormDaysBack: boundedInteger(
       numberValue(payload.recent_form_days_back),
       1,
@@ -256,19 +290,22 @@ function dailyOptionsFromPayload(payload: JsonObject): DailyOptions {
 function syncPayload(options: DailyOptions): JsonObject {
   const payload: JsonObject = {
     timezone: options.timezone,
-    window_start: options.fullWindowStart,
-    window_end: options.fullWindowEnd,
+    window_start: options.feedWindowStart,
+    window_end: options.feedWindowEnd,
     league_ids: options.leagueIds,
-    bookmaker_id: options.bookmakerId,
     api_request_delay_ms: options.apiRequestDelayMs,
     include_team_statistics: options.includeTeamStatistics,
     include_recent_form: options.includeRecentForm,
     include_expected_goals: options.includeExpectedGoals,
+    include_player_statistics: options.includePlayerStatistics,
     recent_form_days_back: options.recentFormDaysBack,
     recent_form_matches: options.recentFormMatches,
     purpose: "daily_football_sync",
     windows: windowsPayload(options),
   };
+  if (options.bookmakerId !== null) {
+    payload.bookmaker_id = options.bookmakerId;
+  }
   if (options.season !== null) {
     payload.season = options.season;
   }
@@ -287,11 +324,13 @@ function snapshotPayload(
     window_start: options.feedWindowStart,
     window_end: options.feedWindowEnd,
     league_ids: options.leagueIds,
-    bookmaker_id: options.bookmakerId,
     recent_form_days_back: options.recentFormDaysBack,
     recent_form_matches: options.recentFormMatches,
     as_of: new Date().toISOString(),
   };
+  if (options.bookmakerId !== null) {
+    payload.bookmaker_id = options.bookmakerId;
+  }
   if (options.season !== null) {
     payload.season = options.season;
   }
@@ -380,6 +419,7 @@ async function updateDailyRun({
   options,
   syncResponse,
   snapshotResponse,
+  resultResponse,
   apiRequestCount,
   snapshotId,
   storage,
@@ -392,6 +432,7 @@ async function updateDailyRun({
   options: DailyOptions;
   syncResponse: JsonObject;
   snapshotResponse: JsonObject;
+  resultResponse: JsonObject;
   apiRequestCount: number;
   snapshotId: string | null;
   storage: StorageSummary;
@@ -408,6 +449,7 @@ async function updateDailyRun({
       status,
       sync_response: syncResponse,
       snapshot_response: snapshotResponse,
+      result_response: resultResponse,
       api_football_sync_run_id: stringValue(syncResponse.runId),
       snapshot_id: snapshotId,
       api_request_count: apiRequestCount,
@@ -497,7 +539,8 @@ function storageSummary(
 
 function apiRequestCountFromSyncResponse(syncResponse: JsonObject): number {
   const summary = objectValue(syncResponse.summary) ?? {};
-  return numberValue(summary.cachedResponses) ?? 0;
+  return numberValue(summary.providerRequests) ??
+    numberValue(summary.cachedResponses) ?? 0;
 }
 
 function authorizeRequest(request: Request): string | null {

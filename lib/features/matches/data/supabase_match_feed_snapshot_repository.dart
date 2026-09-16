@@ -19,25 +19,104 @@ class SupabaseMatchFeedSnapshotRepository
     final day = _dateOnly(date).toIso8601String().split('T').first;
     final rows = await _client
         .from('match_feed_snapshots')
-        .select('id,payload,as_of,window_start,window_end,snapshot_created_at')
+        .select('id,scope,league_ids')
         .lte('window_start', day)
         .gte('window_end', day)
         .order('as_of', ascending: false)
-        .limit(100);
+        .limit(500);
 
-    return mergeMatchFeedSnapshotRows(rows);
+    return _loadSelectedPayloads(rows);
   }
 
   @override
   Future<Map<String, Object?>?> loadLatest() async {
     final rows = await _client
         .from('match_feed_snapshots')
-        .select('id,payload,as_of,window_start,window_end,snapshot_created_at')
+        .select('id,scope,league_ids')
         .order('as_of', ascending: false)
-        .limit(100);
+        .limit(500);
 
-    return mergeMatchFeedSnapshotRows(rows);
+    return _loadSelectedPayloads(rows);
   }
+
+  Future<Map<String, Object?>?> _loadSelectedPayloads(
+    Iterable<Object?> metadataRows,
+  ) async {
+    final ids = selectMatchFeedSnapshotRowIds(metadataRows);
+    if (ids.isEmpty) {
+      return null;
+    }
+
+    const chunkSize = 5;
+    const concurrentChunks = 3;
+    final chunks = <List<String>>[
+      for (var start = 0; start < ids.length; start += chunkSize)
+        ids.skip(start).take(chunkSize).toList(growable: false),
+    ];
+    final rowsById = <String, Object?>{};
+
+    for (var start = 0; start < chunks.length; start += concurrentChunks) {
+      final pages = await Future.wait(
+        chunks
+            .skip(start)
+            .take(concurrentChunks)
+            .map(
+              (chunk) async => await _client
+                  .from('match_feed_snapshots')
+                  .select('id,payload')
+                  .inFilter('id', chunk),
+            ),
+      );
+      for (final page in pages) {
+        for (final row in page) {
+          final id = row['id']?.toString();
+          if (id != null) {
+            rowsById[id] = row;
+          }
+        }
+      }
+    }
+
+    return mergeMatchFeedSnapshotRows(
+      ids.map((id) => rowsById[id]).whereType<Object>(),
+    );
+  }
+}
+
+List<String> selectMatchFeedSnapshotRowIds(Iterable<Object?> rows) {
+  final selected = <String>[];
+  final coveredLeagueIds = <int>{};
+  var selectedGlobal = false;
+
+  for (final row in rows) {
+    if (row is! Map) {
+      continue;
+    }
+    final id = row['id']?.toString();
+    if (id == null || id.isEmpty) {
+      continue;
+    }
+
+    if (row['scope'] == 'global') {
+      if (!selectedGlobal) {
+        selected.add(id);
+        selectedGlobal = true;
+      }
+      continue;
+    }
+
+    final leagueIds = <int>{
+      for (final value in (row['league_ids'] as List?) ?? const [])
+        if (value is int) value,
+    };
+    if (leagueIds.isEmpty ||
+        leagueIds.difference(coveredLeagueIds).isNotEmpty) {
+      selected.add(id);
+      coveredLeagueIds.addAll(leagueIds);
+    }
+  }
+
+  return selected;
 }
 
 Map<String, Object?>? mergeMatchFeedSnapshotRows(Iterable<Object?> rows) {

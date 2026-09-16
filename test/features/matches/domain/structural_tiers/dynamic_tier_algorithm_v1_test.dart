@@ -194,6 +194,54 @@ void main() {
       },
     );
 
+    test(
+      'detects a cohesive lower-table group without a competition override',
+      () {
+        final snapshot = _algorithm.buildSnapshot(
+          _input(
+            [48, 41, 40, 34, 33, 33, 32, 32, 29, 27, 27, 21, 19, 19, 15, 11],
+            playedByRank: [
+              21,
+              21,
+              21,
+              21,
+              21,
+              21,
+              20,
+              21,
+              21,
+              21,
+              21,
+              20,
+              21,
+              21,
+              21,
+              21,
+            ],
+            relegationStart: 15,
+          ),
+        );
+
+        expect(_confirmedIndexes(snapshot), contains(11));
+        expect(_strengthAt(snapshot, 11), BoundaryStrength.strong);
+        expect(_partitionIndexes(snapshot), [11]);
+        expect(snapshot.tierPresence, {
+          TierLabel.tier1Podium,
+          TierLabel.tier2UpperChampionship,
+          TierLabel.tier4LowerChampionship,
+          TierLabel.tier5Relegation,
+        });
+        expect(
+          snapshot.assignmentForTeam(11)?.assignedTier,
+          TierLabel.tier2UpperChampionship,
+        );
+        expect(
+          snapshot.assignmentForTeam(12)?.assignedTier,
+          TierLabel.tier4LowerChampionship,
+        );
+      },
+    );
+
     test('keeps anchors without requiring adjacent structural boundaries', () {
       final podium = _algorithm.buildSnapshot(
         _input([60, 59, 58, 57, 55, 54, 53, 52, 51, 50]),

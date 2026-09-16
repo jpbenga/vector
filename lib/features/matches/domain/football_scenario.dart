@@ -30,12 +30,14 @@ class FootballScenarioDefinition {
     required this.scope,
     required this.requirements,
     this.availability = FootballScenarioAvailability.available,
+    this.samePlayerAcrossRequirements = false,
   });
 
   final String id;
   final FootballScenarioScope scope;
   final List<ScenarioReadingRequirement> requirements;
   final FootballScenarioAvailability availability;
+  final bool samePlayerAcrossRequirements;
 
   bool get isAvailable =>
       availability == FootballScenarioAvailability.available;
@@ -98,7 +100,6 @@ class FootballScenarioCatalog {
     FootballScenarioDefinition(
       id: 'offensive_match',
       scope: FootballScenarioScope.match,
-      availability: FootballScenarioAvailability.pendingReadings,
       requirements: [
         ScenarioReadingRequirement(
           readingId: 'open_match_profile',
@@ -121,7 +122,6 @@ class FootballScenarioCatalog {
     FootballScenarioDefinition(
       id: 'defensive_match',
       scope: FootballScenarioScope.match,
-      availability: FootballScenarioAvailability.pendingReadings,
       requirements: [
         ScenarioReadingRequirement(
           readingId: 'closed_match_profile',
@@ -154,7 +154,6 @@ class FootballScenarioCatalog {
     FootballScenarioDefinition(
       id: 'credible_outsider',
       scope: FootballScenarioScope.team,
-      availability: FootballScenarioAvailability.pendingReadings,
       requirements: [
         ScenarioReadingRequirement(
           readingId: 'ranking_inferiority',
@@ -181,7 +180,6 @@ class FootballScenarioCatalog {
     FootballScenarioDefinition(
       id: 'fragile_defense',
       scope: FootballScenarioScope.team,
-      availability: FootballScenarioAvailability.pendingReadings,
       requirements: [
         ScenarioReadingRequirement(
           readingId: 'fragile_defense',
@@ -200,7 +198,6 @@ class FootballScenarioCatalog {
     FootballScenarioDefinition(
       id: 'prolific_attack',
       scope: FootballScenarioScope.team,
-      availability: FootballScenarioAvailability.pendingReadings,
       requirements: [
         ScenarioReadingRequirement(
           readingId: 'prolific_attack',
@@ -219,7 +216,6 @@ class FootballScenarioCatalog {
     FootballScenarioDefinition(
       id: 'positive_series',
       scope: FootballScenarioScope.team,
-      availability: FootballScenarioAvailability.pendingReadings,
       requirements: [
         ScenarioReadingRequirement(
           readingId: 'positive_streak',
@@ -238,7 +234,6 @@ class FootballScenarioCatalog {
     FootballScenarioDefinition(
       id: 'negative_series',
       scope: FootballScenarioScope.team,
-      availability: FootballScenarioAvailability.pendingReadings,
       requirements: [
         ScenarioReadingRequirement(
           readingId: 'negative_streak',
@@ -251,6 +246,129 @@ class FootballScenarioCatalog {
         ScenarioReadingRequirement(
           readingId: 'low_xg_creation',
           subject: ScenarioRequirementSubject.subject,
+        ),
+      ],
+    ),
+    FootballScenarioDefinition(
+      id: 'first_half_advantage',
+      scope: FootballScenarioScope.team,
+      requirements: [
+        ScenarioReadingRequirement(
+          readingId: 'strong_first_half_team',
+          subject: ScenarioRequirementSubject.subject,
+        ),
+        ScenarioReadingRequirement(
+          readingId: 'weak_first_half_team',
+          subject: ScenarioRequirementSubject.opponent,
+        ),
+        ScenarioReadingRequirement(
+          readingId: 'frequent_halftime_lead',
+          subject: ScenarioRequirementSubject.subject,
+        ),
+      ],
+    ),
+    FootballScenarioDefinition(
+      id: 'early_goal_pressure',
+      scope: FootballScenarioScope.team,
+      requirements: [
+        ScenarioReadingRequirement(
+          readingId: 'early_scoring_0_15',
+          subject: ScenarioRequirementSubject.subject,
+        ),
+        ScenarioReadingRequirement(
+          readingId: 'early_conceding_0_15',
+          subject: ScenarioRequirementSubject.opponent,
+        ),
+        ScenarioReadingRequirement(
+          readingId: 'high_shots_on_target',
+          subject: ScenarioRequirementSubject.subject,
+        ),
+      ],
+    ),
+    FootballScenarioDefinition(
+      id: 'late_goal_pressure',
+      scope: FootballScenarioScope.team,
+      requirements: [
+        ScenarioReadingRequirement(
+          readingId: 'late_scoring_76_90',
+          subject: ScenarioRequirementSubject.subject,
+        ),
+        ScenarioReadingRequirement(
+          readingId: 'late_conceding_76_90',
+          subject: ScenarioRequirementSubject.opponent,
+        ),
+        ScenarioReadingRequirement(
+          readingId: 'strong_second_half_team',
+          subject: ScenarioRequirementSubject.subject,
+        ),
+      ],
+    ),
+    FootballScenarioDefinition(
+      id: 'corner_pressure',
+      scope: FootballScenarioScope.team,
+      requirements: [
+        ScenarioReadingRequirement(
+          readingId: 'high_corner_creation',
+          subject: ScenarioRequirementSubject.subject,
+        ),
+        ScenarioReadingRequirement(
+          readingId: 'high_corners_conceded',
+          subject: ScenarioRequirementSubject.opponent,
+        ),
+        ScenarioReadingRequirement(
+          readingId: 'high_shot_volume',
+          subject: ScenarioRequirementSubject.subject,
+        ),
+      ],
+    ),
+    FootballScenarioDefinition(
+      id: 'second_half_swing',
+      scope: FootballScenarioScope.team,
+      requirements: [
+        ScenarioReadingRequirement(
+          readingId: 'strong_second_half_team',
+          subject: ScenarioRequirementSubject.subject,
+        ),
+        ScenarioReadingRequirement(
+          readingId: 'weak_second_half_team',
+          subject: ScenarioRequirementSubject.opponent,
+        ),
+        ScenarioReadingRequirement(
+          readingId: 'second_half_recovery',
+          subject: ScenarioRequirementSubject.subject,
+        ),
+      ],
+    ),
+    FootballScenarioDefinition(
+      id: 'disciplinary_tension',
+      scope: FootballScenarioScope.match,
+      requirements: [
+        ScenarioReadingRequirement(
+          readingId: 'high_card_rate',
+          subject: ScenarioRequirementSubject.bothTeams,
+        ),
+        ScenarioReadingRequirement(
+          readingId: 'high_total_cards_profile',
+          subject: ScenarioRequirementSubject.match,
+        ),
+      ],
+    ),
+    FootballScenarioDefinition(
+      id: 'standout_scorer_exposure',
+      scope: FootballScenarioScope.team,
+      samePlayerAcrossRequirements: true,
+      requirements: [
+        ScenarioReadingRequirement(
+          readingId: 'standout_goal_scorer',
+          subject: ScenarioRequirementSubject.subject,
+        ),
+        ScenarioReadingRequirement(
+          readingId: 'high_volume_shooter',
+          subject: ScenarioRequirementSubject.subject,
+        ),
+        ScenarioReadingRequirement(
+          readingId: 'high_shots_on_target_conceded',
+          subject: ScenarioRequirementSubject.opponent,
         ),
       ],
     ),
@@ -354,6 +472,25 @@ class FootballScenarioDetector {
       resolved.addAll(matches);
     }
 
+    if (definition.samePlayerAcrossRequirements) {
+      final playerIdsByReading = <String, Set<int>>{};
+      for (final reading in resolved) {
+        if (reading.playerId != null) {
+          playerIdsByReading
+              .putIfAbsent(reading.id, () => <int>{})
+              .add(reading.playerId!);
+        }
+      }
+      if (playerIdsByReading.length < 2) return null;
+      final commonIds = playerIdsByReading.values.skip(1).fold(<int>{
+        ...playerIdsByReading.values.first,
+      }, (common, ids) => common..retainAll(ids));
+      if (commonIds.isEmpty) return null;
+      final playerId = commonIds.first;
+      resolved.removeWhere(
+        (reading) => reading.playerId != null && reading.playerId != playerId,
+      );
+    }
     return List.unmodifiable(_uniqueReadings(resolved));
   }
 
@@ -415,7 +552,7 @@ class FootballScenarioDetector {
     return [
       for (final reading in readings)
         if (seen.add(
-          '${reading.id}:${reading.subjectTeamId}:${reading.subjectSide.name}',
+          '${reading.id}:${reading.subjectTeamId}:${reading.subjectSide.name}:${reading.playerId}',
         ))
           reading,
     ];

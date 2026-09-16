@@ -9,12 +9,22 @@ enum ReadingSubjectSide { match, home, away }
 
 enum ReadingSubjectKind { match, team, player }
 
+enum ReadingCompetitionScope {
+  matchCompetition,
+  domestic,
+  tournament,
+  combined,
+}
+
 enum ReadingEvidenceKind {
   standing,
   form,
   homeAway,
   goals,
   expectedGoals,
+  shots,
+  corners,
+  cards,
   player,
   market,
   availability,
@@ -64,6 +74,9 @@ class FootballReading {
     this.subjectKind = ReadingSubjectKind.team,
     this.playerId,
     this.playerName,
+    this.competitionScope = ReadingCompetitionScope.matchCompetition,
+    this.sourceCompetitionId,
+    this.sourceCompetitionName,
   });
 
   final String id;
@@ -79,10 +92,16 @@ class FootballReading {
   final ReadingSubjectKind subjectKind;
   final int? playerId;
   final String? playerName;
+  final ReadingCompetitionScope competitionScope;
+  final String? sourceCompetitionId;
+  final String? sourceCompetitionName;
 
   FootballReading copyWith({
     ReadingStrength? strength,
     List<ReadingWarning>? warnings,
+    ReadingCompetitionScope? competitionScope,
+    String? sourceCompetitionId,
+    String? sourceCompetitionName,
   }) {
     return FootballReading(
       id: id,
@@ -98,6 +117,10 @@ class FootballReading {
       subjectKind: subjectKind,
       playerId: playerId,
       playerName: playerName,
+      competitionScope: competitionScope ?? this.competitionScope,
+      sourceCompetitionId: sourceCompetitionId ?? this.sourceCompetitionId,
+      sourceCompetitionName:
+          sourceCompetitionName ?? this.sourceCompetitionName,
     );
   }
 
@@ -149,21 +172,57 @@ class FootballReading {
     return switch (id) {
       'ranking_superiority' ||
       'structural_level_gap' => CopilotArgumentType.rankingGap,
+      'ranking_inferiority' => CopilotArgumentType.weakRecentForm,
+      'venue_strength' => CopilotArgumentType.strongRecentForm,
       'negative_streak' ||
       'declining_form' ||
       'scoring_difficulty' => CopilotArgumentType.weakRecentForm,
       'positive_streak' ||
       'improving_form' ||
-      'form_advantage' => CopilotArgumentType.strongRecentForm,
+      'form_advantage' ||
+      'strong_first_half_team' ||
+      'frequent_halftime_lead' ||
+      'strong_lead_retention' ||
+      'second_half_recovery' ||
+      'strong_second_half_team' => CopilotArgumentType.strongRecentForm,
+      'weak_first_half_team' ||
+      'frequent_halftime_draw' ||
+      'weak_lead_retention' ||
+      'weak_second_half_team' => CopilotArgumentType.weakRecentForm,
       'fragile_defense' ||
       'high_xg_conceded' ||
       'defensive_underperformance' => CopilotArgumentType.fragileDefense,
       'prolific_attack' ||
       'high_xg_creation' ||
-      'attack_in_form' => CopilotArgumentType.strongAttack,
+      'attack_in_form' ||
+      'high_shot_volume' ||
+      'high_shots_on_target' ||
+      'high_corner_creation' => CopilotArgumentType.strongAttack,
+      'low_shot_volume' ||
+      'low_shot_accuracy' => CopilotArgumentType.weakRecentForm,
+      'high_shots_conceded' ||
+      'high_shots_on_target_conceded' ||
+      'high_corners_conceded' => CopilotArgumentType.fragileDefense,
       'open_match_profile' ||
       'frequent_over_25' ||
-      'frequent_btts' => CopilotArgumentType.openMatch,
+      'frequent_btts' ||
+      'early_scoring_0_15' ||
+      'early_conceding_0_15' ||
+      'pre_halftime_scoring_31_45' ||
+      'pre_halftime_conceding_31_45' ||
+      'late_scoring_76_90' ||
+      'late_conceding_76_90' ||
+      'high_total_corners_profile' ||
+      'high_total_cards_profile' ||
+      'second_half_cards_profile' ||
+      'high_card_rate' ||
+      'high_volume_shooter' ||
+      'accurate_shooter' ||
+      'standout_creator' ||
+      'identified_penalty_taker' => CopilotArgumentType.openMatch,
+      'key_player_unavailable' => CopilotArgumentType.weakRecentForm,
+      'low_total_corners_profile' ||
+      'low_card_rate' => CopilotArgumentType.closedMatch,
       'closed_match_profile' ||
       'frequent_under_25' => CopilotArgumentType.closedMatch,
       _ => CopilotArgumentType.rankingGap,
@@ -173,8 +232,12 @@ class FootballReading {
   CopilotArgumentFamily get _family {
     return switch (id) {
       'ranking_superiority' ||
+      'ranking_inferiority' ||
       'balanced_hierarchy' ||
-      'structural_level_gap' => CopilotArgumentFamily.hierarchy,
+      'structural_level_gap' ||
+      'tournament_progression' ||
+      'demanding_tournament_path' ||
+      'favorable_tournament_path' => CopilotArgumentFamily.hierarchy,
       'positive_streak' ||
       'negative_streak' ||
       'improving_form' ||
@@ -184,26 +247,60 @@ class FootballReading {
       'weak_home_team' ||
       'strong_away_team' ||
       'weak_away_team' ||
-      'home_away_mismatch' => CopilotArgumentFamily.performance,
+      'home_away_mismatch' ||
+      'venue_strength' ||
+      'strong_first_half_team' ||
+      'weak_first_half_team' ||
+      'frequent_halftime_lead' ||
+      'frequent_halftime_draw' ||
+      'strong_lead_retention' ||
+      'weak_lead_retention' ||
+      'second_half_recovery' ||
+      'strong_second_half_team' ||
+      'weak_second_half_team' => CopilotArgumentFamily.performance,
       'prolific_attack' ||
       'attack_in_form' ||
       'scoring_difficulty' ||
       'high_xg_creation' ||
       'low_xg_creation' ||
       'offensive_underperformance' ||
-      'offensive_overperformance' => CopilotArgumentFamily.attack,
+      'offensive_overperformance' ||
+      'high_shot_volume' ||
+      'low_shot_volume' ||
+      'high_shots_on_target' ||
+      'low_shot_accuracy' ||
+      'high_corner_creation' => CopilotArgumentFamily.attack,
       'solid_defense' ||
       'fragile_defense' ||
       'declining_defense' ||
       'frequent_clean_sheet' ||
       'high_xg_conceded' ||
       'defensive_underperformance' ||
-      'defensive_overperformance' => CopilotArgumentFamily.defense,
+      'defensive_overperformance' ||
+      'high_shots_conceded' ||
+      'high_shots_on_target_conceded' ||
+      'high_corners_conceded' => CopilotArgumentFamily.defense,
       'open_match_profile' ||
       'closed_match_profile' ||
       'frequent_btts' ||
       'frequent_over_25' ||
-      'frequent_under_25' => CopilotArgumentFamily.rhythm,
+      'frequent_under_25' ||
+      'early_scoring_0_15' ||
+      'early_conceding_0_15' ||
+      'pre_halftime_scoring_31_45' ||
+      'pre_halftime_conceding_31_45' ||
+      'late_scoring_76_90' ||
+      'late_conceding_76_90' ||
+      'high_total_corners_profile' ||
+      'low_total_corners_profile' ||
+      'high_card_rate' ||
+      'low_card_rate' ||
+      'high_total_cards_profile' ||
+      'second_half_cards_profile' ||
+      'high_volume_shooter' ||
+      'accurate_shooter' ||
+      'standout_creator' ||
+      'identified_penalty_taker' => CopilotArgumentFamily.rhythm,
       _ => CopilotArgumentFamily.performance,
     };
   }

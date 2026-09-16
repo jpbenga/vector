@@ -3,6 +3,52 @@ import 'package:copilot/features/matches/data/match_feed_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('selects only the newest metadata row for each league', () {
+    final ids = selectMatchFeedSnapshotRowIds([
+      {
+        'id': 'latest-61',
+        'scope': 'league',
+        'league_ids': [61],
+      },
+      {
+        'id': 'latest-62',
+        'scope': 'league',
+        'league_ids': [62],
+      },
+      {
+        'id': 'old-61',
+        'scope': 'league',
+        'league_ids': [61],
+      },
+      {
+        'id': 'latest-98',
+        'scope': 'league',
+        'league_ids': [98],
+      },
+      {
+        'id': 'old-62',
+        'scope': 'league',
+        'league_ids': [62],
+      },
+    ]);
+
+    expect(ids, ['latest-61', 'latest-62', 'latest-98']);
+  });
+
+  test('retains a global snapshot once for unrefreshed leagues', () {
+    final ids = selectMatchFeedSnapshotRowIds([
+      {
+        'id': 'latest-61',
+        'scope': 'league',
+        'league_ids': [61],
+      },
+      {'id': 'global', 'scope': 'global', 'league_ids': <int>[]},
+      {'id': 'old-global', 'scope': 'global', 'league_ids': <int>[]},
+    ]);
+
+    expect(ids, ['latest-61', 'global']);
+  });
+
   group('mergeMatchFeedSnapshotPayloads', () {
     test('merges league scoped snapshots into one feed payload', () {
       final payload = mergeMatchFeedSnapshotPayloads([

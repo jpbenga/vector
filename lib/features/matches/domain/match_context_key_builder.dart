@@ -15,6 +15,23 @@ class ChampionshipContextReferenceBuilder {
       return null;
     }
 
+    return buildForStandings(
+      competitionId: match.competition.id,
+      season: match.competition.season,
+      asOf: asOf,
+      standings: standings,
+      standingsSnapshotIdentity: _standingsIdentity(match, standings, asOf),
+    );
+  }
+
+  ChampionshipContextReference? buildForStandings({
+    required String competitionId,
+    required int season,
+    required DateTime asOf,
+    required List<TeamStandingSnapshot> standings,
+    String? standingsSnapshotIdentity,
+  }) {
+    if (standings.isEmpty) return null;
     final distributions =
         <ChampionshipContextMetric, ChampionshipContextDistribution>{
           if (_valuesFor(
@@ -78,9 +95,11 @@ class ChampionshipContextReferenceBuilder {
         };
 
     return ChampionshipContextReference(
-      competitionId: match.competition.id,
-      season: match.competition.season,
-      standingsSnapshotIdentity: _standingsIdentity(match, standings, asOf),
+      competitionId: competitionId,
+      season: season,
+      standingsSnapshotIdentity:
+          standingsSnapshotIdentity ??
+          '$competitionId:$season:${asOf.toUtc().toIso8601String()}',
       analysisAsOf: asOf,
       teamCount: standings.length,
       distributions: Map.unmodifiable(distributions),
@@ -118,6 +137,14 @@ class ChampionshipContextReferenceBuilder {
       highZone: zones.high,
       lowZone: zones.low,
     );
+  }
+
+  ChampionshipContextDistribution? distributionForValues({
+    required ChampionshipContextMetric metric,
+    required List<ChampionshipContextValue> values,
+  }) {
+    if (values.length < minimumDistributionTeamCount) return null;
+    return _distribution(metric, [...values]);
   }
 
   ({ChampionshipContextZone? high, ChampionshipContextZone? low})

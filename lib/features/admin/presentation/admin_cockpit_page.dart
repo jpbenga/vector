@@ -348,9 +348,10 @@ class _AdminOverview extends StatelessWidget {
                 icon: Icons.monitor_heart_rounded,
               ),
               _MetricTile(
-                label: 'Runs cron non OK',
-                value: '${overview.failedCronRuns}',
-                icon: Icons.warning_amber_rounded,
+                label: 'Cotes présentes',
+                value:
+                    '${overview.totalFixturesWithOdds}/${overview.totalSnapshotFixtures}',
+                icon: Icons.price_check_rounded,
               ),
               _MetricTile(
                 label: 'En cours',
@@ -359,6 +360,10 @@ class _AdminOverview extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 20),
+          _OperationalAlertsPanel(alerts: overview.alerts),
+          const SizedBox(height: 20),
+          _DataCoveragePanel(overview: overview),
           const SizedBox(height: 20),
           _ShareAccessPanel(
             appUrl: appUrl,
@@ -382,6 +387,15 @@ class _AdminOverview extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
+          const _SectionTitle(title: 'Orchestrations quotidiennes'),
+          const SizedBox(height: 8),
+          if (overview.dailyRuns.isEmpty)
+            const _EmptyAdminLine(
+              label: 'Aucun passage de daily-football-sync enregistré.',
+            )
+          else
+            ...overview.dailyRuns.take(12).map(_DailyRunTile.new),
+          const SizedBox(height: 20),
           const _SectionTitle(title: 'Jobs en cours et échecs'),
           const SizedBox(height: 8),
           if (runningRuns.isEmpty && failedRuns.isEmpty)
@@ -398,6 +412,14 @@ class _AdminOverview extends StatelessWidget {
           const _SectionTitle(title: 'Dernières exécutions cron'),
           const SizedBox(height: 8),
           ...overview.cronRuns.take(12).map(_CronRunTile.new),
+          const SizedBox(height: 20),
+          const _SectionTitle(title: 'Dernières collectes API-Football'),
+          const SizedBox(height: 8),
+          ...overview.syncRuns.take(12).map(_SyncRunTile.new),
+          const SizedBox(height: 20),
+          const _SectionTitle(title: 'Derniers snapshots publiés'),
+          const SizedBox(height: 8),
+          ...overview.snapshots.take(12).map(_SnapshotRunTile.new),
           const SizedBox(height: 20),
           const _SectionTitle(title: 'Relances admin'),
           const SizedBox(height: 8),
@@ -479,6 +501,173 @@ class _ShareAccessPanel extends StatelessWidget {
           },
         ),
       ],
+    );
+  }
+}
+
+class _OperationalAlertsPanel extends StatelessWidget {
+  const _OperationalAlertsPanel({required this.alerts});
+
+  final List<AdminOperationalAlert> alerts;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionTitle(
+          title: 'Alertes opérationnelles',
+          trailing: '${alerts.length}',
+        ),
+        const SizedBox(height: 8),
+        ...alerts.map((alert) => _OperationalAlertTile(alert: alert)),
+      ],
+    );
+  }
+}
+
+class _OperationalAlertTile extends StatelessWidget {
+  const _OperationalAlertTile({required this.alert});
+
+  final AdminOperationalAlert alert;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final (color, icon) = switch (alert.severity) {
+      AdminAlertSeverity.critical => (colorScheme.error, Icons.error_rounded),
+      AdminAlertSeverity.warning => (
+        colorScheme.tertiary,
+        Icons.warning_amber_rounded,
+      ),
+      AdminAlertSeverity.info => (
+        colorScheme.primary,
+        Icons.check_circle_rounded,
+      ),
+    };
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: color.withValues(alpha: 0.55)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  alert.title,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  alert.message,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DataCoveragePanel extends StatelessWidget {
+  const _DataCoveragePanel({required this.overview});
+
+  final AdminOpsOverview overview;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final fixtures = overview.totalSnapshotFixtures;
+    final withOdds = overview.totalFixturesWithOdds;
+    final ratio = fixtures == 0 ? 0.0 : withOdds / fixtures;
+    final daily = overview.latestDailyRun;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionTitle(title: 'Couverture des données'),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: BorderRadius.circular(AppRadius.control),
+            border: Border.all(color: colorScheme.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Cotes : $withOdds/$fixtures rencontres',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                value: ratio.clamp(0.0, 1.0).toDouble(),
+                minHeight: 8,
+                borderRadius: BorderRadius.circular(AppRadius.chip),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _DataChip(
+                    icon: Icons.sports_soccer_rounded,
+                    label: '$fixtures matchs',
+                  ),
+                  _DataChip(
+                    icon: Icons.money_off_csred_rounded,
+                    label: '${overview.totalMissingOdds} sans cote',
+                  ),
+                  _DataChip(
+                    icon: Icons.groups_rounded,
+                    label: '${overview.totalPlayerStatistics} lignes joueurs',
+                  ),
+                  if (daily != null)
+                    _DataChip(
+                      icon: Icons.api_rounded,
+                      label: '${daily.apiRequestCount} appels dernier batch',
+                    ),
+                  if (daily != null)
+                    _DataChip(
+                      icon: Icons.storage_rounded,
+                      label: daily.databaseSizeRatioLabel,
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DataChip extends StatelessWidget {
+  const _DataChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Chip(
+      avatar: Icon(icon, size: 16),
+      label: Text(label),
+      visualDensity: VisualDensity.compact,
     );
   }
 }
@@ -660,41 +849,150 @@ class _PipelineHealthTile extends StatelessWidget {
     final statusColor = isOk ? colorScheme.primary : colorScheme.error;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(AppRadius.control),
-        border: Border.all(color: statusColor),
+        border: Border.all(color: statusColor.withValues(alpha: 0.65)),
       ),
-      child: Row(
-        children: [
-          Icon(
-            isOk ? Icons.check_circle_rounded : Icons.error_rounded,
-            color: statusColor,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('${row.leagueName} (${row.leagueId})'),
-                const SizedBox(height: 4),
-                Text(
-                  'sync ${row.syncFixtures ?? 0} | snapshot ${row.snapshotFixtures ?? 0} | odds ${row.snapshotOdds ?? 0} | ${row.healthStatus}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
+      child: ExpansionTile(
+        leading: Icon(
+          isOk ? Icons.check_circle_rounded : Icons.error_rounded,
+          color: statusColor,
+        ),
+        title: Row(
+          children: [
+            Expanded(child: Text('${row.leagueName} (${row.leagueId})')),
+            IconButton(
+              tooltip: 'Relancer cette compétition',
+              onPressed: isRerunning ? null : onRerun,
+              icon: isRerunning
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.play_arrow_rounded),
             ),
+          ],
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(row.explanation),
+            const SizedBox(height: 2),
+            Text(
+              [
+                if (row.syncStartedAt != null)
+                  'collecte ${_formatDateTime(row.syncStartedAt!)}',
+                if (row.snapshotCreatedAt != null)
+                  'snapshot ${_formatDateTime(row.snapshotCreatedAt!)}',
+              ].join(' • '),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        children: [
+          const Divider(),
+          _AdminDetailLine(
+            label: 'État collecte',
+            value:
+                '${row.syncStatus ?? 'inconnu'} · ${row.syncHealthStatus ?? 'inconnu'}',
           ),
-          IconButton(
-            tooltip: 'Relancer cette ligue',
-            onPressed: isRerunning ? null : onRerun,
-            icon: isRerunning
-                ? const SizedBox.square(
-                    dimension: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.play_arrow_rounded),
+          _AdminDetailLine(
+            label: 'Fenêtre collecte',
+            value: _dateWindow(row.syncWindowStart, row.syncWindowEnd),
+          ),
+          _AdminDetailLine(
+            label: 'Récolté',
+            value:
+                '${row.syncFixtures ?? 0} fixtures · ${row.syncOdds ?? 0} lignes de cotes · ${row.syncStandings ?? 0} classement(s)',
+          ),
+          _AdminDetailLine(
+            label: 'Enrichissement',
+            value:
+                '${row.syncTeamStatistics ?? 0} stats équipes · ${row.syncRecentFixtureRows ?? 0} matchs récents · ${row.syncCachedResponses ?? 0} réponses API',
+          ),
+          _AdminDetailLine(
+            label: 'Bookmaker',
+            value: row.syncBookmakerId == null
+                ? 'Tous les bookmakers disponibles'
+                : 'Filtre actif : ${row.syncBookmakerId}',
+          ),
+          if (row.syncErrorMessage != null)
+            _AdminDetailLine(
+              label: 'Erreur collecte',
+              value: row.syncErrorMessage!,
+              isError: true,
+            ),
+          const SizedBox(height: 8),
+          _AdminDetailLine(
+            label: 'État snapshot',
+            value: row.snapshotHealthStatus ?? 'inconnu',
+          ),
+          _AdminDetailLine(
+            label: 'Fenêtre snapshot',
+            value: _dateWindow(row.snapshotWindowStart, row.snapshotWindowEnd),
+          ),
+          _AdminDetailLine(
+            label: 'Contenu snapshot',
+            value:
+                '${row.snapshotFixtures ?? 0} matchs · ${row.snapshotStandings ?? 0} classements · ${row.snapshotTeamStatistics ?? 0} stats équipes · ${row.snapshotRecentLeagueMatches ?? 0} formes',
+          ),
+          _AdminDetailLine(
+            label: 'Données avancées',
+            value:
+                '${row.snapshotExpectedGoals ?? 0} xG · ${row.snapshotPlayerStatistics ?? 0} lignes joueurs',
+          ),
+          _AdminDetailLine(
+            label: 'Données manquantes',
+            value:
+                '${row.missingOdds ?? 0} cotes · ${row.missingTeamStatistics ?? 0} stats équipes · ${row.missingRecentForm ?? 0} formes · ${row.missingExpectedGoals ?? 0} xG',
+            isError:
+                (row.missingOdds ?? 0) > 0 ||
+                (row.missingTeamStatistics ?? 0) > 0 ||
+                (row.missingRecentForm ?? 0) > 0,
+          ),
+          if (row.resolvedSeason != null)
+            _AdminDetailLine(
+              label: 'Saison résolue',
+              value: '${row.resolvedSeason}',
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdminDetailLine extends StatelessWidget {
+  const _AdminDetailLine({
+    required this.label,
+    required this.value,
+    this.isError = false,
+  });
+
+  final String label;
+  final String value;
+  final bool isError;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 148,
+            child: Text(label, style: Theme.of(context).textTheme.labelMedium),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: isError ? colorScheme.error : null,
+              ),
+            ),
           ),
         ],
       ),
@@ -756,6 +1054,104 @@ class _CronRunTile extends StatelessWidget {
   }
 }
 
+class _DailyRunTile extends StatelessWidget {
+  const _DailyRunTile(this.run);
+
+  final AdminDailyRun run;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final succeeded = run.status == 'succeeded';
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        succeeded ? Icons.hub_rounded : Icons.error_outline_rounded,
+        color: succeeded ? colorScheme.primary : colorScheme.error,
+      ),
+      title: Text('Compétition(s) ${run.leagueIds.join(', ')}'),
+      subtitle: Text(
+        [
+          run.status,
+          if (run.startedAt != null) _formatDateTime(run.startedAt!),
+          'feed ${_dateWindow(run.feedWindowStart, run.feedWindowEnd)}',
+          '${run.apiRequestCount} appels API',
+          run.bookmakerId == null
+              ? 'tous bookmakers'
+              : 'bookmaker ${run.bookmakerId}',
+          if (run.errorMessage != null) run.errorMessage!,
+        ].join(' • '),
+      ),
+    );
+  }
+}
+
+class _SyncRunTile extends StatelessWidget {
+  const _SyncRunTile(this.run);
+
+  final AdminSyncRun run;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final succeeded = run.status == 'succeeded';
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        succeeded ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+        color: succeeded ? colorScheme.primary : colorScheme.error,
+      ),
+      title: Text('Collecte ${run.leagueIds.join(', ')}'),
+      subtitle: Text(
+        [
+          run.status,
+          if (run.startedAt != null) _formatDateTime(run.startedAt!),
+          _dateWindow(run.windowStart, run.windowEnd),
+          '${run.fixtures} fixtures',
+          '${run.odds} cotes',
+          '${run.cachedResponses} réponses',
+          run.bookmakerId == null
+              ? 'tous bookmakers'
+              : 'bookmaker ${run.bookmakerId}',
+          if (run.errorMessage != null) run.errorMessage!,
+        ].join(' • '),
+      ),
+    );
+  }
+}
+
+class _SnapshotRunTile extends StatelessWidget {
+  const _SnapshotRunTile(this.run);
+
+  final AdminSnapshotRun run;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final hasMissingOdds = run.missingOdds > 0;
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        hasMissingOdds ? Icons.inventory_2_outlined : Icons.inventory_2_rounded,
+        color: hasMissingOdds ? colorScheme.tertiary : colorScheme.primary,
+      ),
+      title: Text('${run.scopeKey} · ${run.leagueIds.join(', ')}'),
+      subtitle: Text(
+        [
+          if (run.createdAt != null) _formatDateTime(run.createdAt!),
+          _dateWindow(run.windowStart, run.windowEnd),
+          '${run.fixtures} matchs',
+          '${(run.fixtures - run.missingOdds).clamp(0, run.fixtures)}/${run.fixtures} avec cotes',
+          '${run.playerStatistics} lignes joueurs',
+        ].join(' • '),
+      ),
+    );
+  }
+}
+
 class _AdminOperationTile extends StatelessWidget {
   const _AdminOperationTile(this.run);
 
@@ -801,6 +1197,16 @@ String _formatDateTime(DateTime value) {
   final local = value.toLocal();
   String two(int number) => number.toString().padLeft(2, '0');
   return '${two(local.day)}/${two(local.month)} ${two(local.hour)}:${two(local.minute)}';
+}
+
+String _dateWindow(String? start, String? end) {
+  if (start == null && end == null) {
+    return 'fenêtre inconnue';
+  }
+  if (start == end || end == null) {
+    return start ?? end!;
+  }
+  return '${start ?? '?'} → $end';
 }
 
 Uri _publicAppUrl(AppConfig config) {

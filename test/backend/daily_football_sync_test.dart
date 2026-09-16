@@ -78,6 +78,7 @@ void main() {
 
     test('orchestrates collection then snapshot build server-side', () {
       expect(supabaseFunction, contains('name: "api-football-sync"'));
+      expect(supabaseFunction, contains('name: "sync-match-results"'));
       expect(supabaseFunction, contains('name: "build-match-feed-snapshot"'));
       expect(supabaseFunction, contains('API_FOOTBALL_SYNC_SECRET'));
       expect(
@@ -89,7 +90,8 @@ void main() {
       expect(supabaseFunction, contains('results_days_back'));
       expect(supabaseFunction, contains('future_days'));
       expect(supabaseFunction, contains('api_request_delay_ms'));
-      expect(supabaseFunction, contains('defaultResultsDaysBack = 2'));
+      expect(supabaseFunction, contains('include_player_statistics'));
+      expect(supabaseFunction, contains('defaultResultsDaysBack = 7'));
       expect(supabaseFunction, contains('defaultFutureDays = 3'));
       expect(supabaseFunction, contains('markStaleDailyRuns'));
       expect(
@@ -115,6 +117,39 @@ void main() {
       expect(apiFunction, contains('API_FOOTBALL_REQUEST_DELAY_MS'));
       expect(apiFunction, contains('requestDelayMs: apiRequestDelayMs'));
       expect(apiFunction, contains('await delay(options.requestDelayMs)'));
+    });
+
+    test('collects all available bookmakers in normal runs', () {
+      final snapshotBuilder = File(
+        'supabase/functions/build-match-feed-snapshot/index.ts',
+      ).readAsStringSync();
+
+      expect(supabaseFunction, isNot(contains('defaultBookmakerId')));
+      expect(
+        supabaseFunction,
+        contains('bookmakerId: numberValue(payload.bookmaker_id)'),
+      );
+      expect(
+        supabaseFunction,
+        contains('if (options.bookmakerId !== null)'),
+        reason: 'a bookmaker filter must only be forwarded when explicit',
+      );
+      expect(
+        snapshotBuilder,
+        contains(
+          'endpoint: "/odds",\n        filters: oddsFilters,\n        //',
+        ),
+      );
+      expect(
+        snapshotBuilder,
+        contains('exactQuery: true'),
+        reason:
+            'fresh all-bookmaker odds must not be mixed with an older single-bookmaker cache row',
+      );
+      expect(
+        docs,
+        contains('Les runs normaux ne filtrent pas `/odds` par bookmaker'),
+      );
     });
 
     test(
@@ -144,8 +179,13 @@ void main() {
         expect(snapshotBuilder, contains('seasonForWindowFromLeaguesPayload'));
         expect(snapshotBuilder, isNot(contains('fallback: fallbackSeason')));
         expect(snapshotBuilder, contains('leagueRows'));
+        final syncPayloadSource = supabaseFunction
+            .split('function syncPayload(')
+            .last
+            .split('function snapshotPayload(')
+            .first;
         expect(
-          supabaseFunction,
+          syncPayloadSource,
           isNot(contains('season: options.season,')),
           reason:
               'daily-football-sync must not inject a single season into every league by default',
@@ -168,7 +208,7 @@ void main() {
 
     test('documents manual deployment and validation steps', () {
       expect(docs, contains('00:00 UTC'));
-      expect(docs, contains('Resultats : J-2 -> J-1'));
+      expect(docs, contains('Resultats : J-7 -> J-1'));
       expect(docs, contains('Feed front : J -> J+3'));
       expect(docs, contains('tool/generate_supabase_cron_sql.dart'));
       expect(docs, contains('npx supabase db push'));
@@ -201,8 +241,24 @@ void main() {
       expect(generator, isNot(contains('build-match-feed-snapshot')));
       expect(generator, isNot(contains('api-football-build-snapshot')));
       expect(generator, contains('final dailyMinuteOffset = index * 4'));
-      expect(generator, contains("'results_days_back', 2"));
+      expect(generator, contains("'results_days_back', 7"));
       expect(generator, contains("'future_days', 3"));
+      expect(
+        generator,
+        contains("'include_player_statistics', false"),
+        reason: 'rolling daily jobs must not repaginate every player squad',
+      );
+      expect(generator, contains('api-football-enrichment-\$leagueId'));
+      expect(
+        generator,
+        contains("'include_player_statistics', true"),
+        reason: 'player data must still be refreshed by a dedicated job',
+      );
+      expect(
+        generator,
+        isNot(contains("'bookmaker_id', 16")),
+        reason: 'scheduled runs must collect all available bookmakers',
+      );
       expect(generator, contains('cron.unschedule'));
       expect(generator, contains("where jobname like 'api-football-%'"));
       expect(

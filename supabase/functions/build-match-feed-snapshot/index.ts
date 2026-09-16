@@ -114,7 +114,9 @@ Deno.serve(async (request) => {
       rawTeamStatistics: build.rawTeamStatistics,
       rawRecentLeagueMatches: build.rawRecentLeagueMatches,
       rawExpectedGoals: build.rawExpectedGoals,
+      rawPerformanceStatistics: build.rawPerformanceStatistics,
       rawPlayerStatistics: build.rawPlayerStatistics,
+      rawDomesticTeamContexts: build.rawDomesticTeamContexts,
       fixtureIndex,
       sourceRows: build.sourceRows,
     });
@@ -155,7 +157,10 @@ Deno.serve(async (request) => {
         team_statistics: build.rawTeamStatistics,
         recent_league_matches: build.rawRecentLeagueMatches,
         expected_goals: build.rawExpectedGoals,
+        performance_statistics: build.rawPerformanceStatistics,
         player_statistics: build.rawPlayerStatistics,
+        injuries: build.rawInjuries,
+        domestic_team_contexts: build.rawDomesticTeamContexts,
         predictions: [],
       },
     };
@@ -282,7 +287,10 @@ type SourceBuild = {
   rawTeamStatistics: JsonObject[];
   rawRecentLeagueMatches: JsonObject[];
   rawExpectedGoals: JsonObject[];
+  rawPerformanceStatistics: JsonObject[];
   rawPlayerStatistics: JsonObject[];
+  rawInjuries: JsonObject[];
+  rawDomesticTeamContexts: JsonObject[];
 };
 
 type FixtureIndexRow = {
@@ -327,7 +335,10 @@ async function collectSnapshotSources({
   const rawTeamStatistics: JsonObject[] = [];
   const rawRecentLeagueMatches: JsonObject[] = [];
   const rawPlayerStatistics: JsonObject[] = [];
+  const rawInjuries: JsonObject[] = [];
+  const rawDomesticTeamContexts: JsonObject[] = [];
   const fixtureStatisticsRows: FixtureStatisticsPayload[] = [];
+  const fixtureEventsRows: Array<{fixtureId: number; events: JsonObject[]}> = [];
 
   const addSourceRows = (rows: CachedRawResponse[]) => {
     for (const row of rows) {
@@ -408,13 +419,122 @@ async function collectSnapshotSources({
         serviceRoleKey,
         endpoint: "/odds",
         filters: oddsFilters,
+        // Do not mix a fresh all-bookmakers response with older responses
+        // collected for one bookmaker. The adapter performs bookmaker
+        // prioritisation from the complete response.
+        exactQuery: true,
       });
       addSourceRows(oddsRows);
       rawOdds.push(...flatResponseItems(oddsRows));
     }
   }
 
-  const teamRequests = teamStatisticsRequests(rawFixtures, options);
+  // Continental fixtures have two factual frames of reference: the shared
+  // UEFA table and each club's national championship. Domestic responses are
+  // reused from the dedicated league jobs, without extra API-Football calls
+  // or an arbitrary coefficient between countries.
+  const continentalFixtures = rawFixtures.filter((fixture) =>
+    isContinentalLeagueId(
+      numberValue((objectValue(fixture.league) ?? {}).id),
+    )
+  );
+  if (continentalFixtures.length > 0) {
+    const cachedStandingRows = await cachedResponsesFor({
+      supabaseUrl,
+      serviceRoleKey,
+      endpoint: "/standings",
+      filters: {},
+    });
+    const domesticContexts = domesticTeamContextsFromCachedStandings({
+      fixtures: continentalFixtures,
+      standingRows: cachedStandingRows,
+    });
+    rawDomesticTeamContexts.push(...domesticContexts.contexts);
+    addSourceRows(domesticContexts.sourceRows);
+    rawStandings.push(...domesticContexts.standings);
+
+    for (const context of domesticContexts.contexts) {
+      const teamId = numberValue((objectValue(context.team) ?? {}).id);
+      const league = objectValue(context.league) ?? {};
+      const leagueId = numberValue(league.id);
+      const season = numberValue(league.season);
+      const fixtureDate = stringValue(context.fixture_date);
+      if (teamId === null || leagueId === null || season === null) continue;
+
+      const leagueFixtureRows = await cachedResponsesFor({
+        supabaseUrl,
+        serviceRoleKey,
+        endpoint: "/fixtures",
+        filters: {
+          league: String(leagueId),
+          season: String(season),
+          timezone: options.timezone,
+        },
+        exactQuery: true,
+      });
+      addSourceRows(leagueFixtureRows);
+      rawLeagueFixtures.push(...flatResponseItems(leagueFixtureRows));
+
+      const statisticsRows = await cachedResponsesFor({
+        supabaseUrl,
+        serviceRoleKey,
+        endpoint: "/teams/statistics",
+        filters: {
+          league: String(leagueId),
+          season: String(season),
+          team: String(teamId),
+        },
+      });
+      addSourceRows(statisticsRows);
+      rawTeamStatistics.push(...flatResponseItems(statisticsRows));
+
+      const playerRows = await cachedResponsesFor({
+        supabaseUrl,
+        serviceRoleKey,
+        endpoint: "/players",
+        filters: {
+          league: String(leagueId),
+          season: String(season),
+          team: String(teamId),
+        },
+      });
+      addSourceRows(playerRows);
+      rawPlayerStatistics.push(...flatResponseItems(playerRows));
+
+      if (fixtureDate !== null) {
+        const recentRows = await cachedResponsesFor({
+          supabaseUrl,
+          serviceRoleKey,
+          endpoint: "/fixtures",
+          filters: {
+            league: String(leagueId),
+            season: String(season),
+            team: String(teamId),
+            from: subtractDays(fixtureDate, options.recentFormDaysBack),
+            to: subtractDays(fixtureDate, 1),
+            timezone: options.timezone,
+          },
+        });
+        addSourceRows(recentRows);
+        const recentMatches = normalizeRecentFixturesForTeam({
+          leagueId,
+          teamId,
+          fixtures: flatResponseItems(recentRows),
+          maxMatches: options.recentFormMatches,
+        });
+        if (recentMatches !== null) {
+          rawRecentLeagueMatches.push(recentMatches);
+        }
+      }
+    }
+  }
+
+  const scopedLeagueFixtures = rawLeagueFixtures.filter((row) =>
+    options.leagueIds.includes(numberValue((objectValue(row.league) ?? {}).id) ?? -1)
+  );
+  const teamRequests = teamStatisticsRequests(
+    [...rawFixtures, ...scopedLeagueFixtures], options,
+  );
   for (const request of teamRequests) {
     const rows = await cachedResponsesFor({
       supabaseUrl,
@@ -471,6 +591,33 @@ async function collectSnapshotSources({
     }
   }
 
+  // The league fixture response already covers every club. Complete the
+  // championship comparison from that cached response instead of issuing one
+  // extra /fixtures request for each club outside the feed window.
+  const recentTeams = new Set(rawRecentLeagueMatches.map((row) =>
+    `${numberValue((objectValue(row.league) ?? {}).id)}:${numberValue((objectValue(row.team) ?? {}).id)}`
+  ));
+  for (const request of teamRequests) {
+    const key = `${request.leagueId}:${request.teamId}`;
+    if (recentTeams.has(key)) continue;
+    const historical = scopedLeagueFixtures.filter((row) => {
+      const leagueId = numberValue((objectValue(row.league) ?? {}).id);
+      const date = stringValue((objectValue(row.fixture) ?? {}).date);
+      return leagueId === request.leagueId && date !== null &&
+        date.slice(0, 10) < options.windowStart;
+    });
+    const recent = normalizeRecentFixturesForTeam({
+      leagueId: request.leagueId,
+      teamId: request.teamId,
+      fixtures: historical,
+      maxMatches: options.recentFormMatches,
+    });
+    if (recent !== null) {
+      rawRecentLeagueMatches.push(recent);
+      recentTeams.add(key);
+    }
+  }
+
   const recentFixtureIds = recentFixtureIdsFromRows(rawRecentLeagueMatches);
   for (const fixtureId of recentFixtureIds) {
     const rows = await cachedResponsesFor({
@@ -488,11 +635,47 @@ async function collectSnapshotSources({
         statistics: flatResponseItems([row]),
       });
     }
+    const eventRows = await cachedResponsesFor({
+      supabaseUrl,
+      serviceRoleKey,
+      endpoint: "/fixtures/events",
+      filters: { fixture: String(fixtureId) },
+    });
+    addSourceRows(eventRows);
+    for (const row of eventRows) {
+      fixtureEventsRows.push({
+        fixtureId,
+        events: flatResponseItems([row]),
+      });
+    }
+  }
+
+  const upcomingFixtureIds = new Set(rawFixtures
+    .map((row) => numberValue((objectValue(row.fixture) ?? {}).id))
+    .filter((id): id is number => id !== null));
+  for (const fixtureId of upcomingFixtureIds) {
+    const rows = await cachedResponsesFor({
+      supabaseUrl, serviceRoleKey, endpoint: "/injuries",
+      filters: { fixture: String(fixtureId) },
+    });
+    addSourceRows(rows);
+    for (const row of rows) {
+      for (const injury of flatResponseItems([row])) {
+        rawInjuries.push({ ...injury, asOf: row.fetched_at });
+      }
+    }
   }
 
   const rawExpectedGoals = expectedGoalsSnapshots({
     recentLeagueMatches: rawRecentLeagueMatches,
     fixtureStatisticsRows,
+    asOf: latestTimestamp([...sourceRowsByKey.values()]) ??
+      new Date().toISOString(),
+  });
+  const rawPerformanceStatistics = performanceStatisticsSnapshots({
+    recentLeagueMatches: rawRecentLeagueMatches,
+    fixtureStatisticsRows,
+    fixtureEventsRows,
     asOf: latestTimestamp([...sourceRowsByKey.values()]) ??
       new Date().toISOString(),
   });
@@ -506,7 +689,107 @@ async function collectSnapshotSources({
     rawTeamStatistics,
     rawRecentLeagueMatches,
     rawExpectedGoals,
+    rawPerformanceStatistics,
     rawPlayerStatistics,
+    rawInjuries,
+    rawDomesticTeamContexts,
+  };
+}
+
+type DomesticTeamContexts = {
+  contexts: JsonObject[];
+  standings: JsonObject[];
+  sourceRows: CachedRawResponse[];
+};
+
+function isContinentalLeagueId(leagueId: number | null): boolean {
+  return leagueId === 2 || leagueId === 3 || leagueId === 848;
+}
+
+function domesticTeamContextsFromCachedStandings({
+  fixtures,
+  standingRows,
+}: {
+  fixtures: JsonObject[];
+  standingRows: CachedRawResponse[];
+}): DomesticTeamContexts {
+  const fixtureByTeam = new Map<number, { date: string; season: number }>();
+  for (const row of fixtures) {
+    const fixture = objectValue(row.fixture) ?? {};
+    const league = objectValue(row.league) ?? {};
+    const dateTime = stringValue(fixture.date);
+    const date = dateTime?.slice(0, 10) ?? null;
+    const season = numberValue(league.season);
+    const teams = objectValue(row.teams) ?? {};
+    if (date === null || season === null) continue;
+    for (const side of ["home", "away"]) {
+      const teamId = numberValue((objectValue(teams[side]) ?? {}).id);
+      if (teamId !== null && !fixtureByTeam.has(teamId)) {
+        fixtureByTeam.set(teamId, { date, season });
+      }
+    }
+  }
+
+  const contexts: JsonObject[] = [];
+  const standingsByIdentity = new Map<string, JsonObject>();
+  const sourceRowsByIdentity = new Map<string, CachedRawResponse>();
+  const resolvedTeams = new Set<number>();
+
+  // cachedResponsesFor orders newest first. The first current domestic table
+  // containing a club is therefore the deterministic source of truth.
+  for (const sourceRow of standingRows) {
+    for (const responseItem of flatResponseItems([sourceRow])) {
+      const league = objectValue(responseItem.league) ?? {};
+      const leagueId = numberValue(league.id);
+      const country = stringValue(league.country)?.toLowerCase();
+      if (
+        leagueId === null ||
+        isContinentalLeagueId(leagueId) ||
+        country === "world"
+      ) {
+        continue;
+      }
+      const season = numberValue(league.season);
+      if (season === null) continue;
+      for (const group of arrayValue(league.standings)) {
+        for (const standingValue of arrayValue(group)) {
+          const standing = objectValue(standingValue) ?? {};
+          const team = objectValue(standing.team) ?? {};
+          const teamId = numberValue(team.id);
+          const target = teamId === null ? undefined : fixtureByTeam.get(teamId);
+          if (
+            teamId === null ||
+            target === undefined ||
+            resolvedTeams.has(teamId) ||
+            season !== target.season
+          ) {
+            continue;
+          }
+          resolvedTeams.add(teamId);
+          contexts.push({
+            team: { id: teamId, name: stringValue(team.name) },
+            league: {
+              id: leagueId,
+              name: stringValue(league.name),
+              country: stringValue(league.country),
+              logo: stringValue(league.logo),
+              flag: stringValue(league.flag),
+              season,
+            },
+            fixture_date: target.date,
+          });
+          const identity = `${leagueId}:${season}`;
+          standingsByIdentity.set(identity, responseItem);
+          sourceRowsByIdentity.set(identity, sourceRow);
+        }
+      }
+    }
+  }
+
+  return {
+    contexts,
+    standings: [...standingsByIdentity.values()],
+    sourceRows: [...sourceRowsByIdentity.values()],
   };
 }
 
@@ -642,7 +925,9 @@ async function supabaseFetch({
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Supabase ${response.status}: ${text}`);
+    throw new Error(
+      `Supabase ${response.status} ${method} ${path.split("?")[0]}: ${text}`,
+    );
   }
 
   if (prefer.includes("return=minimal")) {
@@ -789,7 +1074,9 @@ function coverageSummary({
   rawTeamStatistics,
   rawRecentLeagueMatches,
   rawExpectedGoals,
+  rawPerformanceStatistics,
   rawPlayerStatistics,
+  rawDomesticTeamContexts,
   fixtureIndex,
   sourceRows,
 }: {
@@ -800,7 +1087,9 @@ function coverageSummary({
   rawTeamStatistics: JsonObject[];
   rawRecentLeagueMatches: JsonObject[];
   rawExpectedGoals: JsonObject[];
+  rawPerformanceStatistics: JsonObject[];
   rawPlayerStatistics: JsonObject[];
+  rawDomesticTeamContexts: JsonObject[];
   fixtureIndex: FixtureIndexRow[];
   sourceRows: CachedRawResponse[];
 }): JsonObject {
@@ -812,7 +1101,9 @@ function coverageSummary({
     team_statistics: rawTeamStatistics.length,
     recent_league_matches: rawRecentLeagueMatches.length,
     expected_goals: rawExpectedGoals.length,
+    performance_statistics: rawPerformanceStatistics.length,
     player_statistics: rawPlayerStatistics.length,
+    domestic_team_contexts: rawDomesticTeamContexts.length,
     predictions: 0,
     fixture_index_rows: fixtureIndex.length,
     source_rows: sourceRows.length,
@@ -1501,14 +1792,170 @@ function expectedGoalsSnapshots({
   return snapshots;
 }
 
+function performanceStatisticsSnapshots({
+  recentLeagueMatches,
+  fixtureStatisticsRows,
+  fixtureEventsRows,
+  asOf,
+}: {
+  recentLeagueMatches: JsonObject[];
+  fixtureStatisticsRows: FixtureStatisticsPayload[];
+  fixtureEventsRows: Array<{fixtureId: number; events: JsonObject[]}>;
+  asOf: string;
+}): JsonObject[] {
+  const statisticsByFixture = new Map<
+    number,
+    Map<number, Record<string, number>>
+  >();
+  for (const row of fixtureStatisticsRows) {
+    const byTeam = new Map<number, Record<string, number>>();
+    for (const teamStatistics of row.statistics) {
+      const teamId = numberValue((objectValue(teamStatistics.team) ?? {}).id);
+      if (teamId === null) continue;
+      const values: Record<string, number> = {};
+      for (const statistic of arrayValue(teamStatistics.statistics)) {
+        const item = objectValue(statistic) ?? {};
+        const type = normalizedStatisticType(stringValue(item.type));
+        const value = decimalValue(item.value);
+        if (type !== null && value !== null) values[type] = value;
+      }
+      byTeam.set(teamId, values);
+    }
+    if (byTeam.size > 0) statisticsByFixture.set(row.fixtureId, byTeam);
+  }
+
+  const cardEventsByFixture = new Map<number, Map<number, {total: number; secondHalf: number}>>();
+  for (const row of fixtureEventsRows) {
+    const byTeam = new Map<number, {total: number; secondHalf: number}>();
+    for (const event of row.events) {
+      if (stringValue(event.type)?.toLowerCase() !== "card") continue;
+      const teamId = numberValue((objectValue(event.team) ?? {}).id);
+      const minute = numberValue((objectValue(event.time) ?? {}).elapsed);
+      if (teamId === null || minute === null) continue;
+      const count = byTeam.get(teamId) ?? {total: 0, secondHalf: 0};
+      count.total += 1;
+      if (minute > 45) count.secondHalf += 1;
+      byTeam.set(teamId, count);
+    }
+    cardEventsByFixture.set(row.fixtureId, byTeam);
+  }
+
+  const snapshots: JsonObject[] = [];
+  for (const row of recentLeagueMatches) {
+    const team = objectValue(row.team) ?? {};
+    const teamId = numberValue(team.id);
+    if (teamId === null) continue;
+    const samples: Array<Record<string, number>> = [];
+    let observedCards = 0;
+    let secondHalfCards = 0;
+    for (const match of arrayValue(row.matches)) {
+      const matchObject = objectValue(match) ?? {};
+      const fixtureId = numberValue(
+        (objectValue(matchObject.fixture) ?? {}).id,
+      );
+      const opponentId = numberValue(
+        (objectValue(matchObject.opponent) ?? {}).id,
+      );
+      if (fixtureId === null || opponentId === null) continue;
+      const cardEvents = cardEventsByFixture.get(fixtureId)?.get(teamId);
+      if (cardEvents !== undefined) {
+        observedCards += cardEvents.total;
+        secondHalfCards += cardEvents.secondHalf;
+      }
+      const fixtureStats = statisticsByFixture.get(fixtureId);
+      const own = fixtureStats?.get(teamId);
+      const opponent = fixtureStats?.get(opponentId);
+      if (own === undefined || opponent === undefined) continue;
+      const shotsFor = own.totalShots;
+      const shotsAgainst = opponent.totalShots;
+      const shotsOnTargetFor = own.shotsOnGoal;
+      const shotsOnTargetAgainst = opponent.shotsOnGoal;
+      const cornersFor = own.cornerKicks;
+      const cornersAgainst = opponent.cornerKicks;
+      const cardsFor = cardTotal(own);
+      const cardsAgainst = cardTotal(opponent);
+      if (shotsFor === undefined || shotsAgainst === undefined ||
+          shotsOnTargetFor === undefined ||
+          shotsOnTargetAgainst === undefined ||
+          cornersFor === undefined || cornersAgainst === undefined ||
+          cardsFor === undefined || cardsAgainst === undefined) continue;
+      samples.push({
+        shotsFor,
+        shotsAgainst,
+        shotsOnTargetFor,
+        shotsOnTargetAgainst,
+        cornersFor,
+        cornersAgainst,
+        cardsFor,
+        cardsAgainst,
+      });
+    }
+    if (samples.length === 0) continue;
+
+    const metricAverage = (key: string) =>
+      round2(average(samples.map((sample) => sample[key])));
+    snapshots.push({
+      league: row.league,
+      team: {
+        id: teamId,
+        name: stringValue(team.name) ?? "Equipe",
+      },
+      asOf,
+      sampleSize: samples.length,
+      cardTiming: observedCards > 0 ? {
+        observedCards,
+        secondHalfCards,
+        secondHalfShare: round2(secondHalfCards / observedCards),
+      } : null,
+      averages: {
+        shotsFor: metricAverage("shotsFor"),
+        shotsAgainst: metricAverage("shotsAgainst"),
+        shotsOnTargetFor: metricAverage("shotsOnTargetFor"),
+        shotsOnTargetAgainst: metricAverage("shotsOnTargetAgainst"),
+        cornersFor: metricAverage("cornersFor"),
+        cornersAgainst: metricAverage("cornersAgainst"),
+        cardsFor: metricAverage("cardsFor"),
+        cardsAgainst: metricAverage("cardsAgainst"),
+        totalCorners: round2(
+          metricAverage("cornersFor") + metricAverage("cornersAgainst"),
+        ),
+        totalCards: round2(
+          metricAverage("cardsFor") + metricAverage("cardsAgainst"),
+        ),
+      },
+    });
+  }
+  return snapshots;
+}
+
+function normalizedStatisticType(type: string | null): string | null {
+  return switchValue(type?.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(), {
+    "total shots": "totalShots",
+    "shots on goal": "shotsOnGoal",
+    "corner kicks": "cornerKicks",
+    "yellow cards": "yellowCards",
+    "red cards": "redCards",
+  });
+}
+
+function switchValue(
+  value: string | undefined,
+  values: Record<string, string>,
+): string | null {
+  return value === undefined ? null : values[value] ?? null;
+}
+
+function cardTotal(values: Record<string, number>): number | undefined {
+  const yellow = values.yellowCards;
+  const red = values.redCards;
+  if (yellow === undefined && red === undefined) return undefined;
+  return (yellow ?? 0) + (red ?? 0);
+}
+
 function isCompletedFixture(row: JsonObject): boolean {
   const status = objectValue((objectValue(row.fixture) ?? {}).status) ?? {};
   const shortStatus = stringValue(status.short);
-  if (shortStatus !== null && ["FT", "AET", "PEN"].includes(shortStatus)) {
-    return true;
-  }
-  const goals = objectValue(row.goals) ?? {};
-  return numberValue(goals.home) !== null && numberValue(goals.away) !== null;
+  return shortStatus !== null && ["FT", "AET", "PEN"].includes(shortStatus);
 }
 
 function fixtureContainsTeam(row: JsonObject, teamId: number): boolean {

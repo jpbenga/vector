@@ -1,5 +1,6 @@
 import 'package:copilot/app/theme/app_theme.dart';
 import 'package:copilot/features/matches/presentation/lector_scenarios_page.dart';
+import 'package:copilot/features/matches/domain/football_scenario.dart';
 import 'package:copilot/features/onboarding/domain/decision_profile.dart';
 import 'package:copilot/features/onboarding/domain/onboarding_answer.dart';
 import 'package:flutter/material.dart';
@@ -23,7 +24,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('TOUTES REQUISES'), findsNWidgets(10));
+      expect(
+        find.text('TOUTES REQUISES'),
+        findsNWidgets(
+          FootballScenarioCatalog.values
+              .where((scenario) => scenario.isAvailable)
+              .length,
+        ),
+      );
       expect(
         find.text(
           'Supériorité classement  +  Avantage de forme  +  '
@@ -31,7 +39,14 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.text('Indisponible'), findsNWidgets(7));
+      expect(
+        find.text('Indisponible'),
+        findsNWidgets(
+          FootballScenarioCatalog.values
+              .where((scenario) => !scenario.isAvailable)
+              .length,
+        ),
+      );
 
       final availableScenario = find.byKey(
         const ValueKey('lector-scenario-solid_favorite'),
@@ -45,13 +60,17 @@ void main() {
         'solid_favorite',
       ]);
 
-      final pendingScenario = find.byKey(
+      final secondAvailableScenario = find.byKey(
         const ValueKey('lector-scenario-offensive_match'),
       );
-      await tester.ensureVisible(pendingScenario);
-      await tester.tap(pendingScenario, warnIfMissed: false);
+      await tester.ensureVisible(secondAvailableScenario);
+      await tester.tap(secondAvailableScenario);
       await tester.pumpAndSettle();
-      expect(savedProfiles, hasLength(1));
+      expect(savedProfiles, hasLength(2));
+      expect(
+        savedProfiles.last.optionIdsFor('opportunity_profiles'),
+        containsAll(['solid_favorite', 'offensive_match']),
+      );
     },
   );
 }

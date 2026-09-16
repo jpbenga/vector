@@ -20,8 +20,14 @@ class AnalysisMaturityResolver {
   static const establishedAfterPlayedMatches = 5;
 
   static AnalysisMaturity forMatch(MatchBoardItem match) {
-    final homePlayed = match.analysis.homeStanding?.played;
-    final awayPlayed = match.analysis.awayStanding?.played;
+    final usesDomesticBaseline =
+        match.fixture.competition.isContinentalTournament;
+    final homePlayed = usesDomesticBaseline
+        ? match.analysis.homeDomesticContext?.played
+        : match.analysis.homeStanding?.played;
+    final awayPlayed = usesDomesticBaseline
+        ? match.analysis.awayDomesticContext?.played
+        : match.analysis.awayStanding?.played;
     return homePlayed != null &&
             awayPlayed != null &&
             homePlayed >= establishedAfterPlayedMatches &&

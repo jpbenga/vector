@@ -61,6 +61,7 @@ void main() {
         'team_statistics',
         'recent_league_matches',
         'expected_goals',
+        'domestic_team_contexts',
         'predictions',
       ]) {
         expect(functionSource, contains(rawKey));

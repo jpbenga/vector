@@ -670,7 +670,7 @@ class _CompetitionRow extends StatelessWidget {
                 imageUrl: competition.logoUrl,
                 fallbackLabel: competition.name,
                 borderRadius: 7,
-                padding: 2,
+                contrastPlate: true,
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(

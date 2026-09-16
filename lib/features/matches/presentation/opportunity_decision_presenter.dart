@@ -239,6 +239,12 @@ class FootballReadingCopyCatalog {
         'Un signal positif est affaibli par une donnée contraire.',
       'insufficient_data' =>
         'Donnée écartée pour préserver une lecture pré-match.',
+      'tournament_progression' =>
+        'Position et zone officielles dans la phase de ligue européenne.',
+      'demanding_tournament_path' =>
+        'Le parcours déjà joué se distingue par une adversité élevée.',
+      'favorable_tournament_path' =>
+        'Le parcours déjà joué se distingue par une adversité plus basse.',
       _ => _fallbackSummary(argument),
     };
   }
@@ -316,8 +322,36 @@ class FootballReadingCopyCatalog {
     'defensive_underperformance': 'Sous-performance défensive',
     'defensive_overperformance': 'Surperformance défensive',
     'misleading_result': 'Résultats à nuancer',
+    'strong_first_half_team': 'Solide en première mi-temps',
+    'weak_first_half_team': 'Fragile en première mi-temps',
+    'frequent_halftime_lead': 'Souvent devant à la pause',
+    'frequent_halftime_draw': 'Souvent à égalité à la pause',
+    'strong_second_half_team': 'Solide en seconde mi-temps',
+    'weak_second_half_team': 'Fragile en seconde mi-temps',
+    'early_scoring_0_15': 'Marque entre 0 et 15 minutes',
+    'early_conceding_0_15': 'Concède entre 0 et 15 minutes',
+    'pre_halftime_scoring_31_45': 'Marque entre 31 et 45 minutes',
+    'pre_halftime_conceding_31_45': 'Concède entre 31 et 45 minutes',
+    'late_scoring_76_90': 'Marque entre 76 et 90 minutes',
+    'late_conceding_76_90': 'Concède entre 76 et 90 minutes',
+    'high_shot_volume': 'Volume de tirs élevé',
+    'low_shot_volume': 'Faible volume de tirs',
+    'high_shots_on_target': 'Nombreux tirs cadrés',
+    'low_shot_accuracy': 'Difficulté à cadrer',
+    'high_shots_conceded': 'Concède beaucoup de tirs',
+    'high_shots_on_target_conceded': 'Concède beaucoup de tirs cadrés',
+    'high_corner_creation': 'Obtient beaucoup de corners',
+    'high_corners_conceded': 'Concède beaucoup de corners',
+    'high_total_corners_profile': 'Matchs riches en corners',
+    'low_total_corners_profile': 'Matchs pauvres en corners',
+    'high_card_rate': 'Reçoit beaucoup de cartons',
+    'low_card_rate': 'Équipe disciplinée',
+    'high_total_cards_profile': 'Matchs riches en cartons',
     'conflicting_signals': 'Signal contradictoire',
     'insufficient_data': 'Donnée non exploitable',
+    'tournament_progression': 'Position européenne',
+    'demanding_tournament_path': 'Parcours européen exigeant',
+    'favorable_tournament_path': 'Parcours européen favorable',
   };
 
   static bool _isFormReading(String readingId) {

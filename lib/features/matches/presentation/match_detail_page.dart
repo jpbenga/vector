@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/deck/lector_deck.dart';
 import '../../../core/theme/app_colors.dart';
@@ -21,7 +22,9 @@ import '../domain/market_assessment.dart';
 import '../domain/match_board_item.dart';
 import '../domain/match_context_key_models.dart';
 import '../domain/structural_tiers/tier_models.dart';
+import '../data/match_reading_bilan_repository.dart';
 import 'opportunity_decision_presenter.dart';
+import 'reading_bilan_section.dart';
 import 'widgets/sports_asset_badge.dart';
 
 const _matchCardStadiumBackgroundAsset =
@@ -64,6 +67,34 @@ class MatchDetailPage extends StatefulWidget {
 class _MatchDetailPageState extends State<MatchDetailPage> {
   int _selectedFreeTab = 0;
   bool _isTicketPanelExpanded = false;
+  late Future<List<MatchReadingBilanEntry>> _readingBilan;
+
+  @override
+  void initState() {
+    super.initState();
+    _readingBilan = _loadReadingBilan();
+  }
+
+  @override
+  void didUpdateWidget(covariant MatchDetailPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.match.fixture.apiFootballFixtureId !=
+        widget.match.fixture.apiFootballFixtureId) {
+      _readingBilan = _loadReadingBilan();
+    }
+  }
+
+  Future<List<MatchReadingBilanEntry>> _loadReadingBilan() async {
+    final fixtureId = widget.match.fixture.apiFootballFixtureId;
+    if (fixtureId == null) return const [];
+    try {
+      return await SupabaseMatchReadingBilanRepository(
+        Supabase.instance.client,
+      ).loadForFixture(fixtureId);
+    } catch (_) {
+      return const [];
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -85,22 +116,77 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                       ),
                       const SizedBox(height: 10),
                       _LectorMatchHero(match: widget.match),
+                      FutureBuilder<List<MatchReadingBilanEntry>>(
+                        future: _readingBilan,
+                        builder: (context, snapshot) {
+                          final entries =
+                              snapshot.data ?? const <MatchReadingBilanEntry>[];
+                          if (entries.isEmpty ||
+                              !entries.any((entry) => entry.hasResult)) {
+                            return const SizedBox.shrink();
+                          }
+                          final confirmed = entries
+                              .where((entry) => entry.verdict == 'confirmed')
+                              .length;
+                          final contradicted = entries
+                              .where((entry) => entry.verdict == 'contradicted')
+                              .length;
+                          final result = entries.firstWhere(
+                            (entry) => entry.hasResult,
+                          );
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: ExpansionTile(
+                              tilePadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                              ),
+                              collapsedBackgroundColor:
+                                  context.surfaces.backgroundSecondary,
+                              backgroundColor:
+                                  context.surfaces.backgroundSecondary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              collapsedShape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              title: Text(
+                                'Résultat ${result.homeGoals}–${result.awayGoals}',
+                                style: TextStyle(
+                                  color: context.textColors.primary,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              subtitle: Text(
+                                '$confirmed lectures confirmées · '
+                                '$contradicted contredites · ${entries.length} annoncées',
+                                style: TextStyle(
+                                  color: context.textColors.secondary,
+                                ),
+                              ),
+                              children: [
+                                for (final entry in entries)
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      10,
+                                      0,
+                                      10,
+                                      8,
+                                    ),
+                                    child: ReadingVerdictCard(entry: entry),
+                                  ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
                       const SizedBox(height: 12),
-                      _LectorScenarioCard(
+                      _LectorSynthesisCard(
                         match: widget.match,
                         opportunity: widget.opportunity,
+                        ticketDraftListenable: widget.ticketDraftListenable,
+                        onToggleTicket: widget.onToggleTicket,
                       ),
-                      if (widget.match.betCandidates.isNotEmpty ||
-                          widget.match.profileRelevance.readingMatches > 0 ||
-                          widget.match.profileRelevance.scenarioMatches >
-                              0) ...[
-                        const SizedBox(height: 12),
-                        _LectorBetCandidatesCard(
-                          match: widget.match,
-                          ticketDraftListenable: widget.ticketDraftListenable,
-                          onToggleTicket: widget.onToggleTicket,
-                        ),
-                      ],
                       const SizedBox(height: 12),
                       _LectorMatchTabBar(
                         selectedIndex: _selectedFreeTab,
@@ -494,8 +580,7 @@ class _LectorMatchHero extends StatelessWidget {
                 imageUrl: match.competition.logoUrl,
                 fallbackLabel: match.competition.name,
                 icon: Icons.emoji_events_outlined,
-                backgroundColor: AppColors.transparent,
-                padding: 1,
+                contrastPlate: true,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -692,11 +777,18 @@ class _HeroStatusBlock extends StatelessWidget {
   }
 }
 
-class _LectorScenarioCard extends StatelessWidget {
-  const _LectorScenarioCard({required this.match, this.opportunity});
+class _LectorSynthesisCard extends StatelessWidget {
+  const _LectorSynthesisCard({
+    required this.match,
+    required this.ticketDraftListenable,
+    required this.onToggleTicket,
+    this.opportunity,
+  });
 
   final MatchBoardItem match;
   final Opportunity? opportunity;
+  final ValueListenable<TicketDraft>? ticketDraftListenable;
+  final ValueChanged<TicketDraftSelection>? onToggleTicket;
 
   @override
   Widget build(BuildContext context) {
@@ -706,328 +798,41 @@ class _LectorScenarioCard extends StatelessWidget {
     final surfaces = context.surfaces;
     final title = _scenarioTitle(match);
     final count = _scenarioReadingCount(match);
-    final recommendedMarket = _scenarioRecommendedMarket(match, opportunity);
-
-    return Material(
-      color: AppColors.transparent,
-      child: InkWell(
-        onTap: () => _showScenarioReadingsSheet(
-          context,
-          match,
-          opportunity: opportunity,
-        ),
-        borderRadius: BorderRadius.circular(AppRadius.control),
-        child: _LectorGlassCard(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: brand.accent.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(AppRadius.odds),
-                    ),
-                    child: Icon(
-                      Icons.track_changes_rounded,
-                      color: brand.accent,
-                      size: 25,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title.toUpperCase(),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: textColors.primary,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '$count lecture${count > 1 ? 's' : ''} convergent',
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: brand.accent,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  _ScenarioMiniDuel(match: match),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                _scenarioSummary(match),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: textColors.secondary,
-                  height: 1.35,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 9),
-              Divider(height: 1, color: surfaces.border),
-              const SizedBox(height: 7),
-              if (_hasScenarioRecommendedPick(recommendedMarket)) ...[
-                _ScenarioRecommendedPick(
-                  match: match,
-                  recommendedMarket: recommendedMarket!,
-                ),
-                const SizedBox(height: 4),
-              ],
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: () => _showScenarioReadingsSheet(
-                    context,
-                    match,
-                    opportunity: opportunity,
-                  ),
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(0, 36),
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    foregroundColor: brand.accent,
-                  ),
-                  label: Text(
-                    'Voir les $count lectures',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: brand.accent,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  icon: const Icon(Icons.chevron_right_rounded, size: 20),
-                  iconAlignment: IconAlignment.end,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    final scenarioRecommendedMarket = _scenarioRecommendedMarket(
+      match,
+      opportunity,
     );
-  }
-}
-
-class _ScenarioRecommendedPick extends StatelessWidget {
-  const _ScenarioRecommendedPick({
-    required this.match,
-    required this.recommendedMarket,
-  });
-
-  final MatchBoardItem match;
-  final RecommendedMarket recommendedMarket;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final brand = context.brand;
-    final textColors = context.textColors;
-    final selection = recommendedMarket.selection;
-    final label = _scenarioRecommendedPickLabel(match, recommendedMarket);
-
-    if (label == null) {
-      return const SizedBox.shrink();
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(Icons.trending_up_rounded, color: brand.accent, size: 20),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Pari recommandé',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: textColors.secondary,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                maxLines: 2,
-                overflow: TextOverflow.clip,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: brand.accent,
-                  fontWeight: FontWeight.w900,
-                  height: 1.2,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        _ScenarioOddsBadge(odds: selection.odds),
-      ],
+    final showsScenarioPick = _hasScenarioRecommendedPick(
+      scenarioRecommendedMarket,
     );
-  }
-}
-
-class _ScenarioOddsBadge extends StatelessWidget {
-  const _ScenarioOddsBadge({required this.odds});
-
-  final double odds;
-
-  @override
-  Widget build(BuildContext context) {
-    final brand = context.brand;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: brand.accent.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(AppRadius.chip),
-        border: Border.all(color: brand.accent.withValues(alpha: 0.18)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
-        child: SizedBox(
-          width: 42,
-          child: Center(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                odds.toStringAsFixed(2),
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: brand.accent,
-                  fontWeight: FontWeight.w900,
-                  height: 1,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
+    final recommendations = match.betRecommendations.isNotEmpty
+        ? match.betRecommendations
+        : [
+            for (final candidate in match.betCandidates)
+              _recommendationFromCandidate(candidate),
+          ];
+    final hasUnpricedRecommendation = recommendations.any(
+      (recommendation) => !recommendation.hasAvailableOdds,
     );
-  }
-}
-
-class _ScenarioMiniDuel extends StatelessWidget {
-  const _ScenarioMiniDuel({required this.match});
-
-  final MatchBoardItem match;
-
-  @override
-  Widget build(BuildContext context) {
-    final homePoints = match.analysis.homeStanding?.points;
-    final awayPoints = match.analysis.awayStanding?.points;
-    final brand = context.brand;
-    final surfaces = context.surfaces;
-
-    final total = (homePoints ?? 0) + (awayPoints ?? 0);
-    final homeFlex = total <= 0
-        ? 1
-        : ((homePoints ?? 0) * 100).clamp(16, 84).toInt();
-    final awayFlex = total <= 0
-        ? 1
-        : ((awayPoints ?? 0) * 100).clamp(16, 84).toInt();
-
-    return SizedBox(
-      width: 104,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              SportsAssetBadge(
-                size: 22,
-                imageUrl: match.homeTeam.logoUrl,
-                fallbackLabel: match.homeTeam.name,
-                backgroundColor: AppColors.transparent,
-                padding: 1,
-              ),
-              const SizedBox(width: 8),
-              SportsAssetBadge(
-                size: 22,
-                imageUrl: match.awayTeam.logoUrl,
-                fallbackLabel: match.awayTeam.name,
-                backgroundColor: AppColors.transparent,
-                padding: 1,
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.indicator),
-            child: SizedBox(
-              height: 6,
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: homeFlex,
-                    child: ColoredBox(color: brand.accent),
-                  ),
-                  Expanded(
-                    flex: awayFlex,
-                    child: ColoredBox(color: surfaces.border),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Displays every configured, analysis-backed bet. A scenario is not reduced
-/// to one arbitrary market and a direct reading gets the same visibility.
-class _LectorBetCandidatesCard extends StatelessWidget {
-  const _LectorBetCandidatesCard({
-    required this.match,
-    required this.ticketDraftListenable,
-    required this.onToggleTicket,
-  });
-
-  final MatchBoardItem match;
-  final ValueListenable<TicketDraft>? ticketDraftListenable;
-  final ValueChanged<TicketDraftSelection>? onToggleTicket;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final brand = context.brand;
-    final textColors = context.textColors;
-    final surfaces = context.surfaces;
-    final candidates = [
-      for (final candidate in match.betCandidates)
-        if (match.recommendedMarketFor(candidate) case final market?)
-          (candidate: candidate, market: market),
-    ];
 
     return _LectorGlassCard(
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
                   color: brand.accent.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(AppRadius.odds),
                 ),
                 child: Icon(
-                  Icons.receipt_long_outlined,
+                  Icons.track_changes_rounded,
                   color: brand.accent,
-                  size: 23,
+                  size: 25,
                 ),
               ),
               const SizedBox(width: 10),
@@ -1036,54 +841,107 @@ class _LectorBetCandidatesCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Paris liés à vos lectures et scénarios',
-                      style: theme.textTheme.titleSmall?.copyWith(
+                      title.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelLarge?.copyWith(
                         color: textColors.primary,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      candidates.isEmpty
-                          ? 'Aucune sélection cotée ne correspond encore à vos marchés activés.'
-                          : '${candidates.length} pari${candidates.length > 1 ? 's' : ''} compatible${candidates.length > 1 ? 's' : ''}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: candidates.isEmpty
-                            ? textColors.secondary
-                            : brand.accent,
-                        fontWeight: FontWeight.w700,
+                      '$count lecture${count > 1 ? 's' : ''} convergent',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: brand.accent,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: 6),
+              TextButton.icon(
+                onPressed: () => _showScenarioReadingsSheet(
+                  context,
+                  match,
+                  opportunity: opportunity,
+                ),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(0, 34),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  foregroundColor: brand.accent,
+                  side: BorderSide(color: brand.accent.withValues(alpha: 0.54)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.chip),
+                  ),
+                ),
+                label: Text(
+                  'Voir le détail',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: brand.accent,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                icon: const Icon(Icons.chevron_right_rounded, size: 18),
+                iconAlignment: IconAlignment.end,
+              ),
             ],
           ),
-          if (candidates.isEmpty) ...[
-            const SizedBox(height: 10),
-            Text(
-              'La lecture ou le scénario reste visible ; il faut une cote API disponible sur un de vos marchés pour associer un pari réel.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: textColors.secondary,
-                height: 1.35,
-                fontWeight: FontWeight.w600,
-              ),
+          const SizedBox(height: 9),
+          Text(
+            _scenarioSummary(match),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: textColors.secondary,
+              height: 1.3,
+              fontWeight: FontWeight.w600,
             ),
-          ] else ...[
-            const SizedBox(height: 12),
-            for (var index = 0; index < candidates.length; index += 1) ...[
-              _LectorBetCandidateRow(
+          ),
+          if (showsScenarioPick || recommendations.isNotEmpty) ...[
+            const SizedBox(height: 9),
+            Divider(height: 1, color: surfaces.border),
+            const SizedBox(height: 8),
+            if (showsScenarioPick && recommendations.isEmpty)
+              _LectorCompactOpportunityPickRow(
                 match: match,
-                candidate: candidates[index].candidate,
-                recommendedMarket: candidates[index].market,
+                recommendedMarket: scenarioRecommendedMarket!,
+              ),
+            for (var index = 0; index < recommendations.length; index += 1) ...[
+              _LectorCompactRecommendationRow(
+                match: match,
+                recommendation: recommendations[index],
                 ticketDraftListenable: ticketDraftListenable,
                 onToggleTicket: onToggleTicket,
               ),
-              if (index != candidates.length - 1) ...[
-                const SizedBox(height: 9),
-                Divider(height: 1, color: surfaces.border),
-                const SizedBox(height: 9),
-              ],
+              if (index != recommendations.length - 1)
+                const SizedBox(height: 7),
+            ],
+            if (hasUnpricedRecommendation) ...[
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: textColors.secondary,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      'Préconisations visibles · ajout au ticket indisponible jusqu’à ce qu’une cote soit disponible.',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: textColors.secondary,
+                        fontWeight: FontWeight.w600,
+                        height: 1.25,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ],
         ],
@@ -1092,18 +950,34 @@ class _LectorBetCandidatesCard extends StatelessWidget {
   }
 }
 
-class _LectorBetCandidateRow extends StatelessWidget {
-  const _LectorBetCandidateRow({
+BetRecommendation _recommendationFromCandidate(BetCandidate candidate) {
+  return BetRecommendation(
+    matchId: candidate.matchId,
+    marketId: candidate.marketId,
+    marketLabel: candidate.marketLabel,
+    selectionIntent: MarketSelectionIntent.yes,
+    selectionLabel: candidate.selectionLabel,
+    subjectTeamId: candidate.subjectTeamId,
+    subjectPlayerId: candidate.subjectPlayerId,
+    subjectPlayerName: candidate.subjectPlayerName,
+    supportingReadingIds: candidate.supportingReadingIds,
+    supportingScenarioIds: candidate.supportingScenarioIds,
+    contradictionIds: candidate.contradictionIds,
+    maturity: candidate.maturity,
+    pricedCandidate: candidate,
+  );
+}
+
+class _LectorCompactRecommendationRow extends StatelessWidget {
+  const _LectorCompactRecommendationRow({
     required this.match,
-    required this.candidate,
-    required this.recommendedMarket,
+    required this.recommendation,
     required this.ticketDraftListenable,
     required this.onToggleTicket,
   });
 
   final MatchBoardItem match;
-  final BetCandidate candidate;
-  final RecommendedMarket recommendedMarket;
+  final BetRecommendation recommendation;
   final ValueListenable<TicketDraft>? ticketDraftListenable;
   final ValueChanged<TicketDraftSelection>? onToggleTicket;
 
@@ -1112,102 +986,181 @@ class _LectorBetCandidateRow extends StatelessWidget {
     final theme = Theme.of(context);
     final brand = context.brand;
     final textColors = context.textColors;
-    final ticketSelection = TicketDraftSelection.fromMatchSelection(
-      match,
-      recommendedMarket.market,
-      recommendedMarket.selection,
-    );
-    final sourceCount =
-        candidate.supportingReadingIds.toSet().length +
-        candidate.supportingScenarioIds.toSet().length;
-    final sourceLabel = candidate.supportingScenarioIds.isNotEmpty
-        ? 'Scénario soutenu par $sourceCount élément${sourceCount > 1 ? 's' : ''}'
-        : 'Lecture configurée';
+    final surfaces = context.surfaces;
+    final warning = context.semantic.warning;
+    final candidate = recommendation.pricedCandidate;
+    final recommendedMarket = candidate == null
+        ? null
+        : match.recommendedMarketFor(candidate);
+    final selectionLabel = recommendedMarket == null
+        ? recommendation.selectionLabel
+        : _scenarioRecommendedPickLabel(match, recommendedMarket) ??
+              recommendedMarket.selection.label;
+    final ticketSelection = recommendedMarket == null
+        ? null
+        : TicketDraftSelection.fromMatchSelection(
+            match,
+            recommendedMarket.market,
+            recommendedMarket.selection,
+          );
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${recommendedMarket.market.label} · ${recommendedMarket.selection.label}',
-                style: theme.textTheme.bodyMedium?.copyWith(
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: surfaces.surfaceHover.withValues(alpha: 0.42),
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        border: Border.all(color: surfaces.border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Row(
+          children: [
+            Icon(Icons.bar_chart_rounded, color: brand.accent, size: 18),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Text(
+                selectionLabel,
+                maxLines: 2,
+                overflow: TextOverflow.clip,
+                style: theme.textTheme.labelMedium?.copyWith(
                   color: textColors.primary,
+                  fontWeight: FontWeight.w900,
+                  height: 1.2,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            if (recommendedMarket == null || !recommendation.hasAvailableOdds)
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: warning.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(AppRadius.chip),
+                  border: Border.all(color: warning.withValues(alpha: 0.46)),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 5,
+                  ),
+                  child: Text(
+                    'Cote indisponible',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: warning,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              )
+            else ...[
+              Text(
+                recommendedMarket.selection.odds.toStringAsFixed(2),
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: brand.accent,
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              const SizedBox(height: 3),
-              Text(
-                sourceLabel,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: brand.accent,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              if (candidate.abstentionReason case final reason?) ...[
-                const SizedBox(height: 4),
-                Text(
-                  reason,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: textColors.secondary,
-                    height: 1.25,
-                    fontWeight: FontWeight.w600,
-                  ),
+              if (candidate != null &&
+                  candidate.isAutomaticallyUsable &&
+                  ticketSelection != null &&
+                  ticketDraftListenable != null &&
+                  onToggleTicket != null) ...[
+                const SizedBox(width: 5),
+                ValueListenableBuilder<TicketDraft>(
+                  valueListenable: ticketDraftListenable!,
+                  builder: (context, ticket, _) {
+                    final isSelected = ticket.contains(ticketSelection.id);
+                    final blocked = ticket.containsAnotherSelectionForMatch(
+                      ticketSelection,
+                    );
+                    return IconButton.filledTonal(
+                      tooltip: isSelected
+                          ? 'Retirer du ticket'
+                          : blocked
+                          ? 'Ce match est déjà dans Mon ticket'
+                          : 'Ajouter au ticket',
+                      constraints: const BoxConstraints.tightFor(
+                        width: 32,
+                        height: 32,
+                      ),
+                      padding: EdgeInsets.zero,
+                      onPressed: isSelected || !blocked
+                          ? () => onToggleTicket!(ticketSelection)
+                          : null,
+                      icon: Icon(
+                        isSelected
+                            ? Icons.check_rounded
+                            : blocked
+                            ? Icons.block_rounded
+                            : Icons.add_rounded,
+                        size: 18,
+                      ),
+                    );
+                  },
                 ),
               ],
             ],
-          ),
+          ],
         ),
-        const SizedBox(width: 10),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
+      ),
+    );
+  }
+}
+
+class _LectorCompactOpportunityPickRow extends StatelessWidget {
+  const _LectorCompactOpportunityPickRow({
+    required this.match,
+    required this.recommendedMarket,
+  });
+
+  final MatchBoardItem match;
+  final RecommendedMarket recommendedMarket;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final brand = context.brand;
+    final textColors = context.textColors;
+    final surfaces = context.surfaces;
+    final label = _scenarioRecommendedPickLabel(match, recommendedMarket);
+
+    if (label == null) {
+      return const SizedBox.shrink();
+    }
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: surfaces.surfaceHover.withValues(alpha: 0.42),
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        border: Border.all(color: surfaces.border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Row(
           children: [
+            Icon(Icons.bar_chart_rounded, color: brand.accent, size: 18),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.clip,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: textColors.primary,
+                  fontWeight: FontWeight.w900,
+                  height: 1.2,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
             Text(
-              recommendedMarket.selection.odds > 0
-                  ? recommendedMarket.selection.odds.toStringAsFixed(2)
-                  : '—',
-              style: theme.textTheme.titleMedium?.copyWith(
+              recommendedMarket.selection.odds.toStringAsFixed(2),
+              style: theme.textTheme.labelLarge?.copyWith(
                 color: brand.accent,
                 fontWeight: FontWeight.w900,
               ),
             ),
-            if (candidate.isAutomaticallyUsable &&
-                ticketSelection != null &&
-                ticketDraftListenable != null &&
-                onToggleTicket != null) ...[
-              const SizedBox(height: 4),
-              ValueListenableBuilder<TicketDraft>(
-                valueListenable: ticketDraftListenable!,
-                builder: (context, ticket, _) {
-                  final isSelected = ticket.contains(ticketSelection.id);
-                  final blocked = ticket.containsAnotherSelectionForMatch(
-                    ticketSelection,
-                  );
-                  return IconButton.filledTonal(
-                    tooltip: isSelected
-                        ? 'Retirer du ticket'
-                        : blocked
-                        ? 'Ce match est déjà dans Mon ticket'
-                        : 'Ajouter au ticket',
-                    onPressed: isSelected || !blocked
-                        ? () => onToggleTicket!(ticketSelection)
-                        : null,
-                    icon: Icon(
-                      isSelected
-                          ? Icons.check_rounded
-                          : blocked
-                          ? Icons.block_rounded
-                          : Icons.add_rounded,
-                    ),
-                  );
-                },
-              ),
-            ],
           ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -2613,6 +2566,19 @@ List<_StandingViewDefinition> _standingViews(
     final scenario = FootballScenarioCatalog.byId(scenarioId);
     if (scenario == null) continue;
     for (final requirement in scenario.requirements) {
+      if (requirement.readingId == 'venue_strength') {
+        add(
+          ChampionshipStandingView.home,
+          sourceId: scenarioId,
+          personalized: true,
+        );
+        add(
+          ChampionshipStandingView.away,
+          sourceId: scenarioId,
+          personalized: true,
+        );
+        continue;
+      }
       final view = _standingViewForReading(requirement.readingId);
       if (view != null) add(view, sourceId: scenarioId, personalized: true);
     }
@@ -2634,9 +2600,7 @@ List<_StandingViewDefinition> _standingViews(
 ChampionshipStandingView? _standingViewForReading(String readingId) {
   return switch (readingId) {
     'strong_home_team' || 'weak_home_team' => ChampionshipStandingView.home,
-    'strong_away_team' ||
-    'weak_away_team' ||
-    'venue_strength' => ChampionshipStandingView.away,
+    'strong_away_team' || 'weak_away_team' => ChampionshipStandingView.away,
     'home_away_mismatch' => ChampionshipStandingView.home,
     'positive_streak' ||
     'negative_streak' ||
@@ -2873,25 +2837,17 @@ class _StandingUnifiedLegend extends StatelessWidget {
                   ? null
                   : 'Tiers non calculables pour ce classement.',
               children: [
-                for (final entry in orderedTiers.indexed)
+                for (final tier in orderedTiers)
                   _TierLegendItem(
-                    color: _tierBandColor(
-                      context,
-                      entry.$1,
-                      orderedTiers.length,
-                    ),
-                    label: _tierBandLabel(
-                      entry.$1,
-                      orderedTiers.length,
-                      includeTierPrefix: false,
-                    ),
+                    color: _tierBandColor(context, tier),
+                    label: _tierLegendLabel(tier),
                   ),
               ],
             ),
             if (hasTierSnapshot || hasOfficialZones) ...[
               const SizedBox(height: 9),
               Text(
-                'Numéro coloré : enjeu officiel · bande latérale : Tier Lector',
+                'Numéro coloré : enjeu officiel · bande T1–T5 : Tier Lector',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: context.textColors.secondary,
                   fontWeight: FontWeight.w600,
@@ -3166,6 +3122,12 @@ class _MobileStandingTable extends StatelessWidget {
   Widget build(BuildContext context) {
     final surfaces = context.surfaces;
     final groups = _standingTierGroups(standings, tierSnapshot);
+    final hasTierBands = groups.any((group) => group.tier != null);
+    final leadingWidth = hasTierBands ? _standingTierBandWidth : 0.0;
+    final minimumTableWidth =
+        _standingTableContentWidth +
+        leadingWidth +
+        (_standingRowHorizontalPadding * 2);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.control),
@@ -3175,32 +3137,43 @@ class _MobileStandingTable extends StatelessWidget {
           border: Border.all(color: surfaces.border),
           borderRadius: BorderRadius.circular(AppRadius.control),
         ),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SizedBox(
-            width: 584,
-            child: Column(
-              children: [
-                _MobileStandingRow.header(
-                  lastColumnLabel: lastColumnLabel,
-                  leadingWidth: 56,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final availableWidth = constraints.maxWidth;
+            final tableWidth =
+                availableWidth.isFinite && availableWidth > minimumTableWidth
+                ? availableWidth
+                : minimumTableWidth;
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: tableWidth,
+                child: Column(
+                  children: [
+                    _MobileStandingRow.header(
+                      lastColumnLabel: lastColumnLabel,
+                      leadingWidth: leadingWidth,
+                    ),
+                    for (final entry in groups.indexed)
+                      _StandingTierGroupSection(
+                        match: match,
+                        group: entry.$2,
+                        showOfficialZones: showOfficialZones,
+                      ),
+                  ],
                 ),
-                for (final entry in groups.indexed)
-                  _StandingTierGroupSection(
-                    match: match,
-                    group: entry.$2,
-                    groupIndex: entry.$1,
-                    groupCount: groups.length,
-                    showOfficialZones: showOfficialZones,
-                  ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
   }
 }
+
+const _standingTierBandWidth = 24.0;
+const _standingRowHorizontalPadding = 4.0;
+const _standingTableContentWidth = 450.0;
 
 class _StandingTierGroupData {
   const _StandingTierGroupData({required this.tier, required this.rows});
@@ -3229,48 +3202,54 @@ class _StandingTierGroupSection extends StatelessWidget {
   const _StandingTierGroupSection({
     required this.match,
     required this.group,
-    required this.groupIndex,
-    required this.groupCount,
     required this.showOfficialZones,
   });
 
   final MatchBoardItem match;
   final _StandingTierGroupData group;
-  final int groupIndex;
-  final int groupCount;
   final bool showOfficialZones;
 
   @override
   Widget build(BuildContext context) {
-    final tierColor = group.tier == null
-        ? null
-        : _tierBandColor(context, groupIndex, groupCount);
-    final tierLabel = group.tier == null
-        ? null
-        : _tierBandLabel(groupIndex, groupCount);
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _StandingTierBand(color: tierColor, label: tierLabel),
-          Expanded(
-            child: Column(
-              children: [
-                for (final standing in group.rows)
-                  _MobileStandingRow(
-                    standing: standing,
-                    team: _standingTeam(match, standing),
-                    highlight: _standingHighlight(match, standing),
-                    tierLabel: tierLabel,
-                    officialZone: showOfficialZones
-                        ? _officialStandingZone(standing)
-                        : null,
-                  ),
-              ],
-            ),
+    final tier = group.tier;
+    final tierColor = tier == null ? null : _tierBandColor(context, tier);
+    final tierCode = tier == null ? null : _tierCode(tier);
+    final tierSemanticLabel = tier == null ? null : _tierDisplayLabel(tier);
+    final rows = Column(
+      children: [
+        for (final standing in group.rows)
+          _MobileStandingRow(
+            standing: standing,
+            team: _standingTeam(match, standing),
+            highlight: _standingHighlight(match, standing),
+            tierLabel: tierSemanticLabel,
+            officialZone: showOfficialZones
+                ? _officialStandingZone(standing)
+                : null,
           ),
-        ],
-      ),
+      ],
+    );
+
+    // Without a tier snapshot there is no reason to reserve a left rail.
+    // When a tier exists, overlay the compact rail so it is sized by the
+    // actual rows rather than increasing the group's height.
+    if (group.tier == null) {
+      return rows;
+    }
+    return Stack(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: _standingTierBandWidth),
+          child: rows,
+        ),
+        Positioned(
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: _standingTierBandWidth,
+          child: _StandingTierBand(color: tierColor, label: tierCode),
+        ),
+      ],
     );
   }
 }
@@ -3285,7 +3264,7 @@ class _StandingTierBand extends StatelessWidget {
   Widget build(BuildContext context) {
     final borderColor = context.surfaces.border;
     return Container(
-      width: 56,
+      width: _standingTierBandWidth,
       decoration: BoxDecoration(
         border: Border(
           left: BorderSide(color: color ?? borderColor, width: 5),
@@ -3295,20 +3274,13 @@ class _StandingTierBand extends StatelessWidget {
       alignment: Alignment.center,
       child: label == null
           ? const SizedBox.shrink()
-          : Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: RotatedBox(
-                quarterTurns: 3,
-                child: Text(
-                  label!,
-                  maxLines: 1,
-                  overflow: TextOverflow.fade,
-                  softWrap: false,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+          : Text(
+              label!,
+              maxLines: 1,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: color,
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
               ),
             ),
     );
@@ -3377,13 +3349,13 @@ class _MobileStandingRow extends StatelessWidget {
         children: [
           _StandingRankCell(
             rank: _intValue(row.rank),
-            width: 34,
+            width: 24,
             color: rankColor,
             tierLabel: tierLabel,
             officialZone: officialZone,
           ),
           SizedBox(
-            width: 164,
+            width: 142,
             child: _StandingTeamCell(
               team: team,
               teamName: row.teamName,
@@ -3393,36 +3365,36 @@ class _MobileStandingRow extends StatelessWidget {
           ),
           _StandingTableCell(
             _intValue(row.played),
-            width: 36,
+            width: 32,
             color: textColor,
           ),
-          _StandingTableCell(_intValue(row.wins), width: 34, color: textColor),
-          _StandingTableCell(_intValue(row.draws), width: 34, color: textColor),
+          _StandingTableCell(_intValue(row.wins), width: 30, color: textColor),
+          _StandingTableCell(_intValue(row.draws), width: 30, color: textColor),
           _StandingTableCell(
             _intValue(row.losses),
-            width: 34,
+            width: 30,
             color: textColor,
           ),
           _StandingTableCell(
             _intValue(row.goalsFor),
-            width: 42,
+            width: 38,
             color: textColor,
           ),
           _StandingTableCell(
             _intValue(row.goalsAgainst),
-            width: 42,
+            width: 38,
             color: textColor,
           ),
           _StandingTableCell(
             _signedValue(row.goalDiff),
-            width: 50,
+            width: 46,
             color: _goalDiffColor(context, row.goalDiff),
           ),
           _StandingTableCell(
             row.metricValue == null
                 ? _intValue(row.points)
                 : row.metricValue!.toStringAsFixed(2),
-            width: 44,
+            width: 40,
             color: textColor,
             bold: true,
           ),
@@ -3586,24 +3558,24 @@ class _StandingTableCells extends StatelessWidget {
     return Row(
       children: [
         SizedBox(width: leadingWidth),
-        _StandingTableCell('#', width: 34, color: color, isHeader: true),
+        _StandingTableCell('#', width: 24, color: color, isHeader: true),
         _StandingTableCell(
           'Équipe',
-          width: 164,
+          width: 142,
           color: color,
           isHeader: true,
           alignment: Alignment.centerLeft,
         ),
-        _StandingTableCell('J', width: 36, color: color, isHeader: true),
-        _StandingTableCell('V', width: 34, color: color, isHeader: true),
-        _StandingTableCell('N', width: 34, color: color, isHeader: true),
-        _StandingTableCell('D', width: 34, color: color, isHeader: true),
-        _StandingTableCell('BP', width: 42, color: color, isHeader: true),
-        _StandingTableCell('BC', width: 42, color: color, isHeader: true),
-        _StandingTableCell('Diff', width: 50, color: color, isHeader: true),
+        _StandingTableCell('J', width: 32, color: color, isHeader: true),
+        _StandingTableCell('V', width: 30, color: color, isHeader: true),
+        _StandingTableCell('N', width: 30, color: color, isHeader: true),
+        _StandingTableCell('D', width: 30, color: color, isHeader: true),
+        _StandingTableCell('BP', width: 38, color: color, isHeader: true),
+        _StandingTableCell('BC', width: 38, color: color, isHeader: true),
+        _StandingTableCell('Diff', width: 46, color: color, isHeader: true),
         _StandingTableCell(
           lastColumnLabel,
-          width: 44,
+          width: 40,
           color: color,
           isHeader: true,
         ),
@@ -3788,26 +3760,26 @@ class _OfficialStandingLegendChip extends StatelessWidget {
   }
 }
 
-Color _tierBandColor(BuildContext context, int index, int count) {
-  if (count <= 1) {
-    return context.brand.accent;
-  }
+Color _tierBandColor(BuildContext context, TierLabel tier) {
+  final progress = (tier.ordinal - 1) / 4;
   return Color.lerp(
         context.brand.accent,
         context.strategies.violetStyle.color,
-        index / (count - 1),
+        progress,
       ) ??
       context.brand.accent;
 }
 
-String _tierBandLabel(int index, int count, {bool includeTierPrefix = true}) {
-  final letter = String.fromCharCode('A'.codeUnitAt(0) + index);
-  final descriptor = index == 0
-      ? 'Élite'
-      : index == count - 1
-      ? 'Sous pression'
-      : 'Course';
-  return includeTierPrefix ? 'Tier $letter · $descriptor' : descriptor;
+String _tierCode(TierLabel tier) => 'T${tier.ordinal}';
+
+String _tierLegendLabel(TierLabel tier) {
+  return switch (tier) {
+    TierLabel.tier1Podium => 'T1 · Podium',
+    TierLabel.tier2UpperChampionship => 'T2 · Haut de tableau',
+    TierLabel.tier3MiddleChampionship => 'T3 · Milieu de tableau',
+    TierLabel.tier4LowerChampionship => 'T4 · Bas de tableau',
+    TierLabel.tier5Relegation => 'T5 · Relégation',
+  };
 }
 
 String _tierDisplayLabel(TierLabel tier) {
@@ -3851,7 +3823,10 @@ class _MobileStandingRowShell extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+        padding: const EdgeInsets.symmetric(
+          horizontal: _standingRowHorizontalPadding,
+          vertical: 5,
+        ),
         child: child,
       ),
     );
@@ -5832,7 +5807,7 @@ class _ScenarioEvidenceSection extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.surfaces.surfaceHover.withValues(alpha: 0.38),
         borderRadius: BorderRadius.circular(AppRadius.input),
-        border: Border.all(color: color.withValues(alpha: 0.5)),
+        border: Border.all(color: context.surfaces.border),
       ),
       child: Padding(
         padding: const EdgeInsets.all(10),
@@ -5851,6 +5826,7 @@ class _ScenarioEvidenceSection extends StatelessWidget {
                 item: indexed.$2,
                 color: color,
                 icon: Icons.arrow_upward_rounded,
+                useReadingIdentity: true,
               ),
               if (indexed.$1 < items.length - 1) const SizedBox(height: 7),
             ],
@@ -5995,12 +5971,12 @@ class _ScenarioNoCounterEvidenceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = context.semantic.success;
+    final color = context.textColors.secondary;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.07),
+        color: context.surfaces.surfaceHover.withValues(alpha: 0.28),
         borderRadius: BorderRadius.circular(AppRadius.input),
-        border: Border.all(color: color.withValues(alpha: 0.28)),
+        border: Border.all(color: context.surfaces.border),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
@@ -6035,7 +6011,7 @@ class _ScenarioNoCounterEvidenceCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Les données disponibles ne présentent pas de résistance explicite à cette lecture.',
+                    'Aucune résistance explicite dans les données analysées.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: context.textColors.secondary,
                       height: 1.25,
@@ -6057,11 +6033,13 @@ class _ScenarioEvidenceRow extends StatelessWidget {
     required this.item,
     required this.color,
     required this.icon,
+    this.useReadingIdentity = false,
   });
 
   final _ScenarioEvidenceDetail item;
   final Color color;
   final IconData icon;
+  final bool useReadingIdentity;
 
   @override
   Widget build(BuildContext context) {
@@ -6069,64 +6047,99 @@ class _ScenarioEvidenceRow extends StatelessWidget {
     final title = item.title;
     final description = item.description;
     final strengthLabel = item.strengthLabel;
+    final contextLabel = item.contextLabel;
+    final readingId = item.readingId;
+    final readingIdentity = readingId == null
+        ? null
+        : context.opportunities.readingIdentityForId(readingId);
+    final itemColor = useReadingIdentity && readingIdentity != null
+        ? readingIdentity.color
+        : color;
+    final itemIcon = useReadingIdentity && readingIdentity != null
+        ? readingIdentity.icon
+        : icon;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.surfaces.surface.withValues(alpha: 0.68),
-        borderRadius: BorderRadius.circular(AppRadius.control),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.control),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: context.surfaces.surface.withValues(alpha: 0.68),
+          border: Border.all(color: context.surfaces.border),
+        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(AppRadius.chip),
-              ),
-              child: SizedBox.square(
-                dimension: 28,
-                child: Icon(icon, color: color, size: 16),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.xs),
+            Container(width: 3, height: 74, color: itemColor),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: context.textColors.primary,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 9),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: itemColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(AppRadius.chip),
                       ),
-                      if (strengthLabel != null) ...[
-                        const SizedBox(width: 8),
-                        _ScenarioImpactPill(label: strengthLabel, color: color),
-                      ],
-                    ],
-                  ),
-                  if (description != null) ...[
-                    const SizedBox(height: 3),
-                    Text(
-                      description,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: context.textColors.secondary,
-                        fontSize: 11,
-                        height: 1.28,
-                        fontWeight: FontWeight.w600,
+                      child: SizedBox.square(
+                        dimension: 28,
+                        child: Icon(itemIcon, color: itemColor, size: 16),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  title,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: context.textColors.primary,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                              if (strengthLabel != null) ...[
+                                const SizedBox(width: 8),
+                                _ScenarioImpactPill(
+                                  label: strengthLabel,
+                                  color: itemColor,
+                                ),
+                              ],
+                            ],
+                          ),
+                          if (contextLabel != null) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              contextLabel,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: itemColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                          if (description != null) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              description,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: context.textColors.secondary,
+                                fontSize: 11,
+                                height: 1.28,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ],
-                ],
+                ),
               ),
             ),
           ],
@@ -7465,6 +7478,8 @@ class _ScenarioEvidenceDetail {
     required this.title,
     this.description,
     this.strengthLabel,
+    this.contextLabel,
+    this.readingId,
   });
 
   factory _ScenarioEvidenceDetail.fromAssessment(
@@ -7480,12 +7495,23 @@ class _ScenarioEvidenceDetail {
       ),
       description: _scenarioAssessmentDescription(item),
       strengthLabel: _scenarioReadingStrengthLabel(reading.strength),
+      readingId: reading.id,
+      contextLabel: switch (reading.competitionScope) {
+        ReadingCompetitionScope.domestic =>
+          'Championnat national · ${reading.sourceCompetitionName ?? 'source nationale'}',
+        ReadingCompetitionScope.tournament =>
+          'Compétition européenne · ${reading.sourceCompetitionName ?? 'tournoi'}',
+        ReadingCompetitionScope.combined => 'Lecture croisée',
+        ReadingCompetitionScope.matchCompetition => null,
+      },
     );
   }
 
   final String title;
   final String? description;
   final String? strengthLabel;
+  final String? contextLabel;
+  final String? readingId;
 }
 
 List<_ScenarioReading> _scenarioReadingsFor(
@@ -7788,8 +7814,15 @@ CopilotArgumentType _scenarioArgumentTypeForSignal(String signalId) {
     'structural_level_gap' ||
     'balanced_hierarchy' => CopilotArgumentType.rankingGap,
     'positive_streak' ||
-    'improving_form' => CopilotArgumentType.strongRecentForm,
-    'negative_streak' || 'declining_form' => CopilotArgumentType.weakRecentForm,
+    'improving_form' ||
+    'strong_first_half_team' ||
+    'frequent_halftime_lead' ||
+    'strong_second_half_team' => CopilotArgumentType.strongRecentForm,
+    'negative_streak' ||
+    'declining_form' ||
+    'weak_first_half_team' ||
+    'frequent_halftime_draw' ||
+    'weak_second_half_team' => CopilotArgumentType.weakRecentForm,
     'prolific_attack' ||
     'high_xg_creation' ||
     'offensive_underperformance' ||
@@ -7800,7 +7833,14 @@ CopilotArgumentType _scenarioArgumentTypeForSignal(String signalId) {
     'solid_defense' ||
     'frequent_clean_sheet' ||
     'defensive_overperformance' => CopilotArgumentType.closedMatch,
-    'open_match_profile' || 'frequent_over_25' => CopilotArgumentType.openMatch,
+    'open_match_profile' ||
+    'frequent_over_25' ||
+    'early_scoring_0_15' ||
+    'early_conceding_0_15' ||
+    'pre_halftime_scoring_31_45' ||
+    'pre_halftime_conceding_31_45' ||
+    'late_scoring_76_90' ||
+    'late_conceding_76_90' => CopilotArgumentType.openMatch,
     'closed_match_profile' ||
     'frequent_under_25' => CopilotArgumentType.closedMatch,
     _ => CopilotArgumentType.openMatch,
@@ -7831,7 +7871,13 @@ CopilotArgumentFamily _scenarioArgumentFamilyForSignal(String signalId) {
     'open_match_profile' ||
     'frequent_over_25' ||
     'closed_match_profile' ||
-    'frequent_under_25' => CopilotArgumentFamily.rhythm,
+    'frequent_under_25' ||
+    'early_scoring_0_15' ||
+    'early_conceding_0_15' ||
+    'pre_halftime_scoring_31_45' ||
+    'pre_halftime_conceding_31_45' ||
+    'late_scoring_76_90' ||
+    'late_conceding_76_90' => CopilotArgumentFamily.rhythm,
     'post_match_xg_rejected' ||
     'misleading_result' ||
     'conflicting_signals' => CopilotArgumentFamily.contradiction,
@@ -7863,7 +7909,13 @@ CopilotEvidenceAction _scenarioEvidenceActionForSignal(String signalId) {
     'open_match_profile' ||
     'frequent_over_25' ||
     'closed_match_profile' ||
-    'frequent_under_25' => CopilotEvidenceAction.rhythm,
+    'frequent_under_25' ||
+    'early_scoring_0_15' ||
+    'early_conceding_0_15' ||
+    'pre_halftime_scoring_31_45' ||
+    'pre_halftime_conceding_31_45' ||
+    'late_scoring_76_90' ||
+    'late_conceding_76_90' => CopilotEvidenceAction.rhythm,
     _ => CopilotEvidenceAction.results,
   };
 }

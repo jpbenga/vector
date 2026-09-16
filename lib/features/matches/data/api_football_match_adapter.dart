@@ -78,6 +78,33 @@ class _StandingAccumulatorRow {
   int goalsAgainst = 0;
 }
 
+class _GoalProfileAccumulator {
+  _GoalProfileAccumulator(this.teamId, this.teamName);
+  final int teamId;
+  final String teamName;
+  int played = 0;
+  int over25 = 0;
+  int btts = 0;
+  int totalGoals = 0;
+  int halftimeLeads = 0;
+  int retainedLeads = 0;
+  int halftimeDeficits = 0;
+  int recoveredDeficits = 0;
+
+  TeamGoalProfileSnapshot snapshot() => TeamGoalProfileSnapshot(
+    teamId: teamId,
+    teamName: teamName,
+    played: played,
+    over25: over25,
+    btts: btts,
+    totalGoals: totalGoals,
+    halftimeLeads: halftimeLeads,
+    retainedLeads: retainedLeads,
+    halftimeDeficits: halftimeDeficits,
+    recoveredDeficits: recoveredDeficits,
+  );
+}
+
 class ApiFootballMatchAdapter {
   const ApiFootballMatchAdapter();
 
@@ -87,6 +114,7 @@ class ApiFootballMatchAdapter {
     final raw = _map(snapshot['raw']);
     final capturedAt = _dateTimeValue(snapshot['captured_at']);
     final fixtures = _list(raw['fixtures']);
+    final leagueFixtures = _list(raw['league_fixtures']);
     final oddsByFixtureId = _oddsByFixtureId(_list(raw['odds']));
     final expectedGoalsRows = _list(raw['expected_goals']);
     final standingTablesByLeagueId = _standingTablesByLeagueId(
@@ -108,12 +136,24 @@ class ApiFootballMatchAdapter {
     final recentMatchesByLeagueTeamId = _recentLeagueMatchesByLeagueTeamId(
       _list(raw['recent_league_matches']),
     );
-    final expectedGoalsByTeamId = _expectedGoalsByTeamId(
+    final expectedGoalsByLeagueTeamId = _expectedGoalsByLeagueTeamId(
       _list(raw['expected_goals']),
       capturedAt,
     );
     final playerStatisticsByLeagueTeamId = _playerStatisticsByLeagueTeamId(
       _list(raw['player_statistics']),
+    );
+    final injuriesByFixtureId = _injuriesByFixtureId(_list(raw['injuries']));
+    final performanceStatisticsByLeagueTeamId =
+        _performanceStatisticsByLeagueTeamId(
+          _list(raw['performance_statistics']),
+        );
+    final goalProfilesByLeagueTeamId = _goalProfilesByLeagueTeamId(
+      leagueFixtures,
+      capturedAt,
+    );
+    final domesticCompetitionByTeamId = _domesticCompetitionByTeamId(
+      _list(raw['domestic_team_contexts']),
     );
     final containsPredictions = _list(raw['predictions']).isNotEmpty;
     final items = <MatchBoardItem>[];
@@ -127,8 +167,13 @@ class ApiFootballMatchAdapter {
         standingsByLeagueTeamId,
         statisticsByLeagueTeamId,
         recentMatchesByLeagueTeamId,
-        expectedGoalsByTeamId,
+        expectedGoalsByLeagueTeamId,
         playerStatisticsByLeagueTeamId,
+        injuriesByFixtureId,
+        performanceStatisticsByLeagueTeamId,
+        goalProfilesByLeagueTeamId,
+        domesticCompetitionByTeamId,
+        leagueFixtures,
         capturedAt,
         containsPredictions,
       );
@@ -149,9 +194,15 @@ class ApiFootballMatchAdapter {
     Map<String, TeamStandingSnapshot> standingsByLeagueTeamId,
     Map<String, TeamStatisticsSnapshot> statisticsByLeagueTeamId,
     Map<String, List<TeamRecentMatchSnapshot>> recentMatchesByLeagueTeamId,
-    Map<int, TeamExpectedGoalsSnapshot> expectedGoalsByTeamId,
+    Map<String, TeamExpectedGoalsSnapshot> expectedGoalsByLeagueTeamId,
     Map<String, List<PlayerSeasonStatisticsSnapshot>>
     playerStatisticsByLeagueTeamId,
+    Map<int, List<PlayerUnavailableSnapshot>> injuriesByFixtureId,
+    Map<String, TeamPerformanceStatisticsSnapshot>
+    performanceStatisticsByLeagueTeamId,
+    Map<String, TeamGoalProfileSnapshot> goalProfilesByLeagueTeamId,
+    Map<int, CompetitionInfo> domesticCompetitionByTeamId,
+    List<Object?> leagueFixtures,
     DateTime? capturedAt,
     bool containsPredictions,
   ) {
@@ -253,6 +304,45 @@ class ApiFootballMatchAdapter {
           leagueId,
           awayTeamId,
         ),
+        leagueTeamStatistics: leagueId == null
+            ? const []
+            : List.unmodifiable(
+                statisticsByLeagueTeamId.entries
+                    .where((entry) => entry.key.startsWith('$leagueId:'))
+                    .map((entry) => entry.value),
+              ),
+        homePerformanceStatistics: leagueId == null || homeTeamId == null
+            ? null
+            : performanceStatisticsByLeagueTeamId[_standingKey(
+                leagueId,
+                homeTeamId,
+              )],
+        awayPerformanceStatistics: leagueId == null || awayTeamId == null
+            ? null
+            : performanceStatisticsByLeagueTeamId[_standingKey(
+                leagueId,
+                awayTeamId,
+              )],
+        leaguePerformanceStatistics: leagueId == null
+            ? const []
+            : List.unmodifiable(
+                performanceStatisticsByLeagueTeamId.entries
+                    .where((entry) => entry.key.startsWith('$leagueId:'))
+                    .map((entry) => entry.value),
+              ),
+        homeGoalProfile: leagueId == null || homeTeamId == null
+            ? null
+            : goalProfilesByLeagueTeamId[_standingKey(leagueId, homeTeamId)],
+        awayGoalProfile: leagueId == null || awayTeamId == null
+            ? null
+            : goalProfilesByLeagueTeamId[_standingKey(leagueId, awayTeamId)],
+        leagueGoalProfiles: leagueId == null
+            ? const []
+            : List.unmodifiable(
+                goalProfilesByLeagueTeamId.entries
+                    .where((entry) => entry.key.startsWith('$leagueId:'))
+                    .map((entry) => entry.value),
+              ),
         homeRecentLeagueMatches: _recentMatchesFor(
           recentMatchesByLeagueTeamId,
           leagueId,
@@ -263,12 +353,26 @@ class ApiFootballMatchAdapter {
           leagueId,
           awayTeamId,
         ),
-        homeExpectedGoals: homeTeamId == null
+        leagueRecentLeagueMatches: leagueId == null
+            ? const {}
+            : Map.unmodifiable({
+                for (final entry in recentMatchesByLeagueTeamId.entries)
+                  if (entry.key.startsWith('$leagueId:'))
+                    int.parse(entry.key.split(':').last): entry.value,
+              }),
+        homeExpectedGoals: homeTeamId == null || leagueId == null
             ? null
-            : expectedGoalsByTeamId[homeTeamId],
-        awayExpectedGoals: awayTeamId == null
+            : expectedGoalsByLeagueTeamId[_standingKey(leagueId, homeTeamId)],
+        awayExpectedGoals: awayTeamId == null || leagueId == null
             ? null
-            : expectedGoalsByTeamId[awayTeamId],
+            : expectedGoalsByLeagueTeamId[_standingKey(leagueId, awayTeamId)],
+        leagueExpectedGoals: leagueId == null
+            ? const []
+            : List.unmodifiable(
+                expectedGoalsByLeagueTeamId.entries
+                    .where((entry) => entry.key.startsWith('$leagueId:'))
+                    .map((entry) => entry.value),
+              ),
         homePlayerStatistics: homeTeamId == null || leagueId == null
             ? const []
             : playerStatisticsByLeagueTeamId[_standingKey(
@@ -283,10 +387,175 @@ class ApiFootballMatchAdapter {
                     awayTeamId,
                   )] ??
                   const [],
+        leaguePlayerStatistics: leagueId == null
+            ? const []
+            : List.unmodifiable(
+                playerStatisticsByLeagueTeamId.entries
+                    .where((entry) => entry.key.startsWith('$leagueId:'))
+                    .expand((entry) => entry.value),
+              ),
+        unavailablePlayers: apiFixtureId == null
+            ? const []
+            : injuriesByFixtureId[apiFixtureId] ?? const [],
+        homeDomesticContext: _domesticContextFor(
+          teamId: homeTeamId,
+          competitions: domesticCompetitionByTeamId,
+          standingsByLeagueId: standingsByLeagueId,
+          standingTablesByLeagueId: standingTablesByLeagueId,
+          standingsByLeagueTeamId: standingsByLeagueTeamId,
+          statisticsByLeagueTeamId: statisticsByLeagueTeamId,
+          recentMatchesByLeagueTeamId: recentMatchesByLeagueTeamId,
+          expectedGoalsByLeagueTeamId: expectedGoalsByLeagueTeamId,
+          playerStatisticsByLeagueTeamId: playerStatisticsByLeagueTeamId,
+        ),
+        awayDomesticContext: _domesticContextFor(
+          teamId: awayTeamId,
+          competitions: domesticCompetitionByTeamId,
+          standingsByLeagueId: standingsByLeagueId,
+          standingTablesByLeagueId: standingTablesByLeagueId,
+          standingsByLeagueTeamId: standingsByLeagueTeamId,
+          statisticsByLeagueTeamId: statisticsByLeagueTeamId,
+          recentMatchesByLeagueTeamId: recentMatchesByLeagueTeamId,
+          expectedGoalsByLeagueTeamId: expectedGoalsByLeagueTeamId,
+          playerStatisticsByLeagueTeamId: playerStatisticsByLeagueTeamId,
+        ),
+        tournamentPaths:
+            leagueId == null ||
+                kickoff == null ||
+                !const {2, 3, 848}.contains(leagueId)
+            ? const []
+            : _tournamentPaths(
+                leagueId: leagueId,
+                kickoff: kickoff,
+                fixtures: leagueFixtures,
+                standings: standingsByLeagueId[leagueId] ?? const [],
+              ),
         containsPredictions: containsPredictions,
       ),
       compatibility: 0,
       signals: const [],
+    );
+  }
+
+  List<TournamentPathSnapshot> _tournamentPaths({
+    required int leagueId,
+    required DateTime kickoff,
+    required List<Object?> fixtures,
+    required List<TeamStandingSnapshot> standings,
+  }) {
+    final standingByTeam = {for (final row in standings) row.teamId: row};
+    final opponentPpgByTeam = <int, List<double>>{};
+    final teamNames = <int, String>{};
+    for (final fixtureJson in fixtures) {
+      final root = _map(fixtureJson);
+      if (_intValue(_map(root['league'])['id']) != leagueId) continue;
+      final fixture = _map(root['fixture']);
+      final playedAt = _dateTimeValue(fixture['date']);
+      final status = _stringValue(_map(fixture['status'])['short']);
+      if (playedAt == null ||
+          !playedAt.isBefore(kickoff) ||
+          !const {'FT', 'AET', 'PEN'}.contains(status)) {
+        continue;
+      }
+      final teams = _map(root['teams']);
+      final home = _map(teams['home']);
+      final away = _map(teams['away']);
+      final homeId = _intValue(home['id']);
+      final awayId = _intValue(away['id']);
+      if (homeId == null || awayId == null) continue;
+      teamNames[homeId] = _stringValue(home['name']) ?? 'Équipe';
+      teamNames[awayId] = _stringValue(away['name']) ?? 'Équipe';
+      final homeOpponent = standingByTeam[awayId];
+      final awayOpponent = standingByTeam[homeId];
+      final homeOpponentPlayed = homeOpponent?.played;
+      final awayOpponentPlayed = awayOpponent?.played;
+      if (homeOpponent?.points != null &&
+          homeOpponentPlayed != null &&
+          homeOpponentPlayed > 0) {
+        opponentPpgByTeam
+            .putIfAbsent(homeId, () => [])
+            .add(homeOpponent!.points! / homeOpponentPlayed);
+      }
+      if (awayOpponent?.points != null &&
+          awayOpponentPlayed != null &&
+          awayOpponentPlayed > 0) {
+        opponentPpgByTeam
+            .putIfAbsent(awayId, () => [])
+            .add(awayOpponent!.points! / awayOpponentPlayed);
+      }
+    }
+    return [
+      for (final entry in opponentPpgByTeam.entries)
+        if (entry.value.isNotEmpty)
+          TournamentPathSnapshot(
+            teamId: entry.key,
+            teamName:
+                teamNames[entry.key] ??
+                standingByTeam[entry.key]?.teamName ??
+                'Équipe',
+            played: entry.value.length,
+            averageOpponentPointsPerGame:
+                entry.value.reduce((a, b) => a + b) / entry.value.length,
+          ),
+    ];
+  }
+
+  Map<int, CompetitionInfo> _domesticCompetitionByTeamId(List<Object?> rows) {
+    final result = <int, CompetitionInfo>{};
+    for (final row in rows) {
+      final root = _map(row);
+      final teamId =
+          _intValue(_map(root['team'])['id']) ?? _intValue(root['team_id']);
+      final league = _map(root['league']);
+      final leagueId = _intValue(league['id']);
+      if (teamId == null || leagueId == null) continue;
+      final name = _stringValue(league['name']) ?? 'Championnat national';
+      final country = _stringValue(league['country']);
+      result[teamId] = CompetitionInfo(
+        id: _competitionId(apiFootballLeagueId: leagueId, fallbackName: name),
+        name: name,
+        country: CountryInfo(
+          code: _countryCode(country, name),
+          name: _localizedCountryName(country, name),
+          flagUrl: _countryFlagUrl(country, _stringValue(league['flag'])),
+        ),
+        season: _intValue(league['season']) ?? 0,
+        apiFootballLeagueId: leagueId,
+        logoUrl: _stringValue(league['logo']),
+      );
+    }
+    return result;
+  }
+
+  TeamCompetitionContext? _domesticContextFor({
+    required int? teamId,
+    required Map<int, CompetitionInfo> competitions,
+    required Map<int, List<TeamStandingSnapshot>> standingsByLeagueId,
+    required Map<int, Map<ChampionshipStandingView, List<TeamStandingSnapshot>>>
+    standingTablesByLeagueId,
+    required Map<String, TeamStandingSnapshot> standingsByLeagueTeamId,
+    required Map<String, TeamStatisticsSnapshot> statisticsByLeagueTeamId,
+    required Map<String, List<TeamRecentMatchSnapshot>>
+    recentMatchesByLeagueTeamId,
+    required Map<String, TeamExpectedGoalsSnapshot> expectedGoalsByLeagueTeamId,
+    required Map<String, List<PlayerSeasonStatisticsSnapshot>>
+    playerStatisticsByLeagueTeamId,
+  }) {
+    if (teamId == null) return null;
+    final competition = competitions[teamId];
+    final leagueId = competition?.apiFootballLeagueId;
+    if (competition == null || leagueId == null) return null;
+    final key = _standingKey(leagueId, teamId);
+    return TeamCompetitionContext(
+      competition: competition,
+      teamId: teamId,
+      standing: standingsByLeagueTeamId[key],
+      leagueStandings: standingsByLeagueId[leagueId] ?? const [],
+      standingTables: standingTablesByLeagueId[leagueId] ?? const {},
+      statistics: statisticsByLeagueTeamId[key],
+      recentMatches: recentMatchesByLeagueTeamId[key] ?? const [],
+      expectedGoals: expectedGoalsByLeagueTeamId[key],
+      playerStatistics: playerStatisticsByLeagueTeamId[key] ?? const [],
     );
   }
 
@@ -324,6 +593,47 @@ class ApiFootballMatchAdapter {
     }
 
     return matches[_standingKey(leagueId, teamId)] ?? const [];
+  }
+
+  Map<int, List<PlayerUnavailableSnapshot>> _injuriesByFixtureId(
+    List<Object?> rows,
+  ) {
+    final grouped = <int, List<PlayerUnavailableSnapshot>>{};
+    final seen = <String>{};
+    for (final row in rows) {
+      final root = _map(row);
+      final fixtureId = _intValue(_map(root['fixture'])['id']);
+      final teamId = _intValue(_map(root['team'])['id']);
+      final player = _map(root['player']);
+      final playerId = _intValue(player['id']);
+      final name = _stringValue(player['name']);
+      final type = _stringValue(player['type']);
+      final asOf = _dateTimeValue(root['asOf']);
+      if (fixtureId == null ||
+          teamId == null ||
+          playerId == null ||
+          name == null ||
+          asOf == null ||
+          type != 'Missing Fixture' ||
+          !seen.add('$fixtureId:$playerId')) {
+        continue;
+      }
+      grouped
+          .putIfAbsent(fixtureId, () => [])
+          .add(
+            PlayerUnavailableSnapshot(
+              playerId: playerId,
+              playerName: name,
+              teamId: teamId,
+              asOf: asOf,
+              reason: _stringValue(player['reason']) ?? 'Absence signalée',
+            ),
+          );
+    }
+    return {
+      for (final entry in grouped.entries)
+        entry.key: List.unmodifiable(entry.value),
+    };
   }
 
   Map<String, List<PlayerSeasonStatisticsSnapshot>>
@@ -364,6 +674,7 @@ class ApiFootballMatchAdapter {
                 shots: _intValue(shots['total']),
                 shotsOnTarget: _intValue(shots['on']),
                 penaltyGoals: _intValue(penalty['scored']),
+                penaltyMissed: _intValue(penalty['missed']),
               ),
             );
       }
@@ -371,6 +682,122 @@ class ApiFootballMatchAdapter {
     return {
       for (final entry in grouped.entries)
         entry.key: List.unmodifiable(entry.value),
+    };
+  }
+
+  Map<String, TeamPerformanceStatisticsSnapshot>
+  _performanceStatisticsByLeagueTeamId(List<Object?> rows) {
+    final result = <String, TeamPerformanceStatisticsSnapshot>{};
+    for (final row in rows) {
+      final root = _map(row);
+      final leagueId = _intValue(_map(root['league'])['id']);
+      final team = _map(root['team']);
+      final teamId = _intValue(team['id']);
+      final asOf = _dateTimeValue(root['asOf']);
+      final sampleSize = _intValue(root['sampleSize']);
+      if (leagueId == null ||
+          teamId == null ||
+          asOf == null ||
+          sampleSize == null ||
+          sampleSize <= 0) {
+        continue;
+      }
+      final averages = _map(root['averages']);
+      final cardTiming = _map(root['cardTiming']);
+      result[_standingKey(
+        leagueId,
+        teamId,
+      )] = TeamPerformanceStatisticsSnapshot(
+        teamId: teamId,
+        teamName: _stringValue(team['name']) ?? 'Équipe',
+        asOf: asOf,
+        sampleSize: sampleSize,
+        shotsFor: _doubleValue(averages['shotsFor']),
+        shotsAgainst: _doubleValue(averages['shotsAgainst']),
+        shotsOnTargetFor: _doubleValue(averages['shotsOnTargetFor']),
+        shotsOnTargetAgainst: _doubleValue(averages['shotsOnTargetAgainst']),
+        cornersFor: _doubleValue(averages['cornersFor']),
+        cornersAgainst: _doubleValue(averages['cornersAgainst']),
+        cardsFor: _doubleValue(averages['cardsFor']),
+        cardsAgainst: _doubleValue(averages['cardsAgainst']),
+        totalCorners: _doubleValue(averages['totalCorners']),
+        totalCards: _doubleValue(averages['totalCards']),
+        secondHalfCardsShare: _doubleValue(cardTiming['secondHalfShare']),
+        observedCards: _intValue(cardTiming['observedCards']),
+      );
+    }
+    return result;
+  }
+
+  Map<String, TeamGoalProfileSnapshot> _goalProfilesByLeagueTeamId(
+    List<Object?> fixtures,
+    DateTime? capturedAt,
+  ) {
+    final rows = <String, _GoalProfileAccumulator>{};
+    final seen = <int>{};
+    for (final raw in fixtures) {
+      final root = _map(raw);
+      final fixture = _map(root['fixture']);
+      final id = _intValue(fixture['id']);
+      if (id != null && !seen.add(id)) continue;
+      if (_stringValue(_map(fixture['status'])['short']) != 'FT') continue;
+      final date = _dateTimeValue(fixture['date']);
+      if (date != null && capturedAt != null && !date.isBefore(capturedAt)) {
+        continue;
+      }
+      final leagueId = _intValue(_map(root['league'])['id']);
+      final teams = _map(root['teams']);
+      final home = _map(teams['home']);
+      final away = _map(teams['away']);
+      final homeId = _intValue(home['id']);
+      final awayId = _intValue(away['id']);
+      final fulltime = _map(_map(root['score'])['fulltime']);
+      final halftime = _map(_map(root['score'])['halftime']);
+      final goals = _map(root['goals']);
+      final homeGoals = _intValue(fulltime['home']) ?? _intValue(goals['home']);
+      final awayGoals = _intValue(fulltime['away']) ?? _intValue(goals['away']);
+      if (leagueId == null ||
+          homeId == null ||
+          awayId == null ||
+          homeGoals == null ||
+          awayGoals == null) {
+        continue;
+      }
+      final total = homeGoals + awayGoals;
+      final halfHome = _intValue(halftime['home']);
+      final halfAway = _intValue(halftime['away']);
+      for (final team in [home, away]) {
+        final teamId = _intValue(team['id'])!;
+        final key = _standingKey(leagueId, teamId);
+        final row = rows.putIfAbsent(
+          key,
+          () => _GoalProfileAccumulator(
+            teamId,
+            _stringValue(team['name']) ?? 'Équipe',
+          ),
+        );
+        row.played += 1;
+        if (total >= 3) row.over25 += 1;
+        if (homeGoals > 0 && awayGoals > 0) row.btts += 1;
+        row.totalGoals += total;
+        if (halfHome != null && halfAway != null) {
+          final isHome = teamId == homeId;
+          final halfFor = isHome ? halfHome : halfAway;
+          final halfAgainst = isHome ? halfAway : halfHome;
+          final fullFor = isHome ? homeGoals : awayGoals;
+          final fullAgainst = isHome ? awayGoals : homeGoals;
+          if (halfFor > halfAgainst) {
+            row.halftimeLeads += 1;
+            if (fullFor > fullAgainst) row.retainedLeads += 1;
+          } else if (halfFor < halfAgainst) {
+            row.halftimeDeficits += 1;
+            if (fullFor >= fullAgainst) row.recoveredDeficits += 1;
+          }
+        }
+      }
+    }
+    return {
+      for (final entry in rows.entries) entry.key: entry.value.snapshot(),
     };
   }
 
@@ -785,10 +1212,21 @@ class ApiFootballMatchAdapter {
         failedToScoreTotal: _intValue(_map(failedToScore)['total']),
         failedToScoreHome: _intValue(_map(failedToScore)['home']),
         failedToScoreAway: _intValue(_map(failedToScore)['away']),
+        goalsForByMinute: _minuteGoalCounts(goalsFor['minute']),
+        goalsAgainstByMinute: _minuteGoalCounts(goalsAgainst['minute']),
       );
     }
 
     return result;
+  }
+
+  Map<String, int> _minuteGoalCounts(Object? value) {
+    final result = <String, int>{};
+    for (final entry in _map(value).entries) {
+      final total = _intValue(_map(entry.value)['total']);
+      if (total != null) result[entry.key] = total;
+    }
+    return Map.unmodifiable(result);
   }
 
   Map<String, List<TeamRecentMatchSnapshot>> _recentLeagueMatchesByLeagueTeamId(
@@ -873,11 +1311,11 @@ class ApiFootballMatchAdapter {
     return 'L';
   }
 
-  Map<int, TeamExpectedGoalsSnapshot> _expectedGoalsByTeamId(
+  Map<String, TeamExpectedGoalsSnapshot> _expectedGoalsByLeagueTeamId(
     List<Object?> rows,
     DateTime? capturedAt,
   ) {
-    final result = <int, TeamExpectedGoalsSnapshot>{};
+    final result = <String, TeamExpectedGoalsSnapshot>{};
     final asOf = capturedAt ?? DateTime.now().toUtc();
 
     for (final row in rows) {
@@ -885,14 +1323,15 @@ class ApiFootballMatchAdapter {
       final team = _map(root['team']);
       final teamId = _intValue(team['id']);
       final teamName = _stringValue(team['name']);
-      if (teamId == null) {
+      final leagueId = _intValue(_map(root['league'])['id']);
+      if (teamId == null || leagueId == null) {
         continue;
       }
 
       final rolling = _map(root['rolling']);
       final season = _map(root['season']);
       final latest = _map(root['latest']);
-      result[teamId] = TeamExpectedGoalsSnapshot(
+      result[_standingKey(leagueId, teamId)] = TeamExpectedGoalsSnapshot(
         teamId: teamId,
         teamName: teamName ?? 'Équipe',
         asOf: _dateTimeValue(root['asOf']) ?? asOf,

@@ -10,7 +10,52 @@ enum MatchContextKeyFamily {
 
 enum MatchContextKeyAvailability { unavailable, noRemarkableFact, available }
 
-enum ChampionshipContextMetric { pointsPerGame, form, goalsFor, goalsAgainst }
+enum ChampionshipContextMetric {
+  pointsPerGame,
+  form,
+  formTrend,
+  goalsFor,
+  goalsAgainst,
+  cleanSheetRate,
+  over25Rate,
+  under25Rate,
+  bttsRate,
+  totalGoalsPerMatch,
+  opponentStrength,
+  firstHalfPointsPerGame,
+  secondHalfPointsPerGame,
+  halfTimeLeadRate,
+  halfTimeDrawRate,
+  leadRetentionRate,
+  lostLeadRate,
+  recoveryRate,
+  scoringRate0To15,
+  concedingRate0To15,
+  scoringRate31To45,
+  concedingRate31To45,
+  scoringRate76To90,
+  concedingRate76To90,
+  shotsFor,
+  shotsOnTargetFor,
+  shotAccuracy,
+  shotsAgainst,
+  shotsOnTargetAgainst,
+  cornersFor,
+  cornersAgainst,
+  totalCorners,
+  cardsFor,
+  totalCards,
+  secondHalfCardsShare,
+  xgFor,
+  xgAgainst,
+  goalsMinusXgFor,
+  goalsMinusXgAgainst,
+  playerShotsPer90,
+  playerShotsOnTargetPer90,
+  playerAssistsPer90,
+  playerPenaltyAttemptsPer90,
+  playerContributionsPer90,
+}
 
 enum ChampionshipContextZoneSide { high, low }
 

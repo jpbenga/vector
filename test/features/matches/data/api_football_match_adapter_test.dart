@@ -543,10 +543,17 @@ void main() {
                 'for': {
                   'total': {'total': 20, 'home': 12, 'away': 8},
                   'average': {'total': '2.00', 'home': '2.40', 'away': '1.60'},
+                  'minute': {
+                    '0-15': {'total': 4, 'percentage': '20.00%'},
+                    '76-90': {'total': 6, 'percentage': '30.00%'},
+                  },
                 },
                 'against': {
                   'total': {'total': 8, 'home': 3, 'away': 5},
                   'average': {'total': '0.80', 'home': '0.60', 'away': '1.00'},
+                  'minute': {
+                    '0-15': {'total': 1, 'percentage': '12.50%'},
+                  },
                 },
               },
               'clean_sheet': {'total': 5, 'home': 3, 'away': 2},
@@ -579,11 +586,14 @@ void main() {
       expect(match.analysis.homeStatistics?.winsHome, 4);
       expect(match.analysis.homeStatistics?.goalsForAverageHome, 2.40);
       expect(match.analysis.homeStatistics?.cleanSheetsAway, 2);
+      expect(match.analysis.homeStatistics?.goalsForByMinute['0-15'], 4);
+      expect(match.analysis.homeStatistics?.goalsAgainstByMinute['0-15'], 1);
+      expect(match.analysis.leagueTeamStatistics, hasLength(1));
       expect(match.analysis.homeExpectedGoals?.rollingXgFor5, 1.82);
       expect(match.analysis.homeExpectedGoals?.rollingXgAgainst5, 0.88);
       expect(
         match.analysis.homeExpectedGoals?.goalsMinusXgFor5,
-        closeTo(4.18, 0.001),
+        closeTo(-3.10, 0.001),
       );
       expect(
         match
@@ -734,8 +744,134 @@ void main() {
         expect(tables[ChampionshipStandingView.secondLeg], hasLength(2));
         expect(tables[ChampionshipStandingView.firstHalf], hasLength(2));
         expect(tables[ChampionshipStandingView.secondHalf], hasLength(2));
+        expect(match.analysis.homeGoalProfile?.played, 2);
+        expect(match.analysis.homeGoalProfile?.over25, 1);
+        expect(match.analysis.homeGoalProfile?.btts, 1);
+        expect(match.analysis.leagueGoalProfiles, hasLength(2));
       },
     );
+
+    test('maps domestic contexts without replacing the UEFA table', () {
+      Map<String, Object?> standing({
+        required int id,
+        required String name,
+        required int rank,
+        required int played,
+      }) => {
+        'rank': rank,
+        'team': {'id': id, 'name': name},
+        'points': rank == 1 ? 15 : 4,
+        'form': rank == 1 ? 'WWWWW' : 'LLLDD',
+        'all': {
+          'played': played,
+          'win': rank == 1 ? 5 : 1,
+          'draw': 1,
+          'lose': rank == 1 ? 0 : 4,
+          'goals': {'for': rank == 1 ? 15 : 4, 'against': rank == 1 ? 3 : 12},
+        },
+      };
+
+      final domesticTable = [
+        standing(id: 10, name: 'Home', rank: 1, played: 6),
+        for (var id = 100; id < 109; id += 1)
+          standing(id: id, name: 'D$id', rank: id - 98, played: 6),
+      ];
+      final snapshot = <String, Object?>{
+        'captured_at': '2026-09-15T08:00:00Z',
+        'raw': {
+          'fixtures': [
+            {
+              'fixture': {
+                'id': 900,
+                'date': '2026-09-16T20:00:00Z',
+                'status': {'short': 'NS'},
+              },
+              'league': {
+                'id': 2,
+                'name': 'UEFA Champions League',
+                'country': 'World',
+                'season': 2026,
+              },
+              'teams': {
+                'home': {'id': 10, 'name': 'Home'},
+                'away': {'id': 11, 'name': 'Away'},
+              },
+            },
+          ],
+          'standings': [
+            {
+              'league': {
+                'id': 2,
+                'name': 'UEFA Champions League',
+                'country': 'World',
+                'season': 2026,
+                'standings': [
+                  [
+                    standing(id: 10, name: 'Home', rank: 3, played: 2),
+                    standing(id: 11, name: 'Away', rank: 18, played: 2),
+                  ],
+                ],
+              },
+            },
+            {
+              'league': {
+                'id': 39,
+                'name': 'Premier League',
+                'country': 'England',
+                'season': 2026,
+                'standings': [domesticTable],
+              },
+            },
+          ],
+          'domestic_team_contexts': [
+            {
+              'team': {'id': 10, 'name': 'Home'},
+              'league': {
+                'id': 39,
+                'name': 'Premier League',
+                'country': 'England',
+                'season': 2026,
+              },
+            },
+          ],
+          'league_fixtures': [
+            {
+              'fixture': {
+                'id': 899,
+                'date': '2026-09-01T20:00:00Z',
+                'status': {'short': 'FT'},
+              },
+              'league': {'id': 2, 'season': 2026},
+              'teams': {
+                'home': {'id': 10, 'name': 'Home'},
+                'away': {'id': 11, 'name': 'Away'},
+              },
+              'goals': {'home': 1, 'away': 0},
+            },
+          ],
+          'odds': <Object?>[],
+        },
+      };
+
+      final match = const ApiFootballMatchAdapter()
+          .fromSnapshot(snapshot)
+          .single;
+
+      expect(match.analysis.homeStanding?.rank, 3);
+      expect(match.analysis.homeDomesticContext?.standing?.rank, 1);
+      expect(
+        match.analysis.homeDomesticContext?.competition.name,
+        'Premier League',
+      );
+      expect(match.analysis.awayDomesticContext, isNull);
+      expect(match.analysis.tournamentPaths, hasLength(2));
+      expect(
+        match.analysis.tournamentPaths
+            .singleWhere((path) => path.teamId == 10)
+            .played,
+        1,
+      );
+    });
   });
 }
 

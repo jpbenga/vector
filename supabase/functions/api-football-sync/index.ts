@@ -9,9 +9,12 @@ const maxTeamStatisticsRequests = 120;
 const maxRecentFixtureRequests = 160;
 const maxFixtureStatisticsRequests = 240;
 const maxPlayerStatisticsTeams = 160;
+const maxInjuryRequests = 120;
 const defaultRecentFormDaysBack = 180;
 const defaultRecentFormMatches = 5;
 const defaultApiRequestDelayMs = 750;
+const apiFootballDailyRequestLimit = 75000;
+const apiFootballMinuteRequestLimit = 450;
 
 const corsHeaders = {
   "access-control-allow-origin": "*",
@@ -51,19 +54,29 @@ Deno.serve(async (request) => {
   const summary: SyncSummary = {
     leagues: 0,
     fixtures: 0,
+    upcomingFixtures: 0,
     odds: 0,
     standings: 0,
     leagueFixtureRows: 0,
     teamStatistics: 0,
     recentFixtureRows: 0,
     fixtureStatistics: 0,
+    fixtureEvents: 0,
+    injuries: 0,
     playerStatisticsRequests: 0,
     playerStatisticsPages: 0,
     playerStatisticsPlayers: 0,
     cachedResponses: 0,
+    providerRequests: 0,
     leagueSeasons: {},
   };
+  const fetchAndAccount = (options: FetchAndCacheOptions) =>
+    fetchAndCache({
+      ...options,
+      onProviderRequest: () => { summary.providerRequests += 1; },
+    });
   const fixtureStatisticsIds = new Set<number>();
+  const injuryFixtureIds = new Set<number>();
   const playerStatisticsTeams = new Map<string, { leagueId: number; season: number; teamId: number }>();
   let recentFixtureRequests = 0;
 
@@ -81,7 +94,7 @@ Deno.serve(async (request) => {
     runId = String(run.id);
 
     for (const leagueId of options.leagueIds) {
-      const leagueInfo = await fetchAndCache({
+      const leagueInfo = await fetchAndAccount({
         apiBaseUrl,
         apiKey,
         supabaseUrl,
@@ -104,7 +117,7 @@ Deno.serve(async (request) => {
       summary.leagues += 1;
       summary.cachedResponses += 1;
 
-      await fetchAndCache({
+      await fetchAndAccount({
         apiBaseUrl,
         apiKey,
         supabaseUrl,
@@ -124,7 +137,7 @@ Deno.serve(async (request) => {
       // Keep the complete league fixture history in the cache. The snapshot
       // builder uses it to derive first/second-leg and half-time tables
       // without making any additional API calls during match analysis.
-      const leagueFixtures = await fetchAndCache({
+      const leagueFixtures = await fetchAndAccount({
         apiBaseUrl,
         apiKey,
         supabaseUrl,
@@ -141,9 +154,55 @@ Deno.serve(async (request) => {
       });
       summary.leagueFixtureRows += responseRows(leagueFixtures.body).length;
       summary.cachedResponses += 1;
+      const leagueTeamIds = teamIdsFromFixtures(leagueFixtures.body);
+      const upcomingFixtures = upcomingFixturesInWindow(
+        leagueFixtures.body,
+        options.windowStart,
+        options.windowEnd,
+        options.timezone,
+      );
+      summary.upcomingFixtures += upcomingFixtures;
+      if (options.skipEmptyFeed && upcomingFixtures === 0) {
+        continue;
+      }
+
+      if (options.includeTeamStatistics) {
+        for (const teamId of leagueTeamIds.slice(0, maxTeamStatisticsRequests)) {
+          await fetchAndAccount({
+            apiBaseUrl, apiKey, supabaseUrl, serviceRoleKey, runId,
+            endpoint: "/teams/statistics",
+            query: {
+              league: String(leagueId),
+              season: String(leagueSeason),
+              team: String(teamId),
+            },
+            ttlSeconds: 60 * 60,
+            requestDelayMs: apiRequestDelayMs,
+          });
+          summary.teamStatistics += 1;
+          summary.cachedResponses += 1;
+        }
+      }
+
+      if (options.includePlayerStatistics) {
+        for (const teamId of leagueTeamIds) {
+          const key = `${leagueId}:${leagueSeason}:${teamId}`;
+          playerStatisticsTeams.set(key, { leagueId, season: leagueSeason, teamId });
+        }
+      }
+
+      if (options.includeExpectedGoals) {
+        for (const teamId of leagueTeamIds) {
+          for (const fixtureId of recentFixtureIdsForTeam(
+            leagueFixtures.body, teamId, options.recentFormMatches,
+          )) {
+            fixtureStatisticsIds.add(fixtureId);
+          }
+        }
+      }
 
       for (const date of dateWindow(options.windowStart, options.windowEnd)) {
-        const fixtures = await fetchAndCache({
+        const fixtures = await fetchAndAccount({
           apiBaseUrl,
           apiKey,
           supabaseUrl,
@@ -161,6 +220,18 @@ Deno.serve(async (request) => {
         });
         summary.fixtures += responseRows(fixtures.body).length;
         summary.cachedResponses += 1;
+        for (const fixture of responseRows(fixtures.body)) {
+          const root = objectValue(fixture) ?? {};
+          const details = objectValue(root.fixture) ?? {};
+          const status = stringValue((objectValue(details.status) ?? {}).short);
+          const fixtureId = numberValue(details.id);
+          const kickoff = stringValue(details.date);
+          if (fixtureId !== null && kickoff !== null &&
+              Date.parse(kickoff) > Date.now() &&
+              ["NS", "TBD"].includes(status ?? "")) {
+            injuryFixtureIds.add(fixtureId);
+          }
+        }
 
         const oddsQuery: Record<string, string> = {
           league: String(leagueId),
@@ -170,7 +241,7 @@ Deno.serve(async (request) => {
         if (options.bookmakerId !== null) {
           oddsQuery.bookmaker = String(options.bookmakerId);
         }
-        const odds = await fetchAndCache({
+        const odds = await fetchAndAccount({
           apiBaseUrl,
           apiKey,
           supabaseUrl,
@@ -184,36 +255,6 @@ Deno.serve(async (request) => {
         summary.odds += responseRows(odds.body).length;
         summary.cachedResponses += 1;
 
-        if (options.includeTeamStatistics) {
-          const teamIds = teamIdsFromFixtures(fixtures.body);
-          for (const teamId of teamIds.slice(0, maxTeamStatisticsRequests)) {
-            await fetchAndCache({
-              apiBaseUrl,
-              apiKey,
-              supabaseUrl,
-              serviceRoleKey,
-              runId,
-              endpoint: "/teams/statistics",
-              query: {
-                league: String(leagueId),
-                season: String(leagueSeason),
-                team: String(teamId),
-              },
-              ttlSeconds: 60 * 60,
-              requestDelayMs: apiRequestDelayMs,
-            });
-            summary.teamStatistics += 1;
-            summary.cachedResponses += 1;
-          }
-        }
-
-        if (options.includePlayerStatistics) {
-          for (const teamId of teamIdsFromFixtures(fixtures.body)) {
-            const key = `${leagueId}:${leagueSeason}:${teamId}`;
-            playerStatisticsTeams.set(key, { leagueId, season: leagueSeason, teamId });
-          }
-        }
-
         if (options.includeRecentForm || options.includeExpectedGoals) {
           const fixtureTeamContexts = fixtureTeamContextsFromFixtures(
             fixtures.body,
@@ -223,7 +264,7 @@ Deno.serve(async (request) => {
             if (recentFixtureRequests >= maxRecentFixtureRequests) {
               break;
             }
-            const recentFixtures = await fetchAndCache({
+            const recentFixtures = await fetchAndAccount({
               apiBaseUrl,
               apiKey,
               supabaseUrl,
@@ -265,8 +306,25 @@ Deno.serve(async (request) => {
       }
     }
 
-    for (const context of [...playerStatisticsTeams.values()].slice(0, maxPlayerStatisticsTeams)) {
-      const firstPage = await fetchAndCache({
+    if (injuryFixtureIds.size > maxInjuryRequests ||
+        fixtureStatisticsIds.size > maxFixtureStatisticsRequests ||
+        playerStatisticsTeams.size > maxPlayerStatisticsTeams) {
+      throw new Error(
+        "Enrichment scope exceeds one sync run; split the request by league.",
+      );
+    }
+    for (const fixtureId of injuryFixtureIds) {
+      await fetchAndAccount({
+        apiBaseUrl, apiKey, supabaseUrl, serviceRoleKey, runId,
+        endpoint: "/injuries", query: { fixture: String(fixtureId) },
+        ttlSeconds: 60 * 60, requestDelayMs: apiRequestDelayMs,
+      });
+      summary.injuries += 1;
+      summary.cachedResponses += 1;
+    }
+
+    for (const context of playerStatisticsTeams.values()) {
+      const firstPage = await fetchAndAccount({
         apiBaseUrl, apiKey, supabaseUrl, serviceRoleKey, runId,
         endpoint: "/players",
         query: { league: String(context.leagueId), season: String(context.season), team: String(context.teamId), page: "1" },
@@ -278,7 +336,7 @@ Deno.serve(async (request) => {
       summary.cachedResponses += 1;
       const total = numberValue(objectValue(firstPage.body.paging)?.total) ?? 1;
       for (let page = 2; page <= total; page += 1) {
-        const nextPage = await fetchAndCache({
+        const nextPage = await fetchAndAccount({
           apiBaseUrl, apiKey, supabaseUrl, serviceRoleKey, runId,
           endpoint: "/players",
           query: { league: String(context.leagueId), season: String(context.season), team: String(context.teamId), page: String(page) },
@@ -292,10 +350,7 @@ Deno.serve(async (request) => {
 
     if (options.includeExpectedGoals) {
       for (const fixtureId of [...fixtureStatisticsIds]) {
-        if (summary.fixtureStatistics >= maxFixtureStatisticsRequests) {
-          break;
-        }
-        await fetchAndCache({
+        await fetchAndAccount({
           apiBaseUrl,
           apiKey,
           supabaseUrl,
@@ -309,6 +364,15 @@ Deno.serve(async (request) => {
           requestDelayMs: apiRequestDelayMs,
         });
         summary.fixtureStatistics += 1;
+        summary.cachedResponses += 1;
+        await fetchAndAccount({
+          apiBaseUrl, apiKey, supabaseUrl, serviceRoleKey, runId,
+          endpoint: "/fixtures/events",
+          query: { fixture: String(fixtureId) },
+          ttlSeconds: 7 * 24 * 60 * 60,
+          requestDelayMs: apiRequestDelayMs,
+        });
+        summary.fixtureEvents += 1;
         summary.cachedResponses += 1;
       }
     }
@@ -356,6 +420,7 @@ type SyncOptions = {
   includeRecentForm: boolean;
   includeExpectedGoals: boolean;
   includePlayerStatistics: boolean;
+  skipEmptyFeed: boolean;
   recentFormDaysBack: number;
   recentFormMatches: number;
 };
@@ -363,22 +428,27 @@ type SyncOptions = {
 type SyncSummary = {
   leagues: number;
   fixtures: number;
+  upcomingFixtures: number;
   odds: number;
   standings: number;
   leagueFixtureRows: number;
   teamStatistics: number;
   recentFixtureRows: number;
   fixtureStatistics: number;
+  fixtureEvents: number;
+  injuries: number;
   playerStatisticsRequests: number;
   playerStatisticsPages: number;
   playerStatisticsPlayers: number;
   cachedResponses: number;
+  providerRequests: number;
   leagueSeasons: Record<string, number>;
 };
 
 type CachedResponse = {
   body: JsonObject;
   fetchedAt: string;
+  fromCache: boolean;
 };
 
 type FetchAndCacheOptions = {
@@ -391,6 +461,7 @@ type FetchAndCacheOptions = {
   query: Record<string, string>;
   ttlSeconds: number;
   requestDelayMs: number;
+  onProviderRequest?: () => void;
 };
 
 function authorizeSyncRequest(request: Request): string | null {
@@ -434,7 +505,11 @@ function syncOptionsFromPayload(payload: JsonObject): SyncOptions {
   const includeRecentForm = booleanValue(payload.include_recent_form) ?? true;
   const includeExpectedGoals = booleanValue(payload.include_expected_goals) ??
     includeRecentForm;
-  const includePlayerStatistics = booleanValue(payload.include_player_statistics) ?? true;
+  // Player pages are by far the most expensive part of a league refresh.
+  // Keep them opt-in so rolling fixture/odds jobs cannot silently repaginate
+  // every squad. The scheduled enrichment job enables them explicitly.
+  const includePlayerStatistics = booleanValue(payload.include_player_statistics) ?? false;
+  const skipEmptyFeed = payload.purpose === "daily_football_sync";
   const recentFormDaysBack = numberValue(payload.recent_form_days_back) ??
     defaultRecentFormDaysBack;
   const recentFormMatches = numberValue(payload.recent_form_matches) ??
@@ -475,6 +550,7 @@ function syncOptionsFromPayload(payload: JsonObject): SyncOptions {
     includeRecentForm,
     includeExpectedGoals,
     includePlayerStatistics,
+    skipEmptyFeed,
     recentFormDaysBack,
     recentFormMatches,
   };
@@ -582,6 +658,33 @@ async function fetchAndCache(
       query: sortedObject(options.query),
     }),
   );
+  const freshRows = await supabaseFetch({
+    supabaseUrl: options.supabaseUrl,
+    serviceRoleKey: options.serviceRoleKey,
+    path: `/rest/v1/api_football_cached_responses?source=eq.${source}` +
+      `&endpoint=eq.${encodeURIComponent(options.endpoint)}` +
+      `&query_hash=eq.${queryHash}&response_status=eq.200` +
+      `&expires_at=gt.${encodeURIComponent(new Date().toISOString())}` +
+      `&select=response_body,fetched_at&limit=1`,
+    method: "GET",
+  });
+  const freshRow = objectValue(freshRows[0]);
+  const cachedBody = objectValue(freshRow?.response_body);
+  const cachedAt = stringValue(freshRow?.fetched_at);
+  if (cachedBody !== null && cachedAt !== null &&
+      apiFootballErrorMessages(cachedBody).length === 0) {
+    return { body: cachedBody, fetchedAt: cachedAt, fromCache: true };
+  }
+
+  const reservation = await reserveApiFootballRequest(options);
+  if (!reservation.allowed) {
+    throw new Error(
+      `API-Football quota guard blocked ${options.endpoint}: ${reservation.reason}; ` +
+        `daily remaining=${reservation.dailyRemaining}, ` +
+        `rolling-minute remaining=${reservation.minuteRemaining}.`,
+    );
+  }
+  options.onProviderRequest?.();
   const fetchedAt = new Date();
   const response = await fetch(uri, {
     headers: {
@@ -639,7 +742,38 @@ async function fetchAndCache(
   }
 
   await delay(options.requestDelayMs);
-  return { body: body as JsonObject, fetchedAt: fetchedAtIso };
+  return { body: body as JsonObject, fetchedAt: fetchedAtIso, fromCache: false };
+}
+
+type ApiFootballRequestReservation = {
+  allowed: boolean;
+  reason: string;
+  dailyRemaining: number;
+  minuteRemaining: number;
+};
+
+async function reserveApiFootballRequest(
+  options: FetchAndCacheOptions,
+): Promise<ApiFootballRequestReservation> {
+  const rows = await supabaseFetch({
+    supabaseUrl: options.supabaseUrl,
+    serviceRoleKey: options.serviceRoleKey,
+    path: "/rest/v1/rpc/reserve_api_football_request",
+    method: "POST",
+    body: {
+      p_sync_run_id: options.runId,
+      p_daily_limit: apiFootballDailyRequestLimit,
+      p_minute_limit: apiFootballMinuteRequestLimit,
+    },
+    prefer: "return=representation",
+  });
+  const payload = objectValue(rows[0]) ?? {};
+  return {
+    allowed: payload.allowed === true,
+    reason: stringValue(payload.reason) ?? "unknown_limit",
+    dailyRemaining: numberValue(payload.daily_remaining) ?? 0,
+    minuteRemaining: numberValue(payload.minute_remaining) ?? 0,
+  };
 }
 
 function apiFootballErrorMessages(payload: JsonObject): string[] {
@@ -704,8 +838,8 @@ async function supabaseFetch({
   serviceRoleKey: string;
   path: string;
   method: string;
-  body: unknown;
-  prefer: string;
+  body?: unknown;
+  prefer?: string;
 }): Promise<unknown[]> {
   const response = await fetch(`${supabaseUrl}${path}`, {
     method,
@@ -713,9 +847,9 @@ async function supabaseFetch({
       apikey: serviceRoleKey,
       authorization: `Bearer ${serviceRoleKey}`,
       "content-type": "application/json",
-      prefer,
+      ...(prefer === undefined ? {} : { prefer }),
     },
-    body: JSON.stringify(body),
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 
   if (!response.ok) {
@@ -723,7 +857,7 @@ async function supabaseFetch({
     throw new Error(`Supabase ${response.status}: ${text}`);
   }
 
-  if (prefer.includes("return=minimal")) {
+  if (prefer?.includes("return=minimal")) {
     return [];
   }
 
@@ -898,11 +1032,7 @@ function isCompletedFixture(row: unknown): boolean {
   }
   const status = objectValue((objectValue(root.fixture) ?? {}).status) ?? {};
   const shortStatus = stringValue(status.short);
-  if (shortStatus !== null && ["FT", "AET", "PEN"].includes(shortStatus)) {
-    return true;
-  }
-  const goals = objectValue(root.goals) ?? {};
-  return numberValue(goals.home) !== null && numberValue(goals.away) !== null;
+  return shortStatus !== null && ["FT", "AET", "PEN"].includes(shortStatus);
 }
 
 function fixtureContainsTeam(row: unknown, teamId: number): boolean {
@@ -953,6 +1083,43 @@ function sortedObject(input: Record<string, string>): Record<string, string> {
 
 function redactUrl(uri: URL): string {
   return `${uri.origin}${uri.pathname}?${uri.searchParams.toString()}`;
+}
+
+function upcomingFixturesInWindow(
+  payload: JsonObject,
+  windowStart: string,
+  windowEnd: string,
+  timezone: string,
+): number {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const now = Date.now();
+  let count = 0;
+  for (const row of responseRows(payload)) {
+    const fixture = objectValue(objectValue(row)?.fixture);
+    const kickoff = stringValue(fixture?.date);
+    const status = stringValue(objectValue(fixture?.status)?.short);
+    if (kickoff === null || !["NS", "TBD"].includes(status ?? "")) {
+      continue;
+    }
+    const kickoffTime = Date.parse(kickoff);
+    if (!Number.isFinite(kickoffTime) || kickoffTime <= now) {
+      continue;
+    }
+    const parts = Object.fromEntries(
+      formatter.formatToParts(new Date(kickoffTime))
+        .map((part) => [part.type, part.value]),
+    );
+    const date = `${parts.year}-${parts.month}-${parts.day}`;
+    if (date >= windowStart && date <= windowEnd) {
+      count += 1;
+    }
+  }
+  return count;
 }
 
 function dateWindow(start: string, end: string): string[] {

@@ -170,6 +170,9 @@ async function loadOverview({
     jobs,
     cronRuns,
     pipeline,
+    syncHealth,
+    snapshotHealth,
+    dailyRuns,
     syncRuns,
     snapshots,
     adminRuns,
@@ -195,16 +198,35 @@ async function loadOverview({
     restSelect({
       supabaseUrl,
       serviceRoleKey,
+      path: "api_football_latest_league_sync_health",
+      query: "select=*&order=api_football_league_id.asc",
+    }),
+    restSelect({
+      supabaseUrl,
+      serviceRoleKey,
+      path: "api_football_latest_league_snapshot_health",
+      query: "select=*&order=api_football_league_id.asc",
+    }),
+    restSelect({
+      supabaseUrl,
+      serviceRoleKey,
+      path: "daily_football_sync_runs",
+      query:
+        "select=id,status,league_ids,bookmaker_id,results_window_start,results_window_end,feed_window_start,feed_window_end,api_request_count,database_size_bytes,database_size_limit_bytes,database_size_ratio,storage_warning_level,error_message,started_at,finished_at&order=started_at.desc&limit=80",
+    }),
+    restSelect({
+      supabaseUrl,
+      serviceRoleKey,
       path: "api_football_sync_runs",
       query:
-        "select=id,status,started_at,finished_at,league_ids,window_start,window_end,response_summary,error_message&order=started_at.desc&limit=40",
+        "select=id,status,started_at,finished_at,league_ids,bookmaker_id,window_start,window_end,response_summary,error_message&order=started_at.desc&limit=80",
     }),
     restSelect({
       supabaseUrl,
       serviceRoleKey,
       path: "match_feed_snapshots",
       query:
-        "select=id,scope,scope_key,league_ids,season,window_start,window_end,as_of,snapshot_created_at,coverage_summary&scope=eq.league&order=snapshot_created_at.desc&limit=40",
+        "select=id,scope,scope_key,league_ids,season,window_start,window_end,as_of,snapshot_created_at,coverage_summary&scope=eq.league&order=snapshot_created_at.desc&limit=80",
     }),
     restSelect({
       supabaseUrl,
@@ -220,11 +242,100 @@ async function loadOverview({
     generated_at: new Date().toISOString(),
     jobs,
     cron_runs: cronRuns,
-    pipeline_health: pipeline,
+    pipeline_health: enrichPipelineHealth({
+      pipeline,
+      syncHealth,
+      snapshotHealth,
+      syncRuns,
+      snapshots,
+    }),
+    daily_runs: dailyRuns,
     sync_runs: syncRuns,
     snapshots,
     admin_operation_runs: adminRuns,
   };
+}
+
+function enrichPipelineHealth({
+  pipeline,
+  syncHealth,
+  snapshotHealth,
+  syncRuns,
+  snapshots,
+}: {
+  pipeline: unknown[];
+  syncHealth: unknown[];
+  snapshotHealth: unknown[];
+  syncRuns: unknown[];
+  snapshots: unknown[];
+}): JsonObject[] {
+  const byLeagueId = (rows: unknown[]) => {
+    const values = new Map<number, JsonObject>();
+    for (const value of rows) {
+      const row = objectValue(value);
+      const leagueId = numberValue(row?.api_football_league_id);
+      if (row !== null && leagueId !== undefined) {
+        values.set(leagueId, row);
+      }
+    }
+    return values;
+  };
+  const syncByLeagueId = byLeagueId(syncHealth);
+  const snapshotByLeagueId = byLeagueId(snapshotHealth);
+
+  return pipeline.map((value) => {
+    const row = objectValue(value) ?? {};
+    const leagueId = numberValue(row.api_football_league_id);
+    const sync = leagueId === undefined ? null : syncByLeagueId.get(leagueId);
+    const snapshot = leagueId === undefined
+      ? null
+      : snapshotByLeagueId.get(leagueId);
+    const rawSync = leagueId === undefined
+      ? null
+      : firstRowContainingLeague(syncRuns, leagueId);
+    const rawSnapshot = leagueId === undefined
+      ? null
+      : firstRowContainingLeague(snapshots, leagueId);
+    const coverage = objectValue(rawSnapshot?.coverage_summary) ?? {};
+
+    return {
+      ...row,
+      sync_started_at: sync?.started_at ?? null,
+      sync_finished_at: sync?.finished_at ?? null,
+      sync_odds: sync?.odds ?? 0,
+      sync_standings: sync?.standings ?? 0,
+      sync_team_statistics: sync?.team_statistics ?? 0,
+      sync_recent_fixture_rows: sync?.recent_fixture_rows ?? 0,
+      sync_cached_responses: sync?.cached_responses ?? 0,
+      sync_error_message: sync?.error_message ?? rawSync?.error_message ?? null,
+      sync_bookmaker_id: rawSync?.bookmaker_id ?? null,
+      snapshot_as_of: snapshot?.as_of ?? null,
+      snapshot_created_at: snapshot?.snapshot_created_at ?? null,
+      snapshot_standings: snapshot?.standings ?? 0,
+      snapshot_team_statistics: snapshot?.team_statistics ?? 0,
+      snapshot_recent_league_matches:
+        snapshot?.recent_league_matches ?? 0,
+      snapshot_expected_goals: snapshot?.expected_goals ?? 0,
+      snapshot_player_statistics: coverage.player_statistics ?? 0,
+      missing_team_statistics: snapshot?.missing_team_statistics ?? 0,
+      missing_recent_form: snapshot?.missing_recent_form ?? 0,
+      missing_expected_goals: snapshot?.missing_expected_goals ?? 0,
+    };
+  });
+}
+
+function firstRowContainingLeague(
+  rows: unknown[],
+  leagueId: number,
+): JsonObject | null {
+  for (const value of rows) {
+    const row = objectValue(value);
+    const leagueIds = Array.isArray(row?.league_ids) ? row.league_ids : [];
+    if (leagueIds.some((item) => numberValue(item) === leagueId)) {
+      return row;
+    }
+  }
+  return null;
 }
 
 async function createTestLink({
@@ -361,7 +472,7 @@ async function rerunLeague({
   }
 
   const includeSnapshot = booleanValue(payload.include_snapshot) ?? true;
-  const bookmakerId = numberValue(payload.bookmaker_id) ?? 16;
+  const bookmakerId = numberValue(payload.bookmaker_id);
   const today = dateOnly(new Date());
   const collectionStart = addDays(today, -2);
   const collectionEnd = addDays(today, 3);
@@ -375,7 +486,7 @@ async function rerunLeague({
       action: "rerun_league",
       league_id: leagueId,
       include_snapshot: includeSnapshot,
-      bookmaker_id: bookmakerId,
+      bookmaker_id: bookmakerId ?? null,
       collection_window_start: collectionStart,
       collection_window_end: collectionEnd,
       feed_window_start: today,
@@ -384,12 +495,14 @@ async function rerunLeague({
   });
 
   try {
-    const syncPayload = {
+    const syncPayload: JsonObject = {
       league_ids: [leagueId],
-      bookmaker_id: bookmakerId,
       window_start: collectionStart,
       window_end: collectionEnd,
     };
+    if (bookmakerId !== undefined) {
+      syncPayload.bookmaker_id = bookmakerId;
+    }
     const sync = await invokeInternalFunction({
       supabaseUrl,
       name: "api-football-sync",
@@ -403,9 +516,11 @@ async function rerunLeague({
         name: "build-match-feed-snapshot",
         payload: {
           league_ids: [leagueId],
-          bookmaker_id: bookmakerId,
           window_start: today,
           window_end: feedEnd,
+          ...(bookmakerId === undefined
+            ? {}
+            : { bookmaker_id: bookmakerId }),
         },
       });
     }
