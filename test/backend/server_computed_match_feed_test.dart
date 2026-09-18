@@ -54,6 +54,41 @@ void main() {
     );
   });
 
+  test(
+    'materializes every scenario contract from server-computed readings',
+    () {
+      final publisher = File(
+        'supabase/functions/publish-reading-announcements/index.ts',
+      ).readAsStringSync();
+
+      expect(
+        publisher,
+        contains('const scenarioContracts: ScenarioContract[]'),
+      );
+      for (final scenarioId in const [
+        'solid_favorite',
+        'struggling_team',
+        'offensive_match',
+        'defensive_match',
+        'ranking_gap',
+        'credible_outsider',
+        'fragile_defense',
+        'prolific_attack',
+        'positive_series',
+        'negative_series',
+        'corner_pressure',
+        'disciplinary_tension',
+      ]) {
+        expect(publisher, contains('id: "$scenarioId"'));
+      }
+      expect(publisher, contains('scenarioTechnicalSupportAnnouncementRows'));
+      expect(publisher, contains('high_xg_creation'));
+      expect(publisher, contains('high_shots_on_target_conceded'));
+      expect(publisher, contains('high_corner_creation'));
+      expect(publisher, contains('high_card_rate'));
+    },
+  );
+
   test('evaluates server reading contracts and nuances in the database', () {
     final migration = File(
       'supabase/migrations/20260918113000_bilan_reading_outcomes_and_nuances.sql',
