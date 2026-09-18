@@ -1767,8 +1767,7 @@ class FootballAnalyzer {
     );
     final candidates = exposed
         .where(
-          (player) =>
-              player.minutes! >= 360 && player.minutes! >= minuteMedian,
+          (player) => player.minutes! >= 360 && player.minutes! >= minuteMedian,
         )
         .where((player) => (player.goals ?? 0) + (player.assists ?? 0) > 0)
         .toList(growable: false);

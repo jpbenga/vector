@@ -17,10 +17,7 @@ void main() {
                 'subject_team_id': 'api-team-7',
                 'sample_size': 3,
                 'evidence': [
-                  {
-                    'label': 'Série positive.',
-                    'source_path': 'server.form',
-                  },
+                  {'label': 'Série positive.', 'source_path': 'server.form'},
                 ],
               },
             ],
@@ -41,6 +38,9 @@ void main() {
     expect(analysis, isNotNull);
     expect(analysis!.analysis.readings.single.id, 'positive_streak');
     expect(analysis.analysis.readings.single.status, ReadingStatus.detected);
-    expect(analysis.scenarios.single.supportingReadings.single.id, 'positive_streak');
+    expect(
+      analysis.scenarios.single.supportingReadings.single.id,
+      'positive_streak',
+    );
   });
 }

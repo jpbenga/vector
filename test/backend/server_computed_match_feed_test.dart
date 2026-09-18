@@ -14,7 +14,10 @@ void main() {
       'supabase/functions/analyze-match-feed-snapshot/index.ts',
     ).readAsStringSync();
 
-    expect(migration, contains('create table public.match_feed_analysis_snapshots'));
+    expect(
+      migration,
+      contains('create table public.match_feed_analysis_snapshots'),
+    );
     expect(migration, contains('source_snapshot_id uuid not null unique'));
     expect(migration, contains("check (payload ? 'computed')"));
     expect(daily, contains('name: "analyze-match-feed-snapshot"'));
