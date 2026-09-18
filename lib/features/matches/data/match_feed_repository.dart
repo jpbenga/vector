@@ -1,4 +1,5 @@
 import 'api_football_match_adapter.dart';
+import 'championship_tier_temporal_state_store.dart';
 import 'server_computed_match_analysis_adapter.dart';
 import 'championship_tier_snapshot_engine.dart';
 import '../../onboarding/domain/profile_compiler.dart';
@@ -154,8 +155,22 @@ class SnapshotMatchFeedRepository implements MatchFeedRepository {
     final computedByFixture = computedAnalysisAdapter.fromSnapshot(snapshot);
     // The compact feed has already computed structural context, readings and
     // scenarios in Supabase. The mobile path deliberately avoids rebuilding
-    // championship tiers, context keys or any football statistic.
-    final matchesWithContextKeys = matches;
+    // championship tiers, context keys or any football statistic. The legacy
+    // fixture format remains available to offline tests and local fixtures;
+    // only that format retains its historical Tier fallback.
+    final matchesWithContextKeys = _hasServerComputedAnalysis(snapshot)
+        ? matches
+        : _attachStructuralRelations(
+            matches: matches,
+            snapshot: snapshot,
+            metadataRepository: metadataRepository,
+            tierSnapshotEngine:
+                tierSnapshotEngine ??
+                ChampionshipTierSnapshotEngine(
+                  temporalStateStore:
+                      InMemoryChampionshipTierTemporalStateStore(),
+                ),
+          );
     return SnapshotMatchFeedRepository._(
       matches: matchesWithContextKeys,
       snapshotMetadata: MatchFeedSnapshotMetadata.fromSnapshot(
@@ -233,6 +248,11 @@ class SnapshotMatchFeedRepository implements MatchFeedRepository {
   }
 }
 
+bool _hasServerComputedAnalysis(Map<String, Object?> snapshot) {
+  final computed = snapshot['computed'];
+  return computed is Map && computed['fixtures'] is List;
+}
+
 MatchIntelligence _serverIntelligenceFor(
   MatchBoardItem match,
   ServerComputedMatchAnalysis? computed,
@@ -275,7 +295,6 @@ int _comparePersonalizedMatches(MatchBoardItem a, MatchBoardItem b) {
   return a.homeTeam.name.compareTo(b.homeTeam.name);
 }
 
-// ignore: unused_element
 List<MatchBoardItem> _attachStructuralRelations({
   required List<MatchBoardItem> matches,
   required Map<String, Object?> snapshot,
