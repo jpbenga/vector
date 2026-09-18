@@ -10,6 +10,7 @@ const maxRecentFixtureRequests = 160;
 const maxFixtureStatisticsRequests = 240;
 const maxPlayerStatisticsTeams = 160;
 const maxInjuryRequests = 120;
+const injuryCollectionWindowMs = 24 * 60 * 60 * 1000;
 const defaultRecentFormDaysBack = 180;
 const defaultRecentFormMatches = 5;
 const defaultApiRequestDelayMs = 750;
@@ -155,6 +156,14 @@ Deno.serve(async (request) => {
       summary.leagueFixtureRows += responseRows(leagueFixtures.body).length;
       summary.cachedResponses += 1;
       const leagueTeamIds = teamIdsFromFixtures(leagueFixtures.body);
+      const registerPlayerStatisticsTeam = (teamId: number) => {
+        const key = `${leagueId}:${leagueSeason}:${teamId}`;
+        playerStatisticsTeams.set(key, {
+          leagueId,
+          season: leagueSeason,
+          teamId,
+        });
+      };
       const upcomingFixtures = upcomingFixturesInWindow(
         leagueFixtures.body,
         options.windowStart,
@@ -186,8 +195,7 @@ Deno.serve(async (request) => {
 
       if (options.includePlayerStatistics) {
         for (const teamId of leagueTeamIds) {
-          const key = `${leagueId}:${leagueSeason}:${teamId}`;
-          playerStatisticsTeams.set(key, { leagueId, season: leagueSeason, teamId });
+          registerPlayerStatisticsTeam(teamId);
         }
       }
 
@@ -226,10 +234,23 @@ Deno.serve(async (request) => {
           const status = stringValue((objectValue(details.status) ?? {}).short);
           const fixtureId = numberValue(details.id);
           const kickoff = stringValue(details.date);
-          if (fixtureId !== null && kickoff !== null &&
-              Date.parse(kickoff) > Date.now() &&
+          const timeUntilKickoff = kickoff === null
+            ? null
+            : Date.parse(kickoff) - Date.now();
+          if (fixtureId !== null && timeUntilKickoff !== null &&
+              timeUntilKickoff > 0 &&
+              timeUntilKickoff <= injuryCollectionWindowMs &&
               ["NS", "TBD"].includes(status ?? "")) {
             injuryFixtureIds.add(fixtureId);
+            const teams = objectValue(root.teams) ?? {};
+            for (const side of ["home", "away"]) {
+              const teamId = numberValue(
+                (objectValue(teams[side]) ?? {}).id,
+              );
+              if (teamId !== null) {
+                registerPlayerStatisticsTeam(teamId);
+              }
+            }
           }
         }
 

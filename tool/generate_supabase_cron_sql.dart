@@ -109,9 +109,9 @@ void main() {
       ..writeln(');')
       ..writeln();
 
-    // Player pages are refreshed once a week instead of once per rolling
-    // fixtures/odds run. Leagues are spread across all seven days and several
-    // hours so the provider is never hit by a single large weekly burst.
+    // The daily job refreshes player pages automatically for teams playing in
+    // the next 24 hours. This weekly enrichment completes the remaining
+    // squads without creating one large provider burst.
     final enrichmentDayOfWeek = index % 7;
     final enrichmentHour = 3 + (index ~/ 7);
     cronBuffer

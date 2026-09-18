@@ -91,11 +91,21 @@ class ProfileCompiler {
 
   Map<String, ReadingPreference> _readingPreferences(DecisionProfile profile) {
     final selectedIds = _answerOptionIds(profile, 'readings').toSet();
+    if (selectedIds.remove('home_away_mismatch')) {
+      selectedIds.addAll({'home_away_advantage', 'away_home_advantage'});
+    }
+    final normalizedSelectedIds =
+        ReadingPreferenceCatalog.normalizeSelectionIds(selectedIds);
+    // These former selectable ids are now scenario-only technical signals.
+    normalizedSelectedIds.removeAll({
+      'open_match_profile',
+      'closed_match_profile',
+    });
     return {
       for (final definition in ReadingPreferenceCatalog.values)
         definition.id: ReadingPreference(
           id: definition.id,
-          enabled: selectedIds.contains(definition.id),
+          enabled: normalizedSelectedIds.contains(definition.id),
         ),
     };
   }

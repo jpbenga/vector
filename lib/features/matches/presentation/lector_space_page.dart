@@ -1111,11 +1111,9 @@ int _selectedScenarioCount(DecisionProfile profile) {
 }
 
 int _selectedReadingCount(DecisionProfile profile) {
-  return profile
-      .optionIdsFor('readings')
-      .where(ReadingPreferenceCatalog.contains)
-      .toSet()
-      .length;
+  return ReadingPreferenceCatalog.normalizeSelectionIds(
+    profile.optionIdsFor('readings'),
+  ).length;
 }
 
 int _selectedMarketCount(DecisionProfile profile) {

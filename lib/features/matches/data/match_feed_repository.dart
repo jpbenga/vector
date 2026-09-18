@@ -1,6 +1,6 @@
 import 'api_football_match_adapter.dart';
+import 'server_computed_match_analysis_adapter.dart';
 import 'championship_tier_snapshot_engine.dart';
-import 'championship_tier_temporal_state_store.dart';
 import '../../onboarding/domain/profile_compiler.dart';
 import '../../onboarding/domain/decision_profile.dart';
 import '../../opportunities/domain/opportunity.dart';
@@ -143,24 +143,19 @@ class SnapshotMatchFeedRepository implements MatchFeedRepository {
   factory SnapshotMatchFeedRepository({
     required Map<String, Object?> snapshot,
     ApiFootballMatchAdapter adapter = const ApiFootballMatchAdapter(),
+    ServerComputedMatchAnalysisAdapter computedAnalysisAdapter =
+        const ServerComputedMatchAnalysisAdapter(),
     CompetitionStructuralMetadataRepository metadataRepository =
         const StaticCompetitionStructuralMetadataRepository(),
     ChampionshipTierSnapshotEngine? tierSnapshotEngine,
     OpportunityEngineV2 opportunityEngine = const OpportunityEngineV2(),
   }) {
     final matches = adapter.fromSnapshot(snapshot);
-    final engine =
-        tierSnapshotEngine ??
-        ChampionshipTierSnapshotEngine(
-          temporalStateStore: InMemoryChampionshipTierTemporalStateStore(),
-        );
-    final enrichedMatches = _attachStructuralRelations(
-      matches: matches,
-      snapshot: snapshot,
-      metadataRepository: metadataRepository,
-      tierSnapshotEngine: engine,
-    );
-    final matchesWithContextKeys = _attachContextKeys(enrichedMatches);
+    final computedByFixture = computedAnalysisAdapter.fromSnapshot(snapshot);
+    // The compact feed has already computed structural context, readings and
+    // scenarios in Supabase. The mobile path deliberately avoids rebuilding
+    // championship tiers, context keys or any football statistic.
+    final matchesWithContextKeys = matches;
     return SnapshotMatchFeedRepository._(
       matches: matchesWithContextKeys,
       snapshotMetadata: MatchFeedSnapshotMetadata.fromSnapshot(
@@ -170,7 +165,11 @@ class SnapshotMatchFeedRepository implements MatchFeedRepository {
       opportunityEngine: opportunityEngine,
       intelligencesByFixtureId: {
         for (final match in matchesWithContextKeys)
-          match.id: opportunityEngine.buildIntelligence(match),
+          match.id: _serverIntelligenceFor(
+            match,
+            computedByFixture[match.id],
+            opportunityEngine,
+          ),
       },
     );
   }
@@ -234,6 +233,24 @@ class SnapshotMatchFeedRepository implements MatchFeedRepository {
   }
 }
 
+MatchIntelligence _serverIntelligenceFor(
+  MatchBoardItem match,
+  ServerComputedMatchAnalysis? computed,
+  OpportunityEngineV2 opportunityEngine,
+) {
+  if (computed == null) {
+    // Only old local fixtures and test snapshots use this transitional path.
+    // The remote datasource reads match_feed_analysis_snapshots, whose
+    // contract always contains computed analysis.
+    return opportunityEngine.buildIntelligence(match);
+  }
+  return opportunityEngine.buildIntelligenceFromComputedAnalysis(
+    match,
+    computed.analysis,
+    computedScenarioMatches: computed.scenarios,
+  );
+}
+
 int _comparePersonalizedMatches(MatchBoardItem a, MatchBoardItem b) {
   final relevanceComparison = b.profileRelevance.total.compareTo(
     a.profileRelevance.total,
@@ -258,6 +275,7 @@ int _comparePersonalizedMatches(MatchBoardItem a, MatchBoardItem b) {
   return a.homeTeam.name.compareTo(b.homeTeam.name);
 }
 
+// ignore: unused_element
 List<MatchBoardItem> _attachStructuralRelations({
   required List<MatchBoardItem> matches,
   required Map<String, Object?> snapshot,
@@ -335,6 +353,7 @@ MatchBoardItem _attachRelation(
   );
 }
 
+// ignore: unused_element
 List<MatchBoardItem> _attachContextKeys(List<MatchBoardItem> matches) {
   const referenceBuilder = ChampionshipContextReferenceBuilder();
   const keyBuilder = MatchContextKeyBuilder();

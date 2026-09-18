@@ -131,6 +131,11 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                           final contradicted = entries
                               .where((entry) => entry.verdict == 'contradicted')
                               .length;
+                          final pertinentNuances = entries
+                              .where(
+                                (entry) => entry.verdict == 'caution_confirmed',
+                              )
+                              .length;
                           final result = entries.firstWhere(
                             (entry) => entry.hasResult,
                           );
@@ -159,7 +164,9 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                               ),
                               subtitle: Text(
                                 '$confirmed lectures confirmées · '
-                                '$contradicted contredites · ${entries.length} annoncées',
+                                '$contradicted contredites · '
+                                '$pertinentNuances nuances pertinentes · '
+                                '${entries.length} annoncées',
                                 style: TextStyle(
                                   color: context.textColors.secondary,
                                 ),
@@ -2601,7 +2608,8 @@ ChampionshipStandingView? _standingViewForReading(String readingId) {
   return switch (readingId) {
     'strong_home_team' || 'weak_home_team' => ChampionshipStandingView.home,
     'strong_away_team' || 'weak_away_team' => ChampionshipStandingView.away,
-    'home_away_mismatch' => ChampionshipStandingView.home,
+    'home_away_advantage' => ChampionshipStandingView.home,
+    'away_home_advantage' => ChampionshipStandingView.away,
     'positive_streak' ||
     'negative_streak' ||
     'improving_form' ||
@@ -2619,13 +2627,10 @@ ChampionshipStandingView? _standingViewForReading(String readingId) {
     'ranking_superiority' ||
     'ranking_inferiority' ||
     'structural_level_gap' => ChampionshipStandingView.general,
-    'strong_first_half_team' ||
-    'weak_first_half_team' ||
-    'frequent_halftime_lead' ||
-    'frequent_halftime_draw' => ChampionshipStandingView.firstHalf,
-    'strong_second_half_team' ||
-    'weak_second_half_team' ||
-    'second_half_recovery' => ChampionshipStandingView.secondHalf,
+    'frequent_first_half_scoring' ||
+    'frequent_first_half_conceding' => ChampionshipStandingView.firstHalf,
+    'frequent_second_half_scoring' ||
+    'frequent_second_half_conceding' => ChampionshipStandingView.secondHalf,
     _ => null,
   };
 }
@@ -7814,33 +7819,23 @@ CopilotArgumentType _scenarioArgumentTypeForSignal(String signalId) {
     'structural_level_gap' ||
     'balanced_hierarchy' => CopilotArgumentType.rankingGap,
     'positive_streak' ||
-    'improving_form' ||
-    'strong_first_half_team' ||
-    'frequent_halftime_lead' ||
-    'strong_second_half_team' => CopilotArgumentType.strongRecentForm,
-    'negative_streak' ||
-    'declining_form' ||
-    'weak_first_half_team' ||
-    'frequent_halftime_draw' ||
-    'weak_second_half_team' => CopilotArgumentType.weakRecentForm,
+    'improving_form' => CopilotArgumentType.strongRecentForm,
+    'negative_streak' || 'declining_form' => CopilotArgumentType.weakRecentForm,
     'prolific_attack' ||
     'high_xg_creation' ||
     'offensive_underperformance' ||
-    'offensive_overperformance' => CopilotArgumentType.strongAttack,
+    'offensive_overperformance' ||
+    'frequent_first_half_scoring' ||
+    'frequent_second_half_scoring' => CopilotArgumentType.strongAttack,
     'fragile_defense' ||
     'high_xg_conceded' ||
-    'defensive_underperformance' => CopilotArgumentType.fragileDefense,
+    'defensive_underperformance' ||
+    'frequent_first_half_conceding' ||
+    'frequent_second_half_conceding' => CopilotArgumentType.fragileDefense,
     'solid_defense' ||
     'frequent_clean_sheet' ||
     'defensive_overperformance' => CopilotArgumentType.closedMatch,
-    'open_match_profile' ||
-    'frequent_over_25' ||
-    'early_scoring_0_15' ||
-    'early_conceding_0_15' ||
-    'pre_halftime_scoring_31_45' ||
-    'pre_halftime_conceding_31_45' ||
-    'late_scoring_76_90' ||
-    'late_conceding_76_90' => CopilotArgumentType.openMatch,
+    'open_match_profile' || 'frequent_over_25' => CopilotArgumentType.openMatch,
     'closed_match_profile' ||
     'frequent_under_25' => CopilotArgumentType.closedMatch,
     _ => CopilotArgumentType.openMatch,
@@ -7861,23 +7856,21 @@ CopilotArgumentFamily _scenarioArgumentFamilyForSignal(String signalId) {
     'high_xg_creation' ||
     'low_xg_creation' ||
     'offensive_underperformance' ||
-    'offensive_overperformance' => CopilotArgumentFamily.attack,
+    'offensive_overperformance' ||
+    'frequent_first_half_scoring' ||
+    'frequent_second_half_scoring' => CopilotArgumentFamily.attack,
     'solid_defense' ||
     'fragile_defense' ||
     'frequent_clean_sheet' ||
     'high_xg_conceded' ||
     'defensive_overperformance' ||
-    'defensive_underperformance' => CopilotArgumentFamily.defense,
+    'defensive_underperformance' ||
+    'frequent_first_half_conceding' ||
+    'frequent_second_half_conceding' => CopilotArgumentFamily.defense,
     'open_match_profile' ||
     'frequent_over_25' ||
     'closed_match_profile' ||
-    'frequent_under_25' ||
-    'early_scoring_0_15' ||
-    'early_conceding_0_15' ||
-    'pre_halftime_scoring_31_45' ||
-    'pre_halftime_conceding_31_45' ||
-    'late_scoring_76_90' ||
-    'late_conceding_76_90' => CopilotArgumentFamily.rhythm,
+    'frequent_under_25' => CopilotArgumentFamily.rhythm,
     'post_match_xg_rejected' ||
     'misleading_result' ||
     'conflicting_signals' => CopilotArgumentFamily.contradiction,
@@ -7899,23 +7892,21 @@ CopilotEvidenceAction _scenarioEvidenceActionForSignal(String signalId) {
     'high_xg_creation' ||
     'low_xg_creation' ||
     'offensive_underperformance' ||
-    'offensive_overperformance' => CopilotEvidenceAction.offensiveStats,
+    'offensive_overperformance' ||
+    'frequent_first_half_scoring' ||
+    'frequent_second_half_scoring' => CopilotEvidenceAction.offensiveStats,
     'solid_defense' ||
     'fragile_defense' ||
     'frequent_clean_sheet' ||
     'high_xg_conceded' ||
     'defensive_overperformance' ||
-    'defensive_underperformance' => CopilotEvidenceAction.defensiveStats,
+    'defensive_underperformance' ||
+    'frequent_first_half_conceding' ||
+    'frequent_second_half_conceding' => CopilotEvidenceAction.defensiveStats,
     'open_match_profile' ||
     'frequent_over_25' ||
     'closed_match_profile' ||
-    'frequent_under_25' ||
-    'early_scoring_0_15' ||
-    'early_conceding_0_15' ||
-    'pre_halftime_scoring_31_45' ||
-    'pre_halftime_conceding_31_45' ||
-    'late_scoring_76_90' ||
-    'late_conceding_76_90' => CopilotEvidenceAction.rhythm,
+    'frequent_under_25' => CopilotEvidenceAction.rhythm,
     _ => CopilotEvidenceAction.results,
   };
 }

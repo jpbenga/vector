@@ -851,7 +851,8 @@ class AppOpportunityPalette extends ThemeExtension<AppOpportunityPalette> {
       'strong_home_team' ||
       'strong_away_team' ||
       'venue_strength' ||
-      'home_away_mismatch' ||
+      'home_away_advantage' ||
+      'away_home_advantage' ||
       'expected_domination' ||
       'favorite_with_protection' ||
       'controlled_favorite' ||
@@ -885,7 +886,7 @@ class AppOpportunityPalette extends ThemeExtension<AppOpportunityPalette> {
       'prolific_attack' ||
       'strong_attack' ||
       'attack_in_form' ||
-      'standout_goal_scorer' ||
+      'standout_decisive_player' ||
       'xg_creation' ||
       'high_xg_creation' ||
       'high_shots_on_target' ||
@@ -924,7 +925,8 @@ class AppOpportunityPalette extends ThemeExtension<AppOpportunityPalette> {
       'strong_home_team' ||
       'strong_away_team' ||
       'venue_strength' ||
-      'home_away_mismatch' ||
+      'home_away_advantage' ||
+      'away_home_advantage' ||
       'expected_domination' ||
       'cautious_double_chance' ||
       'favorite_with_protection' ||
@@ -966,7 +968,7 @@ class AppOpportunityPalette extends ThemeExtension<AppOpportunityPalette> {
       'prolific_attack' ||
       'strong_attack' ||
       'attack_in_form' ||
-      'standout_goal_scorer' ||
+      'standout_decisive_player' ||
       'xg_creation' ||
       'high_xg_creation' ||
       'high_shots_on_target' ||

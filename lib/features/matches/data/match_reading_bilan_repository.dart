@@ -9,12 +9,15 @@ class MatchReadingBilanEntry {
     required this.readingLabel,
     required this.verdict,
     required this.explanation,
+    required this.announcementKind,
     required this.homeTeamName,
     required this.awayTeamName,
     this.homeGoals,
     this.awayGoals,
     this.outcomeRule,
+    this.parentAnnouncementKey,
     this.evidence = const [],
+    this.requiredReadingIds = const [],
   });
 
   factory MatchReadingBilanEntry.fromJson(Map<String, dynamic> row) {
@@ -28,17 +31,24 @@ class MatchReadingBilanEntry {
       readingLabel: row['reading_label']?.toString() ?? '',
       verdict: row['verdict']?.toString(),
       explanation: row['explanation']?.toString(),
+      announcementKind: row['announcement_kind']?.toString() ?? 'reading',
       homeTeamName: row['home_team_name']?.toString(),
       awayTeamName: row['away_team_name']?.toString(),
       homeGoals: (row['home_goals'] as num?)?.toInt(),
       awayGoals: (row['away_goals'] as num?)?.toInt(),
       outcomeRule: row['outcome_rule']?.toString(),
+      parentAnnouncementKey: row['parent_announcement_key']?.toString(),
       evidence: row['evidence'] is List
           ? List<Map<String, Object?>>.unmodifiable(
               (row['evidence'] as List).whereType<Map<dynamic, dynamic>>().map(
                 (item) =>
                     item.map((key, value) => MapEntry(key.toString(), value)),
               ),
+            )
+          : const [],
+      requiredReadingIds: row['required_reading_ids'] is List
+          ? List<String>.unmodifiable(
+              (row['required_reading_ids'] as List).map((id) => id.toString()),
             )
           : const [],
     );
@@ -51,15 +61,23 @@ class MatchReadingBilanEntry {
   final String readingLabel;
   final String? verdict;
   final String? explanation;
+  final String announcementKind;
   final String? homeTeamName;
   final String? awayTeamName;
   final int? homeGoals;
   final int? awayGoals;
   final String? outcomeRule;
+  final String? parentAnnouncementKey;
   final List<Map<String, Object?>> evidence;
+  final List<String> requiredReadingIds;
 
-  bool get isEvaluable => verdict == 'confirmed' || verdict == 'contradicted';
+  bool get isEvaluable =>
+      verdict == 'confirmed' ||
+      verdict == 'contradicted' ||
+      verdict == 'caution_confirmed' ||
+      verdict == 'caution_not_confirmed';
   bool get hasResult => homeGoals != null && awayGoals != null;
+  bool get isScenario => announcementKind == 'scenario';
 }
 
 class MatchReadingBilanSummary {
@@ -71,6 +89,8 @@ class MatchReadingBilanSummary {
     required this.contradicted,
     required this.notEvaluable,
     required this.contextOnly,
+    this.cautionConfirmed = 0,
+    this.cautionNotConfirmed = 0,
     required this.pending,
   });
 
@@ -83,6 +103,8 @@ class MatchReadingBilanSummary {
         contradicted: _integer(row['contradicted']) ?? 0,
         notEvaluable: _integer(row['not_evaluable']) ?? 0,
         contextOnly: _integer(row['context_only']) ?? 0,
+        cautionConfirmed: _integer(row['caution_confirmed']) ?? 0,
+        cautionNotConfirmed: _integer(row['caution_not_confirmed']) ?? 0,
         pending: _integer(row['pending']) ?? 0,
       );
 
@@ -93,9 +115,12 @@ class MatchReadingBilanSummary {
   final int contradicted;
   final int notEvaluable;
   final int contextOnly;
+  final int cautionConfirmed;
+  final int cautionNotConfirmed;
   final int pending;
 
-  int get evaluable => confirmed + contradicted;
+  int get evaluable =>
+      confirmed + contradicted + cautionConfirmed + cautionNotConfirmed;
 }
 
 int? _integer(Object? value) => switch (value) {
@@ -126,7 +151,8 @@ class SupabaseMatchReadingBilanRepository
   static const _columns =
       'announcement_id,fixture_id,kickoff_at,reading_id,reading_label,'
       'verdict,explanation,home_team_name,away_team_name,home_goals,'
-      'away_goals,outcome_rule,evidence';
+      'away_goals,outcome_rule,evidence,announcement_kind,required_reading_ids,'
+      'parent_announcement_key';
 
   @override
   Future<List<MatchReadingBilanSummary>> loadSummary({

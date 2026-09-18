@@ -663,20 +663,21 @@ class ReadingPreferenceCatalog {
       description: 'Une équipe se distingue dans ses matchs à l’extérieur.',
     ),
     ReadingPreferenceDefinition(
-      id: 'standout_goal_scorer',
-      label: 'Buteur qui se distingue',
-      description:
-          'Un joueur se détache par sa production de buts au sein de son équipe.',
-    ),
-    ReadingPreferenceDefinition(
       id: 'weak_away_team',
       label: 'Fragile à l’extérieur',
       description: 'Une équipe rencontre des difficultés à l’extérieur.',
     ),
     ReadingPreferenceDefinition(
-      id: 'home_away_mismatch',
+      id: 'home_away_advantage',
       label: 'Avantage domicile / extérieur',
-      description: 'Les profils domicile et extérieur s’opposent nettement.',
+      description:
+          'Une équipe solide à domicile affronte une équipe fragile à l’extérieur.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'away_home_advantage',
+      label: 'Avantage extérieur / domicile',
+      description:
+          'Une équipe solide à l’extérieur affronte une équipe fragile à domicile.',
     ),
     ReadingPreferenceDefinition(
       id: 'prolific_attack',
@@ -704,11 +705,6 @@ class ReadingPreferenceCatalog {
       description: 'Une équipe garde souvent sa cage inviolée.',
     ),
     ReadingPreferenceDefinition(
-      id: 'open_match_profile',
-      label: 'Match ouvert',
-      description: 'Les données convergent vers un rythme de buts élevé.',
-    ),
-    ReadingPreferenceDefinition(
       id: 'frequent_over_25',
       label: 'Tendance over 2,5 buts',
       description: 'Les matchs récents dépassent souvent 2,5 buts.',
@@ -719,49 +715,9 @@ class ReadingPreferenceCatalog {
       description: 'Les deux équipes marquent régulièrement.',
     ),
     ReadingPreferenceDefinition(
-      id: 'closed_match_profile',
-      label: 'Match fermé',
-      description: 'Les données convergent vers un rythme bas.',
-    ),
-    ReadingPreferenceDefinition(
       id: 'frequent_under_25',
       label: 'Tendance under 2,5 buts',
       description: 'Les matchs récents restent souvent sous 2,5 buts.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'high_xg_creation',
-      label: 'Création xG élevée',
-      description: 'Une équipe crée des occasions de qualité.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'low_xg_creation',
-      label: 'Création xG faible',
-      description: 'Une équipe crée peu d’occasions de qualité.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'high_xg_conceded',
-      label: 'xG concédés élevés',
-      description: 'Une équipe concède des occasions de qualité.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'offensive_underperformance',
-      label: 'Sous-performance offensive',
-      description: 'Les buts marqués restent en retrait des occasions créées.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'offensive_overperformance',
-      label: 'Surperformance offensive',
-      description: 'Les buts marqués dépassent les occasions créées.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'defensive_underperformance',
-      label: 'Sous-performance défensive',
-      description: 'Les buts encaissés dépassent les occasions concédées.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'defensive_overperformance',
-      label: 'Surperformance défensive',
-      description: 'Les buts encaissés restent sous les occasions concédées.',
     ),
     ReadingPreferenceDefinition(
       id: 'misleading_result',
@@ -769,180 +725,51 @@ class ReadingPreferenceCatalog {
       description: 'Les résultats ne reflètent pas entièrement les xG.',
     ),
     ReadingPreferenceDefinition(
-      id: 'strong_first_half_team',
-      label: 'Solide en première mi-temps',
+      id: 'frequent_first_half_scoring',
+      label: 'Marque souvent en première mi-temps',
       description:
-          'Une équipe se distingue dans le classement des premières mi-temps.',
+          'Une équipe produit beaucoup de buts avant la pause par rapport au championnat.',
     ),
     ReadingPreferenceDefinition(
-      id: 'weak_first_half_team',
-      label: 'Fragile en première mi-temps',
+      id: 'frequent_first_half_conceding',
+      label: 'Encaisse souvent en première mi-temps',
       description:
-          'Une équipe se situe dans la zone basse des premières mi-temps.',
+          'Une équipe concède beaucoup de buts avant la pause par rapport au championnat.',
     ),
     ReadingPreferenceDefinition(
-      id: 'frequent_halftime_lead',
-      label: 'Souvent devant à la pause',
+      id: 'frequent_second_half_scoring',
+      label: 'Marque souvent en seconde mi-temps',
       description:
-          'Une équipe mène à la pause plus souvent que le championnat.',
+          'Une équipe produit beaucoup de buts après la pause par rapport au championnat.',
     ),
     ReadingPreferenceDefinition(
-      id: 'frequent_halftime_draw',
-      label: 'Souvent à égalité à la pause',
+      id: 'frequent_second_half_conceding',
+      label: 'Encaisse souvent en seconde mi-temps',
       description:
-          'Une équipe rejoint fréquemment la pause sur un score de parité.',
+          'Une équipe concède beaucoup de buts après la pause par rapport au championnat.',
     ),
     ReadingPreferenceDefinition(
-      id: 'strong_lead_retention',
-      label: 'Conserve son avance',
-      description: 'Une équipe garde souvent l’avantage acquis à la pause.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'weak_lead_retention',
-      label: 'Perd son avance',
+      id: 'match_shot_profile',
+      label: 'Rythme de tirs',
       description:
-          'Une équipe laisse souvent échapper son avantage à la pause.',
+          'Projette le volume de tirs attendu par équipe et au total du match.',
     ),
     ReadingPreferenceDefinition(
-      id: 'second_half_recovery',
-      label: 'Réagit après la pause',
+      id: 'match_corner_profile',
+      label: 'Potentiel corners',
       description:
-          'Une équipe revient souvent après avoir été menée à la pause.',
+          'Projette les corners attendus par équipe et au total du match.',
     ),
     ReadingPreferenceDefinition(
-      id: 'strong_second_half_team',
-      label: 'Solide en seconde mi-temps',
+      id: 'match_card_profile',
+      label: 'Intensité des cartons',
+      description: 'Projette le total de cartons attendu pendant le match.',
+    ),
+    ReadingPreferenceDefinition(
+      id: 'standout_decisive_player',
+      label: 'Joueurs décisifs',
       description:
-          'Une équipe se distingue dans le classement des secondes mi-temps.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'weak_second_half_team',
-      label: 'Fragile en seconde mi-temps',
-      description:
-          'Une équipe se situe dans la zone basse des secondes mi-temps.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'early_scoring_0_15',
-      label: 'Marque entre 0 et 15 minutes',
-      description:
-          'Une équipe marque fréquemment dans le premier quart d’heure.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'early_conceding_0_15',
-      label: 'Concède entre 0 et 15 minutes',
-      description:
-          'Une équipe concède fréquemment dans le premier quart d’heure.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'pre_halftime_scoring_31_45',
-      label: 'Marque entre 31 et 45 minutes',
-      description: 'Une équipe se montre dangereuse avant la pause.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'pre_halftime_conceding_31_45',
-      label: 'Concède entre 31 et 45 minutes',
-      description: 'Une équipe se montre vulnérable avant la pause.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'late_scoring_76_90',
-      label: 'Marque entre 76 et 90 minutes',
-      description: 'Une équipe marque fréquemment en fin de rencontre.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'late_conceding_76_90',
-      label: 'Concède entre 76 et 90 minutes',
-      description: 'Une équipe concède fréquemment en fin de rencontre.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'high_shot_volume',
-      label: 'Volume de tirs élevé',
-      description: 'Une équipe tire beaucoup relativement au championnat.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'low_shot_volume',
-      label: 'Faible volume de tirs',
-      description: 'Une équipe tire peu relativement au championnat.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'high_shots_on_target',
-      label: 'Nombreux tirs cadrés',
-      description: 'Une équipe cadre beaucoup de tirs par match.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'low_shot_accuracy',
-      label: 'Difficulté à cadrer',
-      description: 'Une faible part des tirs de l’équipe est cadrée.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'high_shots_conceded',
-      label: 'Concède beaucoup de tirs',
-      description: 'Les adversaires tirent beaucoup face à cette équipe.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'high_shots_on_target_conceded',
-      label: 'Concède beaucoup de tirs cadrés',
-      description: 'Les adversaires cadrent beaucoup face à cette équipe.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'high_corner_creation',
-      label: 'Obtient beaucoup de corners',
-      description: 'Une équipe obtient beaucoup de corners par match.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'high_corners_conceded',
-      label: 'Concède beaucoup de corners',
-      description: 'Une équipe concède beaucoup de corners par match.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'high_total_corners_profile',
-      label: 'Matchs riches en corners',
-      description: 'Les matchs de l’équipe produisent beaucoup de corners.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'low_total_corners_profile',
-      label: 'Matchs pauvres en corners',
-      description: 'Les matchs de l’équipe produisent peu de corners.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'high_card_rate',
-      label: 'Reçoit beaucoup de cartons',
-      description: 'Une équipe reçoit beaucoup de cartons par match.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'low_card_rate',
-      label: 'Équipe disciplinée',
-      description: 'Une équipe reçoit peu de cartons par match.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'high_total_cards_profile',
-      label: 'Matchs riches en cartons',
-      description: 'Les matchs de l’équipe produisent beaucoup de cartons.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'second_half_cards_profile',
-      label: 'Cartons après la pause',
-      description:
-          'Une grande part des cartons de l’équipe arrive en seconde période.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'high_volume_shooter',
-      label: 'Joueur à fort volume de tirs',
-      description: 'Un joueur tire beaucoup relativement au championnat.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'accurate_shooter',
-      label: 'Joueur qui cadre fréquemment',
-      description: 'Un joueur cadre beaucoup de tirs par 90 minutes.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'standout_creator',
-      label: 'Créateur qui se distingue',
-      description: 'Un joueur se distingue par ses passes décisives.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'identified_penalty_taker',
-      label: 'Tireur de penalty identifié',
-      description: 'Un joueur tente régulièrement les penalties de son équipe.',
+          'Identifie les joueurs qui se distinguent par leurs buts et passes décisives par 90 minutes.',
     ),
     ReadingPreferenceDefinition(
       id: 'key_player_unavailable',
@@ -953,6 +780,51 @@ class ReadingPreferenceCatalog {
 
   static bool contains(String readingId) =>
       values.any((definition) => definition.id == readingId);
+
+  static const _shotReadingIds = {
+    'high_shot_volume',
+    'low_shot_volume',
+    'high_shots_on_target',
+    'low_shot_accuracy',
+    'high_shots_conceded',
+    'high_shots_on_target_conceded',
+    'high_match_shot_projection',
+    'low_match_shot_projection',
+  };
+
+  static const _cornerReadingIds = {
+    'high_corner_creation',
+    'high_corners_conceded',
+    'high_total_corners_profile',
+    'low_total_corners_profile',
+    'high_match_corner_projection',
+    'low_match_corner_projection',
+  };
+
+  static const _cardReadingIds = {
+    'high_card_rate',
+    'low_card_rate',
+    'high_total_cards_profile',
+    'second_half_cards_profile',
+    'high_match_card_projection',
+    'low_match_card_projection',
+  };
+
+  static String? preferenceIdForReading(String readingId) {
+    if (readingId == 'standout_goal_scorer' ||
+        readingId == 'standout_creator') {
+      return 'standout_decisive_player';
+    }
+    if (contains(readingId)) return readingId;
+    if (_shotReadingIds.contains(readingId)) return 'match_shot_profile';
+    if (_cornerReadingIds.contains(readingId)) return 'match_corner_profile';
+    if (_cardReadingIds.contains(readingId)) return 'match_card_profile';
+    return null;
+  }
+
+  static Set<String> normalizeSelectionIds(Iterable<String> readingIds) => {
+    for (final readingId in readingIds) ?preferenceIdForReading(readingId),
+  };
 }
 
 class OpportunityProfileCatalog {
@@ -1029,27 +901,6 @@ class OpportunityProfileCatalog {
           'Série négative, dégradation récente et faible création xG convergent.',
     ),
     OpportunityProfileDefinition(
-      id: 'first_half_advantage',
-      label: 'Avantage première mi-temps',
-      displayLabel: 'Avantage à la pause',
-      description:
-          'Force en première période, faiblesse adverse et avances fréquentes à la pause.',
-    ),
-    OpportunityProfileDefinition(
-      id: 'early_goal_pressure',
-      label: 'Pression but précoce',
-      displayLabel: 'Pression pour un but précoce',
-      description:
-          'Buts précoces, fragilité adverse et tirs cadrés convergent.',
-    ),
-    OpportunityProfileDefinition(
-      id: 'late_goal_pressure',
-      label: 'Pression but tardif',
-      displayLabel: 'Pression pour un but tardif',
-      description:
-          'Buts tardifs, fragilité adverse et seconde période solide convergent.',
-    ),
-    OpportunityProfileDefinition(
       id: 'corner_pressure',
       label: 'Pression corners',
       displayLabel: 'Pression favorable aux corners',
@@ -1057,25 +908,11 @@ class OpportunityProfileCatalog {
           'Corners obtenus, corners concédés par l’adversaire et tirs convergent.',
     ),
     OpportunityProfileDefinition(
-      id: 'second_half_swing',
-      label: 'Bascule seconde mi-temps',
-      displayLabel: 'Bascule après la pause',
-      description:
-          'Seconde période solide, faiblesse adverse et capacité de retour convergent.',
-    ),
-    OpportunityProfileDefinition(
       id: 'disciplinary_tension',
       label: 'Tension disciplinaire',
       displayLabel: 'Rencontre sous tension',
       description:
           'Les deux équipes reçoivent beaucoup de cartons et leurs matchs sont riches en cartons.',
-    ),
-    OpportunityProfileDefinition(
-      id: 'standout_scorer_exposure',
-      label: 'Buteur exposé',
-      displayLabel: 'Buteur particulièrement exposé',
-      description:
-          'Le même joueur cumule efficacité et tirs face à une équipe qui concède des tirs cadrés.',
     ),
   ];
 

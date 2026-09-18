@@ -18,7 +18,7 @@ class SupabaseMatchFeedSnapshotRepository
   Future<Map<String, Object?>?> loadLatestForDate(DateTime date) async {
     final day = _dateOnly(date).toIso8601String().split('T').first;
     final rows = await _client
-        .from('match_feed_snapshots')
+        .from('match_feed_analysis_snapshots')
         .select('id,scope,league_ids')
         .lte('window_start', day)
         .gte('window_end', day)
@@ -31,7 +31,7 @@ class SupabaseMatchFeedSnapshotRepository
   @override
   Future<Map<String, Object?>?> loadLatest() async {
     final rows = await _client
-        .from('match_feed_snapshots')
+        .from('match_feed_analysis_snapshots')
         .select('id,scope,league_ids')
         .order('as_of', ascending: false)
         .limit(500);
@@ -62,7 +62,7 @@ class SupabaseMatchFeedSnapshotRepository
             .take(concurrentChunks)
             .map(
               (chunk) async => await _client
-                  .from('match_feed_snapshots')
+                  .from('match_feed_analysis_snapshots')
                   .select('id,payload')
                   .inFilter('id', chunk),
             ),
@@ -177,6 +177,8 @@ Map<String, Object?>? mergeMatchFeedSnapshotPayloads(
   for (final key in const [
     'fixtures',
     'odds',
+    // Kept only to merge an offline legacy snapshot. Remote production reads
+    // the compact analysis table, where these collections are absent.
     'standings',
     'team_statistics',
     'recent_league_matches',
@@ -205,7 +207,24 @@ Map<String, Object?>? mergeMatchFeedSnapshotPayloads(
       selected.map((item) => item.payload['bookmaker_priority']),
     ),
     'raw': mergedRaw,
+    'computed': {'fixtures': _mergeComputedFixtures(selected)},
   };
+}
+
+List<Object?> _mergeComputedFixtures(List<_SnapshotSelection> selected) {
+  final values = <Object?>[];
+  final fixtureIds = <String>{};
+  for (final selection in selected) {
+    final computed = _objectMap(selection.payload['computed']);
+    for (final value in _objectList(computed?['fixtures'])) {
+      final entry = _objectMap(value);
+      final fixtureId = entry?['fixture_id']?.toString();
+      if (fixtureId != null && fixtureIds.add(fixtureId)) {
+        values.add(entry);
+      }
+    }
+  }
+  return values;
 }
 
 Map<String, Object?>? _payloadFromRow(Object? row) {

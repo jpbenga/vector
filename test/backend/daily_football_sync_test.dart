@@ -119,6 +119,46 @@ void main() {
       expect(apiFunction, contains('await delay(options.requestDelayMs)'));
     });
 
+    test(
+      'collects absence reports only in the final 24 hours before kickoff',
+      () {
+        final apiFunction = File(
+          'supabase/functions/api-football-sync/index.ts',
+        ).readAsStringSync();
+        final snapshotBuilder = File(
+          'supabase/functions/build-match-feed-snapshot/index.ts',
+        ).readAsStringSync();
+
+        for (final source in [apiFunction, snapshotBuilder]) {
+          expect(
+            source,
+            contains('const injuryCollectionWindowMs = 24 * 60 * 60 * 1000;'),
+          );
+          expect(
+            source,
+            contains('timeUntilKickoff <= injuryCollectionWindowMs'),
+          );
+        }
+      },
+    );
+
+    test(
+      'refreshes player statistics daily for both teams of imminent fixtures',
+      () {
+        final apiFunction = File(
+          'supabase/functions/api-football-sync/index.ts',
+        ).readAsStringSync();
+
+        expect(apiFunction, contains('const registerPlayerStatisticsTeam'));
+        expect(apiFunction, contains('for (const side of ["home", "away"])'));
+        expect(
+          apiFunction,
+          contains('timeUntilKickoff <= injuryCollectionWindowMs'),
+        );
+        expect(apiFunction, contains('registerPlayerStatisticsTeam(teamId)'));
+      },
+    );
+
     test('collects all available bookmakers in normal runs', () {
       final snapshotBuilder = File(
         'supabase/functions/build-match-feed-snapshot/index.ts',

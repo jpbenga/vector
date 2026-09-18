@@ -6,6 +6,7 @@ const snapshotKind = "pre_match_feed";
 const defaultTimezone = "Europe/Paris";
 const maxDays = 7;
 const maxLeagues = 40;
+const injuryCollectionWindowMs = 24 * 60 * 60 * 1000;
 
 const defaultBookmakerPriority = [
   { id: 16, name: "Unibet" },
@@ -650,8 +651,21 @@ async function collectSnapshotSources({
     }
   }
 
+  const now = Date.now();
   const upcomingFixtureIds = new Set(rawFixtures
-    .map((row) => numberValue((objectValue(row.fixture) ?? {}).id))
+    .map((row) => {
+      const fixture = objectValue(row.fixture) ?? {};
+      const fixtureId = numberValue(fixture.id);
+      const kickoff = stringValue(fixture.date);
+      const timeUntilKickoff = kickoff === null
+        ? null
+        : Date.parse(kickoff) - now;
+      return fixtureId !== null && timeUntilKickoff !== null &&
+          timeUntilKickoff > 0 &&
+          timeUntilKickoff <= injuryCollectionWindowMs
+        ? fixtureId
+        : null;
+    })
     .filter((id): id is number => id !== null));
   for (const fixtureId of upcomingFixtureIds) {
     const rows = await cachedResponsesFor({

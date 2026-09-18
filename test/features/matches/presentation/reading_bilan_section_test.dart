@@ -86,6 +86,7 @@ MatchReadingBilanEntry _entry(String id, String label, String verdict) =>
       readingLabel: label,
       verdict: verdict,
       explanation: 'Critère figé avant match.',
+      announcementKind: 'reading',
       homeTeamName: 'Équipe A',
       awayTeamName: 'Équipe B',
       homeGoals: 2,

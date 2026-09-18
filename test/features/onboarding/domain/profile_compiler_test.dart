@@ -83,6 +83,29 @@ void main() {
       ]);
     });
 
+    test('maps former scorer and creator readings to decisive players', () {
+      const sourceProfile = DecisionProfile(
+        onboardingVersion: '3.0',
+        answers: [
+          OnboardingAnswer(
+            questionId: 'competitions',
+            orderedOptionIds: ['39'],
+          ),
+          OnboardingAnswer(
+            questionId: 'readings',
+            orderedOptionIds: ['standout_goal_scorer', 'standout_creator'],
+          ),
+        ],
+      );
+
+      final profile = const ProfileCompiler().compile(sourceProfile);
+
+      expect(profile.readings['standout_decisive_player']?.enabled, isTrue);
+      expect(profile.isReadingAllowed('standout_goal_scorer'), isTrue);
+      expect(profile.isReadingAllowed('standout_creator'), isTrue);
+      expect(profile.isReadingAllowed('high_volume_shooter'), isFalse);
+    });
+
     test(
       'keeps an empty profile unconfigured without questionnaire defaults',
       () {
@@ -156,6 +179,57 @@ void main() {
       expect(profile.hasEnabledReadings, isTrue);
       expect(profile.isReadingAllowed('positive_streak'), isTrue);
       expect(profile.hasEnabledOpportunityProfiles, isFalse);
+    });
+
+    test(
+      'migrates the former combined venue advantage into both directions',
+      () {
+        const sourceProfile = DecisionProfile(
+          onboardingVersion: '3.0',
+          answers: [
+            OnboardingAnswer(
+              questionId: 'competitions',
+              orderedOptionIds: ['eng_premier_league'],
+            ),
+            OnboardingAnswer(
+              questionId: 'readings',
+              orderedOptionIds: ['home_away_mismatch'],
+            ),
+          ],
+        );
+
+        final profile = const ProfileCompiler().compile(sourceProfile);
+
+        expect(profile.isReadingAllowed('home_away_advantage'), isTrue);
+        expect(profile.isReadingAllowed('away_home_advantage'), isTrue);
+      },
+    );
+
+    test('keeps xG signals out of selectable reading preferences', () {
+      expect(ReadingPreferenceCatalog.contains('high_xg_creation'), isFalse);
+      expect(
+        ReadingPreferenceCatalog.contains('offensive_underperformance'),
+        isFalse,
+      );
+    });
+
+    test('keeps match profiles inside scenarios, not reading preferences', () {
+      expect(ReadingPreferenceCatalog.contains('open_match_profile'), isFalse);
+      expect(
+        ReadingPreferenceCatalog.contains('closed_match_profile'),
+        isFalse,
+      );
+    });
+
+    test('maps legacy statistical selections to their three projections', () {
+      expect(
+        ReadingPreferenceCatalog.normalizeSelectionIds([
+          'high_shot_volume',
+          'low_total_corners_profile',
+          'high_card_rate',
+        ]),
+        {'match_shot_profile', 'match_corner_profile', 'match_card_profile'},
+      );
     });
 
     test(

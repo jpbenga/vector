@@ -96,7 +96,7 @@ void main() {
     });
 
     test(
-      'requires a declared pre-match absence and a league-relevant player',
+      'shows a regular starter absence only in the 24 hours before kickoff',
       () {
         PlayerSeasonStatisticsSnapshot player(int id, int goals) =>
             PlayerSeasonStatisticsSnapshot(
@@ -106,46 +106,79 @@ void main() {
               teamName: 'Home',
               minutes: 900,
               appearances: 10,
+              lineups: 9,
               goals: goals,
               assists: 0,
             );
-        final key = player(7, 30);
-        final peers = [
-          key,
-          for (var index = 0; index < 18; index += 1)
-            player(20 + index, index + 1),
-          player(8, 0),
-        ];
-        FootballAnalysis analyze(DateTime reported) =>
+        final key = player(7, 0);
+        FootballAnalysis analyze(DateTime asOf) =>
             const FootballAnalyzer().analyze(
               _match(
                 homePlayerStatistics: [key, player(8, 0)],
-                leaguePlayerStatistics: peers,
                 unavailablePlayers: [
                   PlayerUnavailableSnapshot(
                     playerId: 7,
                     playerName: 'Player 7',
                     teamId: 10,
-                    asOf: reported,
+                    asOf: DateTime.utc(2026, 7, 29),
                     reason: 'Blessure',
                   ),
                 ],
               ),
+              asOf: asOf,
             );
-        final before = analyze(DateTime.utc(2026, 7, 29));
+        final withinWindow = analyze(DateTime.utc(2026, 7, 30, 8));
         expect(
-          before.has('key_player_unavailable', subjectTeamId: 'home'),
+          withinWindow.has('key_player_unavailable', subjectTeamId: 'home'),
           isTrue,
-          reason: before.readings.map((reading) => reading.id).join(', '),
+        );
+        expect(
+          withinWindow.contradictoryReadings.single.id,
+          'key_player_unavailable',
         );
         expect(
           analyze(
-            DateTime.utc(2026, 7, 31),
+            DateTime.utc(2026, 7, 29, 17),
           ).has('key_player_unavailable', subjectTeamId: 'home'),
           isFalse,
         );
       },
     );
+
+    test('identifies an established player by goal contributions per 90', () {
+      PlayerSeasonStatisticsSnapshot player({
+        required int id,
+        required int goals,
+        required int assists,
+        required int minutes,
+      }) => PlayerSeasonStatisticsSnapshot(
+        playerId: id,
+        playerName: 'Player $id',
+        teamId: 10,
+        teamName: 'Home',
+        minutes: minutes,
+        appearances: 10,
+        lineups: 8,
+        goals: goals,
+        assists: assists,
+      );
+      final decisive = player(id: 7, goals: 6, assists: 4, minutes: 900);
+      final analysis = const FootballAnalyzer().analyze(
+        _match(
+          homePlayerStatistics: [
+            decisive,
+            player(id: 8, goals: 1, assists: 1, minutes: 900),
+            player(id: 9, goals: 0, assists: 0, minutes: 450),
+          ],
+        ),
+      );
+
+      final reading = analysis
+          .detected(id: 'standout_decisive_player', subjectTeamId: 'home')
+          .single;
+      expect(reading.playerId, 7);
+      expect(reading.evidence.single.label, contains('action décisive/90'));
+    });
 
     test('emits insufficient data when no reading can be supported', () {
       final analysis = const FootballAnalyzer().analyze(_emptyMatch());
@@ -253,93 +286,106 @@ void main() {
       expect(analysis.has('declining_form'), false);
     });
 
-    test('produces half-time readings from championship-relative tables', () {
-      final phaseTable = <TeamStandingSnapshot>[
-        const TeamStandingSnapshot(
-          teamId: 10,
-          teamName: 'Home',
-          rank: 1,
-          points: 300,
-          played: 100,
-          wins: 100,
-          draws: 0,
-          losses: 0,
-        ),
-        for (var index = 0; index < 18; index += 1)
-          TeamStandingSnapshot(
-            teamId: 20 + index,
-            teamName: 'Middle $index',
-            rank: index + 2,
-            points: 200 - index,
-            played: 100,
-            wins: 50 - index,
-            draws: 30,
-            losses: 20 + index,
-          ),
-        const TeamStandingSnapshot(
-          teamId: 11,
-          teamName: 'Away',
-          rank: 20,
-          points: 0,
-          played: 100,
-          wins: 0,
-          draws: 0,
-          losses: 100,
-        ),
-      ];
-      final analysis = const FootballAnalyzer().analyze(
+    test('distinguishes a perfect dynamic from a progressive form', () {
+      final perfect = const FootballAnalyzer().analyze(_match());
+      final progressive = const FootballAnalyzer().analyze(
         _match(
-          standingTables: {
-            ChampionshipStandingView.firstHalf: phaseTable,
-            ChampionshipStandingView.secondHalf: phaseTable,
-          },
+          homeRecentLeagueMatches: const [
+            TeamRecentMatchSnapshot(
+              opponentName: 'A',
+              venue: RecentMatchVenue.home,
+              result: 'W',
+            ),
+            TeamRecentMatchSnapshot(
+              opponentName: 'B',
+              venue: RecentMatchVenue.away,
+              result: 'D',
+            ),
+            TeamRecentMatchSnapshot(
+              opponentName: 'C',
+              venue: RecentMatchVenue.home,
+              result: 'L',
+            ),
+          ],
         ),
       );
 
       expect(
-        analysis.has('strong_first_half_team', subjectTeamId: 'home'),
-        isTrue,
-        reason: analysis.readings
-            .map((reading) => '${reading.id}:${reading.subjectTeamId}')
-            .join(', '),
+        perfect.detected(id: 'positive_streak').single.strength,
+        ReadingStrength.strong,
+      );
+      expect(perfect.has('improving_form', subjectTeamId: 'home'), isFalse);
+      expect(
+        progressive.has('positive_streak', subjectTeamId: 'home'),
+        isFalse,
       );
       expect(
-        analysis.has('weak_first_half_team', subjectTeamId: 'away'),
-        isTrue,
-      );
-      expect(
-        analysis.has('strong_second_half_team', subjectTeamId: 'home'),
-        isTrue,
-      );
-      expect(
-        analysis.has('weak_second_half_team', subjectTeamId: 'away'),
-        isTrue,
-      );
-      expect(
-        analysis.has('frequent_halftime_lead', subjectTeamId: 'home'),
-        isTrue,
+        progressive.detected(id: 'improving_form').single.strength,
+        ReadingStrength.moderate,
       );
     });
 
-    test('produces explicit goal timing readings relative to the league', () {
-      TeamStatisticsSnapshot statistics(
-        int teamId,
-        int earlyFor,
-        int lateAgainst,
-      ) => TeamStatisticsSnapshot(
+    test('separates home and away venue advantages', () {
+      final analysis = const FootballAnalyzer().analyze(
+        _match(
+          homeStatistics: const TeamStatisticsSnapshot(
+            teamId: 10,
+            teamName: 'Home',
+            playedHome: 5,
+            winsHome: 4,
+            lossesHome: 0,
+          ),
+          awayStatistics: const TeamStatisticsSnapshot(
+            teamId: 11,
+            teamName: 'Away',
+            playedAway: 5,
+            winsAway: 1,
+            lossesAway: 4,
+          ),
+        ),
+      );
+
+      expect(
+        analysis.has('home_away_advantage', subjectTeamId: 'home'),
+        isTrue,
+      );
+      expect(analysis.has('away_home_advantage'), isFalse);
+    });
+
+    test('produces symmetric half readings relative to the league', () {
+      TeamStatisticsSnapshot statistics({
+        required int teamId,
+        int firstHalfFor = 20,
+        int secondHalfFor = 20,
+        int firstHalfAgainst = 20,
+        int secondHalfAgainst = 20,
+      }) => TeamStatisticsSnapshot(
         teamId: teamId,
         teamName: 'Team $teamId',
         playedTotal: 100,
-        goalsForByMinute: {'0-15': earlyFor},
-        goalsAgainstByMinute: {'76-90': lateAgainst},
+        goalsForByMinute: {'0-15': firstHalfFor, '46-60': secondHalfFor},
+        goalsAgainstByMinute: {
+          '0-15': firstHalfAgainst,
+          '46-60': secondHalfAgainst,
+        },
       );
 
-      final home = statistics(10, 50, 0);
-      final away = statistics(11, 0, 50);
+      final home = statistics(teamId: 10, firstHalfFor: 90, secondHalfFor: 90);
+      final away = statistics(
+        teamId: 11,
+        firstHalfAgainst: 90,
+        secondHalfAgainst: 90,
+      );
       final league = <TeamStatisticsSnapshot>[
         home,
         for (var index = 0; index < 18; index += 1)
-          statistics(20 + index, 20 + index, 20 + index),
+          statistics(
+            teamId: 20 + index,
+            firstHalfFor: 20 + index,
+            secondHalfFor: 20 + index,
+            firstHalfAgainst: 20 + index,
+            secondHalfAgainst: 20 + index,
+          ),
         away,
       ];
       final analysis = const FootballAnalyzer().analyze(
@@ -350,11 +396,68 @@ void main() {
         ),
       );
 
-      expect(analysis.has('early_scoring_0_15', subjectTeamId: 'home'), isTrue);
       expect(
-        analysis.has('late_conceding_76_90', subjectTeamId: 'away'),
+        analysis.has('frequent_first_half_scoring', subjectTeamId: 'home'),
         isTrue,
       );
+      expect(
+        analysis.has('frequent_first_half_conceding', subjectTeamId: 'away'),
+        isTrue,
+      );
+      expect(
+        analysis.has('frequent_second_half_scoring', subjectTeamId: 'home'),
+        isTrue,
+      );
+      expect(
+        analysis.has('frequent_second_half_conceding', subjectTeamId: 'away'),
+        isTrue,
+      );
+    });
+
+    test('projects match statistics by crossing production and concession', () {
+      final home = TeamPerformanceStatisticsSnapshot(
+        teamId: 10,
+        teamName: 'Home',
+        asOf: DateTime.utc(2026, 7, 30, 8),
+        sampleSize: 10,
+        shotsFor: 14,
+        shotsAgainst: 9,
+        cornersFor: 6,
+        cornersAgainst: 4,
+        cardsFor: 2,
+        cardsAgainst: 3,
+      );
+      final away = TeamPerformanceStatisticsSnapshot(
+        teamId: 11,
+        teamName: 'Away',
+        asOf: DateTime.utc(2026, 7, 30, 8),
+        sampleSize: 10,
+        shotsFor: 10,
+        shotsAgainst: 12,
+        cornersFor: 4,
+        cornersAgainst: 5,
+        cardsFor: 3,
+        cardsAgainst: 2,
+      );
+
+      final analysis = const FootballAnalyzer().analyze(
+        _match(
+          homePerformanceStatistics: home,
+          awayPerformanceStatistics: away,
+        ),
+      );
+
+      final corners = analysis.readings.firstWhere(
+        (reading) => reading.id == 'match_corner_profile',
+      );
+      expect(analysis.has('match_shot_profile'), isTrue);
+      expect(analysis.has('match_card_profile'), isTrue);
+      expect(corners.subjectSide, ReadingSubjectSide.match);
+      expect(corners.evidence.single.value, {
+        'home': 5.5,
+        'away': 4.0,
+        'total': 9.5,
+      });
     });
 
     test('continental maturity uses played domestic matches', () {
@@ -488,6 +591,42 @@ MatchBoardItem _match({
   TeamStatisticsSnapshot? homeStatistics,
   TeamStatisticsSnapshot? awayStatistics,
   List<TeamStatisticsSnapshot> leagueTeamStatistics = const [],
+  TeamPerformanceStatisticsSnapshot? homePerformanceStatistics,
+  TeamPerformanceStatisticsSnapshot? awayPerformanceStatistics,
+  List<TeamRecentMatchSnapshot> homeRecentLeagueMatches = const [
+    TeamRecentMatchSnapshot(
+      opponentName: 'A',
+      venue: RecentMatchVenue.home,
+      result: 'W',
+    ),
+    TeamRecentMatchSnapshot(
+      opponentName: 'B',
+      venue: RecentMatchVenue.away,
+      result: 'W',
+    ),
+    TeamRecentMatchSnapshot(
+      opponentName: 'C',
+      venue: RecentMatchVenue.home,
+      result: 'W',
+    ),
+  ],
+  List<TeamRecentMatchSnapshot> awayRecentLeagueMatches = const [
+    TeamRecentMatchSnapshot(
+      opponentName: 'A',
+      venue: RecentMatchVenue.home,
+      result: 'L',
+    ),
+    TeamRecentMatchSnapshot(
+      opponentName: 'B',
+      venue: RecentMatchVenue.away,
+      result: 'L',
+    ),
+    TeamRecentMatchSnapshot(
+      opponentName: 'C',
+      venue: RecentMatchVenue.home,
+      result: 'L',
+    ),
+  ],
 }) {
   final homeStanding = TeamStandingSnapshot(
     teamId: 10,
@@ -578,6 +717,10 @@ MatchBoardItem _match({
             goalsAgainstAverageTotal: 1.90,
           ),
       leagueTeamStatistics: leagueTeamStatistics,
+      homePerformanceStatistics: homePerformanceStatistics,
+      awayPerformanceStatistics: awayPerformanceStatistics,
+      homeRecentLeagueMatches: homeRecentLeagueMatches,
+      awayRecentLeagueMatches: awayRecentLeagueMatches,
       homeExpectedGoals: homeExpectedGoals,
       leagueExpectedGoals: leagueExpectedGoals,
       homePlayerStatistics: homePlayerStatistics,

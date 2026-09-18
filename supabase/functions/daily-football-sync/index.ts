@@ -39,6 +39,7 @@ Deno.serve(async (request) => {
   let syncResponse: JsonObject = {};
   let snapshotResponse: JsonObject = {};
   let resultResponse: JsonObject = {};
+  let analysisResponse: JsonObject = {};
 
   try {
     await markStaleDailyRuns({
@@ -65,7 +66,9 @@ Deno.serve(async (request) => {
       syncSecret,
       payload: {
         league_ids: options.leagueIds,
-        season_by_league: objectValue(objectValue(syncResponse.summary)?.leagueSeasons),
+        season_by_league: objectValue(
+          objectValue(syncResponse.summary)?.leagueSeasons,
+        ),
         fallback_season: options.season,
         timezone: options.timezone,
         window_start: options.resultsWindowStart,
@@ -85,6 +88,20 @@ Deno.serve(async (request) => {
         payload: snapshotPayload(options, syncResponse),
       });
 
+    const publishedSnapshotId = stringValue(snapshotResponse.snapshotId);
+    analysisResponse = publishedSnapshotId === null
+      ? { ok: true, skipped: "no_snapshot" }
+      : await callFunction({
+        supabaseUrl,
+        name: "analyze-match-feed-snapshot",
+        syncSecret,
+        payload: { snapshot_id: publishedSnapshotId },
+      });
+    snapshotResponse = {
+      ...snapshotResponse,
+      analysis: analysisResponse,
+    };
+
     const databaseSizeBytes = await currentDatabaseSizeBytes({
       supabaseUrl,
       serviceRoleKey,
@@ -98,7 +115,8 @@ Deno.serve(async (request) => {
     const snapshotId = stringValue(snapshotResponse.snapshotId);
     const status = booleanValue(syncResponse.ok) === true &&
         booleanValue(resultResponse.ok) === true &&
-        booleanValue(snapshotResponse.ok) === true
+        booleanValue(snapshotResponse.ok) === true &&
+        booleanValue(analysisResponse.ok) === true
       ? "succeeded"
       : "partial";
 
@@ -128,6 +146,7 @@ Deno.serve(async (request) => {
       sync: syncResponse,
       snapshot: snapshotResponse,
       results: resultResponse,
+      analysis: analysisResponse,
     }, status === "succeeded" ? 200 : 207);
   } catch (error) {
     if (runId !== null) {
@@ -145,7 +164,8 @@ Deno.serve(async (request) => {
         snapshotResponse,
         resultResponse,
         apiRequestCount: apiRequestCountFromSyncResponse(syncResponse) +
-          (numberValue(objectValue(resultResponse.summary)?.providerRequests) ?? 0),
+          (numberValue(objectValue(resultResponse.summary)?.providerRequests) ??
+            0),
         snapshotId: stringValue(snapshotResponse.snapshotId),
         storage: storageSummary(
           databaseSizeBytes,
@@ -162,6 +182,7 @@ Deno.serve(async (request) => {
       sync: syncResponse,
       snapshot: snapshotResponse,
       results: resultResponse,
+      analysis: analysisResponse,
     }, 500);
   }
 });
@@ -270,8 +291,8 @@ function dailyOptionsFromPayload(payload: JsonObject): DailyOptions {
     includeExpectedGoals: booleanValue(payload.include_expected_goals) ?? true,
     // Player collection is intentionally opt-in. Daily rolling odds refreshes
     // stay light; the weekly enrichment schedule enables it explicitly.
-    includePlayerStatistics:
-      booleanValue(payload.include_player_statistics) ?? false,
+    includePlayerStatistics: booleanValue(payload.include_player_statistics) ??
+      false,
     recentFormDaysBack: boundedInteger(
       numberValue(payload.recent_form_days_back),
       1,

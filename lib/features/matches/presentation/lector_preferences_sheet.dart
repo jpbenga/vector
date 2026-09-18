@@ -329,7 +329,12 @@ class _ReadingPreferencesEditorState extends State<_ReadingPreferencesEditor> {
   @override
   void initState() {
     super.initState();
-    _selectedIds = widget.profile.optionIdsFor('readings').toSet();
+    _selectedIds = ReadingPreferenceCatalog.normalizeSelectionIds(
+      widget.profile.optionIdsFor('readings'),
+    );
+    if (_selectedIds.remove('home_away_mismatch')) {
+      _selectedIds.addAll({'home_away_advantage', 'away_home_advantage'});
+    }
   }
 
   @override
@@ -547,31 +552,13 @@ IconData _readingPreferenceIcon(String readingId) {
     'high_xg_creation' ||
     'low_xg_creation' ||
     'high_xg_conceded' => Icons.query_stats_rounded,
-    'strong_first_half_team' ||
-    'weak_first_half_team' ||
-    'frequent_halftime_lead' ||
-    'frequent_halftime_draw' ||
-    'strong_second_half_team' ||
-    'weak_second_half_team' ||
-    'early_scoring_0_15' ||
-    'early_conceding_0_15' ||
-    'pre_halftime_scoring_31_45' ||
-    'pre_halftime_conceding_31_45' ||
-    'late_scoring_76_90' ||
-    'late_conceding_76_90' => Icons.timelapse_rounded,
-    'high_shot_volume' ||
-    'low_shot_volume' ||
-    'high_shots_on_target' ||
-    'low_shot_accuracy' ||
-    'high_shots_conceded' ||
-    'high_shots_on_target_conceded' => Icons.sports_soccer_rounded,
-    'high_corner_creation' ||
-    'high_corners_conceded' ||
-    'high_total_corners_profile' ||
-    'low_total_corners_profile' => Icons.flag_outlined,
-    'high_card_rate' ||
-    'low_card_rate' ||
-    'high_total_cards_profile' => Icons.style_outlined,
+    'frequent_first_half_scoring' ||
+    'frequent_first_half_conceding' ||
+    'frequent_second_half_scoring' ||
+    'frequent_second_half_conceding' => Icons.timelapse_rounded,
+    'match_shot_profile' => Icons.sports_soccer_rounded,
+    'match_corner_profile' => Icons.flag_outlined,
+    'match_card_profile' => Icons.style_outlined,
     _ => Icons.insights_outlined,
   };
 }
@@ -598,7 +585,7 @@ class _ReadingPreferenceGroup {
 const _namedReadingPreferenceGroups = <_ReadingPreferenceGroup>[
   _ReadingPreferenceGroup(
     id: 'ranking_form',
-    label: 'Classement et forme',
+    label: 'Niveau, forme et lieu',
     icon: Icons.trending_up_rounded,
     ids: {
       'structural_level_gap',
@@ -606,120 +593,54 @@ const _namedReadingPreferenceGroups = <_ReadingPreferenceGroup>[
       'negative_streak',
       'improving_form',
       'declining_form',
-    },
-  ),
-  _ReadingPreferenceGroup(
-    id: 'venue',
-    label: 'Domicile et extérieur',
-    icon: Icons.home_outlined,
-    ids: {
       'strong_home_team',
       'weak_home_team',
       'strong_away_team',
       'weak_away_team',
-      'home_away_mismatch',
+      'home_away_advantage',
+      'away_home_advantage',
     },
   ),
   _ReadingPreferenceGroup(
     id: 'attack_xg',
-    label: 'Attaque et xG',
+    label: 'Attaque, défense et xG',
     icon: Icons.track_changes_rounded,
     ids: {
       'prolific_attack',
       'scoring_difficulty',
-      'high_xg_creation',
-      'low_xg_creation',
-      'offensive_underperformance',
-      'offensive_overperformance',
-    },
-  ),
-  _ReadingPreferenceGroup(
-    id: 'defense',
-    label: 'Défense',
-    icon: Icons.shield_outlined,
-    ids: {
       'solid_defense',
       'fragile_defense',
       'frequent_clean_sheet',
-      'high_xg_conceded',
-      'defensive_underperformance',
-      'defensive_overperformance',
     },
   ),
   _ReadingPreferenceGroup(
     id: 'goals',
     label: 'Profil de buts',
     icon: Icons.sports_soccer_rounded,
-    ids: {
-      'open_match_profile',
-      'frequent_over_25',
-      'frequent_btts',
-      'closed_match_profile',
-      'frequent_under_25',
-    },
+    ids: {'frequent_over_25', 'frequent_btts', 'frequent_under_25'},
   ),
   _ReadingPreferenceGroup(
     id: 'match_periods',
     label: 'Moments du match',
     icon: Icons.timelapse_rounded,
     ids: {
-      'strong_first_half_team',
-      'weak_first_half_team',
-      'frequent_halftime_lead',
-      'frequent_halftime_draw',
-      'strong_lead_retention',
-      'weak_lead_retention',
-      'second_half_recovery',
-      'strong_second_half_team',
-      'weak_second_half_team',
-      'early_scoring_0_15',
-      'early_conceding_0_15',
-      'pre_halftime_scoring_31_45',
-      'pre_halftime_conceding_31_45',
-      'late_scoring_76_90',
-      'late_conceding_76_90',
+      'frequent_first_half_scoring',
+      'frequent_first_half_conceding',
+      'frequent_second_half_scoring',
+      'frequent_second_half_conceding',
     },
   ),
   _ReadingPreferenceGroup(
     id: 'shots_corners',
-    label: 'Tirs et corners',
+    label: 'Tirs, corners et cartons',
     icon: Icons.flag_outlined,
-    ids: {
-      'high_shot_volume',
-      'low_shot_volume',
-      'high_shots_on_target',
-      'low_shot_accuracy',
-      'high_shots_conceded',
-      'high_shots_on_target_conceded',
-      'high_corner_creation',
-      'high_corners_conceded',
-      'high_total_corners_profile',
-      'low_total_corners_profile',
-    },
-  ),
-  _ReadingPreferenceGroup(
-    id: 'cards',
-    label: 'Cartons',
-    icon: Icons.style_outlined,
-    ids: {
-      'high_card_rate',
-      'low_card_rate',
-      'high_total_cards_profile',
-      'second_half_cards_profile',
-    },
+    ids: {'match_shot_profile', 'match_corner_profile', 'match_card_profile'},
   ),
   _ReadingPreferenceGroup(
     id: 'players',
     label: 'Joueurs et absences',
     icon: Icons.groups_outlined,
-    ids: {
-      'standout_goal_scorer',
-      'high_volume_shooter',
-      'accurate_shooter',
-      'standout_creator',
-      'identified_penalty_taker',
-      'key_player_unavailable',
-    },
+    ids: {'standout_decisive_player', 'key_player_unavailable'},
   ),
   _ReadingPreferenceGroup(
     id: 'context',

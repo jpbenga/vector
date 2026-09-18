@@ -41,6 +41,7 @@ Deno.serve(async (request) => {
       completedFixtures: 0,
       insertedSnapshots: 0,
       skippedFixtures: 0,
+      enrichedFixtures: 0,
     };
 
     for (const leagueId of leagues) {
@@ -67,10 +68,18 @@ Deno.serve(async (request) => {
             (object(apiErrors) && Object.keys(object(apiErrors)!).length > 0)) {
           throw new Error(`API-Football fixtures ${leagueId}/${date}: ${JSON.stringify(apiErrors)}`);
         }
+        const responseFixtures = Array.isArray(body.response)
+          ? body.response.map(object).filter((value): value is JsonObject => value !== null)
+          : [];
+        const announcedFixtureIds = await announcedFixtureIdsFor({
+          supabaseUrl,
+          serviceKey,
+          fixtureIds: responseFixtures
+            .map((value) => number((object(value.fixture) ?? {}).id))
+            .filter((value): value is number => value !== null),
+        });
         const rows: JsonObject[] = [];
-        for (const value of Array.isArray(body.response) ? body.response : []) {
-          const fixture = object(value);
-          if (!fixture) continue;
+        for (const fixture of responseFixtures) {
           const details = object(fixture.fixture) ?? {};
           const teams = object(fixture.teams) ?? {};
           const home = object(teams.home) ?? {};
@@ -92,6 +101,11 @@ Deno.serve(async (request) => {
             continue;
           }
           summary.completedFixtures += 1;
+          const enrichment = announcedFixtureIds.has(fixtureId)
+            ? await completedFixtureEnrichment({ apiBase, apiKey, fixtureId })
+            : { statistics: [] as JsonObject[], events: [] as JsonObject[], providerRequests: 0 };
+          summary.providerRequests += enrichment.providerRequests;
+          if (enrichment.providerRequests > 0) summary.enrichedFixtures += 1;
           const scorePayload = {
             goals,
             halftime,
@@ -114,7 +128,14 @@ Deno.serve(async (request) => {
             halftime_home_goals: number(halftime.home),
             halftime_away_goals: number(halftime.away),
             score: scorePayload,
-            source_payload: fixture,
+            source_payload: {
+              fixture,
+              final_statistics: enrichment.statistics,
+              final_events: enrichment.events,
+              computed: {
+                player_decisive: decisivePlayers(enrichment.events),
+              },
+            },
           };
           const resultIdentity = {
             fixture_id: fixtureId,
@@ -122,6 +143,10 @@ Deno.serve(async (request) => {
             home_goals: normalized.home_goals,
             away_goals: normalized.away_goals,
             score: scorePayload,
+            enrichment: {
+              statistics: enrichment.statistics,
+              events: enrichment.events,
+            },
           };
           rows.push({ ...normalized, content_hash: await sha256(JSON.stringify(resultIdentity)) });
         }
@@ -152,6 +177,82 @@ Deno.serve(async (request) => {
     return respond({ ok: false, error: String(error) }, 500);
   }
 });
+
+async function completedFixtureEnrichment({
+  apiBase,
+  apiKey,
+  fixtureId,
+}: {
+  apiBase: string;
+  apiKey: string;
+  fixtureId: number;
+}): Promise<{ statistics: JsonObject[]; events: JsonObject[]; providerRequests: number }> {
+  // The provider exposes these final resources per fixture. They are fetched
+  // only after FT and retained once in the immutable result snapshot; the app
+  // never asks the provider for a completed match.
+  const load = async (path: string): Promise<JsonObject[]> => {
+    const url = new URL(path, apiBase);
+    url.searchParams.set("fixture", String(fixtureId));
+    const response = await fetch(url, { headers: { "x-apisports-key": apiKey } });
+    if (!response.ok) throw new Error(`API-Football ${path} ${fixtureId}: ${response.status}`);
+    const body = object(await response.json()) ?? {};
+    const errors = body.errors;
+    if ((Array.isArray(errors) && errors.length > 0) ||
+        (object(errors) && Object.keys(object(errors)!).length > 0)) {
+      throw new Error(`API-Football ${path} ${fixtureId}: ${JSON.stringify(errors)}`);
+    }
+    return Array.isArray(body.response)
+      ? body.response.map(object).filter((value): value is JsonObject => value !== null)
+      : [];
+  };
+  const [statistics, events] = await Promise.all([
+    load("/fixtures/statistics"),
+    load("/fixtures/events"),
+  ]);
+  return { statistics, events, providerRequests: 2 };
+}
+
+async function announcedFixtureIdsFor({
+  supabaseUrl,
+  serviceKey,
+  fixtureIds,
+}: {
+  supabaseUrl: string;
+  serviceKey: string;
+  fixtureIds: number[];
+}): Promise<Set<number>> {
+  const unique = [...new Set(fixtureIds)];
+  if (unique.length === 0) return new Set();
+  // One database lookup per league-day replaces two provider calls for every
+  // completed fixture. Technical result enrichment is only useful when an
+  // immutable reading or scenario was actually announced for that fixture.
+  const response = await fetch(
+    `${supabaseUrl}/rest/v1/match_reading_announcements?select=fixture_id&fixture_id=in.(${unique.join(",")})`,
+    { headers: { apikey: serviceKey, authorization: `Bearer ${serviceKey}` } },
+  );
+  if (!response.ok) throw new Error(`Find announced fixtures: ${response.status} ${await response.text()}`);
+  const rows = await response.json();
+  return new Set(
+    (Array.isArray(rows) ? rows : [])
+      .map(object)
+      .map((value) => number(value?.fixture_id))
+      .filter((value): value is number => value !== null),
+  );
+}
+
+function decisivePlayers(events: JsonObject[]): JsonObject {
+  const result: JsonObject = {};
+  for (const event of events) {
+    if (string(event.type) !== "Goal") continue;
+    const player = object(event.player) ?? {};
+    const assist = object(event.assist) ?? {};
+    const playerId = number(player.id);
+    const assistId = number(assist.id);
+    if (playerId !== null) result[String(playerId)] = true;
+    if (assistId !== null) result[String(assistId)] = true;
+  }
+  return result;
+}
 
 function dateRange(start: string, end: string): string[] {
   const values: string[] = [];

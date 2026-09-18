@@ -250,60 +250,6 @@ class FootballScenarioCatalog {
       ],
     ),
     FootballScenarioDefinition(
-      id: 'first_half_advantage',
-      scope: FootballScenarioScope.team,
-      requirements: [
-        ScenarioReadingRequirement(
-          readingId: 'strong_first_half_team',
-          subject: ScenarioRequirementSubject.subject,
-        ),
-        ScenarioReadingRequirement(
-          readingId: 'weak_first_half_team',
-          subject: ScenarioRequirementSubject.opponent,
-        ),
-        ScenarioReadingRequirement(
-          readingId: 'frequent_halftime_lead',
-          subject: ScenarioRequirementSubject.subject,
-        ),
-      ],
-    ),
-    FootballScenarioDefinition(
-      id: 'early_goal_pressure',
-      scope: FootballScenarioScope.team,
-      requirements: [
-        ScenarioReadingRequirement(
-          readingId: 'early_scoring_0_15',
-          subject: ScenarioRequirementSubject.subject,
-        ),
-        ScenarioReadingRequirement(
-          readingId: 'early_conceding_0_15',
-          subject: ScenarioRequirementSubject.opponent,
-        ),
-        ScenarioReadingRequirement(
-          readingId: 'high_shots_on_target',
-          subject: ScenarioRequirementSubject.subject,
-        ),
-      ],
-    ),
-    FootballScenarioDefinition(
-      id: 'late_goal_pressure',
-      scope: FootballScenarioScope.team,
-      requirements: [
-        ScenarioReadingRequirement(
-          readingId: 'late_scoring_76_90',
-          subject: ScenarioRequirementSubject.subject,
-        ),
-        ScenarioReadingRequirement(
-          readingId: 'late_conceding_76_90',
-          subject: ScenarioRequirementSubject.opponent,
-        ),
-        ScenarioReadingRequirement(
-          readingId: 'strong_second_half_team',
-          subject: ScenarioRequirementSubject.subject,
-        ),
-      ],
-    ),
-    FootballScenarioDefinition(
       id: 'corner_pressure',
       scope: FootballScenarioScope.team,
       requirements: [
@@ -322,24 +268,6 @@ class FootballScenarioCatalog {
       ],
     ),
     FootballScenarioDefinition(
-      id: 'second_half_swing',
-      scope: FootballScenarioScope.team,
-      requirements: [
-        ScenarioReadingRequirement(
-          readingId: 'strong_second_half_team',
-          subject: ScenarioRequirementSubject.subject,
-        ),
-        ScenarioReadingRequirement(
-          readingId: 'weak_second_half_team',
-          subject: ScenarioRequirementSubject.opponent,
-        ),
-        ScenarioReadingRequirement(
-          readingId: 'second_half_recovery',
-          subject: ScenarioRequirementSubject.subject,
-        ),
-      ],
-    ),
-    FootballScenarioDefinition(
       id: 'disciplinary_tension',
       scope: FootballScenarioScope.match,
       requirements: [
@@ -350,25 +278,6 @@ class FootballScenarioCatalog {
         ScenarioReadingRequirement(
           readingId: 'high_total_cards_profile',
           subject: ScenarioRequirementSubject.match,
-        ),
-      ],
-    ),
-    FootballScenarioDefinition(
-      id: 'standout_scorer_exposure',
-      scope: FootballScenarioScope.team,
-      samePlayerAcrossRequirements: true,
-      requirements: [
-        ScenarioReadingRequirement(
-          readingId: 'standout_goal_scorer',
-          subject: ScenarioRequirementSubject.subject,
-        ),
-        ScenarioReadingRequirement(
-          readingId: 'high_volume_shooter',
-          subject: ScenarioRequirementSubject.subject,
-        ),
-        ScenarioReadingRequirement(
-          readingId: 'high_shots_on_target_conceded',
-          subject: ScenarioRequirementSubject.opponent,
         ),
       ],
     ),

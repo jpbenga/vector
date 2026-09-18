@@ -1665,7 +1665,8 @@ class _ForMeReadingCategory {
       'weak_home_team' ||
       'strong_away_team' ||
       'weak_away_team' ||
-      'home_away_mismatch' => 'venue',
+      'home_away_advantage' ||
+      'away_home_advantage' => 'venue',
       'prolific_attack' ||
       'scoring_difficulty' ||
       'high_xg_creation' ||
@@ -1684,19 +1685,14 @@ class _ForMeReadingCategory {
       'frequent_btts' ||
       'closed_match_profile' ||
       'frequent_under_25' => 'goals',
-      'standout_goal_scorer' => 'scorers',
-      'strong_first_half_team' ||
-      'weak_first_half_team' ||
-      'frequent_halftime_lead' ||
-      'frequent_halftime_draw' ||
-      'strong_second_half_team' ||
-      'weak_second_half_team' ||
-      'early_scoring_0_15' ||
-      'early_conceding_0_15' ||
-      'pre_halftime_scoring_31_45' ||
-      'pre_halftime_conceding_31_45' ||
-      'late_scoring_76_90' ||
-      'late_conceding_76_90' => 'periods',
+      'standout_decisive_player' => 'scorers',
+      'frequent_first_half_scoring' ||
+      'frequent_first_half_conceding' ||
+      'frequent_second_half_scoring' ||
+      'frequent_second_half_conceding' => 'periods',
+      'match_shot_profile' => 'shots',
+      'match_corner_profile' => 'corners',
+      'match_card_profile' => 'cards',
       'high_shot_volume' ||
       'low_shot_volume' ||
       'high_shots_on_target' ||
@@ -1781,16 +1777,13 @@ String _readingLabelForId(String id, {required String fallback}) {
     'balanced_hierarchy' => 'Hiérarchie équilibrée',
     'positive_streak' || 'improving_form' || 'form_advantage' => 'Forme',
     'negative_streak' || 'declining_form' => 'Dynamique négative',
-    'strong_first_half_team' || 'frequent_halftime_lead' => 'Première mi-temps',
-    'weak_first_half_team' || 'frequent_halftime_draw' => 'Lecture à la pause',
-    'strong_second_half_team' => 'Seconde mi-temps',
-    'weak_second_half_team' => 'Fragile après la pause',
-    'early_scoring_0_15' => 'Marque entre 0–15 min',
-    'early_conceding_0_15' => 'Concède entre 0–15 min',
-    'pre_halftime_scoring_31_45' => 'Marque entre 31–45 min',
-    'pre_halftime_conceding_31_45' => 'Concède entre 31–45 min',
-    'late_scoring_76_90' => 'Marque entre 76–90 min',
-    'late_conceding_76_90' => 'Concède entre 76–90 min',
+    'frequent_first_half_scoring' => 'Marque en première mi-temps',
+    'frequent_first_half_conceding' => 'Encaisse en première mi-temps',
+    'frequent_second_half_scoring' => 'Marque en seconde mi-temps',
+    'frequent_second_half_conceding' => 'Encaisse en seconde mi-temps',
+    'match_shot_profile' => 'Rythme de tirs attendu',
+    'match_corner_profile' => 'Potentiel corners',
+    'match_card_profile' => 'Intensité des cartons',
     'high_shot_volume' => 'Volume de tirs élevé',
     'low_shot_volume' => 'Faible volume de tirs',
     'high_shots_on_target' => 'Nombreux tirs cadrés',

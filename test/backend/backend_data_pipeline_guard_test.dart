@@ -109,6 +109,13 @@ void main() {
       expect(cronGenerator, contains("'include_player_statistics', true"));
       expect(
         apiSync,
+        contains('const registerPlayerStatisticsTeam'),
+        reason:
+            'the daily job must refresh player statistics for imminent fixtures',
+      );
+      expect(apiSync, contains('for (const side of ["home", "away"])'));
+      expect(
+        apiSync,
         contains('booleanValue(payload.include_player_statistics) ?? false'),
       );
       expect(cronGenerator, isNot(contains("'bookmaker_id', 16")));

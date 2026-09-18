@@ -179,25 +179,20 @@ class FootballReading {
       'scoring_difficulty' => CopilotArgumentType.weakRecentForm,
       'positive_streak' ||
       'improving_form' ||
-      'form_advantage' ||
-      'strong_first_half_team' ||
-      'frequent_halftime_lead' ||
-      'strong_lead_retention' ||
-      'second_half_recovery' ||
-      'strong_second_half_team' => CopilotArgumentType.strongRecentForm,
-      'weak_first_half_team' ||
-      'frequent_halftime_draw' ||
-      'weak_lead_retention' ||
-      'weak_second_half_team' => CopilotArgumentType.weakRecentForm,
+      'form_advantage' => CopilotArgumentType.strongRecentForm,
       'fragile_defense' ||
       'high_xg_conceded' ||
-      'defensive_underperformance' => CopilotArgumentType.fragileDefense,
+      'defensive_underperformance' ||
+      'frequent_first_half_conceding' ||
+      'frequent_second_half_conceding' => CopilotArgumentType.fragileDefense,
       'prolific_attack' ||
       'high_xg_creation' ||
       'attack_in_form' ||
       'high_shot_volume' ||
       'high_shots_on_target' ||
-      'high_corner_creation' => CopilotArgumentType.strongAttack,
+      'high_corner_creation' ||
+      'frequent_first_half_scoring' ||
+      'frequent_second_half_scoring' => CopilotArgumentType.strongAttack,
       'low_shot_volume' ||
       'low_shot_accuracy' => CopilotArgumentType.weakRecentForm,
       'high_shots_conceded' ||
@@ -206,20 +201,14 @@ class FootballReading {
       'open_match_profile' ||
       'frequent_over_25' ||
       'frequent_btts' ||
-      'early_scoring_0_15' ||
-      'early_conceding_0_15' ||
-      'pre_halftime_scoring_31_45' ||
-      'pre_halftime_conceding_31_45' ||
-      'late_scoring_76_90' ||
-      'late_conceding_76_90' ||
       'high_total_corners_profile' ||
       'high_total_cards_profile' ||
       'second_half_cards_profile' ||
       'high_card_rate' ||
-      'high_volume_shooter' ||
-      'accurate_shooter' ||
-      'standout_creator' ||
-      'identified_penalty_taker' => CopilotArgumentType.openMatch,
+      'match_shot_profile' ||
+      'match_corner_profile' ||
+      'match_card_profile' ||
+      'standout_decisive_player' => CopilotArgumentType.openMatch,
       'key_player_unavailable' => CopilotArgumentType.weakRecentForm,
       'low_total_corners_profile' ||
       'low_card_rate' => CopilotArgumentType.closedMatch,
@@ -247,17 +236,9 @@ class FootballReading {
       'weak_home_team' ||
       'strong_away_team' ||
       'weak_away_team' ||
-      'home_away_mismatch' ||
-      'venue_strength' ||
-      'strong_first_half_team' ||
-      'weak_first_half_team' ||
-      'frequent_halftime_lead' ||
-      'frequent_halftime_draw' ||
-      'strong_lead_retention' ||
-      'weak_lead_retention' ||
-      'second_half_recovery' ||
-      'strong_second_half_team' ||
-      'weak_second_half_team' => CopilotArgumentFamily.performance,
+      'home_away_advantage' ||
+      'away_home_advantage' ||
+      'venue_strength' => CopilotArgumentFamily.performance,
       'prolific_attack' ||
       'attack_in_form' ||
       'scoring_difficulty' ||
@@ -269,7 +250,9 @@ class FootballReading {
       'low_shot_volume' ||
       'high_shots_on_target' ||
       'low_shot_accuracy' ||
-      'high_corner_creation' => CopilotArgumentFamily.attack,
+      'high_corner_creation' ||
+      'frequent_first_half_scoring' ||
+      'frequent_second_half_scoring' => CopilotArgumentFamily.attack,
       'solid_defense' ||
       'fragile_defense' ||
       'declining_defense' ||
@@ -279,28 +262,24 @@ class FootballReading {
       'defensive_overperformance' ||
       'high_shots_conceded' ||
       'high_shots_on_target_conceded' ||
-      'high_corners_conceded' => CopilotArgumentFamily.defense,
+      'high_corners_conceded' ||
+      'frequent_first_half_conceding' ||
+      'frequent_second_half_conceding' => CopilotArgumentFamily.defense,
       'open_match_profile' ||
       'closed_match_profile' ||
       'frequent_btts' ||
       'frequent_over_25' ||
       'frequent_under_25' ||
-      'early_scoring_0_15' ||
-      'early_conceding_0_15' ||
-      'pre_halftime_scoring_31_45' ||
-      'pre_halftime_conceding_31_45' ||
-      'late_scoring_76_90' ||
-      'late_conceding_76_90' ||
       'high_total_corners_profile' ||
       'low_total_corners_profile' ||
       'high_card_rate' ||
       'low_card_rate' ||
       'high_total_cards_profile' ||
       'second_half_cards_profile' ||
-      'high_volume_shooter' ||
-      'accurate_shooter' ||
-      'standout_creator' ||
-      'identified_penalty_taker' => CopilotArgumentFamily.rhythm,
+      'match_shot_profile' ||
+      'match_corner_profile' ||
+      'match_card_profile' ||
+      'standout_decisive_player' => CopilotArgumentFamily.attack,
       _ => CopilotArgumentFamily.performance,
     };
   }

@@ -50,7 +50,7 @@ void main() {
     DecisionProfile? saved;
     await openSheet(tester, onSaved: (profile) => saved = profile);
 
-    expect(find.text('Classement et forme'), findsOneWidget);
+    expect(find.text('Niveau, forme et lieu'), findsOneWidget);
     expect(find.text('2 lectures suivies'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('reading-select-all')));
@@ -79,6 +79,12 @@ void main() {
       'negative_streak',
       'improving_form',
       'declining_form',
+      'strong_home_team',
+      'weak_home_team',
+      'strong_away_team',
+      'weak_away_team',
+      'home_away_advantage',
+      'away_home_advantage',
     ]);
   });
 
@@ -94,8 +100,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Tirs et corners'), findsOneWidget);
-      expect(find.text('Obtient beaucoup de corners'), findsOneWidget);
+      expect(find.text('Tirs, corners et cartons'), findsOneWidget);
+      expect(find.text('Potentiel corners'), findsOneWidget);
       await tester.ensureVisible(
         find.byKey(const ValueKey('reading-select-group-shots_corners')),
       );
@@ -107,12 +113,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(saved, isNotNull);
-      expect(saved!.optionIdsFor('readings'), hasLength(12));
-      expect(saved!.optionIdsFor('readings'), contains('high_shot_volume'));
-      expect(
-        saved!.optionIdsFor('readings'),
-        contains('low_total_corners_profile'),
-      );
+      expect(saved!.optionIdsFor('readings'), hasLength(5));
+      expect(saved!.optionIdsFor('readings'), contains('match_shot_profile'));
+      expect(saved!.optionIdsFor('readings'), contains('match_corner_profile'));
+      expect(saved!.optionIdsFor('readings'), contains('match_card_profile'));
     },
   );
 

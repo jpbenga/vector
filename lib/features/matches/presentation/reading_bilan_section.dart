@@ -189,6 +189,14 @@ class _ReadingBilanSectionState extends State<ReadingBilanSection> {
       (sum, row) => sum + row.contextOnly,
     );
     final pending = summaries.fold<int>(0, (sum, row) => sum + row.pending);
+    final pertinentNuances = summaries.fold<int>(
+      0,
+      (sum, row) => sum + row.cautionConfirmed,
+    );
+    final unconfirmedNuances = summaries.fold<int>(
+      0,
+      (sum, row) => sum + row.cautionNotConfirmed,
+    );
     final evaluable = confirmed + contradicted;
     final groups = [...summaries]
       ..sort((a, b) => a.readingLabel.compareTo(b.readingLabel));
@@ -209,6 +217,16 @@ class _ReadingBilanSectionState extends State<ReadingBilanSection> {
           _CountPill('Contredites', contradicted, context.semantic.error),
           _CountPill('Non évaluables', unevaluable, context.semantic.warning),
           _CountPill('Constats', contextOnly, context.textColors.secondary),
+          _CountPill(
+            'Nuances pertinentes',
+            pertinentNuances,
+            context.semantic.warning,
+          ),
+          _CountPill(
+            'Nuances non confirmées',
+            unconfirmedNuances,
+            context.textColors.secondary,
+          ),
           _CountPill('En attente', pending, context.textColors.secondary),
         ],
       ),
@@ -294,6 +312,11 @@ class ReadingVerdictCard extends StatelessWidget {
       'contradicted' => ('Contredite', context.semantic.error),
       'not_evaluable' => ('Non évaluable', context.semantic.warning),
       'context_only' => ('Constat d’avant-match', context.textColors.secondary),
+      'caution_confirmed' => ('Nuance pertinente', context.semantic.warning),
+      'caution_not_confirmed' => (
+        'Nuance non confirmée',
+        context.textColors.secondary,
+      ),
       _ => ('En attente', context.textColors.secondary),
     };
     final teams = entry.homeTeamName != null && entry.awayTeamName != null

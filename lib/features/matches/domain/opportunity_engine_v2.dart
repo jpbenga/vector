@@ -1,4 +1,5 @@
 import '../../onboarding/domain/compiled_decision_profile.dart';
+import '../../onboarding/domain/decision_profile_catalogs.dart';
 import '../../opportunities/domain/opportunity.dart';
 import 'analysis_maturity.dart';
 import 'football_analyzer.dart';
@@ -53,13 +54,30 @@ class OpportunityEngineV2 {
 
   MatchIntelligence buildIntelligence(MatchBoardItem match, {DateTime? asOf}) {
     final analysis = analyzeMatch(match, asOf: asOf);
-    final thesisCandidates = _candidates(match, analysis);
-    final scenarioMatches = List<FootballScenarioMatch>.unmodifiable(
-      scenarioDetector.detect(
+    return buildIntelligenceFromComputedAnalysis(
+      match,
+      analysis,
+      computedScenarioMatches: scenarioDetector.detect(
         analysis: analysis,
         homeTeamId: match.homeTeam.id,
         awayTeamId: match.awayTeam.id,
       ),
+    );
+  }
+
+  /// Assembles product-facing information from the server read model.
+  ///
+  /// The client only filters and presents these immutable readings. It does
+  /// not derive football statistics, trends or player signals from provider
+  /// history at runtime.
+  MatchIntelligence buildIntelligenceFromComputedAnalysis(
+    MatchBoardItem match,
+    FootballAnalysis analysis, {
+    List<FootballScenarioMatch>? computedScenarioMatches,
+  }) {
+    final thesisCandidates = _candidates(match, analysis);
+    final scenarioMatches = List<FootballScenarioMatch>.unmodifiable(
+      computedScenarioMatches ?? const [],
     );
     final scenarioCandidates = _scenarioCandidates(
       match,
@@ -133,10 +151,13 @@ class OpportunityEngineV2 {
     List<FootballScenarioMatch> scenarioMatches,
   ) {
     return [
-      for (final reading in analysis.supportingReadings)
+      for (final reading in [
+        ...analysis.supportingReadings,
+        ...analysis.contradictoryReadings,
+      ])
         if (_isDirectAttentionReading(reading.id))
           AttentionSignal(
-            id: 'reading:${reading.id}:${reading.subjectTeamId}',
+            id: 'reading:${reading.id}:${reading.subjectTeamId}:${reading.playerId ?? ''}',
             type: AttentionSignalType.reading,
             sourceReadingIds: [reading.id],
           ),
@@ -162,56 +183,10 @@ class OpportunityEngineV2 {
   }
 
   bool _isDirectAttentionReading(String id) {
-    return const {
-      'ranking_superiority',
-      'structural_level_gap',
-      'form_advantage',
-      'positive_streak',
-      'negative_streak',
-      'strong_home_team',
-      'weak_home_team',
-      'strong_away_team',
-      'standout_goal_scorer',
-      'weak_away_team',
-      'strong_first_half_team',
-      'weak_first_half_team',
-      'frequent_halftime_lead',
-      'frequent_halftime_draw',
-      'strong_lead_retention',
-      'weak_lead_retention',
-      'second_half_recovery',
-      'strong_second_half_team',
-      'weak_second_half_team',
-      'early_scoring_0_15',
-      'early_conceding_0_15',
-      'pre_halftime_scoring_31_45',
-      'pre_halftime_conceding_31_45',
-      'late_scoring_76_90',
-      'late_conceding_76_90',
-      'high_shot_volume',
-      'low_shot_volume',
-      'high_shots_on_target',
-      'low_shot_accuracy',
-      'high_shots_conceded',
-      'high_shots_on_target_conceded',
-      'high_corner_creation',
-      'high_corners_conceded',
-      'high_total_corners_profile',
-      'low_total_corners_profile',
-      'high_card_rate',
-      'low_card_rate',
-      'high_total_cards_profile',
-      'second_half_cards_profile',
-      'high_volume_shooter',
-      'accurate_shooter',
-      'standout_creator',
-      'identified_penalty_taker',
-      'key_player_unavailable',
-      'prolific_attack',
-      'fragile_defense',
-      'open_match_profile',
-      'closed_match_profile',
-    }.contains(id);
+    // A reading available in "Mes lectures" must be able to surface a match
+    // in "Pour moi" when the user enables it. The catalog is the single
+    // product contract; a second hard-coded subset silently lost readings.
+    return ReadingPreferenceCatalog.contains(id);
   }
 
   List<_OpportunityCandidate> _scenarioCandidates(
@@ -312,12 +287,7 @@ class OpportunityEngineV2 {
       'positive_series' ||
       'negative_series' ||
       'credible_outsider' ||
-      'first_half_advantage' ||
-      'early_goal_pressure' ||
-      'late_goal_pressure' ||
-      'corner_pressure' ||
-      'second_half_swing' ||
-      'standout_scorer_exposure' => _OpportunityCandidate(
+      'corner_pressure' => _OpportunityCandidate(
         id: scenario.scenarioId,
         title: switch (scenario.scenarioId) {
           'fragile_defense' => 'Défense fragile',
@@ -325,11 +295,6 @@ class OpportunityEngineV2 {
           'positive_series' => 'Série positive',
           'negative_series' => 'Série négative',
           'credible_outsider' => 'Outsider crédible',
-          'second_half_swing' => 'Bascule après la pause',
-          'standout_scorer_exposure' => 'Buteur particulièrement exposé',
-          'first_half_advantage' => 'Avantage à la pause',
-          'early_goal_pressure' => 'Pression pour un but précoce',
-          'late_goal_pressure' => 'Pression pour un but tardif',
           _ => 'Pression favorable aux corners',
         },
         summary:
@@ -399,7 +364,7 @@ class OpportunityEngineV2 {
     }
 
     for (final reading in analysis.supportingReadings) {
-      if (reading.id == 'standout_goal_scorer') {
+      if (reading.id == 'standout_decisive_player') {
         _addGoalScorerRecommendation(reading, add);
         continue;
       }
@@ -591,6 +556,8 @@ class OpportunityEngineV2 {
       case 'positive_streak':
       case 'strong_home_team':
       case 'strong_away_team':
+      case 'home_away_advantage':
+      case 'away_home_advantage':
       case 'prolific_attack':
       case 'attack_in_form':
         return reading.subjectSide == ReadingSubjectSide.match
@@ -598,6 +565,7 @@ class OpportunityEngineV2 {
             : reading.subjectSide;
       case 'fragile_defense':
       case 'negative_streak':
+      case 'declining_form':
       case 'scoring_difficulty':
         return reading.subjectSide == ReadingSubjectSide.match
             ? null
@@ -625,6 +593,8 @@ class OpportunityEngineV2 {
       case 'strong_away_team':
       case 'weak_home_team':
       case 'weak_away_team':
+      case 'home_away_advantage':
+      case 'away_home_advantage':
         return [resultIntent, doubleChanceIntent];
       case 'prolific_attack':
       case 'attack_in_form':
@@ -980,7 +950,8 @@ class OpportunityEngineV2 {
       'weak_home_team' => '$subjectName fragile à domicile',
       'strong_away_team' => '$subjectName solide à l’extérieur',
       'weak_away_team' => '$subjectName fragile à l’extérieur',
-      'home_away_mismatch' => 'Avantage domicile / extérieur',
+      'home_away_advantage' => 'Avantage domicile / extérieur',
+      'away_home_advantage' => 'Avantage extérieur / domicile',
       'prolific_attack' => 'Attaque prolifique pour $subjectName',
       'scoring_difficulty' => 'Production offensive faible pour $subjectName',
       'solid_defense' => 'Défense solide pour $subjectName',
@@ -1002,27 +973,17 @@ class OpportunityEngineV2 {
       'defensive_overperformance' =>
         'Surperformance défensive pour $subjectName',
       'misleading_result' => 'Résultats à nuancer pour $subjectName',
-      'strong_first_half_team' => '$subjectName solide en première mi-temps',
-      'weak_first_half_team' => '$subjectName fragile en première mi-temps',
-      'frequent_halftime_lead' => '$subjectName souvent devant à la pause',
-      'frequent_halftime_draw' => '$subjectName souvent à égalité à la pause',
-      'strong_lead_retention' =>
-        '$subjectName conserve son avantage à la pause',
-      'weak_lead_retention' =>
-        '$subjectName perd souvent son avantage à la pause',
-      'second_half_recovery' => '$subjectName réagit après la pause',
-      'strong_second_half_team' => '$subjectName solide en seconde mi-temps',
-      'weak_second_half_team' => '$subjectName fragile en seconde mi-temps',
-      'early_scoring_0_15' => '$subjectName marque souvent entre 0 et 15 min',
-      'early_conceding_0_15' =>
-        '$subjectName concède souvent entre 0 et 15 min',
-      'pre_halftime_scoring_31_45' =>
-        '$subjectName marque souvent entre 31 et 45 min',
-      'pre_halftime_conceding_31_45' =>
-        '$subjectName concède souvent entre 31 et 45 min',
-      'late_scoring_76_90' => '$subjectName marque souvent entre 76 et 90 min',
-      'late_conceding_76_90' =>
-        '$subjectName concède souvent entre 76 et 90 min',
+      'frequent_first_half_scoring' =>
+        '$subjectName marque souvent en première mi-temps',
+      'frequent_first_half_conceding' =>
+        '$subjectName encaisse souvent en première mi-temps',
+      'frequent_second_half_scoring' =>
+        '$subjectName marque souvent en seconde mi-temps',
+      'frequent_second_half_conceding' =>
+        '$subjectName encaisse souvent en seconde mi-temps',
+      'match_shot_profile' => 'Rythme de tirs attendu',
+      'match_corner_profile' => 'Potentiel corners',
+      'match_card_profile' => 'Intensité des cartons',
       'high_shot_volume' => '$subjectName produit beaucoup de tirs',
       'low_shot_volume' => '$subjectName produit peu de tirs',
       'high_shots_on_target' => '$subjectName cadre beaucoup de tirs',
@@ -1041,10 +1002,8 @@ class OpportunityEngineV2 {
       'high_total_cards_profile' => 'Match riche en cartons pour $subjectName',
       'second_half_cards_profile' =>
         '$subjectName reçoit surtout des cartons après la pause',
-      'high_volume_shooter' => '$subjectName tire beaucoup',
-      'accurate_shooter' => '$subjectName cadre fréquemment',
-      'standout_creator' => '$subjectName se distingue à la création',
-      'identified_penalty_taker' => '$subjectName tire les penalties',
+      'standout_decisive_player' =>
+        '$subjectName se distingue par ses actions décisives',
       'key_player_unavailable' => 'Joueur important absent pour $subjectName',
       _ => 'Lecture détectée pour $subjectName',
     };
@@ -1329,6 +1288,12 @@ class OpportunityEngineV2 {
       opponentTeamId: opponent.id,
     );
     _addDirectionalVenueEvidence(evidence, analysis, match, subjectSide: side);
+    _addExpectedGoalsDominationEvidence(
+      evidence,
+      analysis,
+      subjectTeamId: team.id,
+      opponentTeamId: opponent.id,
+    );
 
     for (final reading in _contradictionsFor(analysis, team.id)) {
       evidence.add(
@@ -1365,6 +1330,50 @@ class OpportunityEngineV2 {
             ]
           : List.unmodifiable(evidence),
     );
+  }
+
+  void _addExpectedGoalsDominationEvidence(
+    List<ThesisEvidenceAssessment> evidence,
+    FootballAnalysis analysis, {
+    required String subjectTeamId,
+    required String opponentTeamId,
+  }) {
+    for (final reading in _readingsFor(analysis, subjectTeamId, [
+      'high_xg_creation',
+    ])) {
+      evidence.add(
+        ThesisEvidenceAssessment(
+          relation: ThesisEvidenceRelation.additionalSupport,
+          family: _familyForReading(reading),
+          label: _labelForReading(reading),
+          reading: reading,
+        ),
+      );
+    }
+    for (final reading in _readingsFor(analysis, opponentTeamId, [
+      'high_xg_conceded',
+    ])) {
+      evidence.add(
+        ThesisEvidenceAssessment(
+          relation: ThesisEvidenceRelation.additionalSupport,
+          family: _familyForReading(reading),
+          label: _labelForReading(reading),
+          reading: reading,
+        ),
+      );
+    }
+    for (final reading in _readingsFor(analysis, subjectTeamId, [
+      'low_xg_creation',
+    ])) {
+      evidence.add(
+        ThesisEvidenceAssessment(
+          relation: ThesisEvidenceRelation.contradiction,
+          family: _familyForReading(reading),
+          label: _labelForReading(reading),
+          reading: reading,
+        ),
+      );
+    }
   }
 
   _OpportunityCandidate? _favoriteWithProtection(
@@ -1926,7 +1935,11 @@ class OpportunityEngineV2 {
           item.reading?.id == subjectStrongId ||
           item.reading?.id == opponentWeakId,
     );
-    for (final reading in analysis.detected(id: 'home_away_mismatch')) {
+    for (final reading in analysis.detected(
+      id: subjectSide == ReadingSubjectSide.home
+          ? 'home_away_advantage'
+          : 'away_home_advantage',
+    )) {
       evidence.add(
         ThesisEvidenceAssessment(
           relation: hasPositiveVenue

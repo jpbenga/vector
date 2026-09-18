@@ -287,6 +287,22 @@ void main() {
       expect(personalized.profileStatus, MatchProfileStatus.inProfile);
     });
 
+    test('keeps every selectable reading eligible for Pour moi', () {
+      final engine = OpportunityEngineV2(
+        analyzer: _StaticAnalyzer([
+          _reading('declining_form', 'api-team-10', ReadingSubjectSide.home),
+        ]),
+      );
+
+      final personalized = engine.personalizeMatchFromIntelligence(
+        engine.buildIntelligence(_match()),
+        _profile(markets: [], profiles: [], readings: ['declining_form']),
+      );
+
+      expect(personalized.profileStatus, MatchProfileStatus.inProfile);
+      expect(personalized.signals.single.id, 'declining_form');
+    });
+
     test(
       'keeps an analysis-backed bet recommendation when bookmaker odds are absent',
       () {
@@ -671,6 +687,42 @@ void main() {
         );
       },
     );
+
+    test('uses xG as internal support for expected domination', () {
+      final assessment =
+          OpportunityEngineV2(
+                analyzer: _StaticAnalyzer([
+                  ..._expectedDominationReadings(),
+                  _reading(
+                    'high_xg_creation',
+                    'api-team-10',
+                    ReadingSubjectSide.home,
+                  ),
+                  _reading(
+                    'high_xg_conceded',
+                    'api-team-11',
+                    ReadingSubjectSide.away,
+                  ),
+                ]),
+              )
+              .assessTheses(_match())
+              .singleWhere(
+                (assessment) => assessment.id == 'expected_domination',
+              );
+
+      expect(
+        assessment.additionalSupport.any(
+          (item) => item.reading?.id == 'high_xg_creation',
+        ),
+        isTrue,
+      );
+      expect(
+        assessment.additionalSupport.any(
+          (item) => item.reading?.id == 'high_xg_conceded',
+        ),
+        isTrue,
+      );
+    });
 
     test('marks shared positive form as non-discriminating', () {
       final assessment =

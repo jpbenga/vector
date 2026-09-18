@@ -90,9 +90,11 @@ Supabase Cron
   -> api_football_cached_responses
   -> sync-match-results (J-7 a J-1, scores finaux)
   -> match_result_snapshots
-  -> build-match-feed-snapshot apres collecte terminee
-  -> match_feed_snapshots scopes league:<id>
-  -> Flutter read model fusionne les snapshots par ligue
+  -> build-match-feed-snapshot apres collecte terminee (brut prive)
+  -> publish-reading-announcements (Bilan immuable)
+  -> analyze-match-feed-snapshot (read model mobile compact)
+  -> match_feed_analysis_snapshots scopes league:<id>
+  -> Flutter fusionne et filtre les lectures deja calculees
 ```
 
 Vercel heberge l'application web, mais ne porte pas le cron data.
@@ -134,8 +136,8 @@ La strategie retenue est donc :
 3. un snapshot par ligue via `build-match-feed-snapshot`, seulement apres la
    fin de la collecte.
 
-Le front reconstruit le feed global en fusionnant les derniers snapshots de
-chaque ligue pour la date demandee. Cette strategie evite de depasser les
+Le front fusionne uniquement les derniers read models compacts de chaque ligue
+pour la date demandee. Il ne reconstruit aucune statistique football. Cette strategie evite de depasser les
 limites de calcul Supabase Edge avec un snapshot global trop gros.
 
 ## Fichiers
