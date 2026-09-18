@@ -38,6 +38,22 @@ void main() {
     expect(results, contains('player_decisive'));
   });
 
+  test('normalizes every optional announcement column before bulk insert', () {
+    final publisher = File(
+      'supabase/functions/publish-reading-announcements/index.ts',
+    ).readAsStringSync();
+
+    expect(publisher, contains('announcement_kind: row.announcement_kind'));
+    expect(
+      publisher,
+      contains('parent_announcement_key: row.parent_announcement_key'),
+    );
+    expect(
+      publisher,
+      contains('required_reading_ids: row.required_reading_ids ?? []'),
+    );
+  });
+
   test('evaluates server reading contracts and nuances in the database', () {
     final migration = File(
       'supabase/migrations/20260918113000_bilan_reading_outcomes_and_nuances.sql',

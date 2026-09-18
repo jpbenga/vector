@@ -1469,12 +1469,13 @@ async function insertAnnouncements({
   let inserted = 0;
   for (let index = 0; index < announcements.length; index += 100) {
     // PostgREST requires every object in a bulk insert to expose the same
-    // columns. Nuances carry their parent link while ordinary readings do not.
-    // Keep the database representation explicit for both kinds of rows.
+    // columns. Scenarios and nuances add fields that ordinary readings do not
+    // use, so make the complete persisted contract explicit for every row.
     const rowsToInsert = announcements.slice(index, index + 100).map((row) => ({
       ...row,
       announcement_kind: row.announcement_kind ?? "reading",
       parent_announcement_key: row.parent_announcement_key ?? null,
+      required_reading_ids: row.required_reading_ids ?? [],
     }));
     const rows = await supabaseFetch({
       supabaseUrl,
