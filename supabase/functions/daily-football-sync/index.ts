@@ -204,6 +204,7 @@ type DailyOptions = {
   includeRecentForm: boolean;
   includeExpectedGoals: boolean;
   includePlayerStatistics: boolean;
+  includeRecentPlayerPerformances: boolean;
   recentFormDaysBack: number;
   recentFormMatches: number;
 };
@@ -293,6 +294,8 @@ function dailyOptionsFromPayload(payload: JsonObject): DailyOptions {
     // stay light; the weekly enrichment schedule enables it explicitly.
     includePlayerStatistics: booleanValue(payload.include_player_statistics) ??
       false,
+    includeRecentPlayerPerformances:
+      booleanValue(payload.include_recent_player_performances) ?? true,
     recentFormDaysBack: boundedInteger(
       numberValue(payload.recent_form_days_back),
       1,
@@ -319,6 +322,7 @@ function syncPayload(options: DailyOptions): JsonObject {
     include_recent_form: options.includeRecentForm,
     include_expected_goals: options.includeExpectedGoals,
     include_player_statistics: options.includePlayerStatistics,
+    include_recent_player_performances: options.includeRecentPlayerPerformances,
     recent_form_days_back: options.recentFormDaysBack,
     recent_form_matches: options.recentFormMatches,
     purpose: "daily_football_sync",

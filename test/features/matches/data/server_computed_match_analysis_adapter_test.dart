@@ -67,5 +67,11 @@ void main() {
       analysis.scenarios.single.supportingReadings.single.id,
       'positive_streak',
     );
+    expect(analysis.displayReadings, hasLength(2));
+    expect(analysis.displayReadings.first.evidenceLabel, 'Série positive.');
+    expect(
+      analysis.displayReadings.first.playerPhotoUrl,
+      'https://media.api-sports.io/football/players/278.png',
+    );
   });
 }

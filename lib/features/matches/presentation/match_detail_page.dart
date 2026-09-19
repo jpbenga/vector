@@ -1306,6 +1306,10 @@ class _LectorQuickContextCard extends StatelessWidget {
     final brand = context.brand;
     final textColors = context.textColors;
     final keys = match.analysis.contextKeys;
+    final serverContextReadings = _quickContextReadingsFor(match);
+    final decisivePlayerGroups = _decisivePlayerGroupsFor(match);
+    final vigilanceReadings = _contextVigilanceReadingsFor(match);
+    final quickFactCount = keys.length + serverContextReadings.length;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(2, 4, 2, 2),
@@ -1365,20 +1369,37 @@ class _LectorQuickContextCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (keys.isNotEmpty) ...[
+              if (quickFactCount > 0) ...[
                 const SizedBox(width: 8),
-                _ContextKeyCount(count: keys.length),
+                _ContextKeyCount(count: quickFactCount),
               ],
             ],
           ),
           const SizedBox(height: 12),
-          if (keys.isEmpty)
+          if (quickFactCount == 0 && decisivePlayerGroups.isEmpty)
             const _ContextKeyEmptyState()
-          else
+          else ...[
             for (var index = 0; index < keys.length; index += 1) ...[
               _MatchContextKeyCard(match: match, contextKey: keys[index]),
               if (index != keys.length - 1) const SizedBox(height: 9),
             ],
+            for (final reading in serverContextReadings) ...[
+              if (keys.isNotEmpty || reading != serverContextReadings.first)
+                const SizedBox(height: 9),
+              _ServerComputedContextCard(match: match, reading: reading),
+            ],
+            if (decisivePlayerGroups.isNotEmpty) ...[
+              const SizedBox(height: 18),
+              _DecisivePlayersContextSection(groups: decisivePlayerGroups),
+            ],
+            if (vigilanceReadings.isNotEmpty) ...[
+              const SizedBox(height: 18),
+              _ContextVigilanceSection(
+                match: match,
+                readings: vigilanceReadings,
+              ),
+            ],
+          ],
         ],
       ),
     );
@@ -1448,6 +1469,553 @@ class _ContextKeyEmptyState extends StatelessWidget {
     );
   }
 }
+
+List<MatchComputedReading> _quickContextReadingsFor(MatchBoardItem match) {
+  const excludedIds = {
+    'standout_decisive_player',
+    'key_player_unavailable',
+    'match_shot_profile',
+    'match_corner_profile',
+    'match_card_profile',
+    'high_total_corners_profile',
+    'high_total_cards_profile',
+    'second_half_cards_profile',
+    'high_card_rate',
+    'low_card_rate',
+    'high_shot_volume',
+    'low_shot_volume',
+    'high_shots_on_target',
+    'low_shot_accuracy',
+    'high_shots_conceded',
+    'high_shots_on_target_conceded',
+    'high_corner_creation',
+    'high_corners_conceded',
+  };
+  return match.analysis.computedReadings
+      .where(
+        (reading) =>
+            !excludedIds.contains(reading.id) &&
+            !reading.isContradiction &&
+            reading.playerName == null &&
+            reading.evidenceLabel.trim().isNotEmpty,
+      )
+      .take(3)
+      .toList(growable: false);
+}
+
+List<MatchComputedReading> _contextVigilanceReadingsFor(MatchBoardItem match) =>
+    match.analysis.computedReadings
+        .where(
+          (reading) =>
+              reading.isContradiction || reading.id == 'key_player_unavailable',
+        )
+        .take(3)
+        .toList(growable: false);
+
+class _ServerComputedContextCard extends StatelessWidget {
+  const _ServerComputedContextCard({
+    required this.match,
+    required this.reading,
+  });
+
+  final MatchBoardItem match;
+  final MatchComputedReading reading;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = context.brand.accent;
+    final surfaces = context.surfaces;
+    final team = _teamForSubject(match, reading.subjectTeamId);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: surfaces.surface.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: surfaces.border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (team != null) ...[
+              SportsAssetBadge(
+                size: 38,
+                imageUrl: team.logoUrl,
+                fallbackLabel: team.name,
+                borderRadius: 19,
+                backgroundColor: AppColors.transparent,
+                contrastPlate: true,
+              ),
+            ] else
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.control),
+                ),
+                child: SizedBox.square(
+                  dimension: 38,
+                  child: Icon(
+                    _quickContextIcon(reading.id),
+                    size: 20,
+                    color: accent,
+                  ),
+                ),
+              ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _quickContextTitle(reading.id, team?.name),
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: context.textColors.primary,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    reading.evidenceLabel,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.textColors.secondary,
+                      height: 1.25,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+IconData _quickContextIcon(String readingId) => switch (readingId) {
+  'ranking_superiority' ||
+  'ranking_inferiority' ||
+  'structural_level_gap' => Icons.bar_chart_rounded,
+  'positive_streak' ||
+  'negative_streak' ||
+  'improving_form' ||
+  'declining_form' ||
+  'form_advantage' => Icons.trending_up_rounded,
+  'strong_home_team' ||
+  'weak_home_team' ||
+  'strong_away_team' ||
+  'weak_away_team' ||
+  'venue_strength' => Icons.home_outlined,
+  'prolific_attack' ||
+  'attack_in_form' ||
+  'scoring_difficulty' => Icons.bolt_rounded,
+  'fragile_defense' || 'defensive_underperformance' => Icons.shield_outlined,
+  _ => Icons.auto_awesome_rounded,
+};
+
+String _quickContextTitle(String readingId, String? teamName) {
+  final team = teamName == null ? '' : ' pour $teamName';
+  return switch (readingId) {
+    'ranking_superiority' => 'Avantage au classement$team',
+    'ranking_inferiority' => 'Retard au classement$team',
+    'structural_level_gap' => 'Écart de niveau structurel$team',
+    'positive_streak' => 'Dynamique positive$team',
+    'negative_streak' => 'Dynamique négative$team',
+    'improving_form' => 'Forme en hausse$team',
+    'declining_form' => 'Forme en baisse$team',
+    'form_advantage' => 'Avantage de forme$team',
+    'strong_home_team' => 'Solide à domicile$team',
+    'weak_home_team' => 'Fragile à domicile$team',
+    'strong_away_team' => 'Solide à l’extérieur$team',
+    'weak_away_team' => 'Fragile à l’extérieur$team',
+    'venue_strength' => 'Avantage du lieu$team',
+    'prolific_attack' => 'Attaque prolifique$team',
+    'attack_in_form' => 'Attaque en forme$team',
+    'scoring_difficulty' => 'Difficulté à marquer$team',
+    'fragile_defense' => 'Défense fragile$team',
+    'defensive_underperformance' => 'Défense en difficulté$team',
+    _ => 'Fait marquant$team',
+  };
+}
+
+class _DecisivePlayerGroup {
+  const _DecisivePlayerGroup({required this.team, required this.readings});
+
+  final TeamInfo team;
+  final List<MatchComputedReading> readings;
+}
+
+List<_DecisivePlayerGroup> _decisivePlayerGroupsFor(MatchBoardItem match) {
+  final readingsByTeam = <String, List<MatchComputedReading>>{};
+  for (final reading in match.analysis.computedReadings) {
+    final recent = _computedMap(_computedMap(reading.evidenceValue)['recent']);
+    if (reading.id != 'standout_decisive_player' ||
+        reading.isContradiction ||
+        reading.playerName == null ||
+        (_computedInt(recent['matches_considered']) ?? 0) < 3 ||
+        (_computedInt(recent['minutes']) ?? 0) <= 0) {
+      continue;
+    }
+    readingsByTeam.putIfAbsent(reading.subjectTeamId, () => []).add(reading);
+  }
+
+  final groups = <_DecisivePlayerGroup>[];
+  for (final team in [match.homeTeam, match.awayTeam]) {
+    final readings = readingsByTeam[team.id];
+    if (readings == null || readings.isEmpty) continue;
+    readings.sort(
+      (left, right) => _playerRank(left).compareTo(_playerRank(right)),
+    );
+    groups.add(_DecisivePlayerGroup(team: team, readings: readings));
+  }
+  return List.unmodifiable(groups);
+}
+
+int _playerRank(MatchComputedReading reading) {
+  final recent = _computedMap(_computedMap(reading.evidenceValue)['recent']);
+  return _computedInt(recent['player_rank']) ?? 999;
+}
+
+class _DecisivePlayersContextSection extends StatelessWidget {
+  const _DecisivePlayersContextSection({required this.groups});
+
+  final List<_DecisivePlayerGroup> groups;
+
+  @override
+  Widget build(BuildContext context) {
+    final count = groups.fold<int>(
+      0,
+      (total, group) => total + group.readings.length,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Joueurs décisifs à surveiller · $count',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            color: context.textColors.primary,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Profils calculés sur les trois derniers matchs terminés.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: context.textColors.secondary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 10),
+        for (final indexed in groups.indexed) ...[
+          _DecisivePlayerTeamCard(group: indexed.$2),
+          if (indexed.$1 < groups.length - 1) const SizedBox(height: 9),
+        ],
+      ],
+    );
+  }
+}
+
+class _ContextVigilanceSection extends StatelessWidget {
+  const _ContextVigilanceSection({required this.match, required this.readings});
+
+  final MatchBoardItem match;
+  final List<MatchComputedReading> readings;
+
+  @override
+  Widget build(BuildContext context) {
+    final warning = context.semantic.warning;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Points de vigilance',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            color: warning,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 8),
+        for (final indexed in readings.indexed) ...[
+          _ContextVigilanceCard(match: match, reading: indexed.$2),
+          if (indexed.$1 < readings.length - 1) const SizedBox(height: 8),
+        ],
+      ],
+    );
+  }
+}
+
+class _ContextVigilanceCard extends StatelessWidget {
+  const _ContextVigilanceCard({required this.match, required this.reading});
+
+  final MatchBoardItem match;
+  final MatchComputedReading reading;
+
+  @override
+  Widget build(BuildContext context) {
+    final warning = context.semantic.warning;
+    final team = _teamForSubject(match, reading.subjectTeamId);
+    final title = reading.id == 'key_player_unavailable'
+        ? '${reading.playerName ?? 'Joueur important'} absent'
+        : _quickContextTitle(reading.id, team?.name);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: warning.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: warning.withValues(alpha: 0.66)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(11),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SportsAssetBadge(
+              size: 36,
+              imageUrl: reading.playerPhotoUrl ?? team?.logoUrl,
+              fallbackLabel: reading.playerName ?? team?.name ?? title,
+              borderRadius: 18,
+              backgroundColor: AppColors.transparent,
+              contrastPlate: true,
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: warning,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    reading.evidenceLabel,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.textColors.secondary,
+                      fontWeight: FontWeight.w600,
+                      height: 1.22,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DecisivePlayerTeamCard extends StatelessWidget {
+  const _DecisivePlayerTeamCard({required this.group});
+
+  final _DecisivePlayerGroup group;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.surfaces.surface.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: context.surfaces.border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(11),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                SportsAssetBadge(
+                  size: 31,
+                  imageUrl: group.team.logoUrl,
+                  fallbackLabel: group.team.name,
+                  borderRadius: 16,
+                  backgroundColor: AppColors.transparent,
+                  contrastPlate: true,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    group.team.name,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: context.textColors.primary,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            for (final indexed in group.readings.indexed) ...[
+              _DecisivePlayerRow(reading: indexed.$2),
+              if (indexed.$1 < group.readings.length - 1)
+                Divider(
+                  height: 17,
+                  color: context.surfaces.border.withValues(alpha: 0.72),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DecisivePlayerRow extends StatelessWidget {
+  const _DecisivePlayerRow({required this.reading});
+
+  final MatchComputedReading reading;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = _computedMap(reading.evidenceValue);
+    final recent = _computedMap(value['recent']);
+    final isSuperSub = value['is_super_sub'] == true;
+    final profile = _displayProfile(value['profile_label']);
+    final name = reading.playerName ?? 'Joueur à surveiller';
+    final details = _playerContributionLine(recent, isSuperSub: isSuperSub);
+    final rate = _computedDouble(recent['contributions_per_90']);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SportsAssetBadge(
+          size: 40,
+          imageUrl: reading.playerPhotoUrl,
+          fallbackLabel: name,
+          borderRadius: 20,
+          backgroundColor: AppColors.transparent,
+          contrastPlate: true,
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      name,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: context.textColors.primary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  _DecisiveProfileChip(label: profile),
+                ],
+              ),
+              const SizedBox(height: 3),
+              Text(
+                details,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.textColors.secondary,
+                  fontWeight: FontWeight.w600,
+                  height: 1.22,
+                ),
+              ),
+              if (rate != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  '${rate.toStringAsFixed(2).replaceAll('.', ',')} action${rate == 1 ? '' : 's'} décisive${rate == 1 ? '' : 's'} / 90 min',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.brand.accent,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DecisiveProfileChip extends StatelessWidget {
+  const _DecisiveProfileChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = context.brand.accent;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _displayProfile(Object? value) {
+  final raw = value?.toString().trim().toLowerCase();
+  return switch (raw) {
+    'buteur' => 'Buteur',
+    'passeur' => 'Passeur',
+    'décisif' => 'Décisif',
+    'buteur · super-sub' => 'Buteur · super-sub',
+    'passeur · super-sub' => 'Passeur · super-sub',
+    'décisif · super-sub' => 'Décisif · super-sub',
+    _ => 'Joueur décisif',
+  };
+}
+
+String _playerContributionLine(
+  Map<String, Object?> recent, {
+  required bool isSuperSub,
+}) {
+  final appearances = _computedInt(recent['appearances']) ?? 0;
+  final substitutions = _computedInt(recent['substitute_appearances']) ?? 0;
+  final contributingMatches =
+      _computedInt(recent['matches_with_contribution']) ?? 0;
+  final goals = _computedInt(recent['goals']) ?? 0;
+  final assists = _computedInt(recent['assists']) ?? 0;
+  final minutes = _computedInt(recent['minutes']) ?? 0;
+  final contributionParts = <String>[
+    if (goals > 0) '$goals but${goals == 1 ? '' : 's'}',
+    if (assists > 0) '$assists passe${assists == 1 ? '' : 's'}',
+  ];
+  final contribution = contributionParts.isEmpty
+      ? '$contributingMatches match${contributingMatches == 1 ? '' : 's'} décisif${contributingMatches == 1 ? '' : 's'}'
+      : contributionParts.join(', ');
+  if (isSuperSub) {
+    return '$substitutions entrée${substitutions == 1 ? '' : 's'} en jeu · '
+        'décisif sur $contributingMatches/3 matchs · $contribution · $minutes min';
+  }
+  return '$appearances matchs · $contribution · $minutes min';
+}
+
+Map<String, Object?> _computedMap(Object? value) => value is Map
+    ? {for (final entry in value.entries) entry.key.toString(): entry.value}
+    : const {};
+
+int? _computedInt(Object? value) => switch (value) {
+  int value => value,
+  num value => value.toInt(),
+  String value => int.tryParse(value),
+  _ => null,
+};
+
+double? _computedDouble(Object? value) => switch (value) {
+  num value => value.toDouble(),
+  String value => double.tryParse(value),
+  _ => null,
+};
 
 class _MatchContextKeyCard extends StatelessWidget {
   const _MatchContextKeyCard({required this.match, required this.contextKey});

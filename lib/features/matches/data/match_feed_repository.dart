@@ -159,7 +159,7 @@ class SnapshotMatchFeedRepository implements MatchFeedRepository {
     // fixture format remains available to offline tests and local fixtures;
     // only that format retains its historical Tier fallback.
     final matchesWithContextKeys = _hasServerComputedAnalysis(snapshot)
-        ? matches
+        ? _attachServerComputedReadings(matches, computedByFixture)
         : _attachStructuralRelations(
             matches: matches,
             snapshot: snapshot,
@@ -246,6 +246,21 @@ class SnapshotMatchFeedRepository implements MatchFeedRepository {
       compiledProfile,
     );
   }
+}
+
+List<MatchBoardItem> _attachServerComputedReadings(
+  List<MatchBoardItem> matches,
+  Map<String, ServerComputedMatchAnalysis> computedByFixture,
+) {
+  return List.unmodifiable([
+    for (final match in matches)
+      match.copyWith(
+        analysis: match.analysis.copyWith(
+          computedReadings:
+              computedByFixture[match.id]?.displayReadings ?? const [],
+        ),
+      ),
+  ]);
 }
 
 bool _hasServerComputedAnalysis(Map<String, Object?> snapshot) {

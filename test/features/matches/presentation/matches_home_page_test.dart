@@ -1294,6 +1294,103 @@ void main() {
       expect(find.text('Rosenborg'), findsWidgets);
     });
 
+    testWidgets(
+      'shows server-computed match facts and grouped decisive-player profiles in context',
+      (tester) async {
+        final match = _match(
+          id: 'player-context',
+          homeName: 'Monaco',
+          awayName: 'Lens',
+          kickoff: _relativeKickoff(0, hour: 20),
+          analysis: const MatchAnalysisData(
+            computedReadings: [
+              MatchComputedReading(
+                id: 'strong_home_team',
+                subjectTeamId: 'player-context-home',
+                side: 'home',
+                strength: 'moderate',
+                isContradiction: false,
+                evidenceLabel: 'Monaco gagne 80% de ses matchs à domicile.',
+              ),
+              MatchComputedReading(
+                id: 'standout_decisive_player',
+                subjectTeamId: 'player-context-home',
+                side: 'home',
+                strength: 'strong',
+                isContradiction: false,
+                evidenceLabel: 'Joueur A est décisif sur sa fenêtre récente.',
+                playerName: 'Joueur A',
+                evidenceValue: {
+                  'profile_label': 'buteur',
+                  'is_super_sub': false,
+                  'recent': {
+                    'player_rank': 1,
+                    'matches_considered': 3,
+                    'appearances': 3,
+                    'matches_with_contribution': 3,
+                    'goals': 3,
+                    'assists': 1,
+                    'minutes': 248,
+                    'contributions_per_90': 1.45,
+                  },
+                },
+              ),
+              MatchComputedReading(
+                id: 'standout_decisive_player',
+                subjectTeamId: 'player-context-away',
+                side: 'away',
+                strength: 'strong',
+                isContradiction: false,
+                evidenceLabel: 'Joueur B est décisif sur sa fenêtre récente.',
+                playerName: 'Joueur B',
+                evidenceValue: {
+                  'profile_label': 'décisif · super-sub',
+                  'is_super_sub': true,
+                  'recent': {
+                    'player_rank': 1,
+                    'matches_considered': 3,
+                    'appearances': 3,
+                    'substitute_appearances': 2,
+                    'matches_with_contribution': 2,
+                    'goals': 2,
+                    'assists': 0,
+                    'minutes': 74,
+                    'contributions_per_90': 2.43,
+                  },
+                },
+              ),
+              MatchComputedReading(
+                id: 'key_player_unavailable',
+                subjectTeamId: 'player-context-away',
+                side: 'away',
+                strength: 'strong',
+                isContradiction: true,
+                evidenceLabel: 'Joueur C est signalé absent avant le match.',
+                playerName: 'Joueur C',
+              ),
+            ],
+          ),
+        );
+
+        await _pumpMatchDetail(tester, match: match);
+
+        expect(find.text('Solide à domicile pour Monaco'), findsOneWidget);
+        expect(find.text('Joueurs décisifs à surveiller · 2'), findsOneWidget);
+        expect(find.text('Joueur A'), findsOneWidget);
+        expect(find.text('Joueur B'), findsOneWidget);
+        expect(find.text('Buteur'), findsOneWidget);
+        expect(find.text('Décisif · super-sub'), findsOneWidget);
+        expect(find.text('Points de vigilance'), findsOneWidget);
+        expect(find.text('Joueur C absent'), findsOneWidget);
+        expect(
+          find.text(
+            '2 entrées en jeu · décisif sur 2/3 matchs · 2 buts · 74 min',
+          ),
+          findsOneWidget,
+        );
+      },
+    );
+
     testWidgets('renders the semantic highlight carried by a context key', (
       tester,
     ) async {

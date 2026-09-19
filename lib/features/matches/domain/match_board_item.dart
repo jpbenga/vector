@@ -171,6 +171,35 @@ class MatchSignal {
   final String? subjectTeamId;
 }
 
+/// Immutable presentation data emitted by the server-computed match feed.
+///
+/// This deliberately preserves the factual evidence used to publish a
+/// reading. The application can then group and display it without rebuilding
+/// a sporting signal from raw provider statistics.
+class MatchComputedReading {
+  const MatchComputedReading({
+    required this.id,
+    required this.subjectTeamId,
+    required this.side,
+    required this.strength,
+    required this.isContradiction,
+    required this.evidenceLabel,
+    this.evidenceValue,
+    this.playerName,
+    this.playerPhotoUrl,
+  });
+
+  final String id;
+  final String subjectTeamId;
+  final String side;
+  final String strength;
+  final bool isContradiction;
+  final String evidenceLabel;
+  final Object? evidenceValue;
+  final String? playerName;
+  final String? playerPhotoUrl;
+}
+
 enum MatchThesisStatus { recommended, watchlist, notRecommended }
 
 enum MatchProfileStatus { inProfile, outOfProfile }
@@ -585,6 +614,7 @@ class MatchAnalysisData {
     this.structuralRelation,
     this.contextKeys = const [],
     this.contextKeyAvailability = MatchContextKeyAvailability.unavailable,
+    this.computedReadings = const [],
     this.homeRecentLeagueMatches = const [],
     this.awayRecentLeagueMatches = const [],
     this.leagueRecentLeagueMatches = const {},
@@ -620,6 +650,7 @@ class MatchAnalysisData {
   final MatchStructuralRelation? structuralRelation;
   final List<MatchContextKey> contextKeys;
   final MatchContextKeyAvailability contextKeyAvailability;
+  final List<MatchComputedReading> computedReadings;
   final List<TeamRecentMatchSnapshot> homeRecentLeagueMatches;
   final List<TeamRecentMatchSnapshot> awayRecentLeagueMatches;
   final Map<int, List<TeamRecentMatchSnapshot>> leagueRecentLeagueMatches;
@@ -688,6 +719,7 @@ class MatchAnalysisData {
     MatchStructuralRelation? structuralRelation,
     List<MatchContextKey>? contextKeys,
     MatchContextKeyAvailability? contextKeyAvailability,
+    List<MatchComputedReading>? computedReadings,
     List<TeamRecentMatchSnapshot>? homeRecentLeagueMatches,
     List<TeamRecentMatchSnapshot>? awayRecentLeagueMatches,
     Map<int, List<TeamRecentMatchSnapshot>>? leagueRecentLeagueMatches,
@@ -724,6 +756,7 @@ class MatchAnalysisData {
       contextKeys: contextKeys ?? this.contextKeys,
       contextKeyAvailability:
           contextKeyAvailability ?? this.contextKeyAvailability,
+      computedReadings: computedReadings ?? this.computedReadings,
       homeRecentLeagueMatches:
           homeRecentLeagueMatches ?? this.homeRecentLeagueMatches,
       awayRecentLeagueMatches:

@@ -117,6 +117,7 @@ Deno.serve(async (request) => {
       rawExpectedGoals: build.rawExpectedGoals,
       rawPerformanceStatistics: build.rawPerformanceStatistics,
       rawPlayerStatistics: build.rawPlayerStatistics,
+      rawPlayerRecentPerformances: build.rawPlayerRecentPerformances,
       rawDomesticTeamContexts: build.rawDomesticTeamContexts,
       fixtureIndex,
       sourceRows: build.sourceRows,
@@ -160,6 +161,10 @@ Deno.serve(async (request) => {
         expected_goals: build.rawExpectedGoals,
         performance_statistics: build.rawPerformanceStatistics,
         player_statistics: build.rawPlayerStatistics,
+        // Real minutes, goals and assists from every player's last three
+        // completed matches. This is the source of truth for the recent
+        // decisive-player signal, including super-subs.
+        player_recent_performances: build.rawPlayerRecentPerformances,
         // Derived from already collected fixture events. The app receives the
         // compact player activity, never the provider event stream itself.
         player_recent_contributions: build.rawPlayerRecentContributions,
@@ -293,6 +298,7 @@ type SourceBuild = {
   rawExpectedGoals: JsonObject[];
   rawPerformanceStatistics: JsonObject[];
   rawPlayerStatistics: JsonObject[];
+  rawPlayerRecentPerformances: JsonObject[];
   rawPlayerRecentContributions: JsonObject[];
   rawInjuries: JsonObject[];
   rawDomesticTeamContexts: JsonObject[];
@@ -340,10 +346,13 @@ async function collectSnapshotSources({
   const rawTeamStatistics: JsonObject[] = [];
   const rawRecentLeagueMatches: JsonObject[] = [];
   const rawPlayerStatistics: JsonObject[] = [];
+  const fixturePlayerRows: Array<{ fixtureId: number; teams: JsonObject[] }> =
+    [];
   const rawInjuries: JsonObject[] = [];
   const rawDomesticTeamContexts: JsonObject[] = [];
   const fixtureStatisticsRows: FixtureStatisticsPayload[] = [];
-  const fixtureEventsRows: Array<{fixtureId: number; events: JsonObject[]}> = [];
+  const fixtureEventsRows: Array<{ fixtureId: number; events: JsonObject[] }> =
+    [];
 
   const addSourceRows = (rows: CachedRawResponse[]) => {
     for (const row of rows) {
@@ -535,10 +544,13 @@ async function collectSnapshotSources({
   }
 
   const scopedLeagueFixtures = rawLeagueFixtures.filter((row) =>
-    options.leagueIds.includes(numberValue((objectValue(row.league) ?? {}).id) ?? -1)
+    options.leagueIds.includes(
+      numberValue((objectValue(row.league) ?? {}).id) ?? -1,
+    )
   );
   const teamRequests = teamStatisticsRequests(
-    [...rawFixtures, ...scopedLeagueFixtures], options,
+    [...rawFixtures, ...scopedLeagueFixtures],
+    options,
   );
   for (const request of teamRequests) {
     const rows = await cachedResponsesFor({
@@ -599,9 +611,13 @@ async function collectSnapshotSources({
   // The league fixture response already covers every club. Complete the
   // championship comparison from that cached response instead of issuing one
   // extra /fixtures request for each club outside the feed window.
-  const recentTeams = new Set(rawRecentLeagueMatches.map((row) =>
-    `${numberValue((objectValue(row.league) ?? {}).id)}:${numberValue((objectValue(row.team) ?? {}).id)}`
-  ));
+  const recentTeams = new Set(
+    rawRecentLeagueMatches.map((row) =>
+      `${numberValue((objectValue(row.league) ?? {}).id)}:${
+        numberValue((objectValue(row.team) ?? {}).id)
+      }`
+    ),
+  );
   for (const request of teamRequests) {
     const key = `${request.leagueId}:${request.teamId}`;
     if (recentTeams.has(key)) continue;
@@ -653,27 +669,44 @@ async function collectSnapshotSources({
         events: flatResponseItems([row]),
       });
     }
+    const playerRows = await cachedResponsesFor({
+      supabaseUrl,
+      serviceRoleKey,
+      endpoint: "/fixtures/players",
+      filters: { fixture: String(fixtureId) },
+    });
+    addSourceRows(playerRows);
+    for (const row of playerRows) {
+      fixturePlayerRows.push({
+        fixtureId,
+        teams: flatResponseItems([row]),
+      });
+    }
   }
 
   const now = Date.now();
-  const upcomingFixtureIds = new Set(rawFixtures
-    .map((row) => {
-      const fixture = objectValue(row.fixture) ?? {};
-      const fixtureId = numberValue(fixture.id);
-      const kickoff = stringValue(fixture.date);
-      const timeUntilKickoff = kickoff === null
-        ? null
-        : Date.parse(kickoff) - now;
-      return fixtureId !== null && timeUntilKickoff !== null &&
-          timeUntilKickoff > 0 &&
-          timeUntilKickoff <= injuryCollectionWindowMs
-        ? fixtureId
-        : null;
-    })
-    .filter((id): id is number => id !== null));
+  const upcomingFixtureIds = new Set(
+    rawFixtures
+      .map((row) => {
+        const fixture = objectValue(row.fixture) ?? {};
+        const fixtureId = numberValue(fixture.id);
+        const kickoff = stringValue(fixture.date);
+        const timeUntilKickoff = kickoff === null
+          ? null
+          : Date.parse(kickoff) - now;
+        return fixtureId !== null && timeUntilKickoff !== null &&
+            timeUntilKickoff > 0 &&
+            timeUntilKickoff <= injuryCollectionWindowMs
+          ? fixtureId
+          : null;
+      })
+      .filter((id): id is number => id !== null),
+  );
   for (const fixtureId of upcomingFixtureIds) {
     const rows = await cachedResponsesFor({
-      supabaseUrl, serviceRoleKey, endpoint: "/injuries",
+      supabaseUrl,
+      serviceRoleKey,
+      endpoint: "/injuries",
       filters: { fixture: String(fixtureId) },
     });
     addSourceRows(rows);
@@ -703,6 +736,11 @@ async function collectSnapshotSources({
     fixtureEventsRows,
     asOf: sourceAsOf,
   });
+  const rawPlayerRecentPerformances = playerRecentPerformanceSnapshots({
+    recentLeagueMatches: rawRecentLeagueMatches,
+    fixturePlayerRows,
+    asOf: sourceAsOf,
+  });
 
   return {
     sourceRows: [...sourceRowsByKey.values()],
@@ -715,6 +753,7 @@ async function collectSnapshotSources({
     rawExpectedGoals,
     rawPerformanceStatistics,
     rawPlayerStatistics,
+    rawPlayerRecentPerformances,
     rawPlayerRecentContributions,
     rawInjuries,
     rawDomesticTeamContexts,
@@ -781,7 +820,9 @@ function domesticTeamContextsFromCachedStandings({
           const standing = objectValue(standingValue) ?? {};
           const team = objectValue(standing.team) ?? {};
           const teamId = numberValue(team.id);
-          const target = teamId === null ? undefined : fixtureByTeam.get(teamId);
+          const target = teamId === null
+            ? undefined
+            : fixtureByTeam.get(teamId);
           if (
             teamId === null ||
             target === undefined ||
@@ -1101,6 +1142,7 @@ function coverageSummary({
   rawExpectedGoals,
   rawPerformanceStatistics,
   rawPlayerStatistics,
+  rawPlayerRecentPerformances,
   rawDomesticTeamContexts,
   fixtureIndex,
   sourceRows,
@@ -1114,6 +1156,7 @@ function coverageSummary({
   rawExpectedGoals: JsonObject[];
   rawPerformanceStatistics: JsonObject[];
   rawPlayerStatistics: JsonObject[];
+  rawPlayerRecentPerformances: JsonObject[];
   rawDomesticTeamContexts: JsonObject[];
   fixtureIndex: FixtureIndexRow[];
   sourceRows: CachedRawResponse[];
@@ -1128,6 +1171,7 @@ function coverageSummary({
     expected_goals: rawExpectedGoals.length,
     performance_statistics: rawPerformanceStatistics.length,
     player_statistics: rawPlayerStatistics.length,
+    player_recent_performances: rawPlayerRecentPerformances.length,
     domestic_team_contexts: rawDomesticTeamContexts.length,
     predictions: 0,
     fixture_index_rows: fixtureIndex.length,
@@ -1829,7 +1873,7 @@ function playerRecentContributionSnapshots({
   asOf,
 }: {
   recentLeagueMatches: JsonObject[];
-  fixtureEventsRows: Array<{fixtureId: number; events: JsonObject[]}>;
+  fixtureEventsRows: Array<{ fixtureId: number; events: JsonObject[] }>;
   asOf: string;
 }): JsonObject[] {
   const eventsByFixture = new Map<number, JsonObject[]>();
@@ -1867,13 +1911,17 @@ function playerRecentContributionSnapshots({
         // A provider own-goal event identifies the conceding player; it must
         // never make that player a positive offensive contributor.
         if (stringValue(event.detail)?.toLowerCase() === "own goal") continue;
-        if (numberValue((objectValue(event.team) ?? {}).id) !== teamId) continue;
+        if (numberValue((objectValue(event.team) ?? {}).id) !== teamId) {
+          continue;
+        }
 
         const scorer = objectValue(event.player) ?? {};
         const scorerId = numberValue(scorer.id);
         if (scorerId !== null) {
           const value = players.get(scorerId) ?? {
-            name: stringValue(scorer.name), goals: 0, assists: 0,
+            name: stringValue(scorer.name),
+            goals: 0,
+            assists: 0,
             fixtureIds: new Set<number>(),
           };
           value.goals += 1;
@@ -1885,7 +1933,9 @@ function playerRecentContributionSnapshots({
         const assisterId = numberValue(assister.id);
         if (assisterId !== null) {
           const value = players.get(assisterId) ?? {
-            name: stringValue(assister.name), goals: 0, assists: 0,
+            name: stringValue(assister.name),
+            goals: 0,
+            assists: 0,
             fixtureIds: new Set<number>(),
           };
           value.assists += 1;
@@ -1896,13 +1946,126 @@ function playerRecentContributionSnapshots({
     }
 
     snapshots.push({
-      league: {id: leagueId},
-      team: {id: teamId, name: stringValue(team.name)},
+      league: { id: leagueId },
+      team: { id: teamId, name: stringValue(team.name) },
       as_of: asOf,
       matches_considered: matches.length,
       events_available_for: eventsAvailableFor,
       players: [...players.entries()].map(([playerId, value]) => ({
-        player: {id: playerId, name: value.name},
+        player: { id: playerId, name: value.name },
+        goals: value.goals,
+        assists: value.assists,
+        contributions: value.goals + value.assists,
+        matches_with_contribution: value.fixtureIds.size,
+      })),
+    });
+  }
+  return snapshots;
+}
+
+/**
+ * Creates a player window from each team's last three completed matches.
+ * Unlike season pages, fixture player statistics carry actual minutes for
+ * every appearance. That makes a recurring substitute measurable without
+ * treating a short cameo as three full matches.
+ */
+function playerRecentPerformanceSnapshots({
+  recentLeagueMatches,
+  fixturePlayerRows,
+  asOf,
+}: {
+  recentLeagueMatches: JsonObject[];
+  fixturePlayerRows: Array<{ fixtureId: number; teams: JsonObject[] }>;
+  asOf: string;
+}): JsonObject[] {
+  const playersByFixture = new Map<number, JsonObject[]>();
+  for (const row of fixturePlayerRows) {
+    const current = playersByFixture.get(row.fixtureId) ?? [];
+    current.push(...row.teams);
+    playersByFixture.set(row.fixtureId, current);
+  }
+
+  const snapshots: JsonObject[] = [];
+  for (const row of recentLeagueMatches) {
+    const leagueId = numberValue((objectValue(row.league) ?? {}).id);
+    const team = objectValue(row.team) ?? {};
+    const teamId = numberValue(team.id);
+    if (leagueId === null || teamId === null) continue;
+
+    const matches = arrayValue(row.matches)
+      .map(objectValue)
+      .filter((match): match is JsonObject => match !== null)
+      .slice(0, 3);
+    const profiles = new Map<number, {
+      name: string | null;
+      photoUrl: string | null;
+      appearances: number;
+      substituteAppearances: number;
+      minutes: number;
+      goals: number;
+      assists: number;
+      fixtureIds: Set<number>;
+    }>();
+    let fixturesWithPlayerStatistics = 0;
+
+    for (const match of matches) {
+      const fixtureId = numberValue((objectValue(match.fixture) ?? {}).id);
+      if (fixtureId === null) continue;
+      const fixtureTeams = playersByFixture.get(fixtureId) ?? [];
+      const teamPlayers = fixtureTeams.find((value) =>
+        numberValue((objectValue(value.team) ?? {}).id) === teamId
+      );
+      if (teamPlayers === undefined) continue;
+      fixturesWithPlayerStatistics += 1;
+      for (
+        const playerValue of arrayValue(teamPlayers.players)
+          .map(objectValue)
+          .filter((value): value is JsonObject => value !== null)
+      ) {
+        const player = objectValue(playerValue.player) ?? {};
+        const playerId = numberValue(player.id);
+        const statistics = arrayValue(playerValue.statistics)
+          .map(objectValue)
+          .find((value): value is JsonObject => value !== null) ?? {};
+        const games = objectValue(statistics.games) ?? {};
+        const goals = objectValue(statistics.goals) ?? {};
+        const minutes = numberValue(games.minutes);
+        if (playerId === null || minutes === null || minutes <= 0) continue;
+        const value = profiles.get(playerId) ?? {
+          name: stringValue(player.name),
+          photoUrl: stringValue(player.photo),
+          appearances: 0,
+          substituteAppearances: 0,
+          minutes: 0,
+          goals: 0,
+          assists: 0,
+          fixtureIds: new Set<number>(),
+        };
+        const scored = numberValue(goals.total) ?? 0;
+        const assisted = numberValue(goals.assists) ?? 0;
+        value.appearances += 1;
+        value.minutes += minutes;
+        if (booleanValue(games.substitute) === true) {
+          value.substituteAppearances += 1;
+        }
+        value.goals += scored;
+        value.assists += assisted;
+        if (scored + assisted > 0) value.fixtureIds.add(fixtureId);
+        profiles.set(playerId, value);
+      }
+    }
+
+    snapshots.push({
+      league: { id: leagueId },
+      team: { id: teamId, name: stringValue(team.name) },
+      as_of: asOf,
+      matches_considered: matches.length,
+      fixtures_with_player_statistics: fixturesWithPlayerStatistics,
+      players: [...profiles.entries()].map(([playerId, value]) => ({
+        player: { id: playerId, name: value.name, photo: value.photoUrl },
+        appearances: value.appearances,
+        substitute_appearances: value.substituteAppearances,
+        minutes: value.minutes,
         goals: value.goals,
         assists: value.assists,
         contributions: value.goals + value.assists,
@@ -1921,7 +2084,7 @@ function performanceStatisticsSnapshots({
 }: {
   recentLeagueMatches: JsonObject[];
   fixtureStatisticsRows: FixtureStatisticsPayload[];
-  fixtureEventsRows: Array<{fixtureId: number; events: JsonObject[]}>;
+  fixtureEventsRows: Array<{ fixtureId: number; events: JsonObject[] }>;
   asOf: string;
 }): JsonObject[] {
   const statisticsByFixture = new Map<
@@ -1945,15 +2108,18 @@ function performanceStatisticsSnapshots({
     if (byTeam.size > 0) statisticsByFixture.set(row.fixtureId, byTeam);
   }
 
-  const cardEventsByFixture = new Map<number, Map<number, {total: number; secondHalf: number}>>();
+  const cardEventsByFixture = new Map<
+    number,
+    Map<number, { total: number; secondHalf: number }>
+  >();
   for (const row of fixtureEventsRows) {
-    const byTeam = new Map<number, {total: number; secondHalf: number}>();
+    const byTeam = new Map<number, { total: number; secondHalf: number }>();
     for (const event of row.events) {
       if (stringValue(event.type)?.toLowerCase() !== "card") continue;
       const teamId = numberValue((objectValue(event.team) ?? {}).id);
       const minute = numberValue((objectValue(event.time) ?? {}).elapsed);
       if (teamId === null || minute === null) continue;
-      const count = byTeam.get(teamId) ?? {total: 0, secondHalf: 0};
+      const count = byTeam.get(teamId) ?? { total: 0, secondHalf: 0 };
       count.total += 1;
       if (minute > 45) count.secondHalf += 1;
       byTeam.set(teamId, count);
@@ -1995,11 +2161,13 @@ function performanceStatisticsSnapshots({
       const cornersAgainst = opponent.cornerKicks;
       const cardsFor = cardTotal(own);
       const cardsAgainst = cardTotal(opponent);
-      if (shotsFor === undefined || shotsAgainst === undefined ||
-          shotsOnTargetFor === undefined ||
-          shotsOnTargetAgainst === undefined ||
-          cornersFor === undefined || cornersAgainst === undefined ||
-          cardsFor === undefined || cardsAgainst === undefined) continue;
+      if (
+        shotsFor === undefined || shotsAgainst === undefined ||
+        shotsOnTargetFor === undefined ||
+        shotsOnTargetAgainst === undefined ||
+        cornersFor === undefined || cornersAgainst === undefined ||
+        cardsFor === undefined || cardsAgainst === undefined
+      ) continue;
       samples.push({
         shotsFor,
         shotsAgainst,
@@ -2023,11 +2191,13 @@ function performanceStatisticsSnapshots({
       },
       asOf,
       sampleSize: samples.length,
-      cardTiming: observedCards > 0 ? {
-        observedCards,
-        secondHalfCards,
-        secondHalfShare: round2(secondHalfCards / observedCards),
-      } : null,
+      cardTiming: observedCards > 0
+        ? {
+          observedCards,
+          secondHalfCards,
+          secondHalfShare: round2(secondHalfCards / observedCards),
+        }
+        : null,
       averages: {
         shotsFor: metricAverage("shotsFor"),
         shotsAgainst: metricAverage("shotsAgainst"),

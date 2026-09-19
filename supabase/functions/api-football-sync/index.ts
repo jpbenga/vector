@@ -8,6 +8,7 @@ const maxLeagues = 40;
 const maxTeamStatisticsRequests = 120;
 const maxRecentFixtureRequests = 160;
 const maxFixtureStatisticsRequests = 240;
+const maxFixturePlayerStatisticsRequests = 120;
 const maxPlayerStatisticsTeams = 160;
 const maxInjuryRequests = 120;
 const injuryCollectionWindowMs = 24 * 60 * 60 * 1000;
@@ -63,6 +64,7 @@ Deno.serve(async (request) => {
     recentFixtureRows: 0,
     fixtureStatistics: 0,
     fixtureEvents: 0,
+    fixturePlayerStatistics: 0,
     injuries: 0,
     playerStatisticsRequests: 0,
     playerStatisticsPages: 0,
@@ -74,11 +76,17 @@ Deno.serve(async (request) => {
   const fetchAndAccount = (options: FetchAndCacheOptions) =>
     fetchAndCache({
       ...options,
-      onProviderRequest: () => { summary.providerRequests += 1; },
+      onProviderRequest: () => {
+        summary.providerRequests += 1;
+      },
     });
   const fixtureStatisticsIds = new Set<number>();
+  const fixturePlayerStatisticsIds = new Set<number>();
   const injuryFixtureIds = new Set<number>();
-  const playerStatisticsTeams = new Map<string, { leagueId: number; season: number; teamId: number }>();
+  const playerStatisticsTeams = new Map<
+    string,
+    { leagueId: number; season: number; teamId: number }
+  >();
   let recentFixtureRequests = 0;
 
   try {
@@ -175,10 +183,37 @@ Deno.serve(async (request) => {
         continue;
       }
 
+      if (options.includeRecentPlayerPerformances) {
+        for (
+          const teamId of upcomingTeamIdsInWindow(
+            leagueFixtures.body,
+            options.windowStart,
+            options.windowEnd,
+            options.timezone,
+          )
+        ) {
+          for (
+            const fixtureId of recentFixtureIdsForTeam(
+              leagueFixtures.body,
+              teamId,
+              3,
+            )
+          ) {
+            fixturePlayerStatisticsIds.add(fixtureId);
+          }
+        }
+      }
+
       if (options.includeTeamStatistics) {
-        for (const teamId of leagueTeamIds.slice(0, maxTeamStatisticsRequests)) {
+        for (
+          const teamId of leagueTeamIds.slice(0, maxTeamStatisticsRequests)
+        ) {
           await fetchAndAccount({
-            apiBaseUrl, apiKey, supabaseUrl, serviceRoleKey, runId,
+            apiBaseUrl,
+            apiKey,
+            supabaseUrl,
+            serviceRoleKey,
+            runId,
             endpoint: "/teams/statistics",
             query: {
               league: String(leagueId),
@@ -201,9 +236,13 @@ Deno.serve(async (request) => {
 
       if (options.includeExpectedGoals) {
         for (const teamId of leagueTeamIds) {
-          for (const fixtureId of recentFixtureIdsForTeam(
-            leagueFixtures.body, teamId, options.recentFormMatches,
-          )) {
+          for (
+            const fixtureId of recentFixtureIdsForTeam(
+              leagueFixtures.body,
+              teamId,
+              options.recentFormMatches,
+            )
+          ) {
             fixtureStatisticsIds.add(fixtureId);
           }
         }
@@ -237,10 +276,12 @@ Deno.serve(async (request) => {
           const timeUntilKickoff = kickoff === null
             ? null
             : Date.parse(kickoff) - Date.now();
-          if (fixtureId !== null && timeUntilKickoff !== null &&
-              timeUntilKickoff > 0 &&
-              timeUntilKickoff <= injuryCollectionWindowMs &&
-              ["NS", "TBD"].includes(status ?? "")) {
+          if (
+            fixtureId !== null && timeUntilKickoff !== null &&
+            timeUntilKickoff > 0 &&
+            timeUntilKickoff <= injuryCollectionWindowMs &&
+            ["NS", "TBD"].includes(status ?? "")
+          ) {
             injuryFixtureIds.add(fixtureId);
             const teams = objectValue(root.teams) ?? {};
             for (const side of ["home", "away"]) {
@@ -327,18 +368,27 @@ Deno.serve(async (request) => {
       }
     }
 
-    if (injuryFixtureIds.size > maxInjuryRequests ||
-        fixtureStatisticsIds.size > maxFixtureStatisticsRequests ||
-        playerStatisticsTeams.size > maxPlayerStatisticsTeams) {
+    if (
+      injuryFixtureIds.size > maxInjuryRequests ||
+      fixtureStatisticsIds.size > maxFixtureStatisticsRequests ||
+      fixturePlayerStatisticsIds.size > maxFixturePlayerStatisticsRequests ||
+      playerStatisticsTeams.size > maxPlayerStatisticsTeams
+    ) {
       throw new Error(
         "Enrichment scope exceeds one sync run; split the request by league.",
       );
     }
     for (const fixtureId of injuryFixtureIds) {
       await fetchAndAccount({
-        apiBaseUrl, apiKey, supabaseUrl, serviceRoleKey, runId,
-        endpoint: "/injuries", query: { fixture: String(fixtureId) },
-        ttlSeconds: 60 * 60, requestDelayMs: apiRequestDelayMs,
+        apiBaseUrl,
+        apiKey,
+        supabaseUrl,
+        serviceRoleKey,
+        runId,
+        endpoint: "/injuries",
+        query: { fixture: String(fixtureId) },
+        ttlSeconds: 60 * 60,
+        requestDelayMs: apiRequestDelayMs,
       });
       summary.injuries += 1;
       summary.cachedResponses += 1;
@@ -346,10 +396,20 @@ Deno.serve(async (request) => {
 
     for (const context of playerStatisticsTeams.values()) {
       const firstPage = await fetchAndAccount({
-        apiBaseUrl, apiKey, supabaseUrl, serviceRoleKey, runId,
+        apiBaseUrl,
+        apiKey,
+        supabaseUrl,
+        serviceRoleKey,
+        runId,
         endpoint: "/players",
-        query: { league: String(context.leagueId), season: String(context.season), team: String(context.teamId), page: "1" },
-        ttlSeconds: 6 * 60 * 60, requestDelayMs: apiRequestDelayMs,
+        query: {
+          league: String(context.leagueId),
+          season: String(context.season),
+          team: String(context.teamId),
+          page: "1",
+        },
+        ttlSeconds: 6 * 60 * 60,
+        requestDelayMs: apiRequestDelayMs,
       });
       summary.playerStatisticsRequests += 1;
       summary.playerStatisticsPages += 1;
@@ -358,10 +418,20 @@ Deno.serve(async (request) => {
       const total = numberValue(objectValue(firstPage.body.paging)?.total) ?? 1;
       for (let page = 2; page <= total; page += 1) {
         const nextPage = await fetchAndAccount({
-          apiBaseUrl, apiKey, supabaseUrl, serviceRoleKey, runId,
+          apiBaseUrl,
+          apiKey,
+          supabaseUrl,
+          serviceRoleKey,
+          runId,
           endpoint: "/players",
-          query: { league: String(context.leagueId), season: String(context.season), team: String(context.teamId), page: String(page) },
-          ttlSeconds: 6 * 60 * 60, requestDelayMs: apiRequestDelayMs,
+          query: {
+            league: String(context.leagueId),
+            season: String(context.season),
+            team: String(context.teamId),
+            page: String(page),
+          },
+          ttlSeconds: 6 * 60 * 60,
+          requestDelayMs: apiRequestDelayMs,
         });
         summary.playerStatisticsPages += 1;
         summary.playerStatisticsPlayers += responseRows(nextPage.body).length;
@@ -387,7 +457,11 @@ Deno.serve(async (request) => {
         summary.fixtureStatistics += 1;
         summary.cachedResponses += 1;
         await fetchAndAccount({
-          apiBaseUrl, apiKey, supabaseUrl, serviceRoleKey, runId,
+          apiBaseUrl,
+          apiKey,
+          supabaseUrl,
+          serviceRoleKey,
+          runId,
           endpoint: "/fixtures/events",
           query: { fixture: String(fixtureId) },
           ttlSeconds: 7 * 24 * 60 * 60,
@@ -396,6 +470,24 @@ Deno.serve(async (request) => {
         summary.fixtureEvents += 1;
         summary.cachedResponses += 1;
       }
+    }
+
+    for (const fixtureId of fixturePlayerStatisticsIds) {
+      await fetchAndAccount({
+        apiBaseUrl,
+        apiKey,
+        supabaseUrl,
+        serviceRoleKey,
+        runId,
+        endpoint: "/fixtures/players",
+        query: { fixture: String(fixtureId) },
+        // Completed player performances do not change. They are cached once,
+        // then reused for each following pre-match window.
+        ttlSeconds: 30 * 24 * 60 * 60,
+        requestDelayMs: apiRequestDelayMs,
+      });
+      summary.fixturePlayerStatistics += 1;
+      summary.cachedResponses += 1;
     }
 
     await updateSyncRun({
@@ -441,6 +533,7 @@ type SyncOptions = {
   includeRecentForm: boolean;
   includeExpectedGoals: boolean;
   includePlayerStatistics: boolean;
+  includeRecentPlayerPerformances: boolean;
   skipEmptyFeed: boolean;
   recentFormDaysBack: number;
   recentFormMatches: number;
@@ -457,6 +550,7 @@ type SyncSummary = {
   recentFixtureRows: number;
   fixtureStatistics: number;
   fixtureEvents: number;
+  fixturePlayerStatistics: number;
   injuries: number;
   playerStatisticsRequests: number;
   playerStatisticsPages: number;
@@ -529,7 +623,13 @@ function syncOptionsFromPayload(payload: JsonObject): SyncOptions {
   // Player pages are by far the most expensive part of a league refresh.
   // Keep them opt-in so rolling fixture/odds jobs cannot silently repaginate
   // every squad. The scheduled enrichment job enables them explicitly.
-  const includePlayerStatistics = booleanValue(payload.include_player_statistics) ?? false;
+  const includePlayerStatistics =
+    booleanValue(payload.include_player_statistics) ?? false;
+  // This is deliberately separate from season player pages. One completed
+  // fixture supplies every player's actual minutes, goals and assists, which
+  // is enough to calculate the recent three-match decisive-player window.
+  const includeRecentPlayerPerformances =
+    booleanValue(payload.include_recent_player_performances) ?? true;
   const skipEmptyFeed = payload.purpose === "daily_football_sync";
   const recentFormDaysBack = numberValue(payload.recent_form_days_back) ??
     defaultRecentFormDaysBack;
@@ -571,6 +671,7 @@ function syncOptionsFromPayload(payload: JsonObject): SyncOptions {
     includeRecentForm,
     includeExpectedGoals,
     includePlayerStatistics,
+    includeRecentPlayerPerformances,
     skipEmptyFeed,
     recentFormDaysBack,
     recentFormMatches,
@@ -692,8 +793,10 @@ async function fetchAndCache(
   const freshRow = objectValue(freshRows[0]);
   const cachedBody = objectValue(freshRow?.response_body);
   const cachedAt = stringValue(freshRow?.fetched_at);
-  if (cachedBody !== null && cachedAt !== null &&
-      apiFootballErrorMessages(cachedBody).length === 0) {
+  if (
+    cachedBody !== null && cachedAt !== null &&
+    apiFootballErrorMessages(cachedBody).length === 0
+  ) {
     return { body: cachedBody, fetchedAt: cachedAt, fromCache: true };
   }
 
@@ -763,7 +866,11 @@ async function fetchAndCache(
   }
 
   await delay(options.requestDelayMs);
-  return { body: body as JsonObject, fetchedAt: fetchedAtIso, fromCache: false };
+  return {
+    body: body as JsonObject,
+    fetchedAt: fetchedAtIso,
+    fromCache: false,
+  };
 }
 
 type ApiFootballRequestReservation = {
@@ -1141,6 +1248,43 @@ function upcomingFixturesInWindow(
     }
   }
   return count;
+}
+
+function upcomingTeamIdsInWindow(
+  payload: JsonObject,
+  windowStart: string,
+  windowEnd: string,
+  timezone: string,
+): number[] {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const now = Date.now();
+  const teamIds = new Set<number>();
+  for (const row of responseRows(payload)) {
+    const root = objectValue(row) ?? {};
+    const fixture = objectValue(root.fixture) ?? {};
+    const kickoff = stringValue(fixture.date);
+    const status = stringValue(objectValue(fixture.status)?.short);
+    if (kickoff === null || !["NS", "TBD"].includes(status ?? "")) continue;
+    const kickoffTime = Date.parse(kickoff);
+    if (!Number.isFinite(kickoffTime) || kickoffTime <= now) continue;
+    const parts = Object.fromEntries(
+      formatter.formatToParts(new Date(kickoffTime))
+        .map((part) => [part.type, part.value]),
+    );
+    const date = `${parts.year}-${parts.month}-${parts.day}`;
+    if (date < windowStart || date > windowEnd) continue;
+    const teams = objectValue(root.teams) ?? {};
+    for (const side of ["home", "away"]) {
+      const teamId = numberValue((objectValue(teams[side]) ?? {}).id);
+      if (teamId !== null) teamIds.add(teamId);
+    }
+  }
+  return [...teamIds];
 }
 
 function dateWindow(start: string, end: string): string[] {

@@ -1,6 +1,7 @@
 import '../domain/analysis_maturity.dart';
 import '../domain/football_reading.dart';
 import '../domain/football_scenario.dart';
+import '../domain/match_board_item.dart';
 
 /// Decodes the compact read model built by `analyze-match-feed-snapshot`.
 ///
@@ -36,6 +37,10 @@ class ServerComputedMatchAnalysisAdapter {
           _list(item['scenarios']),
           fixtureId: fixtureId,
           readings: readings,
+        ),
+        displayReadings: _displayReadings(
+          _list(item['readings']),
+          fixtureId: fixtureId,
         ),
       );
     }
@@ -91,6 +96,29 @@ class ServerComputedMatchAnalysisAdapter {
     ]);
   }
 
+  List<MatchComputedReading> _displayReadings(
+    List<Map<String, Object?>> rows, {
+    required int fixtureId,
+  }) {
+    return List.unmodifiable([
+      for (final row in rows)
+        MatchComputedReading(
+          id: row['id']?.toString() ?? 'unknown',
+          subjectTeamId:
+              row['subject_team_id']?.toString() ?? 'api-fixture-$fixtureId',
+          side: row['side']?.toString() ?? 'match',
+          strength: row['strength']?.toString() ?? 'moderate',
+          isContradiction: _isContradiction(row),
+          evidenceLabel:
+              _list(row['evidence']).firstOrNull?['label']?.toString() ??
+              'Donnée calculée côté serveur.',
+          evidenceValue: _list(row['evidence']).firstOrNull?['value'],
+          playerName: row['player_name']?.toString() ?? _playerName(row),
+          playerPhotoUrl: _playerPhotoUrl(row),
+        ),
+    ]);
+  }
+
   String? _playerName(Map<String, Object?> row) {
     for (final evidence in _list(row['evidence'])) {
       final value = _map(evidence['value']);
@@ -126,10 +154,12 @@ class ServerComputedMatchAnalysis {
   const ServerComputedMatchAnalysis({
     required this.analysis,
     required this.scenarios,
+    required this.displayReadings,
   });
 
   final FootballAnalysis analysis;
   final List<FootballScenarioMatch> scenarios;
+  final List<MatchComputedReading> displayReadings;
 }
 
 ReadingSubjectSide _side(Object? value) => switch (value?.toString()) {

@@ -180,8 +180,7 @@ Deno.serve(async (request) => {
       snapshotId,
       capturedAt,
       fixtures,
-      playerStatistics: objectList(raw.player_statistics),
-      playerRecentContributions: objectList(raw.player_recent_contributions),
+      playerRecentPerformances: objectList(raw.player_recent_performances),
       injuries: objectList(raw.injuries),
     });
     const timingAnnouncements = timingAnnouncementRows({
@@ -1054,126 +1053,92 @@ function playerAnnouncementRows({
   snapshotId,
   capturedAt,
   fixtures,
-  playerStatistics,
-  playerRecentContributions,
+  playerRecentPerformances,
   injuries,
 }: {
   snapshotId: string;
   capturedAt: Date;
   fixtures: JsonObject[];
-  playerStatistics: JsonObject[];
-  playerRecentContributions: JsonObject[];
+  playerRecentPerformances: JsonObject[];
   injuries: JsonObject[];
 }): JsonObject[] {
-  type RecentContribution = {
-    matchesConsidered: number;
-    eventsAvailableFor: number;
-    matchesWithContribution: number;
-    goals: number;
-    assists: number;
-  };
-  type PlayerProfile = {
+  type RecentPlayerProfile = {
     playerId: number;
     name: string;
     photoUrl: string | null;
-    teamId: number;
-    leagueId: number;
-    minutes: number;
     appearances: number;
-    lineups: number | null;
+    substituteAppearances: number;
+    minutes: number;
     goals: number;
     assists: number;
     contributions: number;
-    adjustedRate: number;
-    recent: RecentContribution;
-    score: number;
+    matchesWithContribution: number;
+    recentRate: number;
   };
 
-  // A recurring substitute remains eligible. A one-off low-minute cameo does
-  // not pass because the signal requires contributions in two recent fixtures.
-  const recentByPlayer = new Map<string, RecentContribution>();
-  for (const row of playerRecentContributions) {
+  // The decisive-player model deliberately uses neither a season total nor a
+  // hard minutes floor. It measures the player over their team's three latest
+  // completed fixtures, using actual minutes. A recurring super-sub can then
+  // qualify on merit, while a one-off cameo cannot.
+  const profilesByTeam = new Map<string, RecentPlayerProfile[]>();
+  for (const row of playerRecentPerformances) {
     const leagueId = numberValue((objectValue(row.league) ?? {}).id);
     const teamId = numberValue((objectValue(row.team) ?? {}).id);
     const matchesConsidered = numberValue(row.matches_considered) ?? 0;
-    const eventsAvailableFor = numberValue(row.events_available_for) ?? 0;
-    if (leagueId === null || teamId === null) continue;
-    for (const value of objectList(row.players)) {
-      const playerId = numberValue((objectValue(value.player) ?? {}).id);
-      if (playerId === null) continue;
-      recentByPlayer.set([leagueId, teamId, playerId].join(":"), {
-        matchesConsidered,
-        eventsAvailableFor,
-        matchesWithContribution: numberValue(value.matches_with_contribution) ?? 0,
-        goals: numberValue(value.goals) ?? 0,
-        assists: numberValue(value.assists) ?? 0,
-      });
-    }
-  }
+    const fixturesWithPlayerStatistics =
+      numberValue(row.fixtures_with_player_statistics) ?? 0;
+    if (
+      leagueId === null || teamId === null ||
+      matchesConsidered < 3 ||
+      fixturesWithPlayerStatistics < matchesConsidered
+    ) continue;
 
-  const profilesByTeam = new Map<string, PlayerProfile[]>();
-  for (const row of playerStatistics) {
-    const player = objectValue(row.player) ?? {};
-    const playerId = numberValue(player.id);
-    const name = stringValue(player.name);
-    if (playerId === null || name === null) continue;
-    for (const statValue of objectList(row.statistics)) {
-      const teamId = numberValue((objectValue(statValue.team) ?? {}).id);
-      const leagueId = numberValue((objectValue(statValue.league) ?? {}).id);
-      const games = objectValue(statValue.games) ?? {};
-      const goals = objectValue(statValue.goals) ?? {};
-      const minutes = numberValue(games.minutes) ?? 0;
-      const appearances = numberValue(games.appearences) ??
-        numberValue(games.appearances) ?? 0;
-      const lineups = numberValue(games.lineups);
-      const scored = numberValue(goals.total) ?? 0;
-      const assisted = numberValue(goals.assists) ?? 0;
-      const contributions = scored + assisted;
-      if (teamId === null || leagueId === null || contributions <= 0) continue;
-
-      const recent = recentByPlayer.get([leagueId, teamId, playerId].join(":"));
+    const values: RecentPlayerProfile[] = [];
+    for (const playerValue of objectList(row.players)) {
+      const player = objectValue(playerValue.player) ?? {};
+      const playerId = numberValue(player.id);
+      const name = stringValue(player.name);
+      const appearances = numberValue(playerValue.appearances) ?? 0;
+      const substituteAppearances =
+        numberValue(playerValue.substitute_appearances) ?? 0;
+      const minutes = numberValue(playerValue.minutes) ?? 0;
+      const goals = numberValue(playerValue.goals) ?? 0;
+      const assists = numberValue(playerValue.assists) ?? 0;
+      const contributions = numberValue(playerValue.contributions) ??
+        goals + assists;
+      const matchesWithContribution =
+        numberValue(playerValue.matches_with_contribution) ?? 0;
       if (
-        recent === undefined || recent.matchesConsidered < 2 ||
-        recent.eventsAvailableFor < recent.matchesConsidered ||
-        recent.matchesWithContribution < 2
+        playerId === null || name === null || minutes <= 0 ||
+        appearances < 2 || matchesWithContribution < 2 ||
+        contributions <= 0
       ) continue;
-
-      // Smooth a small sample without an arbitrary minimum of minutes.
-      const adjustedRate = contributions * 90 / (minutes + 270);
-      const recentFrequency = recent.matchesWithContribution /
-        recent.matchesConsidered;
-      const value: PlayerProfile = {
+      const recentRate = contributions * 90 / minutes;
+      // 0.80 is the explicit product threshold for a player described as
+      // "décisif à surveiller". It is applied to the recent window only.
+      if (recentRate < 0.8) continue;
+      values.push({
         playerId,
         name,
         photoUrl: stringValue(player.photo),
-        teamId,
-        leagueId,
-        minutes,
         appearances,
-        lineups,
-        goals: scored,
-        assists: assisted,
+        substituteAppearances,
+        minutes,
+        goals,
+        assists,
         contributions,
-        adjustedRate,
-        recent,
-        score: adjustedRate + recentFrequency * 0.5,
-      };
-      const key = [leagueId, teamId].join(":");
-      const values = profilesByTeam.get(key) ?? [];
-      values.push(value);
-      profilesByTeam.set(key, values);
+        matchesWithContribution,
+        recentRate,
+      });
     }
-  }
-
-  const leaderByTeam = new Map<string, PlayerProfile>();
-  for (const [key, values] of profilesByTeam) {
-    values.sort((left, right) => right.score - left.score);
-    const leader = values[0];
-    const runnerUp = values[1];
-    const dominant = runnerUp === undefined || leader.score >= runnerUp.score * 1.15;
-    const recurringEveryMatch = leader.recent.matchesWithContribution ===
-      leader.recent.matchesConsidered;
-    if (dominant || recurringEveryMatch) leaderByTeam.set(key, leader);
+    if (values.length === 0) continue;
+    values.sort((left, right) =>
+      right.recentRate - left.recentRate ||
+      right.matchesWithContribution - left.matchesWithContribution ||
+      right.contributions - left.contributions ||
+      right.minutes - left.minutes
+    );
+    profilesByTeam.set([leagueId, teamId].join(":"), values);
   }
 
   const injuryKeys = new Set<string>();
@@ -1194,90 +1159,129 @@ function playerAnnouncementRows({
     const fixtureId = numberValue(fixture.id);
     const leagueId = numberValue(league.id);
     const kickoffAt = dateValue(fixture.date);
-    if (fixtureId === null || leagueId === null || kickoffAt === null ||
-      kickoffAt <= capturedAt) continue;
+    if (
+      fixtureId === null || leagueId === null || kickoffAt === null ||
+      kickoffAt <= capturedAt
+    ) continue;
     const withinAbsenceWindow = kickoffAt.getTime() - capturedAt.getTime() <=
       24 * 60 * 60 * 1000;
-    for (const subject of [{side: "home", team: objectValue(teams.home) ?? {}}, {
-      side: "away", team: objectValue(teams.away) ?? {},
-    }]) {
+
+    for (
+      const subject of [{ side: "home", team: objectValue(teams.home) ?? {} }, {
+        side: "away",
+        team: objectValue(teams.away) ?? {},
+      }]
+    ) {
       const teamId = numberValue(subject.team.id);
       if (teamId === null) continue;
-      const leader = leaderByTeam.get([leagueId, teamId].join(":"));
-      if (leader === undefined) continue;
+      const profiles = profilesByTeam.get([leagueId, teamId].join(":")) ?? [];
       const subjectTeamId = "api-team-" + teamId;
-      const unavailable = withinAbsenceWindow && injuryKeys.has(
-        [fixtureId, teamId, leader.playerId].join(":"),
-      );
-      const profile = leader.goals >= leader.assists * 1.5
-        ? "buteur"
-        : leader.assists >= leader.goals * 1.5 ? "passeur" : "décisif";
-      // This is a display qualifier, never an eligibility gate. A recurring
-      // substitute remains visible precisely because no minimum minutes is
-      // imposed by the decisive-player model.
-      const isSuperSub = leader.lineups !== null && leader.appearances > 0 &&
-        leader.lineups * 2 < leader.appearances;
-      const profileLabel = isSuperSub ? profile + " · super-sub" : profile;
-      const recentLabel = leader.recent.matchesWithContribution + "/" +
-        leader.recent.matchesConsidered + " derniers matchs";
-      const sharedValue = {
-        player_name: leader.name,
-        player_photo_url: leader.photoUrl,
-        profile,
-        profile_label: profileLabel,
-        is_super_sub: isSuperSub,
-        season: {
-          goals: leader.goals, assists: leader.assists,
-          contributions: leader.contributions, minutes: leader.minutes,
-          appearances: leader.appearances, lineups: leader.lineups,
-          adjusted_contributions_per_90: Number(leader.adjustedRate.toFixed(2)),
-        },
-        recent: {
-          matches_considered: leader.recent.matchesConsidered,
-          matches_with_contribution: leader.recent.matchesWithContribution,
-          goals: leader.recent.goals, assists: leader.recent.assists,
-          contributions: leader.recent.goals + leader.recent.assists,
-        },
-      };
-      if (unavailable) {
+      for (const [profileIndex, profile] of profiles.entries()) {
+        const unavailable = withinAbsenceWindow && injuryKeys.has(
+          [fixtureId, teamId, profile.playerId].join(":"),
+        );
+        const baseProfile = profile.goals >= profile.assists * 1.5
+          ? "buteur"
+          : profile.assists >= profile.goals * 1.5
+          ? "passeur"
+          : "décisif";
+        const isSuperSub = profile.substituteAppearances * 2 >
+          profile.appearances;
+        const profileLabel = isSuperSub
+          ? baseProfile + " · super-sub"
+          : baseProfile;
+        const sharedValue = {
+          player_name: profile.name,
+          player_photo_url: profile.photoUrl,
+          profile: baseProfile,
+          profile_label: profileLabel,
+          is_super_sub: isSuperSub,
+          recent: {
+            player_rank: profileIndex + 1,
+            matches_considered: 3,
+            appearances: profile.appearances,
+            substitute_appearances: profile.substituteAppearances,
+            matches_with_contribution: profile.matchesWithContribution,
+            goals: profile.goals,
+            assists: profile.assists,
+            contributions: profile.contributions,
+            minutes: profile.minutes,
+            contributions_per_90: Number(profile.recentRate.toFixed(2)),
+          },
+        };
+        if (unavailable) {
+          rows.push({
+            announcement_key: [
+              fixtureId,
+              "key_player_unavailable",
+              subject.side,
+              subjectTeamId,
+              profile.playerId,
+            ].join(":"),
+            fixture_id: fixtureId,
+            source_snapshot_id: snapshotId,
+            league_id: leagueId,
+            kickoff_at: kickoffAt.toISOString(),
+            announced_at: capturedAt.toISOString(),
+            engine_version: "server_recent_player_profile_v3",
+            reading_id: "key_player_unavailable",
+            reading_label: "Joueur important absent",
+            subject_side: subject.side,
+            subject_team_id: subjectTeamId,
+            player_id: profile.playerId,
+            player_name: profile.name,
+            evidence: [{
+              label: profile.name +
+                " est signalé absent dans les 24 heures précédant le match.",
+              source_path: "injuries + fixtures/players",
+              value: sharedValue,
+            }],
+            sample_size: 3,
+            outcome_rule: null,
+            rule_version: 3,
+          });
+          continue;
+        }
+        const recurrence = profile.matchesWithContribution +
+          "/3 derniers matchs";
+        const entrance = isSuperSub
+          ? profile.substituteAppearances + " entrée(s) en jeu"
+          : profile.appearances + " apparition(s)";
         rows.push({
-          announcement_key: [fixtureId, "key_player_unavailable", subject.side,
-            subjectTeamId, leader.playerId].join(":"),
-          fixture_id: fixtureId, source_snapshot_id: snapshotId, league_id: leagueId,
-          kickoff_at: kickoffAt.toISOString(), announced_at: capturedAt.toISOString(),
-          engine_version: "server_player_profile_v2",
-          reading_id: "key_player_unavailable", reading_label: "Joueur important absent",
-          subject_side: subject.side, subject_team_id: subjectTeamId,
-          player_id: leader.playerId, player_name: leader.name,
+          announcement_key: [
+            fixtureId,
+            "standout_decisive_player",
+            subject.side,
+            subjectTeamId,
+            profile.playerId,
+          ].join(":"),
+          fixture_id: fixtureId,
+          source_snapshot_id: snapshotId,
+          league_id: leagueId,
+          kickoff_at: kickoffAt.toISOString(),
+          announced_at: capturedAt.toISOString(),
+          engine_version: "server_recent_player_profile_v3",
+          reading_id: "standout_decisive_player",
+          reading_label: "Joueur décisif à surveiller",
+          subject_side: subject.side,
+          subject_team_id: subjectTeamId,
+          player_id: profile.playerId,
+          player_name: profile.name,
           evidence: [{
-            label: leader.name + " est signalé absent dans les 24 heures précédant le match.",
-            source_path: "injuries + players.statistics + recent fixture events",
+            label: profile.name + ", profil " + profileLabel + ", affiche " +
+              profile.recentRate.toFixed(2) +
+              " action(s) décisive(s) / 90 sur ses " +
+              "trois derniers matchs (" + profile.contributions +
+              " action(s) en " +
+              profile.minutes + " min, " + recurrence + ", " + entrance + ").",
+            source_path: "fixtures/players (three completed fixtures)",
             value: sharedValue,
           }],
-          sample_size: leader.recent.matchesConsidered, outcome_rule: null,
-          rule_version: 2,
+          sample_size: 3,
+          outcome_rule: "player_decisive",
+          rule_version: 3,
         });
-        continue;
       }
-      rows.push({
-        announcement_key: [fixtureId, "standout_decisive_player", subject.side,
-          subjectTeamId, leader.playerId].join(":"),
-        fixture_id: fixtureId, source_snapshot_id: snapshotId, league_id: leagueId,
-        kickoff_at: kickoffAt.toISOString(), announced_at: capturedAt.toISOString(),
-        engine_version: "server_player_profile_v2",
-        reading_id: "standout_decisive_player", reading_label: "Joueur décisif à surveiller",
-        subject_side: subject.side, subject_team_id: subjectTeamId,
-        player_id: leader.playerId, player_name: leader.name,
-        evidence: [{
-          label: leader.name + ", profil " + profileLabel + ", a été décisif lors de " +
-            recentLabel + " (" + leader.recent.goals + " but(s), " +
-            leader.recent.assists + " passe(s)).",
-          source_path: "players.statistics + recent fixture events",
-          value: sharedValue,
-        }],
-        sample_size: leader.recent.matchesConsidered,
-        outcome_rule: "player_decisive", rule_version: 2,
-      });
     }
   }
   return rows;

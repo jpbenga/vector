@@ -46,10 +46,13 @@ void main() {
   });
 
   test(
-    'derives recent player contributions before the public compact feed',
+    'derives decisive-player profiles from actual minutes over three matches',
     () {
       final snapshot = File(
         'supabase/functions/build-match-feed-snapshot/index.ts',
+      ).readAsStringSync();
+      final sync = File(
+        'supabase/functions/api-football-sync/index.ts',
       ).readAsStringSync();
       final publisher = File(
         'supabase/functions/publish-reading-announcements/index.ts',
@@ -57,13 +60,23 @@ void main() {
 
       expect(snapshot, contains('player_recent_contributions'));
       expect(snapshot, contains('playerRecentContributionSnapshots'));
-      expect(snapshot, contains('matches_with_contribution'));
-      expect(publisher, contains('recent.matchesWithContribution < 2'));
-      expect(publisher, contains('minutes + 270'));
+      expect(snapshot, contains('player_recent_performances'));
+      expect(snapshot, contains('playerRecentPerformanceSnapshots'));
+      expect(snapshot, contains('fixtures_with_player_statistics'));
+      expect(snapshot, contains('substitute_appearances'));
+      expect(sync, contains('endpoint: "/fixtures/players"'));
+      expect(sync, contains('includeRecentPlayerPerformances'));
+      expect(sync, contains('ttlSeconds: 30 * 24 * 60 * 60'));
+      expect(publisher, contains('matchesWithContribution < 2'));
+      expect(publisher, contains('contributions * 90 / minutes'));
+      expect(publisher, contains('recentRate < 0.8'));
+      expect(publisher, contains('substituteAppearances * 2 >'));
+      expect(publisher, contains('server_recent_player_profile_v3'));
       expect(publisher, contains('player_photo_url'));
       expect(publisher, contains('Joueur décisif à surveiller'));
       expect(publisher, contains('profile_label'));
       expect(publisher, contains('is_super_sub'));
+      expect(publisher, contains('player_rank: profileIndex + 1'));
     },
   );
 
@@ -93,7 +106,7 @@ void main() {
 
   test('refreshes only future decisive-player announcements', () {
     final migration = File(
-      'supabase/migrations/20260919043000_decisive_player_v2.sql',
+      'supabase/migrations/20260919050000_recent_decisive_player_window.sql',
     ).readAsStringSync();
 
     expect(migration, contains('where kickoff_at > now()'));
