@@ -749,27 +749,10 @@ class ReadingPreferenceCatalog {
           'Une équipe concède beaucoup de buts après la pause par rapport au championnat.',
     ),
     ReadingPreferenceDefinition(
-      id: 'match_shot_profile',
-      label: 'Rythme de tirs',
-      description:
-          'Projette le volume de tirs attendu par équipe et au total du match.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'match_corner_profile',
-      label: 'Potentiel corners',
-      description:
-          'Projette les corners attendus par équipe et au total du match.',
-    ),
-    ReadingPreferenceDefinition(
-      id: 'match_card_profile',
-      label: 'Intensité des cartons',
-      description: 'Projette le total de cartons attendu pendant le match.',
-    ),
-    ReadingPreferenceDefinition(
       id: 'standout_decisive_player',
       label: 'Joueurs décisifs',
       description:
-          'Identifie les joueurs qui se distinguent par leurs buts et passes décisives par 90 minutes.',
+          'Identifie les joueurs décisifs par leurs buts, passes et leur répétition récente.',
     ),
     ReadingPreferenceDefinition(
       id: 'key_player_unavailable',
@@ -781,50 +764,105 @@ class ReadingPreferenceCatalog {
   static bool contains(String readingId) =>
       values.any((definition) => definition.id == readingId);
 
-  static const _shotReadingIds = {
-    'high_shot_volume',
-    'low_shot_volume',
-    'high_shots_on_target',
-    'low_shot_accuracy',
-    'high_shots_conceded',
-    'high_shots_on_target_conceded',
-    'high_match_shot_projection',
-    'low_match_shot_projection',
-  };
-
-  static const _cornerReadingIds = {
-    'high_corner_creation',
-    'high_corners_conceded',
-    'high_total_corners_profile',
-    'low_total_corners_profile',
-    'high_match_corner_projection',
-    'low_match_corner_projection',
-  };
-
-  static const _cardReadingIds = {
-    'high_card_rate',
-    'low_card_rate',
-    'high_total_cards_profile',
-    'second_half_cards_profile',
-    'high_match_card_projection',
-    'low_match_card_projection',
-  };
-
   static String? preferenceIdForReading(String readingId) {
     if (readingId == 'standout_goal_scorer' ||
         readingId == 'standout_creator') {
       return 'standout_decisive_player';
     }
     if (contains(readingId)) return readingId;
-    if (_shotReadingIds.contains(readingId)) return 'match_shot_profile';
-    if (_cornerReadingIds.contains(readingId)) return 'match_corner_profile';
-    if (_cardReadingIds.contains(readingId)) return 'match_card_profile';
     return null;
   }
 
   static Set<String> normalizeSelectionIds(Iterable<String> readingIds) => {
     for (final readingId in readingIds) ?preferenceIdForReading(readingId),
   };
+}
+
+/// Product navigation for the reading pickers. These categories only organise
+/// available Lector readings; thresholds and source statistics stay in the
+/// server analysis layer.
+class ReadingPreferenceCategory {
+  const ReadingPreferenceCategory({
+    required this.id,
+    required this.label,
+    required this.readingIds,
+  });
+
+  final String id;
+  final String label;
+  final List<String> readingIds;
+}
+
+class ReadingPreferenceCategoryCatalog {
+  const ReadingPreferenceCategoryCatalog._();
+
+  static const values = [
+    ReadingPreferenceCategory(
+      id: 'ranking_form',
+      label: 'Niveau, forme et lieu',
+      readingIds: [
+        'structural_level_gap',
+        'positive_streak',
+        'negative_streak',
+        'improving_form',
+        'declining_form',
+        'strong_home_team',
+        'weak_home_team',
+        'strong_away_team',
+        'weak_away_team',
+        'home_away_advantage',
+        'away_home_advantage',
+      ],
+    ),
+    ReadingPreferenceCategory(
+      id: 'attack_defense',
+      label: 'Attaque et défense',
+      readingIds: [
+        'prolific_attack',
+        'scoring_difficulty',
+        'solid_defense',
+        'fragile_defense',
+        'frequent_clean_sheet',
+      ],
+    ),
+    ReadingPreferenceCategory(
+      id: 'goals',
+      label: 'Profil de buts',
+      readingIds: ['frequent_over_25', 'frequent_btts', 'frequent_under_25'],
+    ),
+    ReadingPreferenceCategory(
+      id: 'match_periods',
+      label: 'Moments du match',
+      readingIds: [
+        'frequent_first_half_scoring',
+        'frequent_first_half_conceding',
+        'frequent_second_half_scoring',
+        'frequent_second_half_conceding',
+      ],
+    ),
+    ReadingPreferenceCategory(
+      id: 'availability',
+      label: 'Absences importantes',
+      readingIds: ['key_player_unavailable'],
+    ),
+    ReadingPreferenceCategory(
+      id: 'context',
+      label: 'Contexte et nuances',
+      readingIds: ['misleading_result'],
+    ),
+    ReadingPreferenceCategory(
+      id: 'player_statistics',
+      label: 'Statistiques joueurs',
+      readingIds: ['standout_decisive_player'],
+    ),
+  ];
+
+  static ReadingPreferenceCategory? byId(String id) {
+    for (final category in values) {
+      if (category.id == id) return category;
+    }
+    return null;
+  }
 }
 
 class OpportunityProfileCatalog {
@@ -843,21 +881,19 @@ class OpportunityProfileCatalog {
       label: 'Equipes en difficulte',
       displayLabel: 'Équipes en difficulté',
       description:
-          'Mauvais résultats, faible création offensive et fragilité défensive.',
+          'Mauvais résultats et production offensive faible convergent.',
     ),
     OpportunityProfileDefinition(
       id: 'offensive_match',
       label: 'Matchs ouverts',
       displayLabel: 'Matchs ouverts',
-      description:
-          'Profil ouvert, deux attaques prolifiques et au moins une défense fragile.',
+      description: 'Profil ouvert et tendance over 2,5 buts convergent.',
     ),
     OpportunityProfileDefinition(
       id: 'defensive_match',
       label: 'Matchs fermes',
       displayLabel: 'Matchs fermés',
-      description:
-          'Profil fermé, deux défenses solides et deux attaques en difficulté.',
+      description: 'Profil fermé et tendance under 2,5 buts convergent.',
     ),
     OpportunityProfileDefinition(
       id: 'ranking_gap',
@@ -871,48 +907,31 @@ class OpportunityProfileCatalog {
       label: 'Outsiders credibles',
       displayLabel: 'Outsiders crédibles',
       description:
-          'Infériorité théorique compensée par forme, lieu et fragilité adverse.',
+          'Infériorité théorique compensée par une dynamique et une forme supérieures.',
     ),
     OpportunityProfileDefinition(
       id: 'fragile_defense',
       label: 'Defenses fragiles',
       displayLabel: 'Défenses fragiles',
-      description: 'Fragilité, xG concédés et tirs cadrés concédés convergent.',
+      description: 'Fragilité défensive et xG concédés convergent.',
     ),
     OpportunityProfileDefinition(
       id: 'prolific_attack',
       label: 'Attaques prolifiques',
       displayLabel: 'Attaques prolifiques',
-      description:
-          'Buts, création xG et tirs cadrés convergent pour la même équipe.',
+      description: 'Buts et création xG convergent pour la même équipe.',
     ),
     OpportunityProfileDefinition(
       id: 'positive_series',
       label: 'Series positives',
       displayLabel: 'Séries positives',
-      description:
-          'Série positive, progression récente et création xG élevée convergent.',
+      description: 'Série positive et progression récente convergent.',
     ),
     OpportunityProfileDefinition(
       id: 'negative_series',
       label: 'Series negatives',
       displayLabel: 'Séries négatives',
-      description:
-          'Série négative, dégradation récente et faible création xG convergent.',
-    ),
-    OpportunityProfileDefinition(
-      id: 'corner_pressure',
-      label: 'Pression corners',
-      displayLabel: 'Pression favorable aux corners',
-      description:
-          'Corners obtenus, corners concédés par l’adversaire et tirs convergent.',
-    ),
-    OpportunityProfileDefinition(
-      id: 'disciplinary_tension',
-      label: 'Tension disciplinaire',
-      displayLabel: 'Rencontre sous tension',
-      description:
-          'Les deux équipes reçoivent beaucoup de cartons et leurs matchs sont riches en cartons.',
+      description: 'Série négative et dégradation récente convergent.',
     ),
   ];
 

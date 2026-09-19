@@ -33,7 +33,7 @@ class DynamicTierAlgorithmV1 {
         DynamicTierParameters.maxPlayedSpreadBalanced) {
       maturityWarnings.add(TierWarning.playedImbalance);
     }
-    if (_isImmature(input, ppgContext)) {
+    if (_hasInsufficientStructuralSample(ppgContext)) {
       if (_hasSeverePlayedImbalance(ppgContext)) {
         maturityWarnings.add(TierWarning.playedImbalance);
       }
@@ -45,6 +45,12 @@ class DynamicTierAlgorithmV1 {
         warnings: maturityWarnings,
       );
     }
+
+    // A short season can already expose the official anchors and clear
+    // internal separations. Keep those assignments for the standings UI as
+    // provisional tiers, while the opportunity engine still requires the
+    // mature status before it can rely on them.
+    final isMature = _isMatureSeason(input, ppgContext);
 
     final pointDistribution = computePointDistribution(orderedRows);
     final warnings = <TierWarning>{...maturityWarnings};
@@ -64,10 +70,21 @@ class DynamicTierAlgorithmV1 {
     );
     final confirmedStructuralBoundaries = temporalResult.confirmed;
     final candidatesWithTemporalStatus = temporalResult.candidates;
+    // The tier map is an explanatory view of the current standings. It must
+    // surface a spatially clear fracture immediately, even when that fracture
+    // is still pending temporal confirmation. Confirmed boundaries remain the
+    // sole source for structural readings and automated decisions.
+    final displayPartitionEvidence = [
+      for (final candidate in candidatesWithTemporalStatus)
+        if (candidate.eligible &&
+            candidate.spatialConfirmed &&
+            !candidate.ppgQualification.rejected)
+          _confirmedBoundary(candidate, input.standingsSnapshotIdentity),
+    ];
     final tierPartitionBoundaries = _selectBestTierPartition(
       orderedRows,
       input,
-      confirmedStructuralBoundaries,
+      displayPartitionEvidence,
     );
     final assignments = _assignTierLabels(
       orderedRows,
@@ -77,8 +94,8 @@ class DynamicTierAlgorithmV1 {
 
     return _snapshot(
       input,
-      status: TierSystemStatus.mature,
-      maturity: TierMaturity.mature,
+      status: isMature ? TierSystemStatus.mature : TierSystemStatus.immature,
+      maturity: isMature ? TierMaturity.mature : TierMaturity.immature,
       pointDistribution: pointDistribution,
       ppgDistribution: ppgContext,
       boundaryCandidates: candidatesWithTemporalStatus,
@@ -483,17 +500,22 @@ class DynamicTierAlgorithmV1 {
     );
   }
 
-  static bool _isImmature(
+  static bool _hasInsufficientStructuralSample(
+    PpgDistributionContext ppgContext,
+  ) {
+    return ppgContext.medianPlayed <
+            DynamicTierParameters.minMedianPlayedMature ||
+        ppgContext.minPlayed < DynamicTierParameters.minMinPlayedMature ||
+        _hasSeverePlayedImbalance(ppgContext);
+  }
+
+  static bool _isMatureSeason(
     DynamicTierInput input,
     PpgDistributionContext ppgContext,
   ) {
     final seasonProgress = input.seasonProgress;
-    return ppgContext.medianPlayed <
-            DynamicTierParameters.minMedianPlayedMature ||
-        ppgContext.minPlayed < DynamicTierParameters.minMinPlayedMature ||
-        (seasonProgress != null &&
-            seasonProgress < DynamicTierParameters.minSeasonProgressMature) ||
-        _hasSeverePlayedImbalance(ppgContext);
+    return seasonProgress == null ||
+        seasonProgress >= DynamicTierParameters.minSeasonProgressMature;
   }
 
   static bool _hasSeverePlayedImbalance(PpgDistributionContext ppgContext) {

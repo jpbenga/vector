@@ -17,8 +17,13 @@ class LectorExplorationSelection {
 
   factory LectorExplorationSelection.fromProfile(DecisionProfile profile) {
     return LectorExplorationSelection(
-      readingIds: profile.optionIdsFor('readings').toSet(),
-      scenarioIds: profile.optionIdsFor('opportunity_profiles').toSet(),
+      readingIds: ReadingPreferenceCatalog.normalizeSelectionIds(
+        profile.optionIdsFor('readings'),
+      ),
+      scenarioIds: {
+        ...profile.optionIdsFor('opportunity_profiles'),
+        ...profile.optionIdsFor('match_types'),
+      }.where((id) => OpportunityProfileCatalog.byId(id) != null).toSet(),
     );
   }
 
@@ -36,12 +41,17 @@ class LectorExplorationSelection {
         .withOptionIds('opportunity_profiles', [
           for (final definition in OpportunityProfileCatalog.values)
             if (scenarioIds.contains(definition.id)) definition.id,
-        ]);
+        ])
+        // Legacy match_types remain part of a persisted profile. They must be
+        // neutralized in an exploration profile, otherwise a deselected
+        // scenario can keep filtering results invisibly.
+        .withOptionIds('match_types', const []);
   }
 
   bool matchesProfile(DecisionProfile profile) {
-    return _sameIds(readingIds, profile.optionIdsFor('readings')) &&
-        _sameIds(scenarioIds, profile.optionIdsFor('opportunity_profiles'));
+    final profileSelection = LectorExplorationSelection.fromProfile(profile);
+    return _sameIds(readingIds, profileSelection.readingIds) &&
+        _sameIds(scenarioIds, profileSelection.scenarioIds);
   }
 }
 
@@ -94,6 +104,7 @@ class _LectorExplorerSheetState extends State<_LectorExplorerSheet> {
   late Set<String> _readingIds;
   late Set<String> _scenarioIds;
   _ExplorerTab _tab = _ExplorerTab.readings;
+  String? _readingCategoryId;
 
   @override
   void initState() {
@@ -174,7 +185,11 @@ class _LectorExplorerSheetState extends State<_LectorExplorerSheet> {
                     ],
                     selected: {_tab},
                     onSelectionChanged: (selection) {
-                      setState(() => _tab = selection.first);
+                      setState(() {
+                        _tab = selection.first;
+                        _readingCategoryId = null;
+                        _searchController.clear();
+                      });
                     },
                     style: const ButtonStyle(
                       visualDensity: VisualDensity.compact,
@@ -202,6 +217,14 @@ class _LectorExplorerSheetState extends State<_LectorExplorerSheet> {
                           ),
                   ),
                 ),
+                const SizedBox(height: AppSpacing.xs),
+                _ExplorerBulkActions(
+                  selectAllEnabled:
+                      _activeTabIds.length < _activeTabOptionIds.length,
+                  deselectAllEnabled: _activeTabIds.isNotEmpty,
+                  onSelectAll: _selectAllActiveTab,
+                  onDeselectAll: _deselectAllActiveTab,
+                ),
               ],
             ),
           ),
@@ -214,6 +237,11 @@ class _LectorExplorerSheetState extends State<_LectorExplorerSheet> {
                       key: const ValueKey('explorer-readings'),
                       query: _searchController.text,
                       selectedIds: _readingIds,
+                      selectedCategoryId: _readingCategoryId,
+                      onSelectCategory: (categoryId) =>
+                          setState(() => _readingCategoryId = categoryId),
+                      onBackToCategories: () =>
+                          setState(() => _readingCategoryId = null),
                       onToggle: _toggleReading,
                     )
                   : _ScenarioExplorerList(
@@ -250,6 +278,39 @@ class _LectorExplorerSheetState extends State<_LectorExplorerSheet> {
     });
   }
 
+  Set<String> get _activeTabIds =>
+      _tab == _ExplorerTab.readings ? _readingIds : _scenarioIds;
+
+  Set<String> get _activeTabOptionIds => switch (_tab) {
+    _ExplorerTab.readings => {
+      for (final reading in ReadingPreferenceCatalog.values) reading.id,
+    },
+    _ExplorerTab.scenarios => {
+      for (final scenario in OpportunityProfileCatalog.values)
+        if (scenario.isSupported) scenario.id,
+    },
+  };
+
+  void _selectAllActiveTab() {
+    setState(() {
+      if (_tab == _ExplorerTab.readings) {
+        _readingIds.addAll(_activeTabOptionIds);
+      } else {
+        _scenarioIds.addAll(_activeTabOptionIds);
+      }
+    });
+  }
+
+  void _deselectAllActiveTab() {
+    setState(() {
+      if (_tab == _ExplorerTab.readings) {
+        _readingIds.clear();
+      } else {
+        _scenarioIds.clear();
+      }
+    });
+  }
+
   void _resetToProfile() {
     final profileSelection = LectorExplorationSelection.fromProfile(
       widget.profile,
@@ -258,6 +319,45 @@ class _LectorExplorerSheetState extends State<_LectorExplorerSheet> {
       _readingIds = {...profileSelection.readingIds};
       _scenarioIds = {...profileSelection.scenarioIds};
     });
+  }
+}
+
+class _ExplorerBulkActions extends StatelessWidget {
+  const _ExplorerBulkActions({
+    required this.selectAllEnabled,
+    required this.deselectAllEnabled,
+    required this.onSelectAll,
+    required this.onDeselectAll,
+  });
+
+  final bool selectAllEnabled;
+  final bool deselectAllEnabled;
+  final VoidCallback onSelectAll;
+  final VoidCallback onDeselectAll;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            key: const ValueKey('explorer-select-all'),
+            onPressed: selectAllEnabled ? onSelectAll : null,
+            icon: const Icon(Icons.done_all_rounded, size: 17),
+            label: const Text('Tout sélectionner'),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Expanded(
+          child: OutlinedButton.icon(
+            key: const ValueKey('explorer-deselect-all'),
+            onPressed: deselectAllEnabled ? onDeselectAll : null,
+            icon: const Icon(Icons.remove_done_rounded, size: 17),
+            label: const Text('Tout désélectionner'),
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -337,28 +437,60 @@ class _ReadingExplorerList extends StatelessWidget {
   const _ReadingExplorerList({
     required this.query,
     required this.selectedIds,
+    required this.selectedCategoryId,
+    required this.onSelectCategory,
+    required this.onBackToCategories,
     required this.onToggle,
     super.key,
   });
 
   final String query;
   final Set<String> selectedIds;
+  final String? selectedCategoryId;
+  final ValueChanged<String> onSelectCategory;
+  final VoidCallback onBackToCategories;
   final ValueChanged<String> onToggle;
 
   @override
   Widget build(BuildContext context) {
     final normalizedQuery = query.trim().toLowerCase();
+    final category = selectedCategoryId == null
+        ? null
+        : ReadingPreferenceCategoryCatalog.byId(selectedCategoryId!);
     final definitions = ReadingPreferenceCatalog.values
         .where((definition) {
+          if (category != null &&
+              !category.readingIds.contains(definition.id)) {
+            return false;
+          }
           return normalizedQuery.isEmpty ||
               definition.label.toLowerCase().contains(normalizedQuery) ||
               definition.description.toLowerCase().contains(normalizedQuery);
         })
         .toList(growable: false);
 
+    if (normalizedQuery.isEmpty && category == null) {
+      return _ExplorerList(
+        emptyLabel: 'Aucune catégorie de lecture disponible.',
+        children: [
+          for (final item in ReadingPreferenceCategoryCatalog.values)
+            _ExplorerReadingCategoryTile(
+              category: item,
+              selectedCount: item.readingIds.where(selectedIds.contains).length,
+              onTap: () => onSelectCategory(item.id),
+            ),
+        ],
+      );
+    }
+
     return _ExplorerList(
       emptyLabel: 'Aucune lecture ne correspond à cette recherche.',
       children: [
+        if (category != null && normalizedQuery.isEmpty)
+          _ExplorerBackToCategoriesTile(
+            label: category.label,
+            onTap: onBackToCategories,
+          ),
         for (final definition in definitions)
           _ExplorerOptionTile(
             icon: context.opportunities
@@ -373,6 +505,100 @@ class _ReadingExplorerList extends StatelessWidget {
             onTap: () => onToggle(definition.id),
           ),
       ],
+    );
+  }
+}
+
+class _ExplorerReadingCategoryTile extends StatelessWidget {
+  const _ExplorerReadingCategoryTile({
+    required this.category,
+    required this.selectedCount,
+    required this.onTap,
+  });
+
+  final ReadingPreferenceCategory category;
+  final int selectedCount;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final identity = context.opportunities.readingIdentityForId(
+      category.readingIds.first,
+    );
+    return Material(
+      color: context.surfaces.surfaceHover.withValues(alpha: 0.38),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        side: BorderSide(color: context.surfaces.border),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          child: Row(
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: identity.color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.control),
+                ),
+                child: SizedBox.square(
+                  dimension: 38,
+                  child: Icon(identity.icon, color: identity.color, size: 20),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      category.label,
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: context.textColors.primary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${category.readingIds.length} lectures · $selectedCount sélectionnée${selectedCount == 1 ? '' : 's'}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.textColors.secondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: context.textColors.secondary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ExplorerBackToCategoriesTile extends StatelessWidget {
+  const _ExplorerBackToCategoriesTile({
+    required this.label,
+    required this.onTap,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: const Icon(Icons.arrow_back_rounded, size: 17),
+      label: Text('Catégories · $label'),
+      style: OutlinedButton.styleFrom(alignment: Alignment.centerLeft),
     );
   }
 }
@@ -585,7 +811,7 @@ class _ExplorerFooter extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '$activeFilterCount filtre${activeFilterCount > 1 ? 's' : ''} actif${activeFilterCount > 1 ? 's' : ''}',
+                      '$activeFilterCount filtre${activeFilterCount > 1 ? 's' : ''} sélectionné${activeFilterCount > 1 ? 's' : ''}',
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         color: context.textColors.secondary,
                         fontWeight: FontWeight.w800,
@@ -599,7 +825,7 @@ class _ExplorerFooter extends StatelessWidget {
                           minimumSize: const Size(0, 28),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        child: const Text('Réinitialiser'),
+                        child: const Text('Revenir à ma sélection'),
                       ),
                   ],
                 ),

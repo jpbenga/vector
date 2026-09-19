@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/theme/app_radius.dart';
 import '../data/match_reading_bilan_repository.dart';
@@ -14,16 +17,673 @@ class ReadingBilanSection extends StatefulWidget {
   State<ReadingBilanSection> createState() => _ReadingBilanSectionState();
 }
 
+class _ReliabilityHero extends StatelessWidget {
+  const _ReliabilityHero({
+    required this.rate,
+    required this.evaluable,
+    required this.confirmed,
+  });
+
+  final double? rate;
+  final int evaluable;
+  final int confirmed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: context.surfaces.backgroundSecondary,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: context.surfaces.border),
+      ),
+      child: Row(
+        children: [
+          _RateRing(rate: rate, size: 78),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Fiabilité observée',
+                  style: TextStyle(
+                    color: context.textColors.primary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  evaluable == 0
+                      ? 'En attente de premiers résultats vérifiables'
+                      : '$evaluable résultats évaluables · $confirmed confirmés',
+                  style: TextStyle(color: context.textColors.secondary),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Lecture par lecture, sans scénarios ni nuances.',
+                  style: TextStyle(color: context.brand.accent, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReliabilityMap extends StatelessWidget {
+  const _ReliabilityMap({required this.summaries, required this.onTap});
+
+  final List<MatchReadingBilanSummary> summaries;
+  final ValueChanged<MatchReadingBilanSummary> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final maxVolume = summaries.fold<int>(
+      1,
+      (maximum, item) => math.max(maximum, item.evaluable),
+    );
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+      decoration: BoxDecoration(
+        color: context.surfaces.backgroundSecondary,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: context.surfaces.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.scatter_plot_rounded, color: context.brand.accent),
+              const SizedBox(width: 8),
+              Text(
+                'Carte de fiabilité',
+                style: TextStyle(
+                  color: context.textColors.primary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 3),
+          Text(
+            'Touchez une pastille pour comprendre la règle et les résultats.',
+            style: TextStyle(color: context.textColors.secondary, fontSize: 12),
+          ),
+          const SizedBox(height: 12),
+          if (summaries.isEmpty)
+            SizedBox(
+              height: 170,
+              child: Center(
+                child: Text(
+                  'Aucune lecture objectivement évaluée.',
+                  style: TextStyle(color: context.textColors.secondary),
+                ),
+              ),
+            )
+          else
+            SizedBox(
+              height: 224,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  const left = 28.0;
+                  const right = 8.0;
+                  const top = 8.0;
+                  const bottom = 30.0;
+                  final plotWidth = constraints.maxWidth - left - right;
+                  final plotHeight = constraints.maxHeight - top - bottom;
+                  return Stack(
+                    children: [
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: _ReliabilityMapPainter(
+                            grid: context.surfaces.border,
+                            text: context.textColors.secondary,
+                          ),
+                        ),
+                      ),
+                      for (final summary in summaries)
+                        _BubblePosition(
+                          summary: summary,
+                          maxVolume: maxVolume,
+                          left: left,
+                          top: top,
+                          plotWidth: plotWidth,
+                          plotHeight: plotHeight,
+                          onTap: () => onTap(summary),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          const SizedBox(height: 2),
+          Row(
+            children: [
+              Text(
+                'Contredite',
+                style: TextStyle(color: context.semantic.error, fontSize: 11),
+              ),
+              const Spacer(),
+              Text(
+                'Confirmée',
+                style: TextStyle(color: context.semantic.success, fontSize: 11),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BubblePosition extends StatelessWidget {
+  const _BubblePosition({
+    required this.summary,
+    required this.maxVolume,
+    required this.left,
+    required this.top,
+    required this.plotWidth,
+    required this.plotHeight,
+    required this.onTap,
+  });
+
+  final MatchReadingBilanSummary summary;
+  final int maxVolume;
+  final double left;
+  final double top;
+  final double plotWidth;
+  final double plotHeight;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final rate = summary.confirmationPercent ?? 0;
+    final diameter = (34 + math.sqrt(summary.evaluable) * 7)
+        .clamp(42, 68)
+        .toDouble();
+    final x = left + plotWidth * (rate / 100) - diameter / 2;
+    final y =
+        top + plotHeight * (1 - summary.evaluable / maxVolume) - diameter / 2;
+    final color = rate >= 65
+        ? context.semantic.success
+        : rate >= 45
+        ? context.semantic.warning
+        : context.semantic.error;
+    return Positioned(
+      left: x.clamp(left - diameter / 2, left + plotWidth - diameter / 2),
+      top: y.clamp(top - diameter / 2, top + plotHeight - diameter / 2),
+      child: Semantics(
+        button: true,
+        label:
+            '${summary.readingLabel}, ${rate.round()} %, ${summary.evaluable} résultats évaluables',
+        child: Tooltip(
+          message:
+              '${summary.readingLabel}\n${rate.round()} % · ${summary.evaluable} résultats',
+          child: Material(
+            color: color.withValues(alpha: .16),
+            shape: const CircleBorder(),
+            child: InkWell(
+              onTap: onTap,
+              customBorder: const CircleBorder(),
+              child: Container(
+                key: ValueKey('bilan-reading-${summary.readingId}'),
+                width: diameter,
+                height: diameter,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: color, width: 2),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(5),
+                  child: Text(
+                    _bubbleLabel(summary.readingLabel),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: context.textColors.primary,
+                      fontSize: diameter >= 58 ? 10 : 9,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _bubbleLabel(String value) {
+  final words = value.split(' ').where((word) => word.isNotEmpty).toList();
+  if (words.length <= 2) return value;
+  return '${words.take(2).join(' ')}\n${words.skip(2).first}';
+}
+
+class _ReliabilityMapPainter extends CustomPainter {
+  const _ReliabilityMapPainter({required this.grid, required this.text});
+
+  final Color grid;
+  final Color text;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const left = 28.0;
+    const top = 8.0;
+    const right = 8.0;
+    const bottom = 30.0;
+    final paint = Paint()
+      ..color = grid.withValues(alpha: .6)
+      ..strokeWidth = 1;
+    final plotWidth = size.width - left - right;
+    final plotHeight = size.height - top - bottom;
+    for (var index = 0; index <= 4; index += 1) {
+      final x = left + plotWidth * index / 4;
+      final y = top + plotHeight * index / 4;
+      canvas.drawLine(Offset(x, top), Offset(x, top + plotHeight), paint);
+      canvas.drawLine(Offset(left, y), Offset(left + plotWidth, y), paint);
+    }
+    canvas.drawLine(
+      Offset(left, top + plotHeight),
+      Offset(left + plotWidth, top + plotHeight),
+      paint..strokeWidth = 1.5,
+    );
+    canvas.drawLine(Offset(left, top), Offset(left, top + plotHeight), paint);
+    _paintText(canvas, 'Volume', const Offset(0, 95), text, rotate: true);
+  }
+
+  void _paintText(
+    Canvas canvas,
+    String value,
+    Offset offset,
+    Color color, {
+    bool rotate = false,
+  }) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: value,
+        style: TextStyle(color: color, fontSize: 10),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    if (rotate) {
+      canvas.save();
+      canvas.translate(offset.dx + 10, offset.dy + painter.width / 2);
+      canvas.rotate(-math.pi / 2);
+      painter.paint(canvas, Offset.zero);
+      canvas.restore();
+      return;
+    }
+    painter.paint(canvas, offset);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ReliabilityMapPainter oldDelegate) =>
+      oldDelegate.grid != grid || oldDelegate.text != text;
+}
+
+class _InsightCard extends StatelessWidget {
+  const _InsightCard({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.color,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String value;
+  final Color color;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 220,
+      child: Material(
+        color: context.surfaces.backgroundSecondary,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              border: Border.all(color: context.surfaces.border),
+              borderRadius: BorderRadius.circular(AppRadius.card),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, color: color),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: context.textColors.primary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        value,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (onTap != null)
+                  Icon(
+                    Icons.chevron_right,
+                    color: context.textColors.secondary,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReadingReliabilitySheet extends StatefulWidget {
+  const _ReadingReliabilitySheet({
+    required this.repository,
+    required this.summary,
+    required this.since,
+  });
+
+  final MatchReadingBilanRepository repository;
+  final MatchReadingBilanSummary summary;
+  final DateTime since;
+
+  @override
+  State<_ReadingReliabilitySheet> createState() =>
+      _ReadingReliabilitySheetState();
+}
+
+class _ReadingReliabilitySheetState extends State<_ReadingReliabilitySheet> {
+  late final Future<List<MatchReadingBilanEntry>> _entries;
+  bool _showMatches = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _entries = widget.repository.loadForReading(
+      readingId: widget.summary.readingId,
+      since: widget.since,
+      offset: 0,
+      limit: 80,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = widget.summary;
+    return DraggableScrollableSheet(
+      initialChildSize: .78,
+      minChildSize: .48,
+      maxChildSize: .95,
+      builder: (context, controller) => Container(
+        decoration: BoxDecoration(
+          color: context.surfaces.background,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border.all(color: context.surfaces.border),
+        ),
+        child: ListView(
+          controller: controller,
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 30),
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: context.textColors.weak,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'LECTURE · PERFORMANCE',
+                        style: TextStyle(
+                          color: context.brand.accent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        summary.readingLabel,
+                        style: TextStyle(
+                          color: context.textColors.primary,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                _RateRing(rate: summary.confirmationPercent, size: 104),
+                const SizedBox(width: 18),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${summary.evaluable} résultats évaluables',
+                        style: TextStyle(
+                          color: context.textColors.primary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _VerdictMetric(
+                        color: context.semantic.success,
+                        label: '${summary.confirmed} confirmées',
+                      ),
+                      const SizedBox(height: 5),
+                      _VerdictMetric(
+                        color: context.semantic.error,
+                        label: '${summary.contradicted} contredites',
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            FutureBuilder<List<MatchReadingBilanEntry>>(
+              future: _entries,
+              builder: (context, snapshot) {
+                final entries =
+                    snapshot.data ?? const <MatchReadingBilanEntry>[];
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _EvaluationRuleCard(entries: entries),
+                    const SizedBox(height: 16),
+                    _Timeline(entries: entries),
+                    const SizedBox(height: 18),
+                    Text(
+                      'Détails par contexte',
+                      style: TextStyle(
+                        color: context.textColors.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _ContextBar(
+                      label: 'Global',
+                      rate: summary.confirmationPercent,
+                      count: summary.evaluable,
+                    ),
+                    if (summary.homeEvaluable > 0) ...[
+                      const SizedBox(height: 9),
+                      _ContextBar(
+                        label: 'Domicile',
+                        rate: summary.homeConfirmationRate,
+                        count: summary.homeEvaluable,
+                      ),
+                    ],
+                    if (summary.awayEvaluable > 0) ...[
+                      const SizedBox(height: 9),
+                      _ContextBar(
+                        label: 'Extérieur',
+                        rate: summary.awayConfirmationRate,
+                        count: summary.awayEvaluable,
+                      ),
+                    ],
+                    const SizedBox(height: 18),
+                    OutlinedButton.icon(
+                      onPressed: snapshot.hasData
+                          ? () => setState(() => _showMatches = !_showMatches)
+                          : null,
+                      icon: Icon(
+                        _showMatches
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                      ),
+                      label: Text(
+                        _showMatches
+                            ? 'Masquer les matchs'
+                            : 'Voir les ${math.min(summary.total, 80)} matchs',
+                      ),
+                    ),
+                    if (snapshot.hasError) ...[
+                      const SizedBox(height: 12),
+                      const _InfoCard(
+                        title: 'Historique indisponible',
+                        message:
+                            'La synthèse reste disponible, mais les matchs ne '
+                            'peuvent pas être chargés.',
+                      ),
+                    ],
+                    if (_showMatches && snapshot.hasData) ...[
+                      const SizedBox(height: 12),
+                      for (final entry in entries)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: ReadingVerdictCard(entry: entry),
+                        ),
+                    ],
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RateRing extends StatelessWidget {
+  const _RateRing({required this.rate, required this.size});
+
+  final double? rate;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = rate == null ? 0.0 : (rate! / 100).clamp(0.0, 1.0);
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox(
+            width: size,
+            height: size,
+            child: CircularProgressIndicator(
+              value: value,
+              strokeWidth: size >= 100 ? 9 : 7,
+              backgroundColor: context.surfaces.surfaceHover,
+              color: context.brand.accent,
+            ),
+          ),
+          Text(
+            rate == null ? '—' : '${rate!.round()}%',
+            style: TextStyle(
+              color: context.textColors.primary,
+              fontSize: size >= 100 ? 25 : 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VerdictMetric extends StatelessWidget {
+  const _VerdictMetric({required this.color, required this.label});
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Container(
+        width: 9,
+        height: 9,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      ),
+      const SizedBox(width: 8),
+      Text(
+        label,
+        style: TextStyle(
+          color: context.textColors.secondary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    ],
+  );
+}
+
 class _ReadingBilanSectionState extends State<ReadingBilanSection> {
   late Future<List<MatchReadingBilanSummary>> _summary;
   int _periodDays = 30;
-  String? _selectedReadingId;
-  String? _selectedVerdict;
-  List<MatchReadingBilanEntry> _details = const [];
-  bool _loadingDetails = false;
-  bool _hasMoreDetails = true;
-  bool _detailsFailed = false;
-  int _detailRequestVersion = 0;
 
   DateTime get _since => DateTime.now().subtract(Duration(days: _periodDays));
 
@@ -41,60 +701,17 @@ class _ReadingBilanSectionState extends State<ReadingBilanSection> {
     _summary = Future.sync(() => _repository.loadSummary(since: _since));
   }
 
-  void _selectReading(String readingId) {
-    setState(() {
-      _selectedReadingId = _selectedReadingId == readingId ? null : readingId;
-      _selectedVerdict = null;
-      _resetDetails();
-    });
-    if (_selectedReadingId != null) _loadNextPage();
-  }
-
-  void _selectVerdict(String? verdict) {
-    setState(() {
-      _selectedVerdict = verdict;
-      _resetDetails();
-    });
-    _loadNextPage();
-  }
-
-  void _resetDetails() {
-    _detailRequestVersion += 1;
-    _details = const [];
-    _loadingDetails = false;
-    _hasMoreDetails = true;
-    _detailsFailed = false;
-  }
-
-  Future<void> _loadNextPage() async {
-    final readingId = _selectedReadingId;
-    if (readingId == null || _loadingDetails || !_hasMoreDetails) return;
-    final requestVersion = _detailRequestVersion;
-    setState(() {
-      _loadingDetails = true;
-      _detailsFailed = false;
-    });
-    try {
-      final page = await _repository.loadForReading(
-        readingId: readingId,
+  void _openReading(MatchReadingBilanSummary summary) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.transparent,
+      builder: (_) => _ReadingReliabilitySheet(
+        repository: _repository,
+        summary: summary,
         since: _since,
-        verdict: _selectedVerdict,
-        offset: _details.length,
-        limit: 20,
-      );
-      if (!mounted || requestVersion != _detailRequestVersion) return;
-      setState(() {
-        _details = [..._details, ...page];
-        _loadingDetails = false;
-        _hasMoreDetails = page.length == 20;
-      });
-    } catch (_) {
-      if (!mounted || requestVersion != _detailRequestVersion) return;
-      setState(() {
-        _loadingDetails = false;
-        _detailsFailed = true;
-      });
-    }
+      ),
+    );
   }
 
   @override
@@ -108,7 +725,7 @@ class _ReadingBilanSectionState extends State<ReadingBilanSection> {
           children: [
             const SizedBox(height: 14),
             Text(
-              'Bilan des lectures',
+              'Bilan Lector',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w800,
                 color: context.textColors.primary,
@@ -116,8 +733,8 @@ class _ReadingBilanSectionState extends State<ReadingBilanSection> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Toutes les lectures annoncées, tous les championnats. '
-              'Vos préférences ne changent pas ce bilan.',
+              'Les performances observées des lectures mesurables. '
+              'Les scénarios et nuances sont analysés séparément.',
               style: TextStyle(color: context.textColors.secondary),
             ),
             const SizedBox(height: 16),
@@ -131,8 +748,6 @@ class _ReadingBilanSectionState extends State<ReadingBilanSection> {
                     onSelected: (_) {
                       setState(() {
                         _periodDays = days;
-                        _selectedReadingId = null;
-                        _resetDetails();
                         _reload();
                       });
                     },
@@ -175,128 +790,256 @@ class _ReadingBilanSectionState extends State<ReadingBilanSection> {
     BuildContext context,
     List<MatchReadingBilanSummary> summaries,
   ) {
-    final confirmed = summaries.fold<int>(0, (sum, row) => sum + row.confirmed);
-    final contradicted = summaries.fold<int>(
-      0,
-      (sum, row) => sum + row.contradicted,
-    );
-    final unevaluable = summaries.fold<int>(
-      0,
-      (sum, row) => sum + row.notEvaluable,
-    );
-    final contextOnly = summaries.fold<int>(
-      0,
-      (sum, row) => sum + row.contextOnly,
-    );
-    final pending = summaries.fold<int>(0, (sum, row) => sum + row.pending);
-    final pertinentNuances = summaries.fold<int>(
-      0,
-      (sum, row) => sum + row.cautionConfirmed,
-    );
-    final unconfirmedNuances = summaries.fold<int>(
-      0,
-      (sum, row) => sum + row.cautionNotConfirmed,
-    );
-    final evaluable = confirmed + contradicted;
-    final groups = [...summaries]
-      ..sort((a, b) => a.readingLabel.compareTo(b.readingLabel));
+    final mapped = summaries.where((item) => item.evaluable > 0).toList();
+    final evaluable = mapped.fold<int>(0, (sum, item) => sum + item.evaluable);
+    final confirmed = mapped.fold<int>(0, (sum, item) => sum + item.confirmed);
+    final rate = evaluable == 0 ? null : confirmed * 100 / evaluable;
+    final awaiting = summaries.where((item) => item.evaluable == 0).length;
+    final insufficient = mapped.where((item) => item.evaluable < 5).length;
+    final best = mapped
+        .where((item) => item.evaluable >= 5)
+        .fold<MatchReadingBilanSummary?>(null, (best, item) {
+          if (best == null ||
+              (item.confirmationPercent ?? 0) >
+                  (best.confirmationPercent ?? 0)) {
+            return item;
+          }
+          return best;
+        });
+    if (summaries.isEmpty) {
+      return const [
+        _InfoCard(
+          title: 'Aucune lecture publiée sur cette période',
+          message:
+              'La carte apparaîtra après la publication des annonces et la '
+              'récupération des résultats finaux.',
+        ),
+      ];
+    }
     return [
-      _InfoCard(
-        title: '$evaluable résultats vérifiables',
-        message: evaluable == 0
-            ? 'Le taux sera affiché dès qu’une lecture mesurable aura un résultat.'
-            : '${(100 * confirmed / evaluable).round()} % confirmées '
-                  '($confirmed sur $evaluable). Ce taux ne mesure pas la rentabilité.',
-      ),
-      const SizedBox(height: 10),
+      _ReliabilityHero(rate: rate, evaluable: evaluable, confirmed: confirmed),
+      const SizedBox(height: 14),
+      _ReliabilityMap(summaries: mapped, onTap: _openReading),
+      const SizedBox(height: 12),
       Wrap(
-        spacing: 8,
-        runSpacing: 8,
+        spacing: 10,
+        runSpacing: 10,
         children: [
-          _CountPill('Confirmées', confirmed, context.semantic.success),
-          _CountPill('Contredites', contradicted, context.semantic.error),
-          _CountPill('Non évaluables', unevaluable, context.semantic.warning),
-          _CountPill('Constats', contextOnly, context.textColors.secondary),
-          _CountPill(
-            'Nuances pertinentes',
-            pertinentNuances,
-            context.semantic.warning,
+          if (best != null)
+            _InsightCard(
+              icon: Icons.trending_up_rounded,
+              title: best.readingLabel,
+              value:
+                  '${best.confirmationPercent!.round()} % · ${best.evaluable} résultats',
+              color: context.semantic.success,
+              onTap: () => _openReading(best),
+            ),
+          _InsightCard(
+            icon: Icons.hourglass_bottom_rounded,
+            title: insufficient > 0
+                ? 'Données insuffisantes'
+                : 'Lectures en attente',
+            value: insufficient > 0
+                ? '$insufficient lecture${insufficient > 1 ? 's' : ''} sous 5 résultats'
+                : '$awaiting lecture${awaiting > 1 ? 's' : ''} à évaluer',
+            color: context.semantic.warning,
           ),
-          _CountPill(
-            'Nuances non confirmées',
-            unconfirmedNuances,
-            context.textColors.secondary,
-          ),
-          _CountPill('En attente', pending, context.textColors.secondary),
         ],
       ),
-      const SizedBox(height: 20),
-      Text(
-        'Par lecture',
-        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-          fontWeight: FontWeight.w800,
-          color: context.textColors.primary,
+      if (mapped.isEmpty) ...[
+        const SizedBox(height: 14),
+        const _InfoCard(
+          title: 'Pas encore de résultat vérifiable',
+          message:
+              'Les lectures sont bien annoncées, mais une performance ne sera '
+              'affichée qu’après le résultat final du match.',
         ),
+      ],
+    ];
+  }
+}
+
+class _EvaluationRuleCard extends StatelessWidget {
+  const _EvaluationRuleCard({required this.entries});
+  final List<MatchReadingBilanEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    final first = entries.isEmpty ? null : entries.first;
+    final evidence = first?.evidence.isNotEmpty == true
+        ? first!.evidence.first['label']?.toString()
+        : null;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: context.surfaces.backgroundSecondary,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: context.surfaces.border),
       ),
-      const SizedBox(height: 5),
-      Text(
-        'Touchez une lecture pour voir les matchs et le critère appliqué.',
-        style: TextStyle(color: context.textColors.secondary),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Comment la lecture est évaluée',
+            style: TextStyle(
+              color: context.textColors.primary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            _outcomeRuleText(first?.outcomeRule),
+            style: TextStyle(color: context.textColors.secondary),
+          ),
+          if (evidence != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Signal avant match : $evidence',
+              style: TextStyle(color: context.brand.accent, fontSize: 12),
+            ),
+          ],
+        ],
       ),
-      const SizedBox(height: 12),
-      for (final group in groups) ...[
-        _ReadingGroupTile(
-          summary: group,
-          selected: _selectedReadingId == group.readingId,
-          onTap: () => _selectReading(group.readingId),
+    );
+  }
+}
+
+String _outcomeRuleText(String? rule) => switch (rule) {
+  'over_25' =>
+    'Confirmée si le match compte au moins trois buts au score final.',
+  'under_25' =>
+    'Confirmée si le match compte au plus deux buts au score final.',
+  'btts' => 'Confirmée si les deux équipes marquent.',
+  'team_win' => 'Confirmée si l’équipe concernée remporte le match.',
+  'team_not_lose' => 'Confirmée si l’équipe concernée gagne ou fait match nul.',
+  'team_loss' => 'Confirmée si l’équipe concernée perd le match.',
+  'team_scores' => 'Confirmée si l’équipe concernée marque.',
+  'team_no_score' => 'Confirmée si l’équipe concernée ne marque pas.',
+  'team_clean_sheet' =>
+    'Confirmée si l’équipe concernée ne concède pas de but.',
+  'team_concedes' => 'Confirmée si l’équipe concernée concède un but.',
+  'first_half_scores' =>
+    'Confirmée si l’équipe concernée marque en première période.',
+  'first_half_concedes' =>
+    'Confirmée si l’équipe concernée concède en première période.',
+  'second_half_scores' =>
+    'Confirmée si l’équipe concernée marque en seconde période.',
+  'second_half_concedes' =>
+    'Confirmée si l’équipe concernée concède en seconde période.',
+  'player_decisive' => 'Confirmée si le joueur concerné est décisif.',
+  _ =>
+    'Cette lecture est un constat de contexte et ne reçoit pas de taux de confirmation.',
+};
+
+class _Timeline extends StatelessWidget {
+  const _Timeline({required this.entries});
+  final List<MatchReadingBilanEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    final sorted = [...entries]
+      ..sort((first, second) => first.kickoffAt.compareTo(second.kickoffAt));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Chronologie des résultats',
+          style: TextStyle(
+            color: context.textColors.primary,
+            fontWeight: FontWeight.w800,
+          ),
         ),
-        const SizedBox(height: 7),
-        if (_selectedReadingId == group.readingId) ...[
+        const SizedBox(height: 9),
+        if (sorted.isEmpty)
+          Text(
+            'Les matchs apparaîtront après leur évaluation.',
+            style: TextStyle(color: context.textColors.secondary, fontSize: 12),
+          )
+        else
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              for (final (value, label) in [
-                (null, 'Tous'),
-                ('confirmed', 'Confirmées'),
-                ('contradicted', 'Contredites'),
-                ('context_only', 'Constats'),
-                ('not_evaluable', 'Non évaluables'),
-              ])
-                ChoiceChip(
-                  label: Text(label),
-                  selected: _selectedVerdict == value,
-                  onSelected: (_) => _selectVerdict(value),
+              for (final entry in sorted)
+                Tooltip(
+                  message:
+                      '${entry.homeTeamName ?? 'Équipe A'} – ${entry.awayTeamName ?? 'Équipe B'}',
+                  child: Container(
+                    width: 13,
+                    height: 13,
+                    decoration: BoxDecoration(
+                      color: _timelineColor(context, entry.verdict),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
                 ),
             ],
           ),
-          const SizedBox(height: 9),
-          for (final entry in _details)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 7),
-              child: ReadingVerdictCard(entry: entry),
-            ),
-          if (_loadingDetails)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(12),
-                child: CircularProgressIndicator(),
-              ),
-            ),
-          if (_detailsFailed)
-            TextButton(
-              onPressed: _loadNextPage,
-              child: const Text('Réessayer de charger les matchs'),
-            ),
-          if (!_loadingDetails && !_detailsFailed && _hasMoreDetails)
-            TextButton(
-              onPressed: _loadNextPage,
-              child: const Text('Afficher 20 matchs de plus'),
-            ),
-          const SizedBox(height: 7),
-        ],
+        const SizedBox(height: 8),
+        Text(
+          'Vert : confirmée · Rouge : contredite · Gris : non évaluable ou en attente',
+          style: TextStyle(color: context.textColors.secondary, fontSize: 11),
+        ),
       ],
-    ];
+    );
+  }
+
+  Color _timelineColor(BuildContext context, String? verdict) =>
+      switch (verdict) {
+        'confirmed' => context.semantic.success,
+        'contradicted' => context.semantic.error,
+        _ => context.textColors.weak,
+      };
+}
+
+class _ContextBar extends StatelessWidget {
+  const _ContextBar({
+    required this.label,
+    required this.rate,
+    required this.count,
+  });
+  final String label;
+  final double? rate;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = ((rate ?? 0) / 100).clamp(0.0, 1.0);
+    return Row(
+      children: [
+        SizedBox(
+          width: 78,
+          child: Text(
+            label,
+            style: TextStyle(color: context.textColors.secondary),
+          ),
+        ),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(99),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 10,
+              color: context.brand.accent,
+              backgroundColor: context.surfaces.surfaceHover,
+            ),
+          ),
+        ),
+        const SizedBox(width: 9),
+        SizedBox(
+          width: 58,
+          child: Text(
+            '${rate?.round() ?? '—'}% · $count',
+            textAlign: TextAlign.end,
+            style: TextStyle(
+              color: context.textColors.primary,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -389,91 +1132,6 @@ class ReadingVerdictCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _ReadingGroupTile extends StatelessWidget {
-  const _ReadingGroupTile({
-    required this.summary,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final MatchReadingBilanSummary summary;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final confirmed = summary.confirmed;
-    final evaluable = summary.evaluable;
-    return Material(
-      color: context.surfaces.backgroundSecondary,
-      borderRadius: BorderRadius.circular(AppRadius.card),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(15),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(color: context.surfaces.border),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      summary.readingLabel,
-                      style: TextStyle(
-                        color: context.textColors.primary,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      evaluable > 0
-                          ? '$confirmed confirmées sur $evaluable vérifiables · ${summary.total} annonces'
-                          : '${summary.total} annonces · constats ou résultats en attente',
-                      style: TextStyle(
-                        color: context.textColors.secondary,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                selected ? Icons.keyboard_arrow_up : Icons.chevron_right,
-                color: context.textColors.secondary,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CountPill extends StatelessWidget {
-  const _CountPill(this.label, this.count, this.color);
-  final String label;
-  final int count;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: .13),
-      borderRadius: BorderRadius.circular(AppRadius.chip),
-    ),
-    child: Text(
-      '$count $label',
-      style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12),
-    ),
-  );
 }
 
 class _InfoCard extends StatelessWidget {

@@ -74,6 +74,7 @@ class FootballReading {
     this.subjectKind = ReadingSubjectKind.team,
     this.playerId,
     this.playerName,
+    this.playerPhotoUrl,
     this.competitionScope = ReadingCompetitionScope.matchCompetition,
     this.sourceCompetitionId,
     this.sourceCompetitionName,
@@ -92,6 +93,7 @@ class FootballReading {
   final ReadingSubjectKind subjectKind;
   final int? playerId;
   final String? playerName;
+  final String? playerPhotoUrl;
   final ReadingCompetitionScope competitionScope;
   final String? sourceCompetitionId;
   final String? sourceCompetitionName;
@@ -117,6 +119,7 @@ class FootballReading {
       subjectKind: subjectKind,
       playerId: playerId,
       playerName: playerName,
+      playerPhotoUrl: playerPhotoUrl,
       competitionScope: competitionScope ?? this.competitionScope,
       sourceCompetitionId: sourceCompetitionId ?? this.sourceCompetitionId,
       sourceCompetitionName:
@@ -157,7 +160,9 @@ class FootballReading {
       severity: strength == ReadingStrength.strong
           ? CopilotArgumentSeverity.strong
           : CopilotArgumentSeverity.moderate,
-      subjectName: subjectName ?? playerName ?? subjectTeamId,
+      subjectName: subjectName?.trim().isNotEmpty == true
+          ? subjectName!
+          : playerName ?? subjectTeamId,
       parameters: parameters,
       evidence: [toThesisEvidence()],
       evidenceAction: _evidenceAction,

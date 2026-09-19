@@ -70,9 +70,11 @@ void main() {
       await tester.tap(find.text('Bilan'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Bilan des lectures'), findsOneWidget);
+      expect(find.text('Bilan Lector'), findsOneWidget);
       expect(
-        find.textContaining('Vos préférences ne changent pas ce bilan.'),
+        find.textContaining(
+          'Les scénarios et nuances sont analysés séparément.',
+        ),
         findsOneWidget,
       );
       expect(
@@ -771,7 +773,7 @@ void main() {
       },
     );
 
-    testWidgets('Voir les lectures displays real reading-only signals', (
+    testWidgets('Voir les lectures shows all selected readings in one scroll', (
       tester,
     ) async {
       final readingOnlyMatch =
@@ -783,9 +785,9 @@ void main() {
           ).copyWith(
             signals: const [
               MatchSignal(
-                id: 'ranking_superiority',
-                title: 'Écart au classement pour Signal-only FC',
-                summary: 'Signal-only FC possède un écart au classement.',
+                id: 'structural_level_gap',
+                title: 'Écart de niveau pour Signal-only FC',
+                summary: 'Signal-only FC présente un écart de niveau.',
                 proofs: ['Signal-only FC possède 6 rangs d’avance.'],
               ),
               MatchSignal(
@@ -793,6 +795,18 @@ void main() {
                 title: 'Attaque productive pour Signal-only FC',
                 summary: 'Signal-only FC marque régulièrement.',
                 proofs: ['Signal-only FC a marqué 9 buts récemment.'],
+              ),
+              MatchSignal(
+                id: 'match_card_profile',
+                title: 'Intensité des cartons',
+                summary: 'La rencontre présente une projection de cartons.',
+                proofs: ['Projection de cartons : 3,4 au total.'],
+              ),
+              MatchSignal(
+                id: 'market:match_result:home',
+                title: '1 N 2',
+                summary: 'Signal-only FC gagne',
+                proofs: ['structural_level_gap'],
               ),
             ],
             compatibility: 76,
@@ -815,24 +829,18 @@ void main() {
       await tester.tap(find.text('Voir le détail'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Écart au classement'), findsOneWidget);
-      expect(find.text('Ce qui confirme la lecture'), findsOneWidget);
-      expect(find.text('2 signaux convergents'), findsOneWidget);
-      expect(find.text('Aucun signal contraire détecté'), findsOneWidget);
+      expect(find.text('Pourquoi ce match est proposé'), findsOneWidget);
+      expect(find.text('Autres lectures du match'), findsOneWidget);
+      expect(find.text('Signal-only FC'), findsWidgets);
+      expect(find.text('Écart de niveau pour Signal-only FC'), findsOneWidget);
       expect(
-        find.text('Signal-only FC possède 6 rangs d’avance.'),
-        findsWidgets,
+        find.text('Attaque productive pour Signal-only FC'),
+        findsOneWidget,
       );
-      expect(
-        find.text('Signal-only FC a marqué 9 buts récemment.'),
-        findsWidgets,
-      );
-      expect(
-        find.text(
-          'Aucune lecture moteur détaillée disponible pour cette rencontre.',
-        ),
-        findsNothing,
-      );
+      expect(find.text('Projection de cartons : 3,4 au total.'), findsNothing);
+      expect(find.text('1 N 2'), findsNothing);
+      expect(find.byTooltip('Lecture suivante'), findsNothing);
+      expect(find.byTooltip('Lecture précédente'), findsNothing);
     });
 
     testWidgets(
@@ -942,6 +950,7 @@ void main() {
             opportunities: [
               _opportunity(
                 match: match,
+                detectedSignals: match.signals,
                 retainedTheses: [
                   _thesis(
                     id: 'expected_domination',
@@ -1002,13 +1011,13 @@ void main() {
         await tester.tap(find.text('Voir le détail'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Domination attendue pour Alpha FC'), findsOneWidget);
-        expect(find.text('Ce qui confirme la lecture'), findsOneWidget);
-        expect(find.text('1 signal convergent'), findsOneWidget);
+        expect(find.text('Scénario retenu'), findsOneWidget);
+        expect(find.textContaining('DOMINATION ATTENDUE'), findsWidgets);
+        expect(
+          find.text('Lectures qui composent ce scénario · 1'),
+          findsOneWidget,
+        );
         expect(find.text('Points de vigilance'), findsOneWidget);
-        expect(find.text('2 éléments à considérer'), findsOneWidget);
-        expect(find.text('À nuancer (1)'), findsOneWidget);
-        expect(find.text('Signaux contraires (1)'), findsOneWidget);
         expect(
           find.text('Alpha FC reste sur une série favorable.'),
           findsOneWidget,
@@ -1018,27 +1027,43 @@ void main() {
           findsOneWidget,
         );
 
-        await tester.scrollUntilVisible(
-          find.byTooltip('Lecture suivante'),
-          180,
-          scrollable: find.byType(Scrollable).last,
-        );
-        await tester.tap(find.byTooltip('Lecture suivante'));
-        await tester.pumpAndSettle();
-
-        expect(find.text('Match ouvert'), findsOneWidget);
-        expect(find.text('2 / 2'), findsOneWidget);
+        expect(find.byTooltip('Lecture suivante'), findsNothing);
       },
     );
 
     testWidgets(
       'keeps selected opportunity contradictions when assessments are absent',
       (tester) async {
-        final match = _match(
+        final sourceMatch = _match(
           id: 'legacy-opportunity-evidence',
           homeName: 'Alpha FC',
           awayName: 'Beta FC',
           kickoff: _relativeKickoff(0, hour: 19),
+        );
+        final match = sourceMatch.copyWith(
+          signals: [
+            MatchSignal(
+              id: 'positive_streak',
+              title: 'Dynamique positive pour Alpha FC',
+              summary: 'Alpha FC reste en forme.',
+              proofs: ['Alpha FC reste en forme.'],
+              subjectTeamId: sourceMatch.homeTeam.id,
+            ),
+            MatchSignal(
+              id: 'strong_home_team',
+              title: 'Alpha FC solide à domicile',
+              summary: 'Alpha FC se distingue à domicile.',
+              proofs: ['Alpha FC se distingue à domicile.'],
+              subjectTeamId: sourceMatch.homeTeam.id,
+            ),
+            MatchSignal(
+              id: 'strong_away_team',
+              title: 'Beta FC solide à l’extérieur',
+              summary: 'Beta FC se distingue à l’extérieur.',
+              proofs: ['Beta FC se distingue à l’extérieur.'],
+              subjectTeamId: sourceMatch.awayTeam.id,
+            ),
+          ],
         );
         final now = DateTime(2026, 9, 4, 12);
         FootballReading reading(String id, String label) {
@@ -1073,6 +1098,7 @@ void main() {
                     title: 'Domination attendue',
                   ),
                 ],
+                detectedSignals: match.signals,
                 supportingReadings: [
                   reading('positive_streak', 'Alpha FC reste en forme.'),
                 ],
@@ -1092,8 +1118,27 @@ void main() {
         await tester.tap(find.text('Voir le détail'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Ce qui confirme la lecture'), findsOneWidget);
-        expect(find.text('Points de vigilance'), findsOneWidget);
+        expect(find.text('Scénario retenu'), findsOneWidget);
+        expect(
+          find.text('Lectures qui composent ce scénario · 1'),
+          findsOneWidget,
+        );
+        expect(find.text('Autres lectures du match'), findsOneWidget);
+        expect(find.text('Alpha FC solide à domicile'), findsOneWidget);
+        expect(find.text('Alpha FC reste en forme.'), findsOneWidget);
+        expect(
+          find.byKey(ValueKey('scenario-independent-${match.awayTeam.id}')),
+          findsNothing,
+        );
+        await tester.scrollUntilVisible(
+          find.byKey(const ValueKey('scenario-vigilance-strong_away_team')),
+          240,
+          scrollable: find.byType(Scrollable).last,
+        );
+        expect(
+          find.byKey(const ValueKey('scenario-vigilance-strong_away_team')),
+          findsOneWidget,
+        );
         expect(find.text('Aucun signal contraire détecté'), findsNothing);
       },
     );
@@ -1378,7 +1423,7 @@ void main() {
                   homeName: 'Alpha FC',
                   awayName: 'Delta FC',
                   kickoff: _relativeKickoff(0, hour: 18),
-                  analysis: _tieredAnalysisData(),
+                  analysis: _tieredAnalysisData(provisional: true),
                 ),
                 retainedTheses: [
                   _thesis(id: 'level_gap', title: 'Domination attendue'),
@@ -1395,7 +1440,7 @@ void main() {
 
         expect(find.text('Lecture du classement'), findsOneWidget);
         expect(find.text('Enjeux officiels'), findsOneWidget);
-        expect(find.text('Tiers Lector'), findsOneWidget);
+        expect(find.text('Tiers Lector · provisoires'), findsOneWidget);
         expect(find.text('T1 · Podium'), findsOneWidget);
         expect(find.text('T3 · Milieu de tableau'), findsOneWidget);
         expect(find.text('T1'), findsOneWidget);
@@ -1403,18 +1448,17 @@ void main() {
         expect(find.text('T2'), findsNothing);
         expect(find.text('Promotion - Champions League'), findsOneWidget);
         expect(find.text('Relegation'), findsOneWidget);
-        expect(
-          find.bySemanticsLabel(
-            'Position 1, Tier 1 - Podium, Promotion - Champions League',
-          ),
-          findsOneWidget,
-        );
-        expect(
-          find.bySemanticsLabel('Position 3, Tier 3 - Milieu de tableau'),
-          findsOneWidget,
-        );
+        expect(find.text('1').first, findsOneWidget);
+        expect(find.text('3').first, findsOneWidget);
         expect(find.text('DOM.'), findsOneWidget);
         expect(find.text('EXT.'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('mobile-standing-table')),
+            matching: find.byType(SingleChildScrollView),
+          ),
+          findsNothing,
+        );
       },
     );
 
@@ -2159,6 +2203,7 @@ DecisionProfile _completedProfile() {
 Opportunity _opportunity({
   MatchBoardItem? match,
   required List<MatchThesis> retainedTheses,
+  List<MatchSignal> detectedSignals = const [],
   List<OpportunityMarketCompatibility> compatibleMarkets = const [],
   RecommendedMarket? recommendedMarket,
   List<FootballReading> supportingReadings = const [],
@@ -2172,14 +2217,16 @@ Opportunity _opportunity({
   return Opportunity(
     sourceMatch: sourceMatch,
     engineScore: engineScore,
-    detectedSignals: const [
-      MatchSignal(
-        id: 'signal',
-        title: 'Signal',
-        summary: 'Signal détecté',
-        proofs: ['Preuve'],
-      ),
-    ],
+    detectedSignals: detectedSignals.isEmpty
+        ? const [
+            MatchSignal(
+              id: 'signal',
+              title: 'Signal',
+              summary: 'Signal détecté',
+              proofs: ['Preuve'],
+            ),
+          ]
+        : detectedSignals,
     retainedTheses: retainedTheses,
     compatibleMarkets: compatibleMarkets,
     recommendedMarket: recommendedMarket,
@@ -2415,7 +2462,7 @@ List<MatchContextKey> _contextKeyFixtures() {
   return const [hierarchy, form, attack, defense];
 }
 
-MatchAnalysisData _tieredAnalysisData() {
+MatchAnalysisData _tieredAnalysisData({bool provisional = false}) {
   const rows = [
     TeamStandingSnapshot(
       teamId: 1,
@@ -2521,8 +2568,8 @@ MatchAnalysisData _tieredAnalysisData() {
       analysisAsOf: DateTime.utc(2026, 9, 5, 8),
       tierSystemVersion: 'tier-v1',
       standingsSnapshotIdentity: 'tiered-test-snapshot',
-      status: TierSystemStatus.mature,
-      maturity: TierMaturity.mature,
+      status: provisional ? TierSystemStatus.immature : TierSystemStatus.mature,
+      maturity: provisional ? TierMaturity.immature : TierMaturity.mature,
       teamCount: rows.length,
       pointDistribution: null,
       ppgDistribution: null,

@@ -111,6 +111,42 @@ void main() {
       );
     });
 
+    test('keeps a decisive player signal out of automatic scorer bets', () {
+      final engine = OpportunityEngineV2(
+        analyzer: _StaticAnalyzer([
+          FootballReading(
+            id: 'standout_decisive_player',
+            subjectTeamId: 'api-team-10',
+            subjectSide: ReadingSubjectSide.home,
+            subjectKind: ReadingSubjectKind.player,
+            playerId: 278,
+            playerName: 'Kylian Mbappé',
+            status: ReadingStatus.detected,
+            strength: ReadingStrength.moderate,
+            evidence: const [
+              ReadingEvidence(
+                label: 'Joueur décisif à surveiller.',
+                kind: ReadingEvidenceKind.player,
+                sourcePath: 'server',
+              ),
+            ],
+            warnings: const [],
+            asOf: DateTime.utc(2026, 7, 30, 8),
+            sampleSize: 3,
+          ),
+        ]),
+      );
+
+      final intelligence = engine.buildIntelligence(_match());
+
+      expect(
+        intelligence.betCandidates.where(
+          (candidate) => candidate.marketId == 'playerAnytimeScorer',
+        ),
+        isEmpty,
+      );
+    });
+
     test('does not use a different scenario as an alternative', () {
       final engine = OpportunityEngineV2(
         analyzer: _StaticAnalyzer([

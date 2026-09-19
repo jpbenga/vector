@@ -58,6 +58,8 @@ class ServerComputedMatchAnalysisAdapter {
               ? ReadingSubjectKind.team
               : ReadingSubjectKind.player,
           playerId: _integer(row['player_id']),
+          playerName: row['player_name']?.toString() ?? _playerName(row),
+          playerPhotoUrl: _playerPhotoUrl(row),
           status: ReadingStatus.detected,
           strength: _strength(row['strength']),
           isContradiction: _isContradiction(row),
@@ -87,6 +89,24 @@ class ServerComputedMatchAnalysisAdapter {
           ]),
         ),
     ]);
+  }
+
+  String? _playerName(Map<String, Object?> row) {
+    for (final evidence in _list(row['evidence'])) {
+      final value = _map(evidence['value']);
+      final name = value['player_name']?.toString().trim();
+      if (name != null && name.isNotEmpty) return name;
+    }
+    return null;
+  }
+
+  String? _playerPhotoUrl(Map<String, Object?> row) {
+    for (final evidence in _list(row['evidence'])) {
+      final value = _map(evidence['value']);
+      final url = value['player_photo_url']?.toString().trim();
+      if (url != null && url.isNotEmpty) return url;
+    }
+    return null;
   }
 
   List<ReadingEvidence> _evidence(List<Map<String, Object?>> rows) {

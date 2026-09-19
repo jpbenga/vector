@@ -91,10 +91,6 @@ class FootballScenarioCatalog {
           readingId: 'scoring_difficulty',
           subject: ScenarioRequirementSubject.subject,
         ),
-        ScenarioReadingRequirement(
-          readingId: 'fragile_defense',
-          subject: ScenarioRequirementSubject.subject,
-        ),
       ],
     ),
     FootballScenarioDefinition(
@@ -106,15 +102,7 @@ class FootballScenarioCatalog {
           subject: ScenarioRequirementSubject.match,
         ),
         ScenarioReadingRequirement(
-          readingId: 'prolific_attack',
-          subject: ScenarioRequirementSubject.home,
-        ),
-        ScenarioReadingRequirement(
-          readingId: 'prolific_attack',
-          subject: ScenarioRequirementSubject.away,
-        ),
-        ScenarioReadingRequirement(
-          readingId: 'fragile_defense',
+          readingId: 'frequent_over_25',
           subject: ScenarioRequirementSubject.atLeastOneTeam,
         ),
       ],
@@ -128,12 +116,8 @@ class FootballScenarioCatalog {
           subject: ScenarioRequirementSubject.match,
         ),
         ScenarioReadingRequirement(
-          readingId: 'solid_defense',
-          subject: ScenarioRequirementSubject.bothTeams,
-        ),
-        ScenarioReadingRequirement(
-          readingId: 'scoring_difficulty',
-          subject: ScenarioRequirementSubject.bothTeams,
+          readingId: 'frequent_under_25',
+          subject: ScenarioRequirementSubject.atLeastOneTeam,
         ),
       ],
     ),
@@ -167,14 +151,6 @@ class FootballScenarioCatalog {
           readingId: 'form_advantage',
           subject: ScenarioRequirementSubject.subject,
         ),
-        ScenarioReadingRequirement(
-          readingId: 'venue_strength',
-          subject: ScenarioRequirementSubject.subject,
-        ),
-        ScenarioReadingRequirement(
-          readingId: 'fragile_defense',
-          subject: ScenarioRequirementSubject.opponent,
-        ),
       ],
     ),
     FootballScenarioDefinition(
@@ -187,10 +163,6 @@ class FootballScenarioCatalog {
         ),
         ScenarioReadingRequirement(
           readingId: 'high_xg_conceded',
-          subject: ScenarioRequirementSubject.subject,
-        ),
-        ScenarioReadingRequirement(
-          readingId: 'high_shots_on_target_conceded',
           subject: ScenarioRequirementSubject.subject,
         ),
       ],
@@ -207,10 +179,6 @@ class FootballScenarioCatalog {
           readingId: 'high_xg_creation',
           subject: ScenarioRequirementSubject.subject,
         ),
-        ScenarioReadingRequirement(
-          readingId: 'high_shots_on_target',
-          subject: ScenarioRequirementSubject.subject,
-        ),
       ],
     ),
     FootballScenarioDefinition(
@@ -223,10 +191,6 @@ class FootballScenarioCatalog {
         ),
         ScenarioReadingRequirement(
           readingId: 'improving_form',
-          subject: ScenarioRequirementSubject.subject,
-        ),
-        ScenarioReadingRequirement(
-          readingId: 'high_xg_creation',
           subject: ScenarioRequirementSubject.subject,
         ),
       ],
@@ -242,42 +206,6 @@ class FootballScenarioCatalog {
         ScenarioReadingRequirement(
           readingId: 'declining_form',
           subject: ScenarioRequirementSubject.subject,
-        ),
-        ScenarioReadingRequirement(
-          readingId: 'low_xg_creation',
-          subject: ScenarioRequirementSubject.subject,
-        ),
-      ],
-    ),
-    FootballScenarioDefinition(
-      id: 'corner_pressure',
-      scope: FootballScenarioScope.team,
-      requirements: [
-        ScenarioReadingRequirement(
-          readingId: 'high_corner_creation',
-          subject: ScenarioRequirementSubject.subject,
-        ),
-        ScenarioReadingRequirement(
-          readingId: 'high_corners_conceded',
-          subject: ScenarioRequirementSubject.opponent,
-        ),
-        ScenarioReadingRequirement(
-          readingId: 'high_shot_volume',
-          subject: ScenarioRequirementSubject.subject,
-        ),
-      ],
-    ),
-    FootballScenarioDefinition(
-      id: 'disciplinary_tension',
-      scope: FootballScenarioScope.match,
-      requirements: [
-        ScenarioReadingRequirement(
-          readingId: 'high_card_rate',
-          subject: ScenarioRequirementSubject.bothTeams,
-        ),
-        ScenarioReadingRequirement(
-          readingId: 'high_total_cards_profile',
-          subject: ScenarioRequirementSubject.match,
         ),
       ],
     ),

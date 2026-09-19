@@ -10,6 +10,7 @@ class MatchReadingBilanEntry {
     required this.verdict,
     required this.explanation,
     required this.announcementKind,
+    this.subjectSide = 'match',
     required this.homeTeamName,
     required this.awayTeamName,
     this.homeGoals,
@@ -32,6 +33,7 @@ class MatchReadingBilanEntry {
       verdict: row['verdict']?.toString(),
       explanation: row['explanation']?.toString(),
       announcementKind: row['announcement_kind']?.toString() ?? 'reading',
+      subjectSide: row['subject_side']?.toString() ?? 'match',
       homeTeamName: row['home_team_name']?.toString(),
       awayTeamName: row['away_team_name']?.toString(),
       homeGoals: (row['home_goals'] as num?)?.toInt(),
@@ -62,6 +64,7 @@ class MatchReadingBilanEntry {
   final String? verdict;
   final String? explanation;
   final String announcementKind;
+  final String subjectSide;
   final String? homeTeamName;
   final String? awayTeamName;
   final int? homeGoals;
@@ -89,6 +92,14 @@ class MatchReadingBilanSummary {
     required this.contradicted,
     required this.notEvaluable,
     required this.contextOnly,
+    this.evaluableOverride,
+    this.confirmationRate,
+    this.homeEvaluable = 0,
+    this.homeConfirmed = 0,
+    this.homeConfirmationRate,
+    this.awayEvaluable = 0,
+    this.awayConfirmed = 0,
+    this.awayConfirmationRate,
     this.cautionConfirmed = 0,
     this.cautionNotConfirmed = 0,
     required this.pending,
@@ -103,6 +114,14 @@ class MatchReadingBilanSummary {
         contradicted: _integer(row['contradicted']) ?? 0,
         notEvaluable: _integer(row['not_evaluable']) ?? 0,
         contextOnly: _integer(row['context_only']) ?? 0,
+        evaluableOverride: _integer(row['evaluable']),
+        confirmationRate: _decimal(row['confirmation_rate']),
+        homeEvaluable: _integer(row['home_evaluable']) ?? 0,
+        homeConfirmed: _integer(row['home_confirmed']) ?? 0,
+        homeConfirmationRate: _decimal(row['home_confirmation_rate']),
+        awayEvaluable: _integer(row['away_evaluable']) ?? 0,
+        awayConfirmed: _integer(row['away_confirmed']) ?? 0,
+        awayConfirmationRate: _decimal(row['away_confirmation_rate']),
         cautionConfirmed: _integer(row['caution_confirmed']) ?? 0,
         cautionNotConfirmed: _integer(row['caution_not_confirmed']) ?? 0,
         pending: _integer(row['pending']) ?? 0,
@@ -115,18 +134,34 @@ class MatchReadingBilanSummary {
   final int contradicted;
   final int notEvaluable;
   final int contextOnly;
+  final int? evaluableOverride;
+  final double? confirmationRate;
+  final int homeEvaluable;
+  final int homeConfirmed;
+  final double? homeConfirmationRate;
+  final int awayEvaluable;
+  final int awayConfirmed;
+  final double? awayConfirmationRate;
   final int cautionConfirmed;
   final int cautionNotConfirmed;
   final int pending;
 
-  int get evaluable =>
-      confirmed + contradicted + cautionConfirmed + cautionNotConfirmed;
+  int get evaluable => evaluableOverride ?? confirmed + contradicted;
+
+  double? get confirmationPercent =>
+      confirmationRate ?? (evaluable == 0 ? null : confirmed * 100 / evaluable);
 }
 
 int? _integer(Object? value) => switch (value) {
   int value => value,
   num value => value.toInt(),
   String value => int.tryParse(value),
+  _ => null,
+};
+
+double? _decimal(Object? value) => switch (value) {
+  num value => value.toDouble(),
+  String value => double.tryParse(value),
   _ => null,
 };
 
@@ -152,14 +187,14 @@ class SupabaseMatchReadingBilanRepository
       'announcement_id,fixture_id,kickoff_at,reading_id,reading_label,'
       'verdict,explanation,home_team_name,away_team_name,home_goals,'
       'away_goals,outcome_rule,evidence,announcement_kind,required_reading_ids,'
-      'parent_announcement_key';
+      'parent_announcement_key,subject_side';
 
   @override
   Future<List<MatchReadingBilanSummary>> loadSummary({
     required DateTime since,
   }) async {
     final rows = await client.rpc<List<dynamic>>(
-      'match_reading_bilan_summary',
+      'match_reading_bilan_reading_summary',
       params: {
         'p_since': since.toUtc().toIso8601String(),
         'p_until': DateTime.now().toUtc().toIso8601String(),

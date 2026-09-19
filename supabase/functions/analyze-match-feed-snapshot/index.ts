@@ -2,16 +2,19 @@ type JsonObject = Record<string, unknown>;
 
 const corsHeaders = {
   "access-control-allow-origin": "*",
-  "access-control-allow-headers": "authorization, x-client-info, apikey, content-type",
+  "access-control-allow-headers":
+    "authorization, x-client-info, apikey, content-type",
   "access-control-allow-methods": "POST, OPTIONS",
 };
 
-// This function is deliberately the boundary between private, heavy provider
-// data and the public mobile read model. It never exposes histories, xG event
-// rows, player pages, standings or raw cache to the app.
+// This function is deliberately the boundary between private provider data and
+// the public mobile read model. It exposes a reduced presentation context for
+// the ranking and form screens, never provider cache, events or player pages.
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return respond({ ok: true });
-  if (request.method !== "POST") return respond({ error: "Method not allowed." }, 405);
+  if (request.method !== "POST") {
+    return respond({ error: "Method not allowed." }, 405);
+  }
   const secret = requiredEnv("API_FOOTBALL_SYNC_SECRET");
   if (request.headers.get("authorization") !== `Bearer ${secret}`) {
     return respond({ error: "Unauthorized." }, 401);
@@ -20,17 +23,27 @@ Deno.serve(async (request) => {
   try {
     const payload = objectValue(await request.json()) ?? {};
     const snapshotId = stringValue(payload.snapshot_id);
-    if (snapshotId === null) return respond({ error: "snapshot_id is required." }, 400);
+    if (snapshotId === null) {
+      return respond({ error: "snapshot_id is required." }, 400);
+    }
     const supabaseUrl = requiredEnv("SUPABASE_URL");
     const serviceRoleKey = requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
 
     const existing = await supabaseFetch({
-      supabaseUrl, serviceRoleKey,
-      path: `/rest/v1/match_feed_analysis_snapshots?select=id&source_snapshot_id=eq.${encodeURIComponent(snapshotId)}&limit=1`,
+      supabaseUrl,
+      serviceRoleKey,
+      path:
+        `/rest/v1/match_feed_analysis_snapshots?select=id&source_snapshot_id=eq.${
+          encodeURIComponent(snapshotId)
+        }&limit=1`,
       method: "GET",
     });
     if (existing.length > 0) {
-      return respond({ ok: true, reused: true, analysisSnapshotId: String(objectValue(existing[0])?.id ?? "") });
+      return respond({
+        ok: true,
+        reused: true,
+        analysisSnapshotId: String(objectValue(existing[0])?.id ?? ""),
+      });
     }
 
     // Announcements are the single source for both the Bilan and the mobile
@@ -43,12 +56,20 @@ Deno.serve(async (request) => {
       payload: { snapshot_id: snapshotId },
     });
     if (booleanValue(publication.ok) !== true) {
-      throw new Error(`Reading publication failed: ${stringValue(publication.error) ?? "unknown error"}`);
+      throw new Error(
+        `Reading publication failed: ${
+          stringValue(publication.error) ?? "unknown error"
+        }`,
+      );
     }
 
     const snapshots = await supabaseFetch({
-      supabaseUrl, serviceRoleKey,
-      path: `/rest/v1/match_feed_snapshots?select=id,schema_version,source,scope,scope_key,league_ids,timezone,window_start,window_end,captured_at,as_of,payload,coverage_summary&id=eq.${encodeURIComponent(snapshotId)}&limit=1`,
+      supabaseUrl,
+      serviceRoleKey,
+      path:
+        `/rest/v1/match_feed_snapshots?select=id,schema_version,source,scope,scope_key,league_ids,timezone,window_start,window_end,captured_at,as_of,payload,coverage_summary&id=eq.${
+          encodeURIComponent(snapshotId)
+        }&limit=1`,
       method: "GET",
     });
     const snapshot = objectValue(snapshots[0]);
@@ -57,6 +78,10 @@ Deno.serve(async (request) => {
     const raw = objectValue(snapshotPayload?.raw) ?? {};
     const fixtures = objectList(raw.fixtures);
     const odds = objectList(raw.odds);
+    const presentationStandings = compactStandings(objectList(raw.standings));
+    const presentationRecentMatches = compactRecentMatches(
+      objectList(raw.recent_league_matches),
+    );
 
     // Announcements are immutable and intentionally written only once per
     // fixture/reading. A newer source snapshot must reuse the existing
@@ -68,14 +93,15 @@ Deno.serve(async (request) => {
           .filter((id): id is number => id !== null),
       ),
     ];
-    const announced = fixtureIds.length === 0
-      ? []
-      : await supabaseFetch({
-        supabaseUrl,
-        serviceRoleKey,
-        path: `/rest/v1/match_reading_announcements?select=fixture_id,reading_id,reading_label,subject_side,subject_team_id,player_id,evidence,sample_size,announcement_kind,required_reading_ids,outcome_rule&fixture_id=in.(${fixtureIds.join(",")})&order=fixture_id,reading_id`,
-        method: "GET",
-      });
+    const announced = fixtureIds.length === 0 ? [] : await supabaseFetch({
+      supabaseUrl,
+      serviceRoleKey,
+      path:
+        `/rest/v1/match_reading_announcements?select=fixture_id,reading_id,reading_label,subject_side,subject_team_id,player_id,player_name,evidence,sample_size,announcement_kind,required_reading_ids,outcome_rule&fixture_id=in.(${
+          fixtureIds.join(",")
+        })&order=fixture_id,reading_id`,
+      method: "GET",
+    });
     const computedByFixture = new Map<number, JsonObject[]>();
     for (const value of announced) {
       const row = objectValue(value);
@@ -85,9 +111,15 @@ Deno.serve(async (request) => {
         id: stringValue(row.reading_id) ?? "unknown",
         label: stringValue(row.reading_label) ?? "Lecture",
         kind: stringValue(row.announcement_kind) ?? "reading",
+        // A nuance is a pre-match counter-signal. Keep that semantic in the
+        // compact read model so the app can display it separately from the
+        // readings that support a thesis.
+        is_contradiction: stringValue(row.announcement_kind) === "nuance",
         side: stringValue(row.subject_side) ?? "match",
-        subject_team_id: stringValue(row.subject_team_id) ?? `api-fixture-${fixtureId}`,
+        subject_team_id: stringValue(row.subject_team_id) ??
+          `api-fixture-${fixtureId}`,
         player_id: numberValue(row.player_id),
+        player_name: stringValue(row.player_name),
         sample_size: numberValue(row.sample_size) ?? 0,
         evidence: objectList(row.evidence),
         required_reading_ids: stringList(row.required_reading_ids),
@@ -106,7 +138,9 @@ Deno.serve(async (request) => {
       const items = computedByFixture.get(fixtureId) ?? [];
       computedFixtures.push({
         fixture_id: fixtureId,
-        readings: items.filter((item) => item.kind === "reading"),
+        readings: items.filter((item) =>
+          item.kind === "reading" || item.kind === "nuance"
+        ),
         scenarios: items.filter((item) => item.kind === "scenario"),
       });
     }
@@ -118,14 +152,22 @@ Deno.serve(async (request) => {
       timezone: stringValue(snapshot.timezone) ?? "Europe/Paris",
       window_start: stringValue(snapshot.window_start),
       window_end: stringValue(snapshot.window_end),
-      raw: { fixtures, odds },
+      raw: {
+        fixtures,
+        odds,
+        // Compact, display-only data. The app maps these values to widgets but
+        // does not calculate football signals from provider history.
+        standings: presentationStandings,
+        recent_league_matches: presentationRecentMatches,
+      },
       computed: {
         engine_version: "server_computed_feed_v1",
         fixtures: computedFixtures,
       },
     };
     const stored = await supabaseFetch({
-      supabaseUrl, serviceRoleKey,
+      supabaseUrl,
+      serviceRoleKey,
       path: "/rest/v1/match_feed_analysis_snapshots",
       method: "POST",
       body: [{
@@ -144,8 +186,12 @@ Deno.serve(async (request) => {
         coverage_summary: {
           source_snapshot_id: snapshotId,
           fixture_count: fixtures.length,
-          reading_count: announced.filter((value) => stringValue(objectValue(value)?.announcement_kind) !== "scenario").length,
-          scenario_count: announced.filter((value) => stringValue(objectValue(value)?.announcement_kind) === "scenario").length,
+          reading_count: announced.filter((value) =>
+            stringValue(objectValue(value)?.announcement_kind) !== "scenario"
+          ).length,
+          scenario_count: announced.filter((value) =>
+            stringValue(objectValue(value)?.announcement_kind) === "scenario"
+          ).length,
           publication: publication.summary ?? {},
         },
       }],
@@ -158,37 +204,190 @@ Deno.serve(async (request) => {
       summary: { fixtures: fixtures.length, announcements: announced.length },
     });
   } catch (error) {
-    return respond({ ok: false, error: error instanceof Error ? error.message : String(error) }, 500);
+    return respond({
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    }, 500);
   }
 });
 
-async function invokeFunction({ supabaseUrl, name, secret, payload }: { supabaseUrl: string; name: string; secret: string; payload: JsonObject }): Promise<JsonObject> {
+async function invokeFunction(
+  { supabaseUrl, name, secret, payload }: {
+    supabaseUrl: string;
+    name: string;
+    secret: string;
+    payload: JsonObject;
+  },
+): Promise<JsonObject> {
   const response = await fetch(`${supabaseUrl}/functions/v1/${name}`, {
     method: "POST",
-    headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" },
+    headers: {
+      authorization: `Bearer ${secret}`,
+      "content-type": "application/json",
+    },
     body: JSON.stringify(payload),
   });
   const body = objectValue(await response.json().catch(() => ({}))) ?? {};
-  if (!response.ok) throw new Error(`${name}: ${response.status} ${stringValue(body.error) ?? ""}`);
+  if (!response.ok) {
+    throw new Error(
+      `${name}: ${response.status} ${stringValue(body.error) ?? ""}`,
+    );
+  }
   return body;
 }
 
-async function supabaseFetch({ supabaseUrl, serviceRoleKey, path, method, body, prefer }: { supabaseUrl: string; serviceRoleKey: string; path: string; method: "GET" | "POST"; body?: JsonObject[]; prefer?: string }): Promise<unknown[]> {
+async function supabaseFetch({
+  supabaseUrl,
+  serviceRoleKey,
+  path,
+  method,
+  body,
+  prefer,
+}: {
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  path: string;
+  method: "GET" | "POST";
+  body?: JsonObject[];
+  prefer?: string;
+}): Promise<unknown[]> {
   const response = await fetch(`${supabaseUrl}${path}`, {
     method,
-    headers: { apikey: serviceRoleKey, authorization: `Bearer ${serviceRoleKey}`, "content-type": "application/json", ...(prefer === undefined ? {} : { prefer }) },
+    headers: {
+      apikey: serviceRoleKey,
+      authorization: `Bearer ${serviceRoleKey}`,
+      "content-type": "application/json",
+      ...(prefer === undefined ? {} : { prefer }),
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (!response.ok) throw new Error(`Supabase ${method} ${path}: ${response.status} ${await response.text()}`);
+  if (!response.ok) {
+    throw new Error(
+      `Supabase ${method} ${path}: ${response.status} ${await response.text()}`,
+    );
+  }
   const result = await response.json().catch(() => []);
   return Array.isArray(result) ? result : [];
 }
-function objectValue(value: unknown): JsonObject | null { return value !== null && typeof value === "object" && !Array.isArray(value) ? value as JsonObject : null; }
-function objectList(value: unknown): JsonObject[] { return Array.isArray(value) ? value.map(objectValue).filter((value): value is JsonObject => value !== null) : []; }
-function stringList(value: unknown): string[] { return Array.isArray(value) ? value.map(stringValue).filter((value): value is string => value !== null) : []; }
-function numberList(value: unknown): number[] { return Array.isArray(value) ? value.map(numberValue).filter((value): value is number => value !== null) : []; }
-function stringValue(value: unknown): string | null { return typeof value === "string" && value.length > 0 ? value : null; }
-function numberValue(value: unknown): number | null { const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN; return Number.isFinite(parsed) ? parsed : null; }
-function booleanValue(value: unknown): boolean | null { return typeof value === "boolean" ? value : null; }
-function requiredEnv(name: string): string { const value = Deno.env.get(name); if (!value) throw new Error(`Missing ${name}`); return value; }
-function respond(payload: JsonObject, status = 200): Response { return new Response(JSON.stringify(payload), { status, headers: { ...corsHeaders, "content-type": "application/json; charset=utf-8" } }); }
+function compactStandings(rows: JsonObject[]): JsonObject[] {
+  return rows.map((row) => {
+    const league = objectValue(row.league) ?? {};
+    const groups = Array.isArray(league.standings) ? league.standings : [];
+    return {
+      league: {
+        id: numberValue(league.id),
+        standings: groups.map((group) =>
+          objectList(group).map((standing) => {
+            const team = objectValue(standing.team) ?? {};
+            const compactSplit = (name: string) => {
+              const split = objectValue(standing[name]) ?? {};
+              const goals = objectValue(split.goals) ?? {};
+              return {
+                played: numberValue(split.played),
+                win: numberValue(split.win),
+                draw: numberValue(split.draw),
+                lose: numberValue(split.lose),
+                goals: {
+                  for: numberValue(goals.for),
+                  against: numberValue(goals.against),
+                },
+              };
+            };
+            return {
+              rank: numberValue(standing.rank),
+              points: numberValue(standing.points),
+              goalsDiff: numberValue(standing.goalsDiff),
+              form: stringValue(standing.form),
+              description: stringValue(standing.description),
+              group: stringValue(standing.group),
+              team: { id: numberValue(team.id), name: stringValue(team.name) },
+              all: compactSplit("all"),
+              home: compactSplit("home"),
+              away: compactSplit("away"),
+            };
+          })
+        ),
+      },
+    };
+  });
+}
+
+function compactRecentMatches(rows: JsonObject[]): JsonObject[] {
+  return rows.map((row) => {
+    const league = objectValue(row.league) ?? {};
+    const team = objectValue(row.team) ?? {};
+    return {
+      league: { id: numberValue(league.id) },
+      team: { id: numberValue(team.id), name: stringValue(team.name) },
+      matches: objectList(row.matches).slice(0, 5).map((match) => {
+        const value = objectValue(match) ?? {};
+        const opponent = objectValue(value.opponent) ?? {};
+        const goals = objectValue(value.goals) ?? {};
+        return {
+          opponent: {
+            id: numberValue(opponent.id),
+            name: stringValue(opponent.name),
+            logo: stringValue(opponent.logo),
+          },
+          venue: stringValue(value.venue),
+          result: stringValue(value.result),
+          goals: {
+            for: numberValue(goals.for),
+            against: numberValue(goals.against),
+          },
+        };
+      }),
+    };
+  });
+}
+
+function objectValue(value: unknown): JsonObject | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? value as JsonObject
+    : null;
+}
+function objectList(value: unknown): JsonObject[] {
+  return Array.isArray(value)
+    ? value.map(objectValue).filter((value): value is JsonObject =>
+      value !== null
+    )
+    : [];
+}
+function stringList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.map(stringValue).filter((value): value is string => value !== null)
+    : [];
+}
+function numberList(value: unknown): number[] {
+  return Array.isArray(value)
+    ? value.map(numberValue).filter((value): value is number => value !== null)
+    : [];
+}
+function stringValue(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+function numberValue(value: unknown): number | null {
+  const parsed = typeof value === "number"
+    ? value
+    : typeof value === "string"
+    ? Number(value)
+    : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : null;
+}
+function booleanValue(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
+}
+function requiredEnv(name: string): string {
+  const value = Deno.env.get(name);
+  if (!value) throw new Error(`Missing ${name}`);
+  return value;
+}
+function respond(payload: JsonObject, status = 200): Response {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: {
+      ...corsHeaders,
+      "content-type": "application/json; charset=utf-8",
+    },
+  });
+}

@@ -66,14 +66,34 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('2 résultats vérifiables'), findsOneWidget);
-    expect(find.textContaining('50 % confirmées (1 sur 2)'), findsOneWidget);
-    expect(find.text('1 Constats'), findsOneWidget);
+    expect(find.text('Carte de fiabilité'), findsOneWidget);
+    expect(find.text('2 résultats évaluables · 1 confirmés'), findsOneWidget);
+    expect(find.text('50%'), findsOneWidget);
+    expect(find.text('Dynamique positive'), findsNothing);
+  });
 
-    await tester.tap(find.text('Dynamique positive'));
+  testWidgets('A reliability bubble opens its reading detail sheet', (
+    tester,
+  ) async {
+    final repository = _FakeBilanRepository([
+      _entry('over', 'Plus de 2,5 buts', 'confirmed'),
+    ]);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: ReadingBilanSection(repository: repository),
+          ),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
-    expect(find.text('Constat d’avant-match'), findsOneWidget);
-    expect(find.text('Contredite'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('bilan-reading-over')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('LECTURE · PERFORMANCE'), findsOneWidget);
+    expect(find.text('Comment la lecture est évaluée'), findsOneWidget);
   });
 }
 

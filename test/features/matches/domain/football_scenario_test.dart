@@ -105,9 +105,8 @@ void main() {
       final matches = const FootballScenarioDetector().detect(
         analysis: _analysis([
           _reading('negative_streak', 'away', ReadingSubjectSide.away),
-          _reading('scoring_difficulty', 'away', ReadingSubjectSide.away),
           _reading(
-            'fragile_defense',
+            'scoring_difficulty',
             'away',
             ReadingSubjectSide.away,
             isContradiction: true,
@@ -127,9 +126,7 @@ void main() {
       final matches = const FootballScenarioDetector().detect(
         analysis: _analysis([
           _reading('open_match_profile', 'fixture', ReadingSubjectSide.match),
-          _reading('prolific_attack', 'home', ReadingSubjectSide.home),
-          _reading('prolific_attack', 'away', ReadingSubjectSide.away),
-          _reading('fragile_defense', 'away', ReadingSubjectSide.away),
+          _reading('frequent_over_25', 'home', ReadingSubjectSide.home),
         ]),
         homeTeamId: 'home',
         awayTeamId: 'away',
@@ -179,59 +176,6 @@ void main() {
       expect(matches, hasLength(1));
       expect(matches.single.subjectSide, ReadingSubjectSide.match);
       expect(matches.single.supportingReadings, hasLength(4));
-    });
-
-    for (final scenario in <String, List<(String, String, ReadingSubjectSide)>>{
-      'corner_pressure': [
-        ('high_corner_creation', 'home', ReadingSubjectSide.home),
-        ('high_corners_conceded', 'away', ReadingSubjectSide.away),
-        ('high_shot_volume', 'home', ReadingSubjectSide.home),
-      ],
-    }.entries) {
-      test('${scenario.key} needs every reading on the correct side', () {
-        final readings = [
-          for (final item in scenario.value)
-            _reading(item.$1, item.$2, item.$3),
-        ];
-        List<FootballScenarioMatch> detect(List<FootballReading> input) =>
-            const FootballScenarioDetector()
-                .detect(
-                  analysis: _analysis(input),
-                  homeTeamId: 'home',
-                  awayTeamId: 'away',
-                )
-                .where((match) => match.scenarioId == scenario.key)
-                .toList();
-        expect(detect(readings), hasLength(1));
-        for (var index = 0; index < readings.length; index += 1) {
-          expect(detect([...readings]..removeAt(index)), isEmpty);
-        }
-      });
-    }
-
-    test('disciplinary tension requires both teams and the match profile', () {
-      final readings = [
-        _reading('high_card_rate', 'home', ReadingSubjectSide.home),
-        _reading('high_card_rate', 'away', ReadingSubjectSide.away),
-        _reading(
-          'high_total_cards_profile',
-          'fixture',
-          ReadingSubjectSide.match,
-        ),
-      ];
-      List<FootballScenarioMatch> detect(List<FootballReading> input) =>
-          const FootballScenarioDetector()
-              .detect(
-                analysis: _analysis(input),
-                homeTeamId: 'home',
-                awayTeamId: 'away',
-              )
-              .where((match) => match.scenarioId == 'disciplinary_tension')
-              .toList();
-      expect(detect(readings), hasLength(1));
-      for (var index = 0; index < readings.length; index += 1) {
-        expect(detect([...readings]..removeAt(index)), isEmpty);
-      }
     });
   });
 }

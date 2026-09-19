@@ -1,3 +1,5 @@
+import { assessStructuralGap } from "../_shared/structural_gap_policy.ts";
+
 type JsonObject = Record<string, unknown>;
 
 const corsHeaders = {
@@ -135,7 +137,9 @@ Deno.serve(async (request) => {
     const raw = objectValue(snapshotPayload.raw) ?? {};
     const fixtures = objectList(raw.fixtures);
     const leagueFixtures = objectList(raw.league_fixtures);
-    const recentForms = recentFormsByTeam(objectList(raw.recent_league_matches));
+    const recentForms = recentFormsByTeam(
+      objectList(raw.recent_league_matches),
+    );
     const teamStatistics = objectList(raw.team_statistics);
     const venueProfiles = venueProfilesByTeam(teamStatistics);
     const performanceProfiles = performanceProfilesByTeam(teamStatistics);
@@ -172,17 +176,12 @@ Deno.serve(async (request) => {
       performanceProfiles,
       performanceZones,
     });
-    const technicalProjectionAnnouncements = technicalProjectionAnnouncementRows({
-      snapshotId,
-      capturedAt,
-      fixtures,
-      performanceStatistics: objectList(raw.performance_statistics),
-    });
     const playerAnnouncements = playerAnnouncementRows({
       snapshotId,
       capturedAt,
       fixtures,
       playerStatistics: objectList(raw.player_statistics),
+      playerRecentContributions: objectList(raw.player_recent_contributions),
       injuries: objectList(raw.injuries),
     });
     const timingAnnouncements = timingAnnouncementRows({
@@ -208,31 +207,47 @@ Deno.serve(async (request) => {
       venueProfiles,
       standings,
     });
-    const scenarioTechnicalSupportAnnouncements = scenarioTechnicalSupportAnnouncementRows({
-      snapshotId,
-      capturedAt,
-      fixtures,
-      expectedGoals,
-      performanceStatistics: objectList(raw.performance_statistics),
-    });
+    const scenarioTechnicalSupportAnnouncements =
+      scenarioTechnicalSupportAnnouncementRows({
+        snapshotId,
+        capturedAt,
+        fixtures,
+        expectedGoals,
+        performanceStatistics: objectList(raw.performance_statistics),
+      });
     const baseAnnouncements = [
       ...goalAnnouncements,
       ...levelFormVenueAnnouncements,
       ...attackDefenseAnnouncements,
-      ...technicalProjectionAnnouncements,
       ...playerAnnouncements,
       ...timingAnnouncements,
       ...nuanceAnnouncements,
       ...scenarioSupportAnnouncements,
       ...scenarioTechnicalSupportAnnouncements,
     ];
+    // Tirs, corners et cartons remain available in the raw snapshot for their
+    // future dedicated experience. They are not Lector readings or scenarios.
+    const hiddenPreMatchStatisticalReadingIds = new Set([
+      "high_shot_volume",
+      "high_shots_on_target",
+      "high_shots_on_target_conceded",
+      "high_corner_creation",
+      "high_corners_conceded",
+      "high_card_rate",
+      "high_total_cards_profile",
+    ]);
+    const visibleBaseAnnouncements = baseAnnouncements.filter((announcement) =>
+      !hiddenPreMatchStatisticalReadingIds.has(
+        stringValue(announcement.reading_id) ?? "",
+      )
+    );
     const announcements = [
-      ...baseAnnouncements,
+      ...visibleBaseAnnouncements,
       ...scenarioAnnouncementRows({
         snapshotId,
         capturedAt,
         fixtures,
-        readings: baseAnnouncements,
+        readings: visibleBaseAnnouncements,
       }),
     ];
     const inserted = await insertAnnouncements({
@@ -447,7 +462,8 @@ function expectedGoalProfiles(rows: JsonObject[]): ExpectedGoalProfile[] {
     const goalsFor = numberValue(rolling.goalsFor5);
     if (
       leagueId === null || teamId === null || sampleSize === null ||
-      sampleSize <= 0 || xgFor === null || xgAgainst === null || goalsFor === null
+      sampleSize <= 0 || xgFor === null || xgAgainst === null ||
+      goalsFor === null
     ) continue;
     profiles.push({
       leagueId,
@@ -474,7 +490,10 @@ function standingsByTeam(rows: JsonObject[]): Map<string, StandingProfile> {
         const rank = numberValue(standing.rank);
         const points = numberValue(standing.points);
         const played = numberValue((objectValue(standing.all) ?? {}).played);
-        if (teamId === null || rank === null || points === null || played === null || played <= 0) {
+        if (
+          teamId === null || rank === null || points === null ||
+          played === null || played <= 0
+        ) {
           continue;
         }
         result.set(`${leagueId}:${teamId}`, { rank, points, played });
@@ -534,11 +553,13 @@ function performanceEdgeZones(
   profiles: Map<string, TeamPerformanceProfile>,
 ): Map<string, EdgeZones> {
   const values = [...profiles.values()];
-  const goalsFor = edgeZonesByLeague(values, (profile) =>
-    profile.goalsFor / profile.played
+  const goalsFor = edgeZonesByLeague(
+    values,
+    (profile) => profile.goalsFor / profile.played,
   );
-  const goalsAgainst = edgeZonesByLeague(values, (profile) =>
-    profile.goalsAgainst / profile.played
+  const goalsAgainst = edgeZonesByLeague(
+    values,
+    (profile) => profile.goalsAgainst / profile.played,
   );
   const result = new Map<string, EdgeZones>();
   for (const [leagueId, zones] of goalsFor) {
@@ -711,7 +732,9 @@ function attackDefenseAnnouncementRows({
   performanceProfiles: Map<string, TeamPerformanceProfile>;
   performanceZones: Map<string, EdgeZones>;
 }): JsonObject[] {
-  const goals = new Map(profiles.map((value) => [`${value.leagueId}:${value.teamId}`, value]));
+  const goals = new Map(
+    profiles.map((value) => [`${value.leagueId}:${value.teamId}`, value]),
+  );
   const rows: JsonObject[] = [];
   const seen = new Set<number>();
   for (const row of fixtures) {
@@ -721,7 +744,10 @@ function attackDefenseAnnouncementRows({
     const fixtureId = numberValue(fixture.id);
     const kickoffAt = dateValue(fixture.date);
     const leagueId = numberValue(league.id);
-    if (fixtureId === null || kickoffAt === null || kickoffAt <= capturedAt || leagueId === null || seen.has(fixtureId)) continue;
+    if (
+      fixtureId === null || kickoffAt === null || kickoffAt <= capturedAt ||
+      leagueId === null || seen.has(fixtureId)
+    ) continue;
     seen.add(fixtureId);
     const home = objectValue(teams.home) ?? {};
     const away = objectValue(teams.away) ?? {};
@@ -730,60 +756,148 @@ function attackDefenseAnnouncementRows({
     if (homeId === null || awayId === null) continue;
     const attackZones = performanceZones.get(`${leagueId}:goals_for`);
     const defenseZones = performanceZones.get(`${leagueId}:goals_against`);
-    for (const subject of [
-      { side: "home", team: home, teamId: homeId },
-      { side: "away", team: away, teamId: awayId },
-    ]) {
-      const performance = performanceProfiles.get(`${leagueId}:${subject.teamId}`);
+    for (
+      const subject of [
+        { side: "home", team: home, teamId: homeId },
+        { side: "away", team: away, teamId: awayId },
+      ]
+    ) {
+      const performance = performanceProfiles.get(
+        `${leagueId}:${subject.teamId}`,
+      );
       if (performance === undefined) continue;
       const subjectTeamId = `api-team-${subject.teamId}`;
       const name = teamName(subject.team);
-      const create = (id: string, label: string, outcomeRule: string, evidence: string) => rows.push({
-        announcement_key: `${fixtureId}:${id}:${subject.side}:${subjectTeamId}:1`,
-        fixture_id: fixtureId, source_snapshot_id: snapshotId, league_id: leagueId,
-        kickoff_at: kickoffAt.toISOString(), announced_at: capturedAt.toISOString(),
-        engine_version: "server_attack_defense_v1", reading_id: id,
-        reading_label: label, subject_side: subject.side, subject_team_id: subjectTeamId,
-        player_id: null,
-        evidence: [{ label: evidence, source_path: "teams/statistics.goals", value: {
-          goals_for: performance.goalsFor / performance.played,
-          goals_against: performance.goalsAgainst / performance.played,
-        } }],
-        sample_size: performance.played, outcome_rule: outcomeRule, rule_version: 1,
-      });
+      const create = (
+        id: string,
+        label: string,
+        outcomeRule: string,
+        evidence: string,
+      ) =>
+        rows.push({
+          announcement_key:
+            `${fixtureId}:${id}:${subject.side}:${subjectTeamId}:1`,
+          fixture_id: fixtureId,
+          source_snapshot_id: snapshotId,
+          league_id: leagueId,
+          kickoff_at: kickoffAt.toISOString(),
+          announced_at: capturedAt.toISOString(),
+          engine_version: "server_attack_defense_v1",
+          reading_id: id,
+          reading_label: label,
+          subject_side: subject.side,
+          subject_team_id: subjectTeamId,
+          player_id: null,
+          evidence: [{
+            label: evidence,
+            source_path: "teams/statistics.goals",
+            value: {
+              goals_for: performance.goalsFor / performance.played,
+              goals_against: performance.goalsAgainst / performance.played,
+            },
+          }],
+          sample_size: performance.played,
+          outcome_rule: outcomeRule,
+          rule_version: 1,
+        });
       if (attackZones?.high.has(subject.teamId)) {
-        create("prolific_attack", "Attaque prolifique", "team_scores", `${name} marque ${goalRate(performance.goalsFor, performance.played)} but par match, dans une zone haute du championnat.`);
+        create(
+          "prolific_attack",
+          "Attaque prolifique",
+          "team_scores",
+          `${name} marque ${
+            goalRate(performance.goalsFor, performance.played)
+          } but par match, dans une zone haute du championnat.`,
+        );
       }
       if (attackZones?.low.has(subject.teamId)) {
-        create("scoring_difficulty", "Production offensive faible", "team_no_score", `${name} marque ${goalRate(performance.goalsFor, performance.played)} but par match, dans une zone basse du championnat.`);
+        create(
+          "scoring_difficulty",
+          "Production offensive faible",
+          "team_no_score",
+          `${name} marque ${
+            goalRate(performance.goalsFor, performance.played)
+          } but par match, dans une zone basse du championnat.`,
+        );
       }
       if (defenseZones?.low.has(subject.teamId)) {
-        create("solid_defense", "Défense solide", "team_clean_sheet", `${name} encaisse ${goalRate(performance.goalsAgainst, performance.played)} but par match, dans une zone basse du championnat.`);
+        create(
+          "solid_defense",
+          "Défense solide",
+          "team_clean_sheet",
+          `${name} encaisse ${
+            goalRate(performance.goalsAgainst, performance.played)
+          } but par match, dans une zone basse du championnat.`,
+        );
       }
       if (defenseZones?.high.has(subject.teamId)) {
-        create("fragile_defense", "Défense fragile", "team_concedes", `${name} encaisse ${goalRate(performance.goalsAgainst, performance.played)} but par match, dans une zone haute du championnat.`);
+        create(
+          "fragile_defense",
+          "Défense fragile",
+          "team_concedes",
+          `${name} encaisse ${
+            goalRate(performance.goalsAgainst, performance.played)
+          } but par match, dans une zone haute du championnat.`,
+        );
       }
     }
     const homeGoal = goals.get(`${leagueId}:${homeId}`);
     const awayGoal = goals.get(`${leagueId}:${awayId}`);
     const totalZones = totalGoalZones.get(leagueId);
-    if (homeGoal === undefined || awayGoal === undefined || totalZones === undefined) continue;
-    const addProfile = (id: string, label: string, rule: string, evidence: string) => rows.push({
-      announcement_key: `${fixtureId}:${id}:match:fixture:1`,
-      fixture_id: fixtureId, source_snapshot_id: snapshotId, league_id: leagueId,
-      kickoff_at: kickoffAt.toISOString(), announced_at: capturedAt.toISOString(),
-      engine_version: "server_attack_defense_v1", reading_id: id, reading_label: label,
-      subject_side: "match", subject_team_id: `api-fixture-${fixtureId}`, player_id: null,
-      evidence: [{ label: evidence, source_path: "league_fixtures.score.fulltime", value: {
-        home: homeGoal.totalGoals / homeGoal.played, away: awayGoal.totalGoals / awayGoal.played,
-      } }],
-      sample_size: Math.min(homeGoal.played, awayGoal.played), outcome_rule: rule, rule_version: 1,
-    });
+    if (
+      homeGoal === undefined || awayGoal === undefined ||
+      totalZones === undefined
+    ) continue;
+    const addProfile = (
+      id: string,
+      label: string,
+      rule: string,
+      evidence: string,
+    ) =>
+      rows.push({
+        announcement_key: `${fixtureId}:${id}:match:fixture:1`,
+        fixture_id: fixtureId,
+        source_snapshot_id: snapshotId,
+        league_id: leagueId,
+        kickoff_at: kickoffAt.toISOString(),
+        announced_at: capturedAt.toISOString(),
+        engine_version: "server_attack_defense_v1",
+        reading_id: id,
+        reading_label: label,
+        subject_side: "match",
+        subject_team_id: `api-fixture-${fixtureId}`,
+        player_id: null,
+        evidence: [{
+          label: evidence,
+          source_path: "league_fixtures.score.fulltime",
+          value: {
+            home: homeGoal.totalGoals / homeGoal.played,
+            away: awayGoal.totalGoals / awayGoal.played,
+          },
+        }],
+        sample_size: Math.min(homeGoal.played, awayGoal.played),
+        outcome_rule: rule,
+        rule_version: 1,
+      });
     if (totalZones.high.has(homeId) && totalZones.high.has(awayId)) {
-      addProfile("open_match_profile", "Profil de match ouvert", "over_25", `Les matchs de ${teamName(home)} et ${teamName(away)} présentent un total de buts élevé dans le championnat.`);
+      addProfile(
+        "open_match_profile",
+        "Profil de match ouvert",
+        "over_25",
+        `Les matchs de ${teamName(home)} et ${
+          teamName(away)
+        } présentent un total de buts élevé dans le championnat.`,
+      );
     }
     if (totalZones.low.has(homeId) && totalZones.low.has(awayId)) {
-      addProfile("closed_match_profile", "Profil de match fermé", "under_25", `Les matchs de ${teamName(home)} et ${teamName(away)} présentent un total de buts faible dans le championnat.`);
+      addProfile(
+        "closed_match_profile",
+        "Profil de match fermé",
+        "under_25",
+        `Les matchs de ${teamName(home)} et ${
+          teamName(away)
+        } présentent un total de buts faible dans le championnat.`,
+      );
     }
   }
   return rows;
@@ -793,40 +907,144 @@ function goalRate(goals: number, played: number): string {
   return played > 0 ? (goals / played).toFixed(2) : "0.00";
 }
 
-function timingAnnouncementRows({ snapshotId, capturedAt, fixtures, teamStatistics }: {
-  snapshotId: string; capturedAt: Date; fixtures: JsonObject[]; teamStatistics: JsonObject[];
-}): JsonObject[] {
-  type Rates = { leagueId: number; teamId: number; played: number; firstFor: number; firstAgainst: number; secondFor: number; secondAgainst: number };
+function timingAnnouncementRows(
+  { snapshotId, capturedAt, fixtures, teamStatistics }: {
+    snapshotId: string;
+    capturedAt: Date;
+    fixtures: JsonObject[];
+    teamStatistics: JsonObject[];
+  },
+): JsonObject[] {
+  type Rates = {
+    leagueId: number;
+    teamId: number;
+    played: number;
+    firstFor: number;
+    firstAgainst: number;
+    secondFor: number;
+    secondAgainst: number;
+  };
   const profiles: Rates[] = [];
-  const count = (value: JsonObject, buckets: string[]) => buckets.reduce((sum, bucket) => sum + (numberValue(value[bucket]) ?? 0), 0);
+  const count = (value: JsonObject, buckets: string[]) =>
+    buckets.reduce((sum, bucket) => sum + (numberValue(value[bucket]) ?? 0), 0);
   for (const row of teamStatistics) {
-    const leagueId = numberValue((objectValue(row.league) ?? {}).id); const teamId = numberValue((objectValue(row.team) ?? {}).id);
-    const played = numberValue((objectValue(objectValue(row.fixtures)?.played) ?? {}).total);
-    const goals = objectValue(row.goals) ?? {}; const forMinute = objectValue(objectValue(goals.for)?.minute) ?? {}; const againstMinute = objectValue(objectValue(goals.against)?.minute) ?? {};
-    if (leagueId === null || teamId === null || played === null || played <= 0) continue;
-    profiles.push({ leagueId, teamId, played, firstFor: count(forMinute, ["0-15", "16-30", "31-45"]), firstAgainst: count(againstMinute, ["0-15", "16-30", "31-45"]), secondFor: count(forMinute, ["46-60", "61-75", "76-90"]), secondAgainst: count(againstMinute, ["46-60", "61-75", "76-90"]) });
+    const leagueId = numberValue((objectValue(row.league) ?? {}).id);
+    const teamId = numberValue((objectValue(row.team) ?? {}).id);
+    const played = numberValue(
+      (objectValue(objectValue(row.fixtures)?.played) ?? {}).total,
+    );
+    const goals = objectValue(row.goals) ?? {};
+    const forMinute = objectValue(objectValue(goals.for)?.minute) ?? {};
+    const againstMinute = objectValue(objectValue(goals.against)?.minute) ?? {};
+    if (
+      leagueId === null || teamId === null || played === null || played <= 0
+    ) continue;
+    profiles.push({
+      leagueId,
+      teamId,
+      played,
+      firstFor: count(forMinute, ["0-15", "16-30", "31-45"]),
+      firstAgainst: count(againstMinute, ["0-15", "16-30", "31-45"]),
+      secondFor: count(forMinute, ["46-60", "61-75", "76-90"]),
+      secondAgainst: count(againstMinute, ["46-60", "61-75", "76-90"]),
+    });
   }
-  const byKey = new Map(profiles.map((value) => [`${value.leagueId}:${value.teamId}`, value]));
-  const average = (leagueId: number, metric: keyof Omit<Rates, "leagueId" | "teamId" | "played">) => {
-    const values = profiles.filter((value) => value.leagueId === leagueId).map((value) => value[metric] / value.played);
-    return values.length === 0 ? null : values.reduce((sum, value) => sum + value, 0) / values.length;
+  const byKey = new Map(
+    profiles.map((value) => [`${value.leagueId}:${value.teamId}`, value]),
+  );
+  const average = (
+    leagueId: number,
+    metric: keyof Omit<Rates, "leagueId" | "teamId" | "played">,
+  ) => {
+    const values = profiles.filter((value) => value.leagueId === leagueId).map((
+      value,
+    ) => value[metric] / value.played);
+    return values.length === 0
+      ? null
+      : values.reduce((sum, value) => sum + value, 0) / values.length;
   };
   const rows: JsonObject[] = [];
   for (const row of fixtures) {
-    const fixture = objectValue(row.fixture) ?? {}; const league = objectValue(row.league) ?? {}; const teams = objectValue(row.teams) ?? {};
-    const fixtureId = numberValue(fixture.id); const leagueId = numberValue(league.id); const kickoffAt = dateValue(fixture.date);
-    if (fixtureId === null || leagueId === null || kickoffAt === null || kickoffAt <= capturedAt) continue;
-    for (const subject of [{ side: "home", team: objectValue(teams.home) ?? {} }, { side: "away", team: objectValue(teams.away) ?? {} }]) {
-      const teamId = numberValue(subject.team.id); const profile = teamId === null ? undefined : byKey.get(`${leagueId}:${teamId}`); if (profile === undefined) continue;
-      const add = (metric: keyof Omit<Rates, "leagueId" | "teamId" | "played">, id: string, label: string, rule: string) => {
-        const rate = profile[metric] / profile.played; const leagueAverage = average(leagueId, metric);
+    const fixture = objectValue(row.fixture) ?? {};
+    const league = objectValue(row.league) ?? {};
+    const teams = objectValue(row.teams) ?? {};
+    const fixtureId = numberValue(fixture.id);
+    const leagueId = numberValue(league.id);
+    const kickoffAt = dateValue(fixture.date);
+    if (
+      fixtureId === null || leagueId === null || kickoffAt === null ||
+      kickoffAt <= capturedAt
+    ) continue;
+    for (
+      const subject of [{ side: "home", team: objectValue(teams.home) ?? {} }, {
+        side: "away",
+        team: objectValue(teams.away) ?? {},
+      }]
+    ) {
+      const teamId = numberValue(subject.team.id);
+      const profile = teamId === null
+        ? undefined
+        : byKey.get(`${leagueId}:${teamId}`);
+      if (profile === undefined) continue;
+      const add = (
+        metric: keyof Omit<Rates, "leagueId" | "teamId" | "played">,
+        id: string,
+        label: string,
+        rule: string,
+      ) => {
+        const rate = profile[metric] / profile.played;
+        const leagueAverage = average(leagueId, metric);
         if (leagueAverage === null || rate <= leagueAverage) return;
-        rows.push({ announcement_key: `${fixtureId}:${id}:${subject.side}:api-team-${teamId}:1`, fixture_id: fixtureId, source_snapshot_id: snapshotId, league_id: leagueId, kickoff_at: kickoffAt.toISOString(), announced_at: capturedAt.toISOString(), engine_version: "server_period_profile_v1", reading_id: id, reading_label: label, subject_side: subject.side, subject_team_id: `api-team-${teamId}`, player_id: null, evidence: [{ label: `${teamName(subject.team)} présente ${rate.toFixed(2)} but par match sur cette période, au-dessus de la moyenne de son championnat.`, source_path: "teams/statistics.goals.minute", value: rate }], sample_size: profile.played, outcome_rule: rule, rule_version: 1 });
+        rows.push({
+          announcement_key:
+            `${fixtureId}:${id}:${subject.side}:api-team-${teamId}:1`,
+          fixture_id: fixtureId,
+          source_snapshot_id: snapshotId,
+          league_id: leagueId,
+          kickoff_at: kickoffAt.toISOString(),
+          announced_at: capturedAt.toISOString(),
+          engine_version: "server_period_profile_v1",
+          reading_id: id,
+          reading_label: label,
+          subject_side: subject.side,
+          subject_team_id: `api-team-${teamId}`,
+          player_id: null,
+          evidence: [{
+            label: `${teamName(subject.team)} présente ${
+              rate.toFixed(2)
+            } but par match sur cette période, au-dessus de la moyenne de son championnat.`,
+            source_path: "teams/statistics.goals.minute",
+            value: rate,
+          }],
+          sample_size: profile.played,
+          outcome_rule: rule,
+          rule_version: 1,
+        });
       };
-      add("firstFor", "frequent_first_half_scoring", "Marque souvent en première mi-temps", "first_half_scores");
-      add("firstAgainst", "frequent_first_half_conceding", "Encaisse souvent en première mi-temps", "first_half_concedes");
-      add("secondFor", "frequent_second_half_scoring", "Marque souvent en seconde mi-temps", "second_half_scores");
-      add("secondAgainst", "frequent_second_half_conceding", "Encaisse souvent en seconde mi-temps", "second_half_concedes");
+      add(
+        "firstFor",
+        "frequent_first_half_scoring",
+        "Marque souvent en première mi-temps",
+        "first_half_scores",
+      );
+      add(
+        "firstAgainst",
+        "frequent_first_half_conceding",
+        "Encaisse souvent en première mi-temps",
+        "first_half_concedes",
+      );
+      add(
+        "secondFor",
+        "frequent_second_half_scoring",
+        "Marque souvent en seconde mi-temps",
+        "second_half_scores",
+      );
+      add(
+        "secondAgainst",
+        "frequent_second_half_conceding",
+        "Encaisse souvent en seconde mi-temps",
+        "second_half_concedes",
+      );
     }
   }
   return rows;
@@ -837,16 +1055,63 @@ function playerAnnouncementRows({
   capturedAt,
   fixtures,
   playerStatistics,
+  playerRecentContributions,
   injuries,
 }: {
   snapshotId: string;
   capturedAt: Date;
   fixtures: JsonObject[];
   playerStatistics: JsonObject[];
+  playerRecentContributions: JsonObject[];
   injuries: JsonObject[];
 }): JsonObject[] {
-  type PlayerProfile = { playerId: number; name: string; teamId: number; leagueId: number; minutes: number; appearances: number; lineups: number | null; contributions: number; rate: number };
-  const candidates = new Map<string, PlayerProfile[]>();
+  type RecentContribution = {
+    matchesConsidered: number;
+    eventsAvailableFor: number;
+    matchesWithContribution: number;
+    goals: number;
+    assists: number;
+  };
+  type PlayerProfile = {
+    playerId: number;
+    name: string;
+    photoUrl: string | null;
+    teamId: number;
+    leagueId: number;
+    minutes: number;
+    appearances: number;
+    lineups: number | null;
+    goals: number;
+    assists: number;
+    contributions: number;
+    adjustedRate: number;
+    recent: RecentContribution;
+    score: number;
+  };
+
+  // A recurring substitute remains eligible. A one-off low-minute cameo does
+  // not pass because the signal requires contributions in two recent fixtures.
+  const recentByPlayer = new Map<string, RecentContribution>();
+  for (const row of playerRecentContributions) {
+    const leagueId = numberValue((objectValue(row.league) ?? {}).id);
+    const teamId = numberValue((objectValue(row.team) ?? {}).id);
+    const matchesConsidered = numberValue(row.matches_considered) ?? 0;
+    const eventsAvailableFor = numberValue(row.events_available_for) ?? 0;
+    if (leagueId === null || teamId === null) continue;
+    for (const value of objectList(row.players)) {
+      const playerId = numberValue((objectValue(value.player) ?? {}).id);
+      if (playerId === null) continue;
+      recentByPlayer.set([leagueId, teamId, playerId].join(":"), {
+        matchesConsidered,
+        eventsAvailableFor,
+        matchesWithContribution: numberValue(value.matches_with_contribution) ?? 0,
+        goals: numberValue(value.goals) ?? 0,
+        assists: numberValue(value.assists) ?? 0,
+      });
+    }
+  }
+
+  const profilesByTeam = new Map<string, PlayerProfile[]>();
   for (const row of playerStatistics) {
     const player = objectValue(row.player) ?? {};
     const playerId = numberValue(player.id);
@@ -858,52 +1123,160 @@ function playerAnnouncementRows({
       const games = objectValue(statValue.games) ?? {};
       const goals = objectValue(statValue.goals) ?? {};
       const minutes = numberValue(games.minutes) ?? 0;
-      const appearances = numberValue(games.appearences) ?? numberValue(games.appearances) ?? 0;
+      const appearances = numberValue(games.appearences) ??
+        numberValue(games.appearances) ?? 0;
       const lineups = numberValue(games.lineups);
-      const contributions = (numberValue(goals.total) ?? 0) + (numberValue(goals.assists) ?? 0);
-      if (teamId === null || leagueId === null || minutes < 360 || contributions <= 0) continue;
-      const value = { playerId, name, teamId, leagueId, minutes, appearances, lineups, contributions, rate: contributions / minutes * 90 };
-      const key = `${leagueId}:${teamId}`;
-      const values = candidates.get(key) ?? [];
+      const scored = numberValue(goals.total) ?? 0;
+      const assisted = numberValue(goals.assists) ?? 0;
+      const contributions = scored + assisted;
+      if (teamId === null || leagueId === null || contributions <= 0) continue;
+
+      const recent = recentByPlayer.get([leagueId, teamId, playerId].join(":"));
+      if (
+        recent === undefined || recent.matchesConsidered < 2 ||
+        recent.eventsAvailableFor < recent.matchesConsidered ||
+        recent.matchesWithContribution < 2
+      ) continue;
+
+      // Smooth a small sample without an arbitrary minimum of minutes.
+      const adjustedRate = contributions * 90 / (minutes + 270);
+      const recentFrequency = recent.matchesWithContribution /
+        recent.matchesConsidered;
+      const value: PlayerProfile = {
+        playerId,
+        name,
+        photoUrl: stringValue(player.photo),
+        teamId,
+        leagueId,
+        minutes,
+        appearances,
+        lineups,
+        goals: scored,
+        assists: assisted,
+        contributions,
+        adjustedRate,
+        recent,
+        score: adjustedRate + recentFrequency * 0.5,
+      };
+      const key = [leagueId, teamId].join(":");
+      const values = profilesByTeam.get(key) ?? [];
       values.push(value);
-      candidates.set(key, values);
+      profilesByTeam.set(key, values);
     }
   }
+
   const leaderByTeam = new Map<string, PlayerProfile>();
-  for (const [key, values] of candidates) {
-    values.sort((left, right) => right.rate - left.rate);
-    if (values.length > 1 && values[0].rate > values[1].rate) leaderByTeam.set(key, values[0]);
+  for (const [key, values] of profilesByTeam) {
+    values.sort((left, right) => right.score - left.score);
+    const leader = values[0];
+    const runnerUp = values[1];
+    const dominant = runnerUp === undefined || leader.score >= runnerUp.score * 1.15;
+    const recurringEveryMatch = leader.recent.matchesWithContribution ===
+      leader.recent.matchesConsidered;
+    if (dominant || recurringEveryMatch) leaderByTeam.set(key, leader);
   }
+
   const injuryKeys = new Set<string>();
   for (const injury of injuries) {
     const fixtureId = numberValue((objectValue(injury.fixture) ?? {}).id);
     const teamId = numberValue((objectValue(injury.team) ?? {}).id);
     const playerId = numberValue((objectValue(injury.player) ?? {}).id);
-    if (fixtureId !== null && teamId !== null && playerId !== null) injuryKeys.add(`${fixtureId}:${teamId}:${playerId}`);
+    if (fixtureId !== null && teamId !== null && playerId !== null) {
+      injuryKeys.add([fixtureId, teamId, playerId].join(":"));
+    }
   }
+
   const rows: JsonObject[] = [];
   for (const row of fixtures) {
     const fixture = objectValue(row.fixture) ?? {};
     const league = objectValue(row.league) ?? {};
     const teams = objectValue(row.teams) ?? {};
-    const fixtureId = numberValue(fixture.id); const leagueId = numberValue(league.id); const kickoffAt = dateValue(fixture.date);
-    if (fixtureId === null || leagueId === null || kickoffAt === null || kickoffAt <= capturedAt) continue;
-    const withinAbsenceWindow = kickoffAt.getTime() - capturedAt.getTime() <= 24 * 60 * 60 * 1000;
-    for (const subject of [{ side: "home", team: objectValue(teams.home) ?? {} }, { side: "away", team: objectValue(teams.away) ?? {} }]) {
-      const teamId = numberValue(subject.team.id); if (teamId === null) continue;
-      const leader = leaderByTeam.get(`${leagueId}:${teamId}`); if (leader === undefined) continue;
-      const subjectTeamId = `api-team-${teamId}`;
+    const fixtureId = numberValue(fixture.id);
+    const leagueId = numberValue(league.id);
+    const kickoffAt = dateValue(fixture.date);
+    if (fixtureId === null || leagueId === null || kickoffAt === null ||
+      kickoffAt <= capturedAt) continue;
+    const withinAbsenceWindow = kickoffAt.getTime() - capturedAt.getTime() <=
+      24 * 60 * 60 * 1000;
+    for (const subject of [{side: "home", team: objectValue(teams.home) ?? {}}, {
+      side: "away", team: objectValue(teams.away) ?? {},
+    }]) {
+      const teamId = numberValue(subject.team.id);
+      if (teamId === null) continue;
+      const leader = leaderByTeam.get([leagueId, teamId].join(":"));
+      if (leader === undefined) continue;
+      const subjectTeamId = "api-team-" + teamId;
+      const unavailable = withinAbsenceWindow && injuryKeys.has(
+        [fixtureId, teamId, leader.playerId].join(":"),
+      );
+      const profile = leader.goals >= leader.assists * 1.5
+        ? "buteur"
+        : leader.assists >= leader.goals * 1.5 ? "passeur" : "décisif";
+      // This is a display qualifier, never an eligibility gate. A recurring
+      // substitute remains visible precisely because no minimum minutes is
+      // imposed by the decisive-player model.
+      const isSuperSub = leader.lineups !== null && leader.appearances > 0 &&
+        leader.lineups * 2 < leader.appearances;
+      const profileLabel = isSuperSub ? profile + " · super-sub" : profile;
+      const recentLabel = leader.recent.matchesWithContribution + "/" +
+        leader.recent.matchesConsidered + " derniers matchs";
+      const sharedValue = {
+        player_name: leader.name,
+        player_photo_url: leader.photoUrl,
+        profile,
+        profile_label: profileLabel,
+        is_super_sub: isSuperSub,
+        season: {
+          goals: leader.goals, assists: leader.assists,
+          contributions: leader.contributions, minutes: leader.minutes,
+          appearances: leader.appearances, lineups: leader.lineups,
+          adjusted_contributions_per_90: Number(leader.adjustedRate.toFixed(2)),
+        },
+        recent: {
+          matches_considered: leader.recent.matchesConsidered,
+          matches_with_contribution: leader.recent.matchesWithContribution,
+          goals: leader.recent.goals, assists: leader.recent.assists,
+          contributions: leader.recent.goals + leader.recent.assists,
+        },
+      };
+      if (unavailable) {
+        rows.push({
+          announcement_key: [fixtureId, "key_player_unavailable", subject.side,
+            subjectTeamId, leader.playerId].join(":"),
+          fixture_id: fixtureId, source_snapshot_id: snapshotId, league_id: leagueId,
+          kickoff_at: kickoffAt.toISOString(), announced_at: capturedAt.toISOString(),
+          engine_version: "server_player_profile_v2",
+          reading_id: "key_player_unavailable", reading_label: "Joueur important absent",
+          subject_side: subject.side, subject_team_id: subjectTeamId,
+          player_id: leader.playerId, player_name: leader.name,
+          evidence: [{
+            label: leader.name + " est signalé absent dans les 24 heures précédant le match.",
+            source_path: "injuries + players.statistics + recent fixture events",
+            value: sharedValue,
+          }],
+          sample_size: leader.recent.matchesConsidered, outcome_rule: null,
+          rule_version: 2,
+        });
+        continue;
+      }
       rows.push({
-        announcement_key: `${fixtureId}:standout_decisive_player:${subject.side}:${subjectTeamId}:${leader.playerId}`,
-        fixture_id: fixtureId, source_snapshot_id: snapshotId, league_id: leagueId, kickoff_at: kickoffAt.toISOString(), announced_at: capturedAt.toISOString(),
-        engine_version: "server_player_profile_v1", reading_id: "standout_decisive_player", reading_label: "Joueur décisif identifié", subject_side: subject.side, subject_team_id: subjectTeamId, player_id: leader.playerId,
-        evidence: [{ label: `${leader.name} compte ${leader.contributions} action(s) décisive(s) en ${leader.minutes} min (${leader.rate.toFixed(2)} par 90 min).`, source_path: "players.statistics", value: { minutes: leader.minutes, lineups: leader.lineups, contributions_per_90: leader.rate } }], sample_size: leader.appearances, outcome_rule: "player_decisive", rule_version: 1,
-      });
-      if (withinAbsenceWindow && injuryKeys.has(`${fixtureId}:${teamId}:${leader.playerId}`)) rows.push({
-        announcement_key: `${fixtureId}:key_player_unavailable:${subject.side}:${subjectTeamId}:${leader.playerId}`,
-        fixture_id: fixtureId, source_snapshot_id: snapshotId, league_id: leagueId, kickoff_at: kickoffAt.toISOString(), announced_at: capturedAt.toISOString(),
-        engine_version: "server_player_profile_v1", reading_id: "key_player_unavailable", reading_label: "Joueur important absent", subject_side: subject.side, subject_team_id: subjectTeamId, player_id: leader.playerId,
-        evidence: [{ label: `${leader.name} est signalé absent dans les 24 heures précédant le match.`, source_path: "injuries", value: { minutes: leader.minutes, contributions_per_90: leader.rate } }], sample_size: leader.appearances, outcome_rule: null, rule_version: 1,
+        announcement_key: [fixtureId, "standout_decisive_player", subject.side,
+          subjectTeamId, leader.playerId].join(":"),
+        fixture_id: fixtureId, source_snapshot_id: snapshotId, league_id: leagueId,
+        kickoff_at: kickoffAt.toISOString(), announced_at: capturedAt.toISOString(),
+        engine_version: "server_player_profile_v2",
+        reading_id: "standout_decisive_player", reading_label: "Joueur décisif à surveiller",
+        subject_side: subject.side, subject_team_id: subjectTeamId,
+        player_id: leader.playerId, player_name: leader.name,
+        evidence: [{
+          label: leader.name + ", profil " + profileLabel + ", a été décisif lors de " +
+            recentLabel + " (" + leader.recent.goals + " but(s), " +
+            leader.recent.assists + " passe(s)).",
+          source_path: "players.statistics + recent fixture events",
+          value: sharedValue,
+        }],
+        sample_size: leader.recent.matchesConsidered,
+        outcome_rule: "player_decisive", rule_version: 2,
       });
     }
   }
@@ -932,31 +1305,58 @@ function nuanceAnnouncementRows({
     const fixtureId = numberValue(fixture.id);
     const leagueId = numberValue(league.id);
     const kickoffAt = dateValue(fixture.date);
-    if (fixtureId === null || leagueId === null || kickoffAt === null || kickoffAt <= capturedAt) continue;
-    for (const subject of [
-      { side: "home", team: objectValue(teams.home) ?? {} },
-      { side: "away", team: objectValue(teams.away) ?? {} },
-    ]) {
+    if (
+      fixtureId === null || leagueId === null || kickoffAt === null ||
+      kickoffAt <= capturedAt
+    ) continue;
+    for (
+      const subject of [
+        { side: "home", team: objectValue(teams.home) ?? {} },
+        { side: "away", team: objectValue(teams.away) ?? {} },
+      ]
+    ) {
       const teamId = numberValue(subject.team.id);
       if (teamId === null) continue;
       const form = recentForms.get(`${leagueId}:${teamId}`);
       const points = form?.results.map(pointsForResult) ?? [];
-      const positive = points.length === 3 && !points.includes(0) && points.reduce((sum, value) => sum + value, 0) >= 5;
+      const positive = points.length === 3 && !points.includes(0) &&
+        points.reduce((sum, value) => sum + value, 0) >= 5;
       const zone = zones.get(leagueId)?.high;
-      const profile = expectedGoals.find((value) => value.leagueId === leagueId && value.teamId === teamId);
+      const profile = expectedGoals.find((value) =>
+        value.leagueId === leagueId && value.teamId === teamId
+      );
       if (!positive || !zone?.has(teamId) || profile === undefined) continue;
       const subjectTeamId = `api-team-${teamId}`;
       rows.push({
-        announcement_key: `${fixtureId}:misleading_result:${subject.side}:${subjectTeamId}:1`,
-        fixture_id: fixtureId, source_snapshot_id: snapshotId, league_id: leagueId,
-        kickoff_at: kickoffAt.toISOString(), announced_at: capturedAt.toISOString(),
-        engine_version: "server_xg_nuance_v1", announcement_kind: "nuance",
-        reading_id: "misleading_result", reading_label: "Résultat à nuancer",
-        subject_side: subject.side, subject_team_id: subjectTeamId, player_id: null,
-        parent_announcement_key: `${fixtureId}:positive_streak:${subject.side}:${subjectTeamId}:1`,
+        announcement_key:
+          `${fixtureId}:misleading_result:${subject.side}:${subjectTeamId}:1`,
+        fixture_id: fixtureId,
+        source_snapshot_id: snapshotId,
+        league_id: leagueId,
+        kickoff_at: kickoffAt.toISOString(),
+        announced_at: capturedAt.toISOString(),
+        engine_version: "server_xg_nuance_v1",
+        announcement_kind: "nuance",
+        reading_id: "misleading_result",
+        reading_label: "Résultat à nuancer",
+        subject_side: subject.side,
+        subject_team_id: subjectTeamId,
+        player_id: null,
+        parent_announcement_key:
+          `${fixtureId}:positive_streak:${subject.side}:${subjectTeamId}:1`,
         required_reading_ids: ["positive_streak", "offensive_overperformance"],
-        evidence: [{ label: `${teamName(subject.team)} reste invaincu, mais ses buts dépassent ses xG récents de ${profile.goalsMinusXg.toFixed(2)} par match.`, source_path: "expected_goals.rolling", value: profile.goalsMinusXg }],
-        sample_size: profile.sampleSize, outcome_rule: null, rule_version: 1,
+        evidence: [{
+          label: `${
+            teamName(subject.team)
+          } reste invaincu, mais ses buts dépassent ses xG récents de ${
+            profile.goalsMinusXg.toFixed(2)
+          } par match.`,
+          source_path: "expected_goals.rolling",
+          value: profile.goalsMinusXg,
+        }],
+        sample_size: profile.sampleSize,
+        outcome_rule: null,
+        rule_version: 1,
       });
     }
   }
@@ -978,7 +1378,9 @@ function technicalProjectionAnnouncementRows({
   for (const row of performanceStatistics) {
     const leagueId = numberValue((objectValue(row.league) ?? {}).id);
     const teamId = numberValue((objectValue(row.team) ?? {}).id);
-    if (leagueId !== null && teamId !== null) valuesByTeam.set(`${leagueId}:${teamId}`, row);
+    if (leagueId !== null && teamId !== null) {
+      valuesByTeam.set(`${leagueId}:${teamId}`, row);
+    }
   }
   const rows: JsonObject[] = [];
   for (const row of fixtures) {
@@ -992,7 +1394,10 @@ function technicalProjectionAnnouncementRows({
     const away = objectValue(teams.away) ?? {};
     const homeId = numberValue(home.id);
     const awayId = numberValue(away.id);
-    if (fixtureId === null || leagueId === null || kickoffAt === null || kickoffAt <= capturedAt || homeId === null || awayId === null) continue;
+    if (
+      fixtureId === null || leagueId === null || kickoffAt === null ||
+      kickoffAt <= capturedAt || homeId === null || awayId === null
+    ) continue;
     const homeStats = valuesByTeam.get(`${leagueId}:${homeId}`);
     const awayStats = valuesByTeam.get(`${leagueId}:${awayId}`);
     if (homeStats === undefined || awayStats === undefined) continue;
@@ -1000,27 +1405,75 @@ function technicalProjectionAnnouncementRows({
     const awayValues = objectValue(awayStats.averages) ?? {};
     const homeSample = numberValue(homeStats.sampleSize) ?? 0;
     const awaySample = numberValue(awayStats.sampleSize) ?? 0;
-    const add = (id: string, label: string, ownKey: string, concededKey: string, sourcePath: string) => {
+    const add = (
+      id: string,
+      label: string,
+      ownKey: string,
+      concededKey: string,
+      sourcePath: string,
+    ) => {
       const homeOwn = numberValue(homeValues[ownKey]);
       const homeConceded = numberValue(homeValues[concededKey]);
       const awayOwn = numberValue(awayValues[ownKey]);
       const awayConceded = numberValue(awayValues[concededKey]);
-      if (homeOwn === null || homeConceded === null || awayOwn === null || awayConceded === null) return;
+      if (
+        homeOwn === null || homeConceded === null || awayOwn === null ||
+        awayConceded === null
+      ) return;
       const homeProjection = (homeOwn + awayConceded) / 2;
       const awayProjection = (awayOwn + homeConceded) / 2;
       rows.push({
-        announcement_key: `${fixtureId}:${id}:match:fixture:1`, fixture_id: fixtureId,
-        source_snapshot_id: snapshotId, league_id: leagueId,
-        kickoff_at: kickoffAt.toISOString(), announced_at: capturedAt.toISOString(),
-        engine_version: "server_technical_projection_v1", reading_id: id, reading_label: label,
-        subject_side: "match", subject_team_id: `api-fixture-${fixtureId}`, player_id: null,
-        evidence: [{ label: `${label} : ${teamName(home)} ${homeProjection.toFixed(1)}, ${teamName(away)} ${awayProjection.toFixed(1)}, soit ${(homeProjection + awayProjection).toFixed(1)} au total.`, source_path: sourcePath, value: { home: homeProjection, away: awayProjection, total: homeProjection + awayProjection } }],
-        sample_size: Math.min(homeSample, awaySample), outcome_rule: null, rule_version: 1,
+        announcement_key: `${fixtureId}:${id}:match:fixture:1`,
+        fixture_id: fixtureId,
+        source_snapshot_id: snapshotId,
+        league_id: leagueId,
+        kickoff_at: kickoffAt.toISOString(),
+        announced_at: capturedAt.toISOString(),
+        engine_version: "server_technical_projection_v1",
+        reading_id: id,
+        reading_label: label,
+        subject_side: "match",
+        subject_team_id: `api-fixture-${fixtureId}`,
+        player_id: null,
+        evidence: [{
+          label: `${label} : ${teamName(home)} ${homeProjection.toFixed(1)}, ${
+            teamName(away)
+          } ${awayProjection.toFixed(1)}, soit ${
+            (homeProjection + awayProjection).toFixed(1)
+          } au total.`,
+          source_path: sourcePath,
+          value: {
+            home: homeProjection,
+            away: awayProjection,
+            total: homeProjection + awayProjection,
+          },
+        }],
+        sample_size: Math.min(homeSample, awaySample),
+        outcome_rule: null,
+        rule_version: 1,
       });
     };
-    add("match_shot_profile", "Projection de tirs", "shotsFor", "shotsAgainst", "fixtures/statistics.Total Shots");
-    add("match_corner_profile", "Projection de corners", "cornersFor", "cornersAgainst", "fixtures/statistics.Corner Kicks");
-    add("match_card_profile", "Projection de cartons", "cardsFor", "cardsAgainst", "fixtures/statistics.Cards");
+    add(
+      "match_shot_profile",
+      "Projection de tirs",
+      "shotsFor",
+      "shotsAgainst",
+      "fixtures/statistics.Total Shots",
+    );
+    add(
+      "match_corner_profile",
+      "Projection de corners",
+      "cornersFor",
+      "cornersAgainst",
+      "fixtures/statistics.Corner Kicks",
+    );
+    add(
+      "match_card_profile",
+      "Projection de cartons",
+      "cardsFor",
+      "cardsAgainst",
+      "fixtures/statistics.Cards",
+    );
   }
   return rows;
 }
@@ -1045,53 +1498,207 @@ type ScenarioContract = {
 // This is the server-side counterpart of FootballScenarioCatalog. A scenario
 // is persisted only when every requirement exists before kickoff.
 const scenarioContracts: ScenarioContract[] = [
-  { id: "solid_favorite", label: "Domination attendue", scope: "team", outcomeRule: "team_win", requirements: [{ readingId: "ranking_superiority", subject: "subject" }, { readingId: "form_advantage", subject: "subject" }, { readingId: "structural_level_gap", subject: "subject" }] },
-  { id: "struggling_team", label: "Équipe en difficulté", scope: "team", outcomeRule: "team_loss", requirements: [{ readingId: "negative_streak", subject: "subject" }, { readingId: "scoring_difficulty", subject: "subject" }, { readingId: "fragile_defense", subject: "subject" }] },
-  { id: "offensive_match", label: "Match ouvert", scope: "match", outcomeRule: "over_25", requirements: [{ readingId: "open_match_profile", subject: "match" }, { readingId: "prolific_attack", subject: "home" }, { readingId: "prolific_attack", subject: "away" }, { readingId: "fragile_defense", subject: "at_least_one_team" }] },
-  { id: "defensive_match", label: "Match fermé", scope: "match", outcomeRule: "under_25", requirements: [{ readingId: "closed_match_profile", subject: "match" }, { readingId: "solid_defense", subject: "both_teams" }, { readingId: "scoring_difficulty", subject: "both_teams" }] },
-  { id: "ranking_gap", label: "Écart de niveau", scope: "team", outcomeRule: "team_win", requirements: [{ readingId: "ranking_superiority", subject: "subject" }, { readingId: "structural_level_gap", subject: "subject" }] },
-  { id: "credible_outsider", label: "Outsider crédible", scope: "team", outcomeRule: "team_not_lose", requirements: [{ readingId: "ranking_inferiority", subject: "subject" }, { readingId: "positive_streak", subject: "subject" }, { readingId: "form_advantage", subject: "subject" }, { readingId: "venue_strength", subject: "subject" }, { readingId: "fragile_defense", subject: "opponent" }] },
-  { id: "fragile_defense", label: "Défense fragile", scope: "team", outcomeRule: "team_concedes", requirements: [{ readingId: "fragile_defense", subject: "subject" }, { readingId: "high_xg_conceded", subject: "subject" }, { readingId: "high_shots_on_target_conceded", subject: "subject" }] },
-  { id: "prolific_attack", label: "Attaque prolifique", scope: "team", outcomeRule: "team_scores", requirements: [{ readingId: "prolific_attack", subject: "subject" }, { readingId: "high_xg_creation", subject: "subject" }, { readingId: "high_shots_on_target", subject: "subject" }] },
-  { id: "positive_series", label: "Série positive", scope: "team", outcomeRule: "team_not_lose", requirements: [{ readingId: "positive_streak", subject: "subject" }, { readingId: "improving_form", subject: "subject" }, { readingId: "high_xg_creation", subject: "subject" }] },
-  { id: "negative_series", label: "Série négative", scope: "team", outcomeRule: "team_loss", requirements: [{ readingId: "negative_streak", subject: "subject" }, { readingId: "declining_form", subject: "subject" }, { readingId: "low_xg_creation", subject: "subject" }] },
-  { id: "corner_pressure", label: "Pression favorable aux corners", scope: "team", outcomeRule: null, requirements: [{ readingId: "high_corner_creation", subject: "subject" }, { readingId: "high_corners_conceded", subject: "opponent" }, { readingId: "high_shot_volume", subject: "subject" }] },
-  { id: "disciplinary_tension", label: "Rencontre sous tension", scope: "match", outcomeRule: null, requirements: [{ readingId: "high_card_rate", subject: "both_teams" }, { readingId: "high_total_cards_profile", subject: "match" }] },
+  {
+    id: "solid_favorite",
+    label: "Domination attendue",
+    scope: "team",
+    outcomeRule: "team_win",
+    requirements: [{ readingId: "ranking_superiority", subject: "subject" }, {
+      readingId: "form_advantage",
+      subject: "subject",
+    }, { readingId: "structural_level_gap", subject: "subject" }],
+  },
+  {
+    id: "struggling_team",
+    label: "Équipe en difficulté",
+    scope: "team",
+    outcomeRule: "team_loss",
+    requirements: [{ readingId: "negative_streak", subject: "subject" }, {
+      readingId: "scoring_difficulty",
+      subject: "subject",
+    }],
+  },
+  {
+    id: "offensive_match",
+    label: "Match ouvert",
+    scope: "match",
+    outcomeRule: "over_25",
+    requirements: [
+      { readingId: "open_match_profile", subject: "match" },
+      { readingId: "frequent_over_25", subject: "at_least_one_team" },
+    ],
+  },
+  {
+    id: "defensive_match",
+    label: "Match fermé",
+    scope: "match",
+    outcomeRule: "under_25",
+    requirements: [{ readingId: "closed_match_profile", subject: "match" }, {
+      readingId: "frequent_under_25",
+      subject: "at_least_one_team",
+    }],
+  },
+  {
+    id: "ranking_gap",
+    label: "Écart de niveau",
+    scope: "team",
+    outcomeRule: "team_win",
+    requirements: [{ readingId: "ranking_superiority", subject: "subject" }, {
+      readingId: "structural_level_gap",
+      subject: "subject",
+    }],
+  },
+  {
+    id: "credible_outsider",
+    label: "Outsider crédible",
+    scope: "team",
+    outcomeRule: "team_not_lose",
+    requirements: [
+      { readingId: "ranking_inferiority", subject: "subject" },
+      { readingId: "positive_streak", subject: "subject" },
+      { readingId: "form_advantage", subject: "subject" },
+    ],
+  },
+  {
+    id: "fragile_defense",
+    label: "Défense fragile",
+    scope: "team",
+    outcomeRule: "team_concedes",
+    requirements: [{ readingId: "fragile_defense", subject: "subject" }, {
+      readingId: "high_xg_conceded",
+      subject: "subject",
+    }],
+  },
+  {
+    id: "prolific_attack",
+    label: "Attaque prolifique",
+    scope: "team",
+    outcomeRule: "team_scores",
+    requirements: [{ readingId: "prolific_attack", subject: "subject" }, {
+      readingId: "high_xg_creation",
+      subject: "subject",
+    }],
+  },
+  {
+    id: "positive_series",
+    label: "Série positive",
+    scope: "team",
+    outcomeRule: "team_not_lose",
+    requirements: [{ readingId: "positive_streak", subject: "subject" }, {
+      readingId: "improving_form",
+      subject: "subject",
+    }],
+  },
+  {
+    id: "negative_series",
+    label: "Série négative",
+    scope: "team",
+    outcomeRule: "team_loss",
+    requirements: [{ readingId: "negative_streak", subject: "subject" }, {
+      readingId: "declining_form",
+      subject: "subject",
+    }],
+  },
 ];
 
-function scenarioAnnouncementRows({ snapshotId, capturedAt, fixtures, readings }: { snapshotId: string; capturedAt: Date; fixtures: JsonObject[]; readings: JsonObject[] }): JsonObject[] {
+function scenarioAnnouncementRows(
+  { snapshotId, capturedAt, fixtures, readings }: {
+    snapshotId: string;
+    capturedAt: Date;
+    fixtures: JsonObject[];
+    readings: JsonObject[];
+  },
+): JsonObject[] {
   const rows: JsonObject[] = [];
   for (const row of fixtures) {
     const fixture = objectValue(row.fixture) ?? {};
     const league = objectValue(row.league) ?? {};
     const teams = objectValue(row.teams) ?? {};
-    const fixtureId = numberValue(fixture.id); const leagueId = numberValue(league.id); const kickoffAt = dateValue(fixture.date);
-    if (fixtureId === null || leagueId === null || kickoffAt === null || kickoffAt <= capturedAt) continue;
-    const fixtureReadings = readings.filter((value) => numberValue(value.fixture_id) === fixtureId && stringValue(value.announcement_kind) !== "nuance");
-    const has = (id: string, side: string) => fixtureReadings.some((value) => stringValue(value.reading_id) === id && stringValue(value.subject_side) === side);
-    const resolve = (contract: ScenarioContract, side: "home" | "away" | "match") => contract.requirements.every((requirement) => {
-      const target = requirement.subject;
-      if (target === "match") return has(requirement.readingId, "match");
-      if (target === "home") return has(requirement.readingId, "home");
-      if (target === "away") return has(requirement.readingId, "away");
-      if (target === "both_teams") return has(requirement.readingId, "home") && has(requirement.readingId, "away");
-      if (target === "at_least_one_team") return has(requirement.readingId, "home") || has(requirement.readingId, "away");
-      if (target === "opponent") return has(requirement.readingId, side === "home" ? "away" : "home");
-      return has(requirement.readingId, side);
-    });
+    const fixtureId = numberValue(fixture.id);
+    const leagueId = numberValue(league.id);
+    const kickoffAt = dateValue(fixture.date);
+    if (
+      fixtureId === null || leagueId === null || kickoffAt === null ||
+      kickoffAt <= capturedAt
+    ) continue;
+    const fixtureReadings = readings.filter((value) =>
+      numberValue(value.fixture_id) === fixtureId &&
+      stringValue(value.announcement_kind) !== "nuance"
+    );
+    const has = (id: string, side: string) =>
+      fixtureReadings.some((value) =>
+        stringValue(value.reading_id) === id &&
+        stringValue(value.subject_side) === side
+      );
+    const resolve = (
+      contract: ScenarioContract,
+      side: "home" | "away" | "match",
+    ) =>
+      contract.requirements.every((requirement) => {
+        const target = requirement.subject;
+        if (target === "match") return has(requirement.readingId, "match");
+        if (target === "home") return has(requirement.readingId, "home");
+        if (target === "away") return has(requirement.readingId, "away");
+        if (target === "both_teams") {
+          return has(requirement.readingId, "home") &&
+            has(requirement.readingId, "away");
+        }
+        if (target === "at_least_one_team") {
+          return has(requirement.readingId, "home") ||
+            has(requirement.readingId, "away");
+        }
+        if (target === "opponent") {
+          return has(requirement.readingId, side === "home" ? "away" : "home");
+        }
+        return has(requirement.readingId, side);
+      });
     for (const contract of scenarioContracts) {
-      const sides: ("home" | "away" | "match")[] = contract.scope === "match" ? ["match"] : ["home", "away"];
+      const sides: ("home" | "away" | "match")[] = contract.scope === "match"
+        ? ["match"]
+        : ["home", "away"];
       for (const side of sides) {
         if (!resolve(contract, side)) continue;
-        const team = side === "home" ? objectValue(teams.home) ?? {} : objectValue(teams.away) ?? {};
-        const teamId = side === "match" ? `api-fixture-${fixtureId}` : `api-team-${numberValue(team.id) ?? fixtureId}`;
+        const earlyHierarchy = contract.id === "ranking_gap" &&
+          fixtureReadings.some((value) =>
+            stringValue(value.reading_id) === "structural_level_gap" &&
+            stringValue(value.reading_label) === "Écart de hiérarchie précoce"
+          );
+        const team = side === "home"
+          ? objectValue(teams.home) ?? {}
+          : objectValue(teams.away) ?? {};
+        const teamId = side === "match"
+          ? `api-fixture-${fixtureId}`
+          : `api-team-${numberValue(team.id) ?? fixtureId}`;
         rows.push({
-          announcement_key: `${fixtureId}:${contract.id}:${side}:scenario:1`, fixture_id: fixtureId, source_snapshot_id: snapshotId, league_id: leagueId,
-          kickoff_at: kickoffAt.toISOString(), announced_at: capturedAt.toISOString(), engine_version: "server_scenario_contract_v2", announcement_kind: "scenario",
-          reading_id: contract.id, reading_label: contract.label, subject_side: side, subject_team_id: teamId, player_id: null,
-          required_reading_ids: [...new Set(contract.requirements.map((item) => item.readingId))],
-          evidence: contract.requirements.map((item) => scenarioEvidence("Lecture confirmée", `${item.readingId} est présent avant le coup d’envoi.`, item.readingId, item.subject)),
-          sample_size: 0, outcome_rule: contract.outcomeRule, rule_version: 2,
+          announcement_key: `${fixtureId}:${contract.id}:${side}:scenario:1`,
+          fixture_id: fixtureId,
+          source_snapshot_id: snapshotId,
+          league_id: leagueId,
+          kickoff_at: kickoffAt.toISOString(),
+          announced_at: capturedAt.toISOString(),
+          engine_version: "server_scenario_contract_v2",
+          announcement_kind: "scenario",
+          reading_id: contract.id,
+          reading_label: earlyHierarchy
+            ? "Écart de hiérarchie précoce"
+            : contract.label,
+          subject_side: side,
+          subject_team_id: teamId,
+          player_id: null,
+          required_reading_ids: [
+            ...new Set(contract.requirements.map((item) => item.readingId)),
+          ],
+          evidence: contract.requirements.map((item) =>
+            scenarioEvidence(
+              "Lecture confirmée",
+              `${item.readingId} est présent avant le coup d’envoi.`,
+              item.readingId,
+              item.subject,
+            )
+          ),
+          sample_size: 0,
+          outcome_rule: contract.outcomeRule,
+          rule_version: 2,
         });
       }
     }
@@ -1099,66 +1706,370 @@ function scenarioAnnouncementRows({ snapshotId, capturedAt, fixtures, readings }
   return rows;
 }
 
-function scenarioTechnicalSupportAnnouncementRows({ snapshotId, capturedAt, fixtures, expectedGoals, performanceStatistics }: { snapshotId: string; capturedAt: Date; fixtures: JsonObject[]; expectedGoals: ExpectedGoalProfile[]; performanceStatistics: JsonObject[] }): JsonObject[] {
-  type Technical = { leagueId: number; teamId: number; sampleSize: number; values: Map<string, number> };
+function scenarioTechnicalSupportAnnouncementRows({
+  snapshotId,
+  capturedAt,
+  fixtures,
+  expectedGoals,
+  performanceStatistics,
+}: {
+  snapshotId: string;
+  capturedAt: Date;
+  fixtures: JsonObject[];
+  expectedGoals: ExpectedGoalProfile[];
+  performanceStatistics: JsonObject[];
+}): JsonObject[] {
+  type Technical = {
+    leagueId: number;
+    teamId: number;
+    sampleSize: number;
+    values: Map<string, number>;
+  };
   const technical: Technical[] = [];
   for (const row of performanceStatistics) {
-    const leagueId = numberValue((objectValue(row.league) ?? {}).id); const teamId = numberValue((objectValue(row.team) ?? {}).id); const averages = objectValue(row.averages) ?? {};
+    const leagueId = numberValue((objectValue(row.league) ?? {}).id);
+    const teamId = numberValue((objectValue(row.team) ?? {}).id);
+    const averages = objectValue(row.averages) ?? {};
     if (leagueId === null || teamId === null) continue;
     const values = new Map<string, number>();
-    for (const key of ["shotsFor", "shotsOnTargetFor", "shotsOnTargetAgainst", "cornersFor", "cornersAgainst", "cardsFor", "totalCards"]) { const value = numberValue(averages[key]); if (value !== null) values.set(key, value); }
-    technical.push({ leagueId, teamId, sampleSize: numberValue(row.sampleSize) ?? 0, values });
+    for (
+      const key of [
+        "shotsFor",
+        "shotsOnTargetFor",
+        "shotsOnTargetAgainst",
+        "cornersFor",
+        "cornersAgainst",
+        "cardsFor",
+        "totalCards",
+      ]
+    ) {
+      const value = numberValue(averages[key]);
+      if (value !== null) values.set(key, value);
+    }
+    technical.push({
+      leagueId,
+      teamId,
+      sampleSize: numberValue(row.sampleSize) ?? 0,
+      values,
+    });
   }
   const xgHighFor = edgeZonesByLeague(expectedGoals, (item) => item.xgFor);
-  const xgHighAgainst = edgeZonesByLeague(expectedGoals, (item) => item.xgAgainst);
+  const xgHighAgainst = edgeZonesByLeague(
+    expectedGoals,
+    (item) => item.xgAgainst,
+  );
   const zones = new Map<string, Map<number, EdgeZones>>();
-  for (const key of ["shotsFor", "shotsOnTargetFor", "shotsOnTargetAgainst", "cornersFor", "cornersAgainst", "cardsFor"]) {
-    zones.set(key, edgeZonesByLeague(technical.filter((item) => item.values.has(key)), (item) => item.values.get(key)!));
+  for (
+    const key of [
+      "shotsFor",
+      "shotsOnTargetFor",
+      "shotsOnTargetAgainst",
+      "cornersFor",
+      "cornersAgainst",
+      "cardsFor",
+    ]
+  ) {
+    zones.set(
+      key,
+      edgeZonesByLeague(
+        technical.filter((item) => item.values.has(key)),
+        (item) => item.values.get(key)!,
+      ),
+    );
   }
-  const technicalByTeam = new Map(technical.map((item) => [`${item.leagueId}:${item.teamId}`, item]));
-  const xgByTeam = new Map(expectedGoals.map((item) => [`${item.leagueId}:${item.teamId}`, item]));
+  const technicalByTeam = new Map(
+    technical.map((item) => [`${item.leagueId}:${item.teamId}`, item]),
+  );
+  const xgByTeam = new Map(
+    expectedGoals.map((item) => [`${item.leagueId}:${item.teamId}`, item]),
+  );
   const rows: JsonObject[] = [];
   for (const row of fixtures) {
-    const fixture = objectValue(row.fixture) ?? {}; const league = objectValue(row.league) ?? {}; const teams = objectValue(row.teams) ?? {};
-    const fixtureId = numberValue(fixture.id); const leagueId = numberValue(league.id); const kickoffAt = dateValue(fixture.date);
-    if (fixtureId === null || leagueId === null || kickoffAt === null || kickoffAt <= capturedAt) continue;
-    const add = (id: string, label: string, side: "home" | "away" | "match", teamId: number | null, sampleSize: number, evidence: string) => rows.push({ announcement_key: `${fixtureId}:${id}:${side}:${teamId ?? fixtureId}:2`, fixture_id: fixtureId, source_snapshot_id: snapshotId, league_id: leagueId, kickoff_at: kickoffAt.toISOString(), announced_at: capturedAt.toISOString(), engine_version: "server_scenario_technical_support_v1", reading_id: id, reading_label: label, subject_side: side, subject_team_id: side === "match" ? `api-fixture-${fixtureId}` : `api-team-${teamId}`, player_id: null, evidence: [{ label: evidence, source_path: "snapshot.raw.performance", value: null }], sample_size: sampleSize, outcome_rule: null, rule_version: 1 });
-    const teamEntries = [{ side: "home" as const, team: objectValue(teams.home) ?? {} }, { side: "away" as const, team: objectValue(teams.away) ?? {} }];
+    const fixture = objectValue(row.fixture) ?? {};
+    const league = objectValue(row.league) ?? {};
+    const teams = objectValue(row.teams) ?? {};
+    const fixtureId = numberValue(fixture.id);
+    const leagueId = numberValue(league.id);
+    const kickoffAt = dateValue(fixture.date);
+    if (
+      fixtureId === null || leagueId === null || kickoffAt === null ||
+      kickoffAt <= capturedAt
+    ) continue;
+    const add = (
+      id: string,
+      label: string,
+      side: "home" | "away" | "match",
+      teamId: number | null,
+      sampleSize: number,
+      evidence: string,
+    ) =>
+      rows.push({
+        announcement_key: `${fixtureId}:${id}:${side}:${teamId ?? fixtureId}:2`,
+        fixture_id: fixtureId,
+        source_snapshot_id: snapshotId,
+        league_id: leagueId,
+        kickoff_at: kickoffAt.toISOString(),
+        announced_at: capturedAt.toISOString(),
+        engine_version: "server_scenario_technical_support_v1",
+        reading_id: id,
+        reading_label: label,
+        subject_side: side,
+        subject_team_id: side === "match"
+          ? `api-fixture-${fixtureId}`
+          : `api-team-${teamId}`,
+        player_id: null,
+        evidence: [{
+          label: evidence,
+          source_path: "snapshot.raw.performance",
+          value: null,
+        }],
+        sample_size: sampleSize,
+        outcome_rule: null,
+        rule_version: 1,
+      });
+    const teamEntries = [{
+      side: "home" as const,
+      team: objectValue(teams.home) ?? {},
+    }, { side: "away" as const, team: objectValue(teams.away) ?? {} }];
     for (const entry of teamEntries) {
-      const teamId = numberValue(entry.team.id); if (teamId === null) continue;
+      const teamId = numberValue(entry.team.id);
+      if (teamId === null) continue;
       const xg = xgByTeam.get(`${leagueId}:${teamId}`);
-      if (xgHighFor.get(leagueId)?.high.has(teamId)) add("high_xg_creation", "Création d'xG élevée", entry.side, teamId, xg?.sampleSize ?? 0, `${teamName(entry.team)} crée des occasions de qualité au-dessus du championnat.`);
-      if (xgHighFor.get(leagueId)?.low.has(teamId)) add("low_xg_creation", "Création d'xG faible", entry.side, teamId, xg?.sampleSize ?? 0, `${teamName(entry.team)} crée peu d'occasions de qualité.`);
-      if (xgHighAgainst.get(leagueId)?.high.has(teamId)) add("high_xg_conceded", "xG concédés élevés", entry.side, teamId, xg?.sampleSize ?? 0, `${teamName(entry.team)} concède des occasions de qualité.`);
-      const stats = technicalByTeam.get(`${leagueId}:${teamId}`); if (stats === undefined) continue;
-      const signals: [string, string, string][] = [["shotsFor", "high_shot_volume", "Volume de tirs élevé"], ["shotsOnTargetFor", "high_shots_on_target", "Tirs cadrés élevés"], ["shotsOnTargetAgainst", "high_shots_on_target_conceded", "Tirs cadrés concédés élevés"], ["cornersFor", "high_corner_creation", "Corners obtenus élevés"], ["cornersAgainst", "high_corners_conceded", "Corners concédés élevés"], ["cardsFor", "high_card_rate", "Cartons reçus élevés"]];
-      for (const [metric, id, label] of signals) if (zones.get(metric)?.get(leagueId)?.high.has(teamId)) add(id, label, entry.side, teamId, stats.sampleSize, `${teamName(entry.team)} se situe dans la zone haute du championnat pour cet indicateur.`);
+      if (xgHighFor.get(leagueId)?.high.has(teamId)) {
+        add(
+          "high_xg_creation",
+          "Création d'xG élevée",
+          entry.side,
+          teamId,
+          xg?.sampleSize ?? 0,
+          `${
+            teamName(entry.team)
+          } crée des occasions de qualité au-dessus du championnat.`,
+        );
+      }
+      if (xgHighFor.get(leagueId)?.low.has(teamId)) {
+        add(
+          "low_xg_creation",
+          "Création d'xG faible",
+          entry.side,
+          teamId,
+          xg?.sampleSize ?? 0,
+          `${teamName(entry.team)} crée peu d'occasions de qualité.`,
+        );
+      }
+      if (xgHighAgainst.get(leagueId)?.high.has(teamId)) {
+        add(
+          "high_xg_conceded",
+          "xG concédés élevés",
+          entry.side,
+          teamId,
+          xg?.sampleSize ?? 0,
+          `${teamName(entry.team)} concède des occasions de qualité.`,
+        );
+      }
+      const stats = technicalByTeam.get(`${leagueId}:${teamId}`);
+      if (stats === undefined) continue;
+      const signals: [string, string, string][] = [
+        ["shotsFor", "high_shot_volume", "Volume de tirs élevé"],
+        ["shotsOnTargetFor", "high_shots_on_target", "Tirs cadrés élevés"],
+        [
+          "shotsOnTargetAgainst",
+          "high_shots_on_target_conceded",
+          "Tirs cadrés concédés élevés",
+        ],
+        ["cornersFor", "high_corner_creation", "Corners obtenus élevés"],
+        ["cornersAgainst", "high_corners_conceded", "Corners concédés élevés"],
+        ["cardsFor", "high_card_rate", "Cartons reçus élevés"],
+      ];
+      for (const [metric, id, label] of signals) {
+        if (zones.get(metric)?.get(leagueId)?.high.has(teamId)) {
+          add(
+            id,
+            label,
+            entry.side,
+            teamId,
+            stats.sampleSize,
+            `${
+              teamName(entry.team)
+            } se situe dans la zone haute du championnat pour cet indicateur.`,
+          );
+        }
+      }
     }
-    const homeId = numberValue((objectValue(teams.home) ?? {}).id); const awayId = numberValue((objectValue(teams.away) ?? {}).id);
-    const homeStats = homeId === null ? undefined : technicalByTeam.get(`${leagueId}:${homeId}`); const awayStats = awayId === null ? undefined : technicalByTeam.get(`${leagueId}:${awayId}`);
-    if (homeStats !== undefined && awayStats !== undefined && zones.get("cardsFor")?.get(leagueId)?.high.has(homeStats.teamId) && zones.get("cardsFor")?.get(leagueId)?.high.has(awayStats.teamId)) add("high_total_cards_profile", "Profil de cartons élevé", "match", null, Math.min(homeStats.sampleSize, awayStats.sampleSize), "Les deux équipes reçoivent beaucoup de cartons dans leur championnat.");
+    const homeId = numberValue((objectValue(teams.home) ?? {}).id);
+    const awayId = numberValue((objectValue(teams.away) ?? {}).id);
+    const homeStats = homeId === null
+      ? undefined
+      : technicalByTeam.get(`${leagueId}:${homeId}`);
+    const awayStats = awayId === null
+      ? undefined
+      : technicalByTeam.get(`${leagueId}:${awayId}`);
+    if (
+      homeStats !== undefined && awayStats !== undefined &&
+      zones.get("cardsFor")?.get(leagueId)?.high.has(homeStats.teamId) &&
+      zones.get("cardsFor")?.get(leagueId)?.high.has(awayStats.teamId)
+    ) {
+      add(
+        "high_total_cards_profile",
+        "Profil de cartons élevé",
+        "match",
+        null,
+        Math.min(homeStats.sampleSize, awayStats.sampleSize),
+        "Les deux équipes reçoivent beaucoup de cartons dans leur championnat.",
+      );
+    }
   }
   return rows;
 }
 
-function scenarioSupportAnnouncementRows({ snapshotId, capturedAt, fixtures, recentForms, venueProfiles, standings }: { snapshotId: string; capturedAt: Date; fixtures: JsonObject[]; recentForms: Map<string, RecentForm>; venueProfiles: Map<string, VenueProfile>; standings: Map<string, StandingProfile> }): JsonObject[] {
+function scenarioSupportAnnouncementRows({
+  snapshotId,
+  capturedAt,
+  fixtures,
+  recentForms,
+  venueProfiles,
+  standings,
+}: {
+  snapshotId: string;
+  capturedAt: Date;
+  fixtures: JsonObject[];
+  recentForms: Map<string, RecentForm>;
+  venueProfiles: Map<string, VenueProfile>;
+  standings: Map<string, StandingProfile>;
+}): JsonObject[] {
   const rows: JsonObject[] = [];
   for (const row of fixtures) {
-    const fixture = objectValue(row.fixture) ?? {}; const league = objectValue(row.league) ?? {}; const teams = objectValue(row.teams) ?? {};
-    const fixtureId = numberValue(fixture.id); const leagueId = numberValue(league.id); const kickoffAt = dateValue(fixture.date);
-    const home = objectValue(teams.home) ?? {}; const away = objectValue(teams.away) ?? {}; const homeId = numberValue(home.id); const awayId = numberValue(away.id);
-    if (fixtureId === null || leagueId === null || kickoffAt === null || kickoffAt <= capturedAt || homeId === null || awayId === null) continue;
-    const add = (id: string, label: string, side: "home" | "away", teamId: number, evidence: string) => rows.push({ announcement_key: `${fixtureId}:${id}:${side}:api-team-${teamId}:2`, fixture_id: fixtureId, source_snapshot_id: snapshotId, league_id: leagueId, kickoff_at: kickoffAt.toISOString(), announced_at: capturedAt.toISOString(), engine_version: "server_scenario_support_v1", reading_id: id, reading_label: label, subject_side: side, subject_team_id: `api-team-${teamId}`, player_id: null, evidence: [{ label: evidence, source_path: "snapshot.raw", value: null }], sample_size: 3, outcome_rule: null, rule_version: 1 });
-    const homeStanding = standings.get(`${leagueId}:${homeId}`); const awayStanding = standings.get(`${leagueId}:${awayId}`);
-    if (homeStanding !== undefined && awayStanding !== undefined && homeStanding.rank !== awayStanding.rank) {
-      const superiorHome = homeStanding.rank < awayStanding.rank; const superior = superiorHome ? homeStanding : awayStanding; const inferior = superiorHome ? awayStanding : homeStanding; const superiorTeam = superiorHome ? home : away; const inferiorTeam = superiorHome ? away : home; const superiorId = superiorHome ? homeId : awayId; const inferiorId = superiorHome ? awayId : homeId; const superiorSide = superiorHome ? "home" : "away"; const inferiorSide = superiorHome ? "away" : "home";
-      if (superior.points / superior.played > inferior.points / inferior.played) { add("ranking_superiority", "Supériorité au classement", superiorSide, superiorId, `${teamName(superiorTeam)} devance son adversaire au classement.`); add("ranking_inferiority", "Infériorité au classement", inferiorSide, inferiorId, `${teamName(inferiorTeam)} est derrière son adversaire au classement.`); }
+    const fixture = objectValue(row.fixture) ?? {};
+    const league = objectValue(row.league) ?? {};
+    const teams = objectValue(row.teams) ?? {};
+    const fixtureId = numberValue(fixture.id);
+    const leagueId = numberValue(league.id);
+    const kickoffAt = dateValue(fixture.date);
+    const home = objectValue(teams.home) ?? {};
+    const away = objectValue(teams.away) ?? {};
+    const homeId = numberValue(home.id);
+    const awayId = numberValue(away.id);
+    if (
+      fixtureId === null || leagueId === null || kickoffAt === null ||
+      kickoffAt <= capturedAt || homeId === null || awayId === null
+    ) continue;
+    const add = (
+      id: string,
+      label: string,
+      side: "home" | "away",
+      teamId: number,
+      evidence: string,
+    ) =>
+      rows.push({
+        announcement_key: `${fixtureId}:${id}:${side}:api-team-${teamId}:2`,
+        fixture_id: fixtureId,
+        source_snapshot_id: snapshotId,
+        league_id: leagueId,
+        kickoff_at: kickoffAt.toISOString(),
+        announced_at: capturedAt.toISOString(),
+        engine_version: "server_scenario_support_v1",
+        reading_id: id,
+        reading_label: label,
+        subject_side: side,
+        subject_team_id: `api-team-${teamId}`,
+        player_id: null,
+        evidence: [{
+          label: evidence,
+          source_path: "snapshot.raw",
+          value: null,
+        }],
+        sample_size: 3,
+        outcome_rule: null,
+        rule_version: 1,
+      });
+    const homeStanding = standings.get(`${leagueId}:${homeId}`);
+    const awayStanding = standings.get(`${leagueId}:${awayId}`);
+    if (
+      homeStanding !== undefined && awayStanding !== undefined &&
+      homeStanding.rank !== awayStanding.rank
+    ) {
+      const superiorHome = homeStanding.rank < awayStanding.rank;
+      const superior = superiorHome ? homeStanding : awayStanding;
+      const inferior = superiorHome ? awayStanding : homeStanding;
+      const superiorTeam = superiorHome ? home : away;
+      const inferiorTeam = superiorHome ? away : home;
+      const superiorId = superiorHome ? homeId : awayId;
+      const inferiorId = superiorHome ? awayId : homeId;
+      const superiorSide = superiorHome ? "home" : "away";
+      const inferiorSide = superiorHome ? "away" : "home";
+      if (
+        superior.points / superior.played > inferior.points / inferior.played
+      ) {
+        add(
+          "ranking_superiority",
+          "Supériorité au classement",
+          superiorSide,
+          superiorId,
+          `${teamName(superiorTeam)} devance son adversaire au classement.`,
+        );
+        add(
+          "ranking_inferiority",
+          "Infériorité au classement",
+          inferiorSide,
+          inferiorId,
+          `${
+            teamName(inferiorTeam)
+          } est derrière son adversaire au classement.`,
+        );
+      }
     }
-    for (const subject of [{ side: "home" as const, team: home, teamId: homeId, opponentId: awayId }, { side: "away" as const, team: away, teamId: awayId, opponentId: homeId }]) {
-      const form = recentForms.get(`${leagueId}:${subject.teamId}`); const opponentForm = recentForms.get(`${leagueId}:${subject.opponentId}`);
-      const formPoints = form?.results.map(pointsForResult).reduce((total, value) => total + value, 0); const opponentPoints = opponentForm?.results.map(pointsForResult).reduce((total, value) => total + value, 0);
-      if (formPoints !== undefined && opponentPoints !== undefined && formPoints > opponentPoints) add("form_advantage", "Avantage de forme", subject.side, subject.teamId, `${teamName(subject.team)} totalise davantage de points sur les trois derniers matchs.`);
-      const venue = venueProfiles.get(`${leagueId}:${subject.teamId}`); if (venue !== undefined) { const strong = subject.side === "home" ? isStrong(venue.homePlayed, venue.homeWins, venue.homeLosses) : isStrong(venue.awayPlayed, venue.awayWins, venue.awayLosses); if (strong) add("venue_strength", "Avantage sur le lieu", subject.side, subject.teamId, `${teamName(subject.team)} présente un bilan solide sur ce lieu.`); }
+    for (
+      const subject of [{
+        side: "home" as const,
+        team: home,
+        teamId: homeId,
+        opponentId: awayId,
+      }, {
+        side: "away" as const,
+        team: away,
+        teamId: awayId,
+        opponentId: homeId,
+      }]
+    ) {
+      const form = recentForms.get(`${leagueId}:${subject.teamId}`);
+      const opponentForm = recentForms.get(`${leagueId}:${subject.opponentId}`);
+      const formPoints = form?.results.map(pointsForResult).reduce(
+        (total, value) => total + value,
+        0,
+      );
+      const opponentPoints = opponentForm?.results.map(pointsForResult).reduce(
+        (total, value) => total + value,
+        0,
+      );
+      if (
+        formPoints !== undefined && opponentPoints !== undefined &&
+        formPoints > opponentPoints
+      ) {
+        add(
+          "form_advantage",
+          "Avantage de forme",
+          subject.side,
+          subject.teamId,
+          `${
+            teamName(subject.team)
+          } totalise davantage de points sur les trois derniers matchs.`,
+        );
+      }
+      const venue = venueProfiles.get(`${leagueId}:${subject.teamId}`);
+      if (venue !== undefined) {
+        const strong = subject.side === "home"
+          ? isStrong(venue.homePlayed, venue.homeWins, venue.homeLosses)
+          : isStrong(venue.awayPlayed, venue.awayWins, venue.awayLosses);
+        if (strong) {
+          add(
+            "venue_strength",
+            "Avantage sur le lieu",
+            subject.side,
+            subject.teamId,
+            `${teamName(subject.team)} présente un bilan solide sur ce lieu.`,
+          );
+        }
+      }
     }
   }
   return rows;
@@ -1249,42 +2160,95 @@ function levelFormVenueAnnouncementRows({
     const awayStanding = standings.get(`${leagueId}:${awayId}`);
     if (homeStanding !== undefined && awayStanding !== undefined) {
       const superior = homeStanding.rank < awayStanding.rank
-        ? { subject: subjects[0], standing: homeStanding, opponent: awayStanding }
+        ? {
+          subject: subjects[0],
+          standing: homeStanding,
+          opponent: awayStanding,
+        }
         : awayStanding.rank < homeStanding.rank
-        ? { subject: subjects[1], standing: awayStanding, opponent: homeStanding }
+        ? {
+          subject: subjects[1],
+          standing: awayStanding,
+          opponent: homeStanding,
+        }
         : null;
-      if (superior !== null && isStructuralGap(superior.standing, superior.opponent)) {
+      const structuralGap = superior === null
+        ? null
+        : assessStructuralGap(superior.standing, superior.opponent);
+      if (superior !== null && structuralGap !== null) {
         rows.push(directionAnnouncement({
-          snapshotId, capturedAt, fixtureId, kickoffAt, leagueId,
+          snapshotId,
+          capturedAt,
+          fixtureId,
+          kickoffAt,
+          leagueId,
           readingId: "structural_level_gap",
-          label: "Écart de niveau structurel",
+          label: structuralGap.phase === "early"
+            ? "Écart de hiérarchie précoce"
+            : "Écart de niveau structurel",
           subject: superior.subject,
-          sampleSize: Math.min(superior.standing.played, superior.opponent.played),
-          evidence: `${teamName(superior.subject.team)} devance son adversaire de ${Math.abs(homeStanding.rank - awayStanding.rank)} rangs et ${(superior.standing.points / superior.standing.played - superior.opponent.points / superior.opponent.played).toFixed(2)} point par match.`,
+          sampleSize: Math.min(
+            superior.standing.played,
+            superior.opponent.played,
+          ),
+          evidence: `${
+            teamName(superior.subject.team)
+          } devance son adversaire de ${
+            Math.abs(homeStanding.rank - awayStanding.rank)
+          } rangs et ${
+            (superior.standing.points / superior.standing.played -
+              superior.opponent.points / superior.opponent.played).toFixed(2)
+          } point par match, au-dessus du seuil de ${
+            structuralGap.minimumPointsPerGameGap.toFixed(2)
+          } après ${structuralGap.comparedMatches} journées comparables.`,
         }));
       }
     }
     if (homeVenue !== undefined && awayVenue !== undefined) {
-      if (isStrong(homeVenue.homePlayed, homeVenue.homeWins, homeVenue.homeLosses) &&
-          isWeak(awayVenue.awayPlayed, awayVenue.awayWins, awayVenue.awayLosses)) {
+      if (
+        isStrong(
+          homeVenue.homePlayed,
+          homeVenue.homeWins,
+          homeVenue.homeLosses,
+        ) &&
+        isWeak(awayVenue.awayPlayed, awayVenue.awayWins, awayVenue.awayLosses)
+      ) {
         rows.push(directionAnnouncement({
-          snapshotId, capturedAt, fixtureId, kickoffAt, leagueId,
+          snapshotId,
+          capturedAt,
+          fixtureId,
+          kickoffAt,
+          leagueId,
           readingId: "home_away_advantage",
           label: "Avantage domicile / extérieur",
           subject: subjects[0],
           sampleSize: Math.min(homeVenue.homePlayed, awayVenue.awayPlayed),
-          evidence: `${teamName(home)} est solide à domicile et ${teamName(away)} fragile à l’extérieur.`,
+          evidence: `${teamName(home)} est solide à domicile et ${
+            teamName(away)
+          } fragile à l’extérieur.`,
         }));
       }
-      if (isStrong(awayVenue.awayPlayed, awayVenue.awayWins, awayVenue.awayLosses) &&
-          isWeak(homeVenue.homePlayed, homeVenue.homeWins, homeVenue.homeLosses)) {
+      if (
+        isStrong(
+          awayVenue.awayPlayed,
+          awayVenue.awayWins,
+          awayVenue.awayLosses,
+        ) &&
+        isWeak(homeVenue.homePlayed, homeVenue.homeWins, homeVenue.homeLosses)
+      ) {
         rows.push(directionAnnouncement({
-          snapshotId, capturedAt, fixtureId, kickoffAt, leagueId,
+          snapshotId,
+          capturedAt,
+          fixtureId,
+          kickoffAt,
+          leagueId,
           readingId: "away_home_advantage",
           label: "Avantage extérieur / domicile",
           subject: subjects[1],
           sampleSize: Math.min(homeVenue.homePlayed, awayVenue.awayPlayed),
-          evidence: `${teamName(away)} est solide à l’extérieur et ${teamName(home)} fragile à domicile.`,
+          evidence: `${teamName(away)} est solide à l’extérieur et ${
+            teamName(home)
+          } fragile à domicile.`,
         }));
       }
     }
@@ -1293,10 +2257,20 @@ function levelFormVenueAnnouncementRows({
 }
 
 function formAnnouncementRows({
-  snapshotId, capturedAt, fixtureId, kickoffAt, leagueId, subject, form,
+  snapshotId,
+  capturedAt,
+  fixtureId,
+  kickoffAt,
+  leagueId,
+  subject,
+  form,
 }: {
-  snapshotId: string; capturedAt: Date; fixtureId: number; kickoffAt: Date;
-  leagueId: number; subject: { side: "home" | "away"; team: JsonObject; teamId: number };
+  snapshotId: string;
+  capturedAt: Date;
+  fixtureId: number;
+  kickoffAt: Date;
+  leagueId: number;
+  subject: { side: "home" | "away"; team: JsonObject; teamId: number };
   form: RecentForm;
 }): JsonObject[] {
   const points = form.results.map(pointsForResult);
@@ -1305,19 +2279,35 @@ function formAnnouncementRows({
   const rows: JsonObject[] = [];
   if (!points.includes(0) && total >= 5) {
     rows.push(directionAnnouncement({
-      snapshotId, capturedAt, fixtureId, kickoffAt, leagueId, subject,
-      readingId: "positive_streak", label: "Dynamique positive",
+      snapshotId,
+      capturedAt,
+      fixtureId,
+      kickoffAt,
+      leagueId,
+      subject,
+      readingId: "positive_streak",
+      label: "Dynamique positive",
       sampleSize: 3,
-      evidence: `${teamName(subject.team)} reste invaincu sur ses trois derniers matchs (${label}, ${total}/9).`,
+      evidence: `${
+        teamName(subject.team)
+      } reste invaincu sur ses trois derniers matchs (${label}, ${total}/9).`,
       outcomeRule: "team_not_lose",
     }));
   }
   if (!points.includes(3) && total <= 2) {
     rows.push(directionAnnouncement({
-      snapshotId, capturedAt, fixtureId, kickoffAt, leagueId, subject,
-      readingId: "negative_streak", label: "Dynamique négative",
+      snapshotId,
+      capturedAt,
+      fixtureId,
+      kickoffAt,
+      leagueId,
+      subject,
+      readingId: "negative_streak",
+      label: "Dynamique négative",
       sampleSize: 3,
-      evidence: `${teamName(subject.team)} reste sans victoire sur ses trois derniers matchs (${label}, ${total}/9).`,
+      evidence: `${
+        teamName(subject.team)
+      } reste sans victoire sur ses trois derniers matchs (${label}, ${total}/9).`,
       outcomeRule: "team_loss",
     }));
   }
@@ -1325,11 +2315,18 @@ function formAnnouncementRows({
   if (Math.abs(trend) >= 1) {
     const improving = trend > 0;
     rows.push(directionAnnouncement({
-      snapshotId, capturedAt, fixtureId, kickoffAt, leagueId, subject,
+      snapshotId,
+      capturedAt,
+      fixtureId,
+      kickoffAt,
+      leagueId,
+      subject,
       readingId: improving ? "improving_form" : "declining_form",
       label: improving ? "Forme en hausse" : "Forme en baisse",
       sampleSize: 3,
-      evidence: `${teamName(subject.team)} ${improving ? "progresse" : "recule"} sur ses trois derniers matchs (${label}).`,
+      evidence: `${teamName(subject.team)} ${
+        improving ? "progresse" : "recule"
+      } sur ses trois derniers matchs (${label}).`,
       outcomeRule: improving ? "team_not_lose" : "team_loss",
     }));
   }
@@ -1337,10 +2334,20 @@ function formAnnouncementRows({
 }
 
 function venueAnnouncementRows({
-  snapshotId, capturedAt, fixtureId, kickoffAt, leagueId, subject, venue,
+  snapshotId,
+  capturedAt,
+  fixtureId,
+  kickoffAt,
+  leagueId,
+  subject,
+  venue,
 }: {
-  snapshotId: string; capturedAt: Date; fixtureId: number; kickoffAt: Date;
-  leagueId: number; subject: { side: "home" | "away"; team: JsonObject; teamId: number };
+  snapshotId: string;
+  capturedAt: Date;
+  fixtureId: number;
+  kickoffAt: Date;
+  leagueId: number;
+  subject: { side: "home" | "away"; team: JsonObject; teamId: number };
   venue: VenueProfile;
 }): JsonObject[] {
   const isHome = subject.side === "home";
@@ -1351,21 +2358,35 @@ function venueAnnouncementRows({
   const rows: JsonObject[] = [];
   if (isStrong(played, wins, losses)) {
     rows.push(directionAnnouncement({
-      snapshotId, capturedAt, fixtureId, kickoffAt, leagueId, subject,
+      snapshotId,
+      capturedAt,
+      fixtureId,
+      kickoffAt,
+      leagueId,
+      subject,
       readingId: isHome ? "strong_home_team" : "strong_away_team",
       label: isHome ? "Solide à domicile" : "Solide à l’extérieur",
       sampleSize: played,
-      evidence: `${teamName(subject.team)} gagne ${Math.round(wins / played * 100)}% de ses matchs à ${place}.`,
+      evidence: `${teamName(subject.team)} gagne ${
+        Math.round(wins / played * 100)
+      }% de ses matchs à ${place}.`,
       outcomeRule: "team_not_lose",
     }));
   }
   if (isWeak(played, wins, losses)) {
     rows.push(directionAnnouncement({
-      snapshotId, capturedAt, fixtureId, kickoffAt, leagueId, subject,
+      snapshotId,
+      capturedAt,
+      fixtureId,
+      kickoffAt,
+      leagueId,
+      subject,
       readingId: isHome ? "weak_home_team" : "weak_away_team",
       label: isHome ? "Fragile à domicile" : "Fragile à l’extérieur",
       sampleSize: played,
-      evidence: `${teamName(subject.team)} perd ${Math.round(losses / played * 100)}% de ses matchs à ${place}.`,
+      evidence: `${teamName(subject.team)} perd ${
+        Math.round(losses / played * 100)
+      }% de ses matchs à ${place}.`,
       outcomeRule: "team_loss",
     }));
   }
@@ -1373,24 +2394,53 @@ function venueAnnouncementRows({
 }
 
 function directionAnnouncement({
-  snapshotId, capturedAt, fixtureId, kickoffAt, leagueId, readingId, label,
-  subject, sampleSize, evidence, outcomeRule = "team_win",
+  snapshotId,
+  capturedAt,
+  fixtureId,
+  kickoffAt,
+  leagueId,
+  readingId,
+  label,
+  subject,
+  sampleSize,
+  evidence,
+  outcomeRule = "team_win",
 }: {
-  snapshotId: string; capturedAt: Date; fixtureId: number; kickoffAt: Date;
-  leagueId: number; readingId: string; label: string;
+  snapshotId: string;
+  capturedAt: Date;
+  fixtureId: number;
+  kickoffAt: Date;
+  leagueId: number;
+  readingId: string;
+  label: string;
   subject: { side: "home" | "away"; team: JsonObject; teamId: number };
-  sampleSize: number; evidence: string; outcomeRule?: string;
+  sampleSize: number;
+  evidence: string;
+  outcomeRule?: string;
 }): JsonObject {
   const subjectTeamId = `api-team-${subject.teamId}`;
   return {
-    announcement_key: `${fixtureId}:${readingId}:${subject.side}:${subjectTeamId}:1`,
-    fixture_id: fixtureId, source_snapshot_id: snapshotId, league_id: leagueId,
-    kickoff_at: kickoffAt.toISOString(), announced_at: capturedAt.toISOString(),
-    engine_version: "server_level_form_venue_v1", reading_id: readingId,
-    reading_label: label, subject_side: subject.side, subject_team_id: subjectTeamId,
+    announcement_key:
+      `${fixtureId}:${readingId}:${subject.side}:${subjectTeamId}:1`,
+    fixture_id: fixtureId,
+    source_snapshot_id: snapshotId,
+    league_id: leagueId,
+    kickoff_at: kickoffAt.toISOString(),
+    announced_at: capturedAt.toISOString(),
+    engine_version: "server_level_form_venue_v1",
+    reading_id: readingId,
+    reading_label: label,
+    subject_side: subject.side,
+    subject_team_id: subjectTeamId,
     player_id: null,
-    evidence: [{ label: evidence, source_path: "snapshot.raw", value: { window: sampleSize } }],
-    sample_size: sampleSize, outcome_rule: outcomeRule, rule_version: 1,
+    evidence: [{
+      label: evidence,
+      source_path: "snapshot.raw",
+      value: { window: sampleSize },
+    }],
+    sample_size: sampleSize,
+    outcome_rule: outcomeRule,
+    rule_version: 1,
   };
 }
 
@@ -1404,16 +2454,6 @@ function isStrong(played: number, wins: number, losses: number): boolean {
 
 function isWeak(played: number, wins: number, losses: number): boolean {
   return played > 0 && losses > wins;
-}
-
-function isStructuralGap(
-  superior: StandingProfile,
-  opponent: StandingProfile,
-): boolean {
-  const rankGap = opponent.rank - superior.rank;
-  const pointsPerGameGap =
-    (superior.points / superior.played) - (opponent.points / opponent.played);
-  return rankGap >= 6 && pointsPerGameGap >= 0.4;
 }
 
 function teamName(team: JsonObject): string {
@@ -1439,6 +2479,7 @@ async function insertAnnouncements({
       announcement_kind: row.announcement_kind ?? "reading",
       parent_announcement_key: row.parent_announcement_key ?? null,
       required_reading_ids: row.required_reading_ids ?? [],
+      player_name: row.player_name ?? null,
     }));
     const rows = await supabaseFetch({
       supabaseUrl,

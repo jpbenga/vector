@@ -137,6 +137,7 @@ class OpportunityEngineV2 {
       retainedTheses: [thesis],
       compatibleMarkets: const [],
       supportingReadings: candidate.supportingReadings,
+      resistanceReadings: candidate.resistanceReadings,
       contradictoryReadings: candidate.contradictoryReadings,
       thesisAssessments: assessments,
       asOf: analysis.asOf,
@@ -212,6 +213,7 @@ class OpportunityEngineV2 {
     final contradictions = side == ReadingSubjectSide.match
         ? analysis.contradictoryReadings
         : _contradictionsFor(analysis, scenario.subjectTeamId);
+    final resistances = _scenarioResistancesFor(match, analysis, scenario);
 
     return switch (scenario.scenarioId) {
       'solid_favorite' => _OpportunityCandidate(
@@ -221,6 +223,7 @@ class OpportunityEngineV2 {
             '${team!.name} réunit la supériorité au classement, l’avantage de forme et l’écart structurel requis.',
         subjectSide: side,
         supportingReadings: scenario.supportingReadings,
+        resistanceReadings: resistances,
         contradictoryReadings: contradictions,
         marketIntents: [
           _MarketIntent('matchResult', _selectionForSide(side)),
@@ -231,10 +234,10 @@ class OpportunityEngineV2 {
       'struggling_team' => _OpportunityCandidate(
         id: scenario.scenarioId,
         title: 'Équipe en difficulté',
-        summary:
-            '${team!.name} cumule série négative, difficulté à marquer et fragilité défensive.',
+        summary: '${team!.name} cumule série négative et difficulté à marquer.',
         subjectSide: side,
         supportingReadings: scenario.supportingReadings,
+        resistanceReadings: resistances,
         contradictoryReadings: contradictions,
         marketIntents: [
           _MarketIntent('matchResult', _selectionForSide(_opponent(side))),
@@ -249,6 +252,7 @@ class OpportunityEngineV2 {
             '${team!.name} possède conjointement la supériorité au classement et l’avantage structurel requis.',
         subjectSide: side,
         supportingReadings: scenario.supportingReadings,
+        resistanceReadings: resistances,
         contradictoryReadings: contradictions,
         marketIntents: [
           _MarketIntent('matchResult', _selectionForSide(side)),
@@ -265,10 +269,14 @@ class OpportunityEngineV2 {
           'defensive_match' => 'Match fermé',
           _ => 'Rencontre sous tension disciplinaire',
         },
-        summary:
-            'Toutes les lectures du scénario sont présentes pour les deux équipes.',
+        summary: scenario.scenarioId == 'offensive_match'
+            ? 'Le profil de match et la tendance over 2,5 buts convergent.'
+            : scenario.scenarioId == 'defensive_match'
+            ? 'Le profil de match et la tendance under 2,5 buts convergent.'
+            : 'Le profil disciplinaire des deux équipes converge.',
         subjectSide: side,
         supportingReadings: scenario.supportingReadings,
+        resistanceReadings: resistances,
         contradictoryReadings: contradictions,
         marketIntents: scenario.scenarioId == 'disciplinary_tension'
             ? const []
@@ -298,7 +306,7 @@ class OpportunityEngineV2 {
           _ => 'Pression favorable aux corners',
         },
         summary:
-            '${team!.name} réunit toutes les lectures requises pour ce scénario.',
+            '${team!.name} réunit les lectures principales requises pour ce scénario.',
         subjectSide: side,
         supportingReadings: scenario.supportingReadings,
         contradictoryReadings: contradictions,
@@ -307,6 +315,86 @@ class OpportunityEngineV2 {
       ),
       _ => null,
     };
+  }
+
+  List<FootballReading> _scenarioResistancesFor(
+    MatchBoardItem match,
+    FootballAnalysis analysis,
+    FootballScenarioMatch scenario,
+  ) {
+    final side = scenario.subjectSide;
+    final subject = side == ReadingSubjectSide.match
+        ? null
+        : _teamForSide(match, side);
+    final opponent = subject == null
+        ? null
+        : _teamForSide(match, _opponent(side));
+
+    List<FootballReading> subjectReadings(List<String> ids) =>
+        subject == null ? const [] : _readingsFor(analysis, subject.id, ids);
+    List<FootballReading> opponentReadings(List<String> ids) =>
+        opponent == null ? const [] : _readingsFor(analysis, opponent.id, ids);
+
+    final readings = switch (scenario.scenarioId) {
+      'solid_favorite' || 'ranking_gap' => [
+        ...opponentReadings(['positive_streak', 'improving_form']),
+        ...subjectReadings([
+          side == ReadingSubjectSide.home ? 'weak_home_team' : 'weak_away_team',
+        ]),
+        ...opponentReadings([
+          side == ReadingSubjectSide.home
+              ? 'strong_away_team'
+              : 'strong_home_team',
+        ]),
+      ],
+      'struggling_team' => subjectReadings([
+        'positive_streak',
+        'improving_form',
+        'prolific_attack',
+        'solid_defense',
+      ]),
+      'offensive_match' => [
+        ...analysis.detected(id: 'closed_match_profile'),
+        ...analysis.detected(id: 'frequent_under_25'),
+        ...analysis.detected(id: 'solid_defense'),
+        ...analysis.detected(id: 'scoring_difficulty'),
+      ],
+      'defensive_match' => [
+        ...analysis.detected(id: 'open_match_profile'),
+        ...analysis.detected(id: 'frequent_over_25'),
+        ...analysis.detected(id: 'prolific_attack'),
+        ...analysis.detected(id: 'fragile_defense'),
+      ],
+      'credible_outsider' => [
+        ...opponentReadings(['ranking_superiority', 'structural_level_gap']),
+      ],
+      'fragile_defense' => subjectReadings(['solid_defense']),
+      'prolific_attack' => subjectReadings([
+        'scoring_difficulty',
+        'low_xg_creation',
+      ]),
+      'positive_series' => subjectReadings([
+        'negative_streak',
+        'declining_form',
+      ]),
+      'negative_series' => subjectReadings([
+        'positive_streak',
+        'improving_form',
+      ]),
+      _ => const <FootballReading>[],
+    };
+    final supportingKeys = {
+      for (final reading in scenario.supportingReadings)
+        '${reading.id}:${reading.subjectTeamId}:${reading.playerId}',
+    };
+    final unique = <String, FootballReading>{};
+    for (final reading in readings) {
+      final key = '${reading.id}:${reading.subjectTeamId}:${reading.playerId}';
+      if (!reading.isContradiction && !supportingKeys.contains(key)) {
+        unique[key] = reading;
+      }
+    }
+    return List.unmodifiable(unique.values);
   }
 
   List<BetRecommendation> _betRecommendations(
@@ -364,10 +452,10 @@ class OpportunityEngineV2 {
     }
 
     for (final reading in analysis.supportingReadings) {
-      if (reading.id == 'standout_decisive_player') {
-        _addGoalScorerRecommendation(reading, add);
-        continue;
-      }
+      // A decisive-player signal helps the user read the match. It never
+      // creates an automatic scorer bet: goals and assists are intentionally
+      // combined in this reading.
+      if (reading.id == 'standout_decisive_player') continue;
       final target = _targetSideForReading(reading);
       if (target == null) {
         continue;
@@ -451,37 +539,6 @@ class OpportunityEngineV2 {
       contradictionIds: contradictionIds,
       maturity: analysis.maturity,
       pricedCandidate: candidate,
-    );
-  }
-
-  void _addGoalScorerRecommendation(
-    FootballReading reading,
-    void Function(
-      MarketIntent, {
-      String? subjectTeamId,
-      int? subjectPlayerId,
-      String? subjectPlayerName,
-      ReadingSubjectSide subjectSide,
-      Iterable<String> readingIds,
-      Iterable<String> scenarioIds,
-      Iterable<String> contradictionIds,
-    })
-    add,
-  ) {
-    final playerId = reading.playerId;
-    final playerName = reading.playerName;
-    if (playerId == null || playerName == null || playerName.isEmpty) return;
-    add(
-      MarketIntent(
-        'playerAnytimeScorer',
-        MarketSelectionIntent.yes,
-        playerName: playerName,
-      ),
-      subjectTeamId: reading.subjectTeamId,
-      subjectPlayerId: playerId,
-      subjectPlayerName: playerName,
-      subjectSide: reading.subjectSide,
-      readingIds: [reading.id],
     );
   }
 
@@ -756,6 +813,7 @@ class OpportunityEngineV2 {
       compatibleMarkets: compatibleMarkets,
       recommendedMarket: recommendedMarket,
       supportingReadings: selected.supportingReadings,
+      resistanceReadings: selected.resistanceReadings,
       contradictoryReadings: selected.contradictoryReadings,
       thesisAssessments: intelligence.thesisAssessments,
       scenarioIds: [selected.id],
@@ -843,6 +901,7 @@ class OpportunityEngineV2 {
       title: candidate?.title ?? scenario.scenarioId,
       summary: candidate?.summary ?? 'Scénario soutenu par l’analyse du match.',
       proofs: [for (final reading in scenario.supportingReadings) reading.id],
+      subjectTeamId: scenario.subjectTeamId,
     );
   }
 
@@ -932,6 +991,7 @@ class OpportunityEngineV2 {
       proofs: evidenceLabels.isEmpty
           ? [title]
           : evidenceLabels.take(3).toList(),
+      subjectTeamId: reading.subjectTeamId,
     );
   }
 
@@ -1003,7 +1063,7 @@ class OpportunityEngineV2 {
       'second_half_cards_profile' =>
         '$subjectName reçoit surtout des cartons après la pause',
       'standout_decisive_player' =>
-        '$subjectName se distingue par ses actions décisives',
+        '${reading.playerName ?? subjectName} à surveiller',
       'key_player_unavailable' => 'Joueur important absent pour $subjectName',
       _ => 'Lecture détectée pour $subjectName',
     };
@@ -2206,6 +2266,7 @@ class _OpportunityCandidate {
     required this.summary,
     required this.subjectSide,
     required this.supportingReadings,
+    this.resistanceReadings = const [],
     required this.contradictoryReadings,
     required this.marketIntents,
     required this.priority,
@@ -2217,6 +2278,7 @@ class _OpportunityCandidate {
   final String summary;
   final ReadingSubjectSide subjectSide;
   final List<FootballReading> supportingReadings;
+  final List<FootballReading> resistanceReadings;
   final List<FootballReading> contradictoryReadings;
   final List<_MarketIntent> marketIntents;
   final int priority;

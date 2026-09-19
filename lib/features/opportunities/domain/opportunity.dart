@@ -110,6 +110,7 @@ class Opportunity {
     required this.compatibleMarkets,
     this.recommendedMarket,
     this.supportingReadings = const [],
+    this.resistanceReadings = const [],
     this.contradictoryReadings = const [],
     this.thesisAssessments = const [],
     this.scenarioIds = const [],
@@ -124,6 +125,7 @@ class Opportunity {
   final List<OpportunityMarketCompatibility> compatibleMarkets;
   final RecommendedMarket? recommendedMarket;
   final List<FootballReading> supportingReadings;
+  final List<FootballReading> resistanceReadings;
   final List<FootballReading> contradictoryReadings;
   final List<ThesisAssessment> thesisAssessments;
   final List<String> scenarioIds;

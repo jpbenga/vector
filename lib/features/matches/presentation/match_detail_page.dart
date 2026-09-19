@@ -11,6 +11,7 @@ import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/lector_brand_mark.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../../onboarding/domain/decision_profile_catalogs.dart';
 import '../../opportunities/domain/opportunity.dart';
 import '../../tickets/domain/ticket_draft.dart';
 import '../../tickets/domain/saved_ticket.dart';
@@ -2453,9 +2454,9 @@ class _LectorStandingContextCardState
     final tierSnapshot = selectedView == ChampionshipStandingView.general
         ? match.analysis.championshipTierSnapshot
         : null;
-    final hasTierSnapshot =
-        tierSnapshot?.status == TierSystemStatus.mature &&
-        tierSnapshot!.teamAssignments.isNotEmpty;
+    final hasTierSnapshot = tierSnapshot?.teamAssignments.isNotEmpty == true;
+    final tiersAreProvisional =
+        hasTierSnapshot && tierSnapshot!.status != TierSystemStatus.mature;
     final hasOfficialZones =
         selectedView == ChampionshipStandingView.general &&
         standings.any((standing) => _officialStandingZone(standing) != null);
@@ -2500,10 +2501,11 @@ class _LectorStandingContextCardState
             _StandingUnifiedLegend(
               officialZones: officialZones,
               tiers: hasTierSnapshot
-                  ? tierSnapshot.tierPresence.toList()
+                  ? tierSnapshot?.tierPresence.toList() ?? const []
                   : const [],
               hasTierSnapshot: hasTierSnapshot,
               hasOfficialZones: hasOfficialZones,
+              tiersAreProvisional: tiersAreProvisional,
             ),
             const SizedBox(height: 10),
           ],
@@ -2791,12 +2793,14 @@ class _StandingUnifiedLegend extends StatelessWidget {
     required this.tiers,
     required this.hasTierSnapshot,
     required this.hasOfficialZones,
+    required this.tiersAreProvisional,
   });
 
   final List<_OfficialStandingLegendItem> officialZones;
   final List<TierLabel> tiers;
   final bool hasTierSnapshot;
   final bool hasOfficialZones;
+  final bool tiersAreProvisional;
 
   @override
   Widget build(BuildContext context) {
@@ -2837,7 +2841,9 @@ class _StandingUnifiedLegend extends StatelessWidget {
             const SizedBox(height: 9),
             _StandingLegendSection(
               icon: Icons.bar_chart_rounded,
-              title: 'Tiers Lector',
+              title: tiersAreProvisional
+                  ? 'Tiers Lector · provisoires'
+                  : 'Tiers Lector',
               emptyLabel: hasTierSnapshot
                   ? null
                   : 'Tiers non calculables pour ce classement.',
@@ -2856,6 +2862,17 @@ class _StandingUnifiedLegend extends StatelessWidget {
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: context.textColors.secondary,
                   fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+            if (tiersAreProvisional) ...[
+              const SizedBox(height: 7),
+              Text(
+                'Échantillon encore court : les tiers sont affichés, mais '
+                'restent exclus des décisions automatiques.',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: context.semantic.warning,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -3129,12 +3146,8 @@ class _MobileStandingTable extends StatelessWidget {
     final groups = _standingTierGroups(standings, tierSnapshot);
     final hasTierBands = groups.any((group) => group.tier != null);
     final leadingWidth = hasTierBands ? _standingTierBandWidth : 0.0;
-    final minimumTableWidth =
-        _standingTableContentWidth +
-        leadingWidth +
-        (_standingRowHorizontalPadding * 2);
-
     return ClipRRect(
+      key: const ValueKey('mobile-standing-table'),
       borderRadius: BorderRadius.circular(AppRadius.control),
       child: DecoratedBox(
         decoration: BoxDecoration(
@@ -3144,29 +3157,21 @@ class _MobileStandingTable extends StatelessWidget {
         ),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final availableWidth = constraints.maxWidth;
-            final tableWidth =
-                availableWidth.isFinite && availableWidth > minimumTableWidth
-                ? availableWidth
-                : minimumTableWidth;
-            return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: tableWidth,
-                child: Column(
-                  children: [
-                    _MobileStandingRow.header(
-                      lastColumnLabel: lastColumnLabel,
-                      leadingWidth: leadingWidth,
+            return SizedBox(
+              width: constraints.maxWidth,
+              child: Column(
+                children: [
+                  _MobileStandingRow.header(
+                    lastColumnLabel: lastColumnLabel,
+                    leadingWidth: leadingWidth,
+                  ),
+                  for (final entry in groups.indexed)
+                    _StandingTierGroupSection(
+                      match: match,
+                      group: entry.$2,
+                      showOfficialZones: showOfficialZones,
                     ),
-                    for (final entry in groups.indexed)
-                      _StandingTierGroupSection(
-                        match: match,
-                        group: entry.$2,
-                        showOfficialZones: showOfficialZones,
-                      ),
-                  ],
-                ),
+                ],
               ),
             );
           },
@@ -3177,8 +3182,7 @@ class _MobileStandingTable extends StatelessWidget {
 }
 
 const _standingTierBandWidth = 24.0;
-const _standingRowHorizontalPadding = 4.0;
-const _standingTableContentWidth = 450.0;
+const _standingRowHorizontalPadding = 2.0;
 
 class _StandingTierGroupData {
   const _StandingTierGroupData({required this.tier, required this.rows});
@@ -3331,12 +3335,18 @@ class _MobileStandingRow extends StatelessWidget {
     final textColor = isHeader ? textColors.secondary : textColors.primary;
     final officialColor = officialZone?.color(context);
     final rankColor = isHeader ? textColor : officialColor ?? textColor;
+    final highlightColor = switch (highlight) {
+      _StandingHighlight.home => context.brand.accent,
+      _StandingHighlight.away => context.strategies.violetStyle.color,
+      _StandingHighlight.none => null,
+    };
 
     if (isHeader) {
       return _MobileStandingRowShell(
         backgroundColor: rowColor,
         borderColor: borderColor,
         tierRailColor: null,
+        highlightColor: null,
         child: _StandingTableCells.header(
           color: textColor,
           lastColumnLabel: lastColumnLabel,
@@ -3350,19 +3360,20 @@ class _MobileStandingRow extends StatelessWidget {
       backgroundColor: rowColor,
       borderColor: borderColor,
       tierRailColor: null,
+      highlightColor: highlightColor,
       child: Row(
         children: [
           _StandingRankCell(
             rank: _intValue(row.rank),
-            width: 24,
+            width: 20,
             color: rankColor,
             tierLabel: tierLabel,
             officialZone: officialZone,
           ),
-          SizedBox(
-            width: 142,
+          Expanded(
             child: _StandingTeamCell(
               team: team,
+              teamId: row.teamId,
               teamName: row.teamName,
               highlight: highlight,
               textColor: textColor,
@@ -3370,36 +3381,36 @@ class _MobileStandingRow extends StatelessWidget {
           ),
           _StandingTableCell(
             _intValue(row.played),
-            width: 32,
+            width: 23,
             color: textColor,
           ),
-          _StandingTableCell(_intValue(row.wins), width: 30, color: textColor),
-          _StandingTableCell(_intValue(row.draws), width: 30, color: textColor),
+          _StandingTableCell(_intValue(row.wins), width: 22, color: textColor),
+          _StandingTableCell(_intValue(row.draws), width: 22, color: textColor),
           _StandingTableCell(
             _intValue(row.losses),
-            width: 30,
+            width: 22,
             color: textColor,
           ),
           _StandingTableCell(
             _intValue(row.goalsFor),
-            width: 38,
+            width: 25,
             color: textColor,
           ),
           _StandingTableCell(
             _intValue(row.goalsAgainst),
-            width: 38,
+            width: 25,
             color: textColor,
           ),
           _StandingTableCell(
             _signedValue(row.goalDiff),
-            width: 46,
+            width: 31,
             color: _goalDiffColor(context, row.goalDiff),
           ),
           _StandingTableCell(
             row.metricValue == null
                 ? _intValue(row.points)
                 : row.metricValue!.toStringAsFixed(2),
-            width: 40,
+            width: 28,
             color: textColor,
             bold: true,
           ),
@@ -3452,12 +3463,14 @@ class _StandingRankCell extends StatelessWidget {
 class _StandingTeamCell extends StatelessWidget {
   const _StandingTeamCell({
     required this.team,
+    required this.teamId,
     required this.teamName,
     required this.highlight,
     required this.textColor,
   });
 
   final TeamInfo? team;
+  final int teamId;
   final String teamName;
   final _StandingHighlight highlight;
   final Color textColor;
@@ -3472,13 +3485,15 @@ class _StandingTeamCell extends StatelessWidget {
     final content = Row(
       children: [
         SportsAssetBadge(
-          size: 20,
-          imageUrl: team?.logoUrl,
+          size: 18,
+          imageUrl:
+              team?.logoUrl ??
+              'https://media.api-sports.io/football/teams/$teamId.png',
           fallbackLabel: teamName,
           backgroundColor: AppColors.transparent,
           padding: 1,
         ),
-        const SizedBox(width: 7),
+        const SizedBox(width: 5),
         Expanded(
           child: Text(
             teamName,
@@ -3492,29 +3507,15 @@ class _StandingTeamCell extends StatelessWidget {
             ),
           ),
         ),
-        if (highlightColor != null) ...[
-          const SizedBox(width: 4),
+        if (highlightColor != null)
           _StandingMatchSidePill(
             label: highlight == _StandingHighlight.home ? 'DOM.' : 'EXT.',
             color: highlightColor,
           ),
-        ],
       ],
     );
 
-    if (highlightColor == null) {
-      return content;
-    }
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadius.tight),
-        border: Border.all(color: highlightColor.withValues(alpha: 0.88)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-        child: content,
-      ),
-    );
+    return content;
   }
 }
 
@@ -3563,24 +3564,31 @@ class _StandingTableCells extends StatelessWidget {
     return Row(
       children: [
         SizedBox(width: leadingWidth),
-        _StandingTableCell('#', width: 24, color: color, isHeader: true),
-        _StandingTableCell(
-          'Équipe',
-          width: 142,
-          color: color,
-          isHeader: true,
-          alignment: Alignment.centerLeft,
+        _StandingTableCell('#', width: 20, color: color, isHeader: true),
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Équipe',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
         ),
-        _StandingTableCell('J', width: 32, color: color, isHeader: true),
-        _StandingTableCell('V', width: 30, color: color, isHeader: true),
-        _StandingTableCell('N', width: 30, color: color, isHeader: true),
-        _StandingTableCell('D', width: 30, color: color, isHeader: true),
-        _StandingTableCell('BP', width: 38, color: color, isHeader: true),
-        _StandingTableCell('BC', width: 38, color: color, isHeader: true),
-        _StandingTableCell('Diff', width: 46, color: color, isHeader: true),
+        _StandingTableCell('J', width: 23, color: color, isHeader: true),
+        _StandingTableCell('V', width: 22, color: color, isHeader: true),
+        _StandingTableCell('N', width: 22, color: color, isHeader: true),
+        _StandingTableCell('D', width: 22, color: color, isHeader: true),
+        _StandingTableCell('BP', width: 25, color: color, isHeader: true),
+        _StandingTableCell('BC', width: 25, color: color, isHeader: true),
+        _StandingTableCell('Diff', width: 31, color: color, isHeader: true),
         _StandingTableCell(
           lastColumnLabel,
-          width: 40,
+          width: 28,
           color: color,
           isHeader: true,
         ),
@@ -3803,6 +3811,7 @@ class _MobileStandingRowShell extends StatelessWidget {
     required this.backgroundColor,
     required this.borderColor,
     required this.tierRailColor,
+    required this.highlightColor,
     this.isTierBoundary = false,
   });
 
@@ -3810,21 +3819,34 @@ class _MobileStandingRowShell extends StatelessWidget {
   final Color backgroundColor;
   final Color borderColor;
   final Color? tierRailColor;
+  final Color? highlightColor;
   final bool isTierBoundary;
 
   @override
   Widget build(BuildContext context) {
+    final highlight = highlightColor;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: backgroundColor,
+        color: highlight == null
+            ? backgroundColor
+            : highlight.withValues(alpha: 0.055),
         border: Border(
-          left: tierRailColor == null
+          left: highlight != null
+              ? BorderSide(color: highlight, width: 2)
+              : tierRailColor == null
               ? BorderSide.none
               : BorderSide(color: tierRailColor!, width: 3),
-          top: isTierBoundary
+          top: highlight != null
+              ? BorderSide(color: highlight, width: 2)
+              : isTierBoundary
               ? BorderSide(color: tierRailColor ?? borderColor, width: 2)
               : BorderSide.none,
-          bottom: BorderSide(color: borderColor.withValues(alpha: 0.7)),
+          right: highlight == null
+              ? BorderSide.none
+              : BorderSide(color: highlight, width: 2),
+          bottom: highlight != null
+              ? BorderSide(color: highlight, width: 2)
+              : BorderSide(color: borderColor.withValues(alpha: 0.7)),
         ),
       ),
       child: Padding(
@@ -5546,23 +5568,17 @@ class _ScenarioReadingsSheet extends StatefulWidget {
 }
 
 class _ScenarioReadingsSheetState extends State<_ScenarioReadingsSheet> {
-  late final List<_ScenarioReading> _readings;
-  late int _selectedReadingIndex;
+  late final _ScenarioSheetContent _content;
 
   @override
   void initState() {
     super.initState();
-    _readings = _scenarioReadingsFor(widget.match, widget.opportunity);
-    _selectedReadingIndex = _initialScenarioReadingIndex(
-      _readings,
-      widget.match.thesis?.id,
-    );
+    _content = _scenarioSheetContentFor(widget.match, widget.opportunity);
   }
 
   @override
   Widget build(BuildContext context) {
     final surfaces = context.surfaces;
-    final reading = _readings[_selectedReadingIndex];
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -5592,71 +5608,611 @@ class _ScenarioReadingsSheetState extends State<_ScenarioReadingsSheet> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 8, 6),
-            child: _ScenarioReadingHeader(
-              reading: reading,
+            padding: const EdgeInsets.fromLTRB(16, 12, 8, 10),
+            child: _ScenarioSheetOverviewHeader(
               onClose: () => Navigator.of(context).pop(),
             ),
           ),
           Flexible(
             child: ListView(
               shrinkWrap: true,
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
               children: [
-                if (reading.supports.isNotEmpty)
-                  _ScenarioEvidenceSection(
-                    title: 'Ce qui confirme la lecture',
+                if (_content.scenarios.isNotEmpty) ...[
+                  _ScenarioSheetSectionHeading(
+                    title: _content.scenarios.length == 1
+                        ? 'Scénario retenu'
+                        : 'Scénarios retenus',
+                    color: _scenarioAccent(context),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  for (final scenario in _content.scenarios) ...[
+                    _ScenarioOverviewCard(
+                      match: widget.match,
+                      scenario: scenario,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                  ],
+                ],
+                if (_content.independentReadings.isNotEmpty) ...[
+                  _ScenarioSheetSectionHeading(
+                    title: 'Autres lectures du match',
                     subtitle:
-                        '${reading.supports.length} ${reading.supports.length == 1 ? 'signal convergent' : 'signaux convergents'}',
-                    items: reading.supports,
+                        'Lectures actives qui ne composent pas les scénarios ci-dessus',
                     color: context.brand.accent,
-                    icon: Icons.check_circle_outline_rounded,
-                  )
-                else
-                  const _ScenarioEmptyEvidenceLine(
-                    message:
-                        'Aucun soutien détaillé produit pour cette lecture.',
                   ),
-                if (reading.resistances.isNotEmpty ||
-                    reading.contradictions.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.xs),
-                  _ScenarioCounterEvidenceSection(
-                    resistances: reading.resistances,
-                    contradictions: reading.contradictions,
+                  for (final group in _content.independentReadingGroups) ...[
+                    _ScenarioTeamReadingsCard(
+                      key: ValueKey(
+                        'scenario-independent-${group.subjectTeamId ?? 'match'}',
+                      ),
+                      match: widget.match,
+                      group: group,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                  ],
+                ],
+                if (_content.vigilances.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  _ScenarioSheetSectionHeading(
+                    title: _content.vigilances.length == 1
+                        ? 'Point de vigilance'
+                        : 'Points de vigilance',
+                    color: context.semantic.warning,
                   ),
-                ],
-                if (reading.resistances.isEmpty &&
-                    reading.contradictions.isEmpty) ...[
                   const SizedBox(height: AppSpacing.xs),
-                  const _ScenarioNoCounterEvidenceCard(),
+                  for (final vigilance in _content.vigilances) ...[
+                    _ScenarioVigilanceCard(
+                      key: ValueKey(
+                        'scenario-vigilance-${vigilance.readingId ?? vigilance.title}',
+                      ),
+                      match: widget.match,
+                      item: vigilance,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                  ],
                 ],
-                if (reading.limits.isNotEmpty) ...[
+                if (_content.limits.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.xs),
-                  _ScenarioLimitsSection(limits: reading.limits),
+                  _ScenarioLimitsSection(limits: _content.limits),
                 ],
-                if (_readings.length > 1) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  _ScenarioReadingNavigation(
-                    index: _selectedReadingIndex,
-                    total: _readings.length,
-                    previousTitle: _selectedReadingIndex == 0
-                        ? null
-                        : _readings[_selectedReadingIndex - 1].title,
-                    nextTitle: _selectedReadingIndex == _readings.length - 1
-                        ? null
-                        : _readings[_selectedReadingIndex + 1].title,
-                    onPrevious: _selectedReadingIndex == 0
-                        ? null
-                        : () => setState(() => _selectedReadingIndex -= 1),
-                    onNext: _selectedReadingIndex == _readings.length - 1
-                        ? null
-                        : () => setState(() => _selectedReadingIndex += 1),
-                  ),
-                ],
+                if (_content.isEmpty)
+                  _ScenarioNoReadingsCard(match: widget.match),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ScenarioSheetOverviewHeader extends StatelessWidget {
+  const _ScenarioSheetOverviewHeader({required this.onClose});
+
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: context.brand.accent.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(AppRadius.odds),
+            border: Border.all(
+              color: context.brand.accent.withValues(alpha: 0.42),
+            ),
+          ),
+          child: SizedBox.square(
+            dimension: 42,
+            child: Icon(
+              Icons.auto_awesome_rounded,
+              color: context.brand.accent,
+              size: 23,
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'ANALYSE LECTOR',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: context.brand.accent,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Pourquoi ce match est proposé',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: context.textColors.primary,
+                  fontWeight: FontWeight.w900,
+                  height: 1.12,
+                ),
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          tooltip: 'Fermer',
+          onPressed: onClose,
+          icon: Icon(
+            Icons.close_rounded,
+            color: context.textColors.primary,
+            size: 24,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ScenarioSheetSectionHeading extends StatelessWidget {
+  const _ScenarioSheetSectionHeading({
+    required this.title,
+    required this.color,
+    this.subtitle,
+  });
+
+  final String title;
+  final String? subtitle;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 4,
+          height: subtitle == null ? 23 : 42,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(AppRadius.chip),
+          ),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: context.textColors.primary,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              if (subtitle != null)
+                Text(
+                  subtitle!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.textColors.secondary,
+                    height: 1.22,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ScenarioOverviewCard extends StatelessWidget {
+  const _ScenarioOverviewCard({required this.match, required this.scenario});
+
+  final MatchBoardItem match;
+  final _ScenarioReading scenario;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = _scenarioAccent(context);
+    final identity = context.opportunities.scenarioIdentityForProfileId(
+      _scenarioProfileId(scenario.id),
+    );
+    final featuredTeam = _teamForScenario(match, scenario);
+    final subjectLabel = featuredTeam == null
+        ? 'Lecture sur la rencontre'
+        : 'Équipe mise en avant';
+    final summary = scenario.summary?.trim();
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.surfaces.surfaceHover.withValues(alpha: 0.68),
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        border: Border.all(color: accent.withValues(alpha: 0.82)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(AppRadius.chip),
+                  ),
+                  child: SizedBox.square(
+                    dimension: 34,
+                    child: Icon(identity.icon, color: accent, size: 20),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: Text(
+                    scenario.title.toUpperCase(),
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: accent,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            if (featuredTeam != null) ...[
+              Row(
+                children: [
+                  SportsAssetBadge(
+                    size: 54,
+                    imageUrl: featuredTeam.logoUrl,
+                    fallbackLabel: featuredTeam.name,
+                    borderRadius: 27,
+                    backgroundColor: AppColors.transparent,
+                    contrastPlate: true,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          featuredTeam.name,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: context.textColors.primary,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        _ScenarioImpactPill(
+                          label: subjectLabel,
+                          color: context.brand.accent,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xs),
+            ],
+            if (summary != null && summary.isNotEmpty)
+              Text(
+                summary,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: context.textColors.primary,
+                  height: 1.3,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            if (scenario.supports.isNotEmpty) ...[
+              Divider(height: 22, color: accent.withValues(alpha: 0.34)),
+              Text(
+                'Lectures qui composent ce scénario · ${scenario.supports.length}',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: accent,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 7),
+              for (final indexed in scenario.supports.indexed) ...[
+                _ScenarioCompositionRow(item: indexed.$2, accent: accent),
+                if (indexed.$1 < scenario.supports.length - 1)
+                  Divider(
+                    height: 15,
+                    color: context.surfaces.border.withValues(alpha: 0.72),
+                  ),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScenarioCompositionRow extends StatelessWidget {
+  const _ScenarioCompositionRow({required this.item, required this.accent});
+
+  final _ScenarioEvidenceDetail item;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final identity = item.readingId == null
+        ? null
+        : context.opportunities.readingIdentityForId(item.readingId!);
+    final color = identity?.color ?? context.brand.accent;
+    final description = item.description?.trim();
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(AppRadius.chip),
+          ),
+          child: SizedBox.square(
+            dimension: 30,
+            child: Icon(
+              identity?.icon ?? Icons.check_circle_outline_rounded,
+              color: color,
+              size: 17,
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                item.title,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.textColors.primary,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              if (description != null && description.isNotEmpty)
+                Text(
+                  description,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.textColors.secondary,
+                    height: 1.25,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ScenarioTeamReadingsCard extends StatelessWidget {
+  const _ScenarioTeamReadingsCard({
+    required this.match,
+    required this.group,
+    super.key,
+  });
+
+  final MatchBoardItem match;
+  final _ScenarioReadingGroup group;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final team = _teamForSubject(match, group.subjectTeamId);
+    final title = team?.name ?? 'La rencontre';
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.surfaces.surfaceHover.withValues(alpha: 0.46),
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        border: Border.all(color: context.surfaces.border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(11),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (team != null) ...[
+              SportsAssetBadge(
+                size: 46,
+                imageUrl: team.logoUrl,
+                fallbackLabel: team.name,
+                borderRadius: 23,
+                backgroundColor: AppColors.transparent,
+                contrastPlate: true,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+            ] else ...[
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: context.brand.accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.chip),
+                ),
+                child: SizedBox.square(
+                  dimension: 42,
+                  child: Icon(
+                    Icons.sports_soccer_rounded,
+                    color: context.brand.accent,
+                    size: 21,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: context.textColors.primary,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  for (final indexed in group.readings.indexed) ...[
+                    _ScenarioIndependentReadingRow(reading: indexed.$2),
+                    if (indexed.$1 < group.readings.length - 1)
+                      Divider(
+                        height: 14,
+                        color: context.surfaces.border.withValues(alpha: 0.72),
+                      ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScenarioIndependentReadingRow extends StatelessWidget {
+  const _ScenarioIndependentReadingRow({required this.reading});
+
+  final _ScenarioReading reading;
+
+  @override
+  Widget build(BuildContext context) {
+    final identity = context.opportunities.readingIdentityForId(reading.id);
+    final summary = reading.summary?.trim();
+    final fallback = reading.supports.firstOrNull?.description?.trim();
+    final description = summary?.isNotEmpty == true ? summary : fallback;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            if (reading.supports.firstOrNull?.playerPhotoUrl
+                case final photo?) ...[
+              SportsAssetBadge(
+                size: 27,
+                imageUrl: photo,
+                fallbackLabel:
+                    reading.supports.firstOrNull?.playerName ?? reading.title,
+                borderRadius: 14,
+                backgroundColor: AppColors.transparent,
+                contrastPlate: true,
+              ),
+              const SizedBox(width: 7),
+            ] else ...[
+              Icon(identity.icon, color: identity.color, size: 17),
+              const SizedBox(width: 7),
+            ],
+            Expanded(
+              child: Text(
+                reading.supports.firstOrNull?.playerName != null &&
+                        reading.id == 'standout_decisive_player'
+                    ? '${reading.supports.first.playerName} à surveiller'
+                    : reading.title,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: identity.color,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (description != null && description.isNotEmpty) ...[
+          const SizedBox(height: 3),
+          Text(
+            description,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: context.textColors.secondary,
+              height: 1.25,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ScenarioVigilanceCard extends StatelessWidget {
+  const _ScenarioVigilanceCard({
+    required this.match,
+    required this.item,
+    super.key,
+  });
+
+  final MatchBoardItem match;
+  final _ScenarioEvidenceDetail item;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = context.semantic.warning;
+    final team = _teamForEvidence(match, item);
+    final description = item.description?.trim();
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        border: Border.all(color: color.withValues(alpha: 0.7)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(11),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (team != null)
+              SportsAssetBadge(
+                size: 44,
+                imageUrl: team.logoUrl,
+                fallbackLabel: team.name,
+                borderRadius: 22,
+                backgroundColor: AppColors.transparent,
+                contrastPlate: true,
+              )
+            else
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(AppRadius.chip),
+                ),
+                child: SizedBox.square(
+                  dimension: 42,
+                  child: Icon(Icons.warning_amber_rounded, color: color),
+                ),
+              ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  if (description != null && description.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      description,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: context.textColors.primary,
+                        height: 1.28,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -6226,170 +6782,6 @@ class _ScenarioLimitRow extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _ScenarioReadingNavigation extends StatelessWidget {
-  const _ScenarioReadingNavigation({
-    required this.index,
-    required this.total,
-    required this.previousTitle,
-    required this.nextTitle,
-    required this.onPrevious,
-    required this.onNext,
-  });
-
-  final int index;
-  final int total;
-  final String? previousTitle;
-  final String? nextTitle;
-  final VoidCallback? onPrevious;
-  final VoidCallback? onNext;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _ScenarioNavigationButton(
-            tooltip: 'Lecture précédente',
-            label: 'Lecture précédente',
-            readingTitle: previousTitle,
-            icon: Icons.arrow_back_ios_new_rounded,
-            onPressed: onPrevious,
-          ),
-        ),
-        SizedBox(
-          width: 64,
-          child: Column(
-            children: [
-              Text(
-                '${index + 1} / $total',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: context.textColors.primary,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xxs),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  for (var itemIndex = 0; itemIndex < total; itemIndex++)
-                    Container(
-                      width: itemIndex == index ? 20 : 8,
-                      height: 3,
-                      margin: const EdgeInsets.symmetric(horizontal: 2),
-                      decoration: BoxDecoration(
-                        color: itemIndex == index
-                            ? context.brand.accent
-                            : context.surfaces.border,
-                        borderRadius: BorderRadius.circular(AppRadius.chip),
-                      ),
-                    ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: _ScenarioNavigationButton(
-            tooltip: 'Lecture suivante',
-            label: 'Lecture suivante',
-            readingTitle: nextTitle,
-            icon: Icons.arrow_forward_ios_rounded,
-            alignEnd: true,
-            onPressed: onNext,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ScenarioNavigationButton extends StatelessWidget {
-  const _ScenarioNavigationButton({
-    required this.tooltip,
-    required this.label,
-    required this.readingTitle,
-    required this.icon,
-    required this.onPressed,
-    this.alignEnd = false,
-  });
-
-  final String tooltip;
-  final String label;
-  final String? readingTitle;
-  final IconData icon;
-  final VoidCallback? onPressed;
-  final bool alignEnd;
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = onPressed != null;
-    final textColor = enabled
-        ? context.textColors.primary
-        : context.textColors.secondary.withValues(alpha: 0.5);
-
-    return Tooltip(
-      message: tooltip,
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, 48),
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-          side: BorderSide(
-            color: enabled
-                ? context.surfaces.border
-                : context.surfaces.border.withValues(alpha: 0.45),
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.input),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: alignEnd
-              ? MainAxisAlignment.end
-              : MainAxisAlignment.start,
-          children: [
-            if (!alignEnd) Icon(icon, size: 17, color: textColor),
-            if (!alignEnd) const SizedBox(width: 6),
-            Flexible(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: alignEnd
-                    ? CrossAxisAlignment.end
-                    : CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: textColor,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  if (readingTitle != null)
-                    Text(
-                      readingTitle!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: alignEnd ? TextAlign.end : TextAlign.start,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: context.textColors.secondary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            if (alignEnd) const SizedBox(width: 6),
-            if (alignEnd) Icon(icon, size: 17, color: textColor),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -7454,6 +7846,208 @@ List<ThesisEvidence> _scenarioEvidenceItems(MatchBoardItem match) {
   ];
 }
 
+class _ScenarioSheetContent {
+  const _ScenarioSheetContent({
+    required this.scenarios,
+    required this.independentReadings,
+    required this.vigilances,
+    required this.limits,
+  });
+
+  final List<_ScenarioReading> scenarios;
+  final List<_ScenarioReading> independentReadings;
+  final List<_ScenarioEvidenceDetail> vigilances;
+  final List<ThesisEvidence> limits;
+
+  bool get isEmpty =>
+      scenarios.isEmpty &&
+      independentReadings.isEmpty &&
+      vigilances.isEmpty &&
+      limits.isEmpty;
+
+  List<_ScenarioReadingGroup> get independentReadingGroups {
+    final groups = <String?, List<_ScenarioReading>>{};
+    for (final reading in independentReadings) {
+      groups.putIfAbsent(reading.subjectTeamId, () => []).add(reading);
+    }
+    return [
+      for (final entry in groups.entries)
+        _ScenarioReadingGroup(
+          subjectTeamId: entry.key,
+          readings: List.unmodifiable(entry.value),
+        ),
+    ];
+  }
+}
+
+class _ScenarioReadingGroup {
+  const _ScenarioReadingGroup({
+    required this.subjectTeamId,
+    required this.readings,
+  });
+
+  final String? subjectTeamId;
+  final List<_ScenarioReading> readings;
+}
+
+_ScenarioSheetContent _scenarioSheetContentFor(
+  MatchBoardItem match,
+  Opportunity? opportunity,
+) {
+  final readings = _scenarioReadingsFor(match, opportunity);
+  final scenarios = readings
+      .where((reading) => reading.isScenario)
+      .toList(growable: false);
+  final scenarioReadingIds = {
+    for (final scenario in scenarios)
+      for (final support in scenario.supports)
+        if (support.readingId != null) support.readingId!,
+  };
+  final otherReadings = readings
+      .where(
+        (reading) =>
+            !reading.isScenario && !scenarioReadingIds.contains(reading.id),
+      )
+      .toList(growable: false);
+  final featuredTeamIds = scenarios
+      .map((scenario) => _teamForScenario(match, scenario)?.id)
+      .whereType<String>()
+      .toSet();
+  final independentReadings = <_ScenarioReading>[];
+  final directVigilances = <_ScenarioEvidenceDetail>[];
+  for (final reading in otherReadings) {
+    if (_isVigilanceForSelectedScenario(reading, featuredTeamIds)) {
+      directVigilances.add(
+        _scenarioEvidenceDetailForIndependentReading(reading),
+      );
+    } else {
+      independentReadings.add(reading);
+    }
+  }
+  final vigilanceCandidates = <_ScenarioEvidenceDetail>[
+    for (final scenario in scenarios) ...scenario.resistances,
+    for (final scenario in scenarios) ...scenario.contradictions,
+    ...directVigilances,
+  ];
+  final vigilanceKeys = <String>{};
+  final vigilances = [
+    for (final item in vigilanceCandidates)
+      if (vigilanceKeys.add(_scenarioEvidenceKey(item))) item,
+  ];
+  final limits = <ThesisEvidence>[
+    for (final scenario in scenarios) ...scenario.limits,
+  ];
+  return _ScenarioSheetContent(
+    scenarios: scenarios,
+    independentReadings: independentReadings,
+    vigilances: List.unmodifiable(vigilances),
+    limits: List.unmodifiable(limits),
+  );
+}
+
+bool _isVigilanceForSelectedScenario(
+  _ScenarioReading reading,
+  Set<String> featuredTeamIds,
+) {
+  if (featuredTeamIds.isEmpty) return false;
+  final subjectTeamId = reading.subjectTeamId;
+  if (subjectTeamId != null && !featuredTeamIds.contains(subjectTeamId)) {
+    return true;
+  }
+  return subjectTeamId != null &&
+      featuredTeamIds.contains(subjectTeamId) &&
+      _isNegativeReadingForSubject(reading.id);
+}
+
+bool _isNegativeReadingForSubject(String readingId) {
+  return switch (readingId) {
+    'ranking_inferiority' ||
+    'negative_streak' ||
+    'declining_form' ||
+    'weak_home_team' ||
+    'weak_away_team' ||
+    'scoring_difficulty' ||
+    'fragile_defense' ||
+    'low_xg_creation' ||
+    'offensive_underperformance' ||
+    'high_xg_conceded' ||
+    'defensive_underperformance' ||
+    'frequent_first_half_conceding' ||
+    'frequent_second_half_conceding' ||
+    'important_player_absent' => true,
+    _ => false,
+  };
+}
+
+_ScenarioEvidenceDetail _scenarioEvidenceDetailForIndependentReading(
+  _ScenarioReading reading,
+) {
+  final player = reading.supports
+      .where((item) => item.playerName != null || item.playerPhotoUrl != null)
+      .firstOrNull;
+  return _ScenarioEvidenceDetail(
+    title: reading.title,
+    description: reading.summary ?? reading.supports.firstOrNull?.description,
+    readingId: reading.id,
+    subjectTeamId: reading.subjectTeamId,
+    playerName: player?.playerName,
+    playerPhotoUrl: player?.playerPhotoUrl,
+  );
+}
+
+String _scenarioEvidenceKey(_ScenarioEvidenceDetail item) =>
+    '${item.readingId ?? item.title}:${item.subjectTeamId ?? ''}';
+
+Color _scenarioAccent(BuildContext context) =>
+    context.opportunities.scenarioIdentityForProfileId('ranking_gap').color;
+
+String _scenarioProfileId(String id) {
+  if (id.startsWith('scenario:')) {
+    return id.split(':').elementAtOrNull(1) ?? id;
+  }
+  return id;
+}
+
+TeamInfo? _teamForSubject(MatchBoardItem match, String? subjectTeamId) {
+  if (subjectTeamId == match.homeTeam.id) return match.homeTeam;
+  if (subjectTeamId == match.awayTeam.id) return match.awayTeam;
+  return null;
+}
+
+TeamInfo? _teamForScenario(MatchBoardItem match, _ScenarioReading scenario) {
+  final explicit = _teamForSubject(match, scenario.subjectTeamId);
+  if (explicit != null) return explicit;
+  for (final item in scenario.supports) {
+    final team = _teamForSubject(match, item.subjectTeamId);
+    if (team != null) return team;
+    final namedTeam =
+        _teamNamedIn(match, item.title) ??
+        _teamNamedIn(match, item.description ?? '');
+    if (namedTeam != null) return namedTeam;
+  }
+  return _teamNamedIn(match, scenario.title) ??
+      _teamNamedIn(match, scenario.summary ?? '');
+}
+
+TeamInfo? _teamForEvidence(
+  MatchBoardItem match,
+  _ScenarioEvidenceDetail item,
+) =>
+    _teamForSubject(match, item.subjectTeamId) ??
+    _teamNamedIn(match, item.title) ??
+    _teamNamedIn(match, item.description ?? '');
+
+TeamInfo? _teamNamedIn(MatchBoardItem match, String value) {
+  final normalized = value.toLowerCase();
+  if (normalized.contains(match.homeTeam.name.toLowerCase())) {
+    return match.homeTeam;
+  }
+  if (normalized.contains(match.awayTeam.name.toLowerCase())) {
+    return match.awayTeam;
+  }
+  return null;
+}
+
 class _ScenarioReading {
   const _ScenarioReading({
     required this.id,
@@ -7465,6 +8059,8 @@ class _ScenarioReading {
     required this.limits,
     this.summary,
     this.strength,
+    this.subjectTeamId,
+    this.isScenario = false,
   });
 
   final String id;
@@ -7472,6 +8068,8 @@ class _ScenarioReading {
   final String category;
   final String? summary;
   final ReadingStrength? strength;
+  final String? subjectTeamId;
+  final bool isScenario;
   final List<_ScenarioEvidenceDetail> supports;
   final List<_ScenarioEvidenceDetail> resistances;
   final List<_ScenarioEvidenceDetail> contradictions;
@@ -7485,6 +8083,9 @@ class _ScenarioEvidenceDetail {
     this.strengthLabel,
     this.contextLabel,
     this.readingId,
+    this.subjectTeamId,
+    this.playerName,
+    this.playerPhotoUrl,
   });
 
   factory _ScenarioEvidenceDetail.fromAssessment(
@@ -7495,12 +8096,18 @@ class _ScenarioEvidenceDetail {
       return _ScenarioEvidenceDetail(title: item.label);
     }
     return _ScenarioEvidenceDetail(
-      title: FootballReadingCopyCatalog.titleFor(
-        reading.toCopilotArgument(subjectName: ''),
-      ),
+      title:
+          reading.id == 'standout_decisive_player' && reading.playerName != null
+          ? '${reading.playerName} à surveiller'
+          : FootballReadingCopyCatalog.titleFor(
+              reading.toCopilotArgument(subjectName: ''),
+            ),
       description: _scenarioAssessmentDescription(item),
       strengthLabel: _scenarioReadingStrengthLabel(reading.strength),
       readingId: reading.id,
+      subjectTeamId: reading.subjectTeamId,
+      playerName: reading.playerName,
+      playerPhotoUrl: reading.playerPhotoUrl,
       contextLabel: switch (reading.competitionScope) {
         ReadingCompetitionScope.domestic =>
           'Championnat national · ${reading.sourceCompetitionName ?? 'source nationale'}',
@@ -7517,76 +8124,230 @@ class _ScenarioEvidenceDetail {
   final String? strengthLabel;
   final String? contextLabel;
   final String? readingId;
+  final String? subjectTeamId;
+  final String? playerName;
+  final String? playerPhotoUrl;
 }
 
 List<_ScenarioReading> _scenarioReadingsFor(
   MatchBoardItem match,
   Opportunity? opportunity,
 ) {
-  final assessments =
-      opportunity?.thesisAssessments
-          .where((assessment) => assessment.isSupported)
-          .toList(growable: false) ??
-      const <ThesisAssessment>[];
-  if (assessments.isNotEmpty) {
-    return [
-      for (final assessment in assessments)
-        _scenarioReadingFromAssessment(match, assessment),
-    ];
-  }
+  final readings = <_ScenarioReading>[];
+  final signalsById = <String, MatchSignal>{
+    for (final signal in match.signals) signal.id: signal,
+    if (opportunity != null)
+      for (final signal in opportunity.detectedSignals) signal.id: signal,
+  };
+  final availableSignals = signalsById.values.toList(growable: false);
 
-  // Some legacy opportunities carry their selected evidence only in the
-  // opportunity lists. Preserve those engine-produced relations rather than
-  // rebuilding a weaker view from presentation arguments.
-  if (opportunity != null &&
-      (opportunity.supportingReadings.isNotEmpty ||
-          opportunity.contradictoryReadings.isNotEmpty)) {
-    return [_scenarioReadingFromOpportunity(match, opportunity)];
-  }
-
-  final arguments = _scenarioArguments(match);
-  final supports = <_ScenarioEvidenceDetail>[];
-  final contradictions = <_ScenarioEvidenceDetail>[];
-  for (final argument in arguments) {
-    final item = _ScenarioEvidenceDetail(
-      title: _scenarioArgumentTitle(argument),
-      description: argument.evidence
-          .map((evidence) => evidence.label.trim())
-          .where((label) => label.isNotEmpty)
-          .join(' '),
-      strengthLabel: argument.severity == CopilotArgumentSeverity.strong
-          ? 'Fort'
-          : 'Modéré',
-    );
-    if (argument.family == CopilotArgumentFamily.contradiction) {
-      contradictions.add(item);
+  // An opportunity represents the precise scenario selected by the user.
+  // Its thesis assessments also contain other possible analyses of the same
+  // match, including market context. They must not leak into this detail
+  // sheet as if they were sporting evidence for the selected thesis.
+  if (opportunity != null) {
+    if (opportunity.supportingReadings.isEmpty &&
+        opportunity.contradictoryReadings.isEmpty) {
+      final selectedAssessment = opportunity.thesisAssessments
+          .where(
+            (assessment) =>
+                assessment.id == opportunity.primaryThesis.id &&
+                assessment.isSupported,
+          )
+          .firstOrNull;
+      if (selectedAssessment != null) {
+        readings.add(_scenarioReadingFromAssessment(match, selectedAssessment));
+      } else {
+        readings.add(_scenarioReadingFromOpportunity(match, opportunity));
+      }
     } else {
-      supports.add(item);
+      readings.add(_scenarioReadingFromOpportunity(match, opportunity));
+    }
+  } else {
+    final directSignalsById = {
+      for (final signal in availableSignals)
+        if (_isDirectReadingSignal(signal)) signal.id: signal,
+    };
+    for (final scenarioSignal in availableSignals.where(_isScenarioSignal)) {
+      readings.add(
+        _scenarioReadingFromScenarioSignal(
+          scenarioSignal,
+          directSignalsById: directSignalsById,
+        ),
+      );
     }
   }
 
-  final thesisSummary = match.thesis?.summary.trim();
-  final signalSummary = match.signals.isEmpty
-      ? null
-      : match.signals.first.summary.trim();
-  return [
-    _ScenarioReading(
-      id: match.thesis?.id ?? match.id,
-      title: _scenarioTitle(match),
-      category: _scenarioFamilyLabel(
-        arguments.isEmpty ? null : arguments.first.family,
+  // A match may match more than one selected scenario. The primary
+  // opportunity above remains the richest source for its own scenario; the
+  // remaining scenario signals are rendered in the same vertical sheet.
+  final directSignalsById = {
+    for (final signal in availableSignals)
+      if (_isDirectReadingSignal(signal)) signal.id: signal,
+  };
+  final renderedScenarioIds = readings
+      .where((reading) => reading.isScenario)
+      .map((reading) => _scenarioProfileId(reading.id))
+      .toSet();
+  for (final scenarioSignal in availableSignals.where(_isScenarioSignal)) {
+    final scenarioId = _scenarioProfileId(scenarioSignal.id);
+    if (!renderedScenarioIds.add(scenarioId)) continue;
+    readings.add(
+      _scenarioReadingFromScenarioSignal(
+        scenarioSignal,
+        directSignalsById: directSignalsById,
       ),
-      summary: thesisSummary != null && thesisSummary.isNotEmpty
-          ? thesisSummary
-          : signalSummary != null && signalSummary.isNotEmpty
-          ? signalSummary
-          : null,
-      supports: List.unmodifiable(supports),
-      resistances: const [],
-      contradictions: List.unmodifiable(contradictions),
-      limits: match.thesis?.limits ?? const [],
+    );
+  }
+
+  // Direct readings remain visible after scenarios, but the sheet content
+  // builder removes the ones already used by a scenario to avoid duplication.
+  final selectedSignals = availableSignals
+      .where(_isDirectReadingSignal)
+      .toList(growable: false);
+  readings.addAll(
+    selectedSignals.map(
+      (signal) => _scenarioReadingForDirectSignal(match, signal),
     ),
+  );
+  if (readings.isNotEmpty) {
+    return List.unmodifiable(readings);
+  }
+
+  return const [];
+}
+
+bool _isScenarioSignal(MatchSignal signal) => signal.id.startsWith('scenario:');
+
+bool _isDirectReadingSignal(MatchSignal signal) =>
+    ReadingPreferenceCatalog.contains(signal.id);
+
+_ScenarioReading _scenarioReadingForDirectSignal(
+  MatchBoardItem match,
+  MatchSignal signal,
+) {
+  final argument = _scenarioArgumentForSignal(signal);
+  return _ScenarioReading(
+    id: signal.id,
+    title: signal.title,
+    category: _scenarioFamilyLabel(argument.family),
+    summary: signal.summary.trim().isEmpty ? null : signal.summary.trim(),
+    supports: [_scenarioEvidenceDetailForArgument(argument)],
+    resistances: const [],
+    contradictions: const [],
+    limits: const [],
+    subjectTeamId: _subjectTeamIdForSignal(match, signal),
+  );
+}
+
+_ScenarioReading _scenarioReadingFromScenarioSignal(
+  MatchSignal signal, {
+  required Map<String, MatchSignal> directSignalsById,
+}) {
+  final scenarioId = _scenarioProfileId(signal.id);
+  final supports = [
+    for (final id in signal.proofs)
+      if (directSignalsById[id] case final directSignal?)
+        _scenarioEvidenceDetailForSignal(directSignal)
+      else
+        _ScenarioEvidenceDetail(title: id, readingId: id),
   ];
+  return _ScenarioReading(
+    id: scenarioId,
+    title: signal.title,
+    category: 'Scénario',
+    summary: signal.summary.trim().isEmpty ? null : signal.summary.trim(),
+    supports: List.unmodifiable(supports),
+    resistances: const [],
+    contradictions: const [],
+    limits: const [],
+    subjectTeamId: signal.subjectTeamId ?? _scenarioSubjectTeamId(signal.id),
+    isScenario: true,
+  );
+}
+
+String? _scenarioSubjectTeamId(String id) {
+  final parts = id.split(':');
+  return parts.length >= 3 ? parts[2] : null;
+}
+
+_ScenarioEvidenceDetail _scenarioEvidenceDetailForSignal(MatchSignal signal) {
+  final argument = _scenarioArgumentForSignal(signal);
+  return _ScenarioEvidenceDetail(
+    title: FootballReadingCopyCatalog.titleFor(argument),
+    description: signal.proofs
+        .where((proof) => proof.trim().isNotEmpty)
+        .join(' '),
+    strengthLabel: 'Modéré',
+    readingId: signal.id,
+    subjectTeamId: signal.subjectTeamId,
+  );
+}
+
+String? _subjectTeamIdForSignal(MatchBoardItem match, MatchSignal signal) =>
+    signal.subjectTeamId ?? _teamNamedIn(match, signal.title)?.id;
+
+bool _isDirectReadingArgument(CopilotArgument argument) {
+  return ReadingPreferenceCatalog.contains(
+    FootballReadingCopyCatalog.readingIdFor(argument),
+  );
+}
+
+_ScenarioEvidenceDetail _scenarioEvidenceDetailForArgument(
+  CopilotArgument argument,
+) {
+  final subjectTeamId = argument.parameters['subjectTeamId'];
+  return _ScenarioEvidenceDetail(
+    title: FootballReadingCopyCatalog.titleFor(argument),
+    description: argument.evidence
+        .map((evidence) => evidence.label.trim())
+        .where((label) => label.isNotEmpty)
+        .join(' '),
+    strengthLabel: argument.severity == CopilotArgumentSeverity.strong
+        ? 'Fort'
+        : 'Modéré',
+    readingId: FootballReadingCopyCatalog.readingIdFor(argument),
+    subjectTeamId: subjectTeamId is String ? subjectTeamId : null,
+  );
+}
+
+bool _isResistanceToReading(String targetId, CopilotArgument argument) {
+  if (!_isDirectReadingArgument(argument) ||
+      argument.family == CopilotArgumentFamily.contradiction) {
+    return false;
+  }
+  final readingId = FootballReadingCopyCatalog.readingIdFor(argument);
+  return _counterReadingIdsFor(targetId).contains(readingId);
+}
+
+Set<String> _counterReadingIdsFor(String readingId) {
+  return switch (readingId) {
+    'positive_streak' ||
+    'improving_form' => {'negative_streak', 'declining_form'},
+    'negative_streak' ||
+    'declining_form' => {'positive_streak', 'improving_form'},
+    'strong_home_team' ||
+    'strong_away_team' => {'weak_home_team', 'weak_away_team'},
+    'weak_home_team' ||
+    'weak_away_team' => {'strong_home_team', 'strong_away_team'},
+    'prolific_attack' => {'scoring_difficulty', 'solid_defense'},
+    'scoring_difficulty' => {'prolific_attack', 'fragile_defense'},
+    'solid_defense' ||
+    'frequent_clean_sheet' => {'prolific_attack', 'fragile_defense'},
+    'fragile_defense' => {'solid_defense', 'frequent_clean_sheet'},
+    'frequent_over_25' => {
+      'frequent_under_25',
+      'solid_defense',
+      'scoring_difficulty',
+    },
+    'frequent_under_25' => {
+      'frequent_over_25',
+      'prolific_attack',
+      'fragile_defense',
+    },
+    'frequent_btts' => {'frequent_clean_sheet', 'solid_defense'},
+    _ => const {},
+  };
 }
 
 _ScenarioReading _scenarioReadingFromOpportunity(
@@ -7605,12 +8366,19 @@ _ScenarioReading _scenarioReadingFromOpportunity(
       for (final reading in opportunity.supportingReadings)
         _scenarioEvidenceDetailForReading(reading),
     ],
-    resistances: const [],
+    resistances: [
+      for (final reading in opportunity.resistanceReadings)
+        _scenarioEvidenceDetailForReading(reading),
+    ],
     contradictions: [
       for (final reading in opportunity.contradictoryReadings)
         _scenarioEvidenceDetailForReading(reading),
     ],
     limits: thesis.limits,
+    subjectTeamId: opportunity.supportingReadings
+        .map((reading) => reading.subjectTeamId)
+        .firstOrNull,
+    isScenario: true,
   );
 }
 
@@ -7676,6 +8444,8 @@ _ScenarioReading _scenarioReadingFromAssessment(
     limits: assessment.id == match.thesis?.id
         ? match.thesis?.limits ?? const []
         : const [],
+    subjectTeamId: primaryReading?.subjectTeamId,
+    isScenario: true,
   );
 }
 
@@ -7800,7 +8570,10 @@ CopilotArgument _scenarioArgumentForSignal(MatchSignal signal) {
     subjectName: signal.title.trim().isEmpty
         ? 'La rencontre'
         : signal.title.trim(),
-    parameters: {'readingId': signal.id},
+    parameters: {
+      'readingId': signal.id,
+      if (signal.subjectTeamId != null) 'subjectTeamId': signal.subjectTeamId!,
+    },
     evidence: evidence.isNotEmpty
         ? evidence.take(3).toList(growable: false)
         : [

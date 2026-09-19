@@ -156,12 +156,19 @@ class MatchSignal {
     required this.title,
     required this.summary,
     required this.proofs,
+    this.subjectTeamId,
   });
 
   final String id;
   final String title;
   final String summary;
   final List<String> proofs;
+
+  /// Team the signal applies to when it is team-specific.
+  ///
+  /// Keeping this at the feed boundary lets presentation group readings by
+  /// team and render the corresponding crest without parsing display copy.
+  final String? subjectTeamId;
 }
 
 enum MatchThesisStatus { recommended, watchlist, notRecommended }

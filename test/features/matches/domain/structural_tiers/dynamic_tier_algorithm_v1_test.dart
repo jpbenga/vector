@@ -171,6 +171,29 @@ void main() {
       expect(imbalanced.warnings, contains(TierWarning.playedImbalance));
     });
 
+    test('shows provisional five-tier assignments from the fifth matchday', () {
+      final snapshot = _algorithm.buildSnapshot(
+        _input(
+          [21, 20, 19, 15, 14, 13, 9, 8, 7, 3, 2, 1, 0, 0, 0, 0],
+          played: 5,
+          podiumEnd: 3,
+          relegationStart: 14,
+          seasonProgress: .18,
+        ),
+      );
+
+      expect(snapshot.status, TierSystemStatus.immature);
+      expect(snapshot.maturity, TierMaturity.immature);
+      expect(snapshot.teamAssignments, hasLength(16));
+      expect(snapshot.tierPresence, {
+        TierLabel.tier1Podium,
+        TierLabel.tier2UpperChampionship,
+        TierLabel.tier3MiddleChampionship,
+        TierLabel.tier4LowerChampionship,
+        TierLabel.tier5Relegation,
+      });
+    });
+
     test(
       'does not invent boundaries in compact or stretched continuous leagues',
       () {
@@ -193,6 +216,43 @@ void main() {
         expect(stretched.tierPartitionBoundaries, isEmpty);
       },
     );
+
+    test('uses clear pending fractures for the displayed tier map', () {
+      final snapshot = _algorithm.buildSnapshot(
+        _input([
+          60,
+          58,
+          57,
+          53,
+          52,
+          51,
+          48,
+          47,
+          46,
+          42,
+          41,
+          40,
+        ], identity: 'one-current-snapshot'),
+      );
+
+      // These fractures need a second snapshot before they support a
+      // structural reading, but they are already clear enough to organise
+      // the standings in the interface.
+      expect(snapshot.confirmedStructuralBoundaries, isEmpty);
+      expect(_partitionIndexes(snapshot), isNotEmpty);
+      expect(
+        snapshot.tierPartitionBoundaries.every(
+          (partition) =>
+              _candidateAt(
+                snapshot,
+                partition.boundaryIndex,
+              )?.spatialConfirmed ==
+              true,
+        ),
+        isTrue,
+      );
+      expect(snapshot.tierPresence.length, greaterThan(3));
+    });
 
     test(
       'detects a cohesive lower-table group without a competition override',
@@ -366,7 +426,11 @@ void main() {
         expect(
           snapshot.tierPartitionBoundaries.every(
             (partition) =>
-                _confirmedIndexes(snapshot).contains(partition.boundaryIndex),
+                _candidateAt(
+                  snapshot,
+                  partition.boundaryIndex,
+                )?.spatialConfirmed ==
+                true,
           ),
           isTrue,
         );
@@ -743,7 +807,11 @@ void main() {
         expect(
           snapshot.tierPartitionBoundaries.every(
             (partition) =>
-                _confirmedIndexes(snapshot).contains(partition.boundaryIndex),
+                _candidateAt(
+                  snapshot,
+                  partition.boundaryIndex,
+                )?.spatialConfirmed ==
+                true,
           ),
           isTrue,
         );

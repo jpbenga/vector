@@ -160,6 +160,9 @@ Deno.serve(async (request) => {
         expected_goals: build.rawExpectedGoals,
         performance_statistics: build.rawPerformanceStatistics,
         player_statistics: build.rawPlayerStatistics,
+        // Derived from already collected fixture events. The app receives the
+        // compact player activity, never the provider event stream itself.
+        player_recent_contributions: build.rawPlayerRecentContributions,
         injuries: build.rawInjuries,
         domestic_team_contexts: build.rawDomesticTeamContexts,
         predictions: [],
@@ -290,6 +293,7 @@ type SourceBuild = {
   rawExpectedGoals: JsonObject[];
   rawPerformanceStatistics: JsonObject[];
   rawPlayerStatistics: JsonObject[];
+  rawPlayerRecentContributions: JsonObject[];
   rawInjuries: JsonObject[];
   rawDomesticTeamContexts: JsonObject[];
 };
@@ -686,12 +690,18 @@ async function collectSnapshotSources({
     asOf: latestTimestamp([...sourceRowsByKey.values()]) ??
       new Date().toISOString(),
   });
+  const sourceAsOf = latestTimestamp([...sourceRowsByKey.values()]) ??
+    new Date().toISOString();
   const rawPerformanceStatistics = performanceStatisticsSnapshots({
     recentLeagueMatches: rawRecentLeagueMatches,
     fixtureStatisticsRows,
     fixtureEventsRows,
-    asOf: latestTimestamp([...sourceRowsByKey.values()]) ??
-      new Date().toISOString(),
+    asOf: sourceAsOf,
+  });
+  const rawPlayerRecentContributions = playerRecentContributionSnapshots({
+    recentLeagueMatches: rawRecentLeagueMatches,
+    fixtureEventsRows,
+    asOf: sourceAsOf,
   });
 
   return {
@@ -705,6 +715,7 @@ async function collectSnapshotSources({
     rawExpectedGoals,
     rawPerformanceStatistics,
     rawPlayerStatistics,
+    rawPlayerRecentContributions,
     rawInjuries,
     rawDomesticTeamContexts,
   };
@@ -1803,6 +1814,102 @@ function expectedGoalsSnapshots({
     });
   }
 
+  return snapshots;
+}
+
+/**
+ * Reduces the goal events from each team's last three completed league
+ * fixtures. It deliberately counts distinct fixtures, rather than using a
+ * hard minutes threshold: a recurring substitute can qualify, while a single
+ * short cameo cannot be promoted by an inflated per-90 rate alone.
+ */
+function playerRecentContributionSnapshots({
+  recentLeagueMatches,
+  fixtureEventsRows,
+  asOf,
+}: {
+  recentLeagueMatches: JsonObject[];
+  fixtureEventsRows: Array<{fixtureId: number; events: JsonObject[]}>;
+  asOf: string;
+}): JsonObject[] {
+  const eventsByFixture = new Map<number, JsonObject[]>();
+  for (const row of fixtureEventsRows) {
+    eventsByFixture.set(row.fixtureId, row.events);
+  }
+
+  const snapshots: JsonObject[] = [];
+  for (const row of recentLeagueMatches) {
+    const leagueId = numberValue((objectValue(row.league) ?? {}).id);
+    const team = objectValue(row.team) ?? {};
+    const teamId = numberValue(team.id);
+    if (leagueId === null || teamId === null) continue;
+
+    const matches = arrayValue(row.matches)
+      .map(objectValue)
+      .filter((match): match is JsonObject => match !== null)
+      .slice(0, 3);
+    const players = new Map<number, {
+      name: string | null;
+      goals: number;
+      assists: number;
+      fixtureIds: Set<number>;
+    }>();
+    let eventsAvailableFor = 0;
+
+    for (const match of matches) {
+      const fixtureId = numberValue((objectValue(match.fixture) ?? {}).id);
+      if (fixtureId === null) continue;
+      const events = eventsByFixture.get(fixtureId);
+      if (events === undefined) continue;
+      eventsAvailableFor += 1;
+      for (const event of events) {
+        if (stringValue(event.type)?.toLowerCase() !== "goal") continue;
+        // A provider own-goal event identifies the conceding player; it must
+        // never make that player a positive offensive contributor.
+        if (stringValue(event.detail)?.toLowerCase() === "own goal") continue;
+        if (numberValue((objectValue(event.team) ?? {}).id) !== teamId) continue;
+
+        const scorer = objectValue(event.player) ?? {};
+        const scorerId = numberValue(scorer.id);
+        if (scorerId !== null) {
+          const value = players.get(scorerId) ?? {
+            name: stringValue(scorer.name), goals: 0, assists: 0,
+            fixtureIds: new Set<number>(),
+          };
+          value.goals += 1;
+          value.fixtureIds.add(fixtureId);
+          players.set(scorerId, value);
+        }
+
+        const assister = objectValue(event.assist) ?? {};
+        const assisterId = numberValue(assister.id);
+        if (assisterId !== null) {
+          const value = players.get(assisterId) ?? {
+            name: stringValue(assister.name), goals: 0, assists: 0,
+            fixtureIds: new Set<number>(),
+          };
+          value.assists += 1;
+          value.fixtureIds.add(fixtureId);
+          players.set(assisterId, value);
+        }
+      }
+    }
+
+    snapshots.push({
+      league: {id: leagueId},
+      team: {id: teamId, name: stringValue(team.name)},
+      as_of: asOf,
+      matches_considered: matches.length,
+      events_available_for: eventsAvailableFor,
+      players: [...players.entries()].map(([playerId, value]) => ({
+        player: {id: playerId, name: value.name},
+        goals: value.goals,
+        assists: value.assists,
+        contributions: value.goals + value.assists,
+        matches_with_contribution: value.fixtureIds.size,
+      })),
+    });
+  }
   return snapshots;
 }
 

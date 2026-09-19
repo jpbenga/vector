@@ -89,7 +89,7 @@ void main() {
   });
 
   testWidgets(
-    'search finds readings and theme action selects the whole theme',
+    'does not expose statistical projections as selectable readings',
     (tester) async {
       DecisionProfile? saved;
       await openSheet(tester, onSaved: (profile) => saved = profile);
@@ -100,23 +100,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Tirs, corners et cartons'), findsOneWidget);
-      expect(find.text('Potentiel corners'), findsOneWidget);
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('reading-select-group-shots_corners')),
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('reading-select-group-shots_corners')),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Enregistrer'));
-      await tester.pumpAndSettle();
-
-      expect(saved, isNotNull);
-      expect(saved!.optionIdsFor('readings'), hasLength(5));
-      expect(saved!.optionIdsFor('readings'), contains('match_shot_profile'));
-      expect(saved!.optionIdsFor('readings'), contains('match_corner_profile'));
-      expect(saved!.optionIdsFor('readings'), contains('match_card_profile'));
+      expect(find.text('Tirs, corners et cartons'), findsNothing);
+      expect(find.text('Potentiel corners'), findsNothing);
+      expect(find.text('Intensité des cartons'), findsNothing);
+      expect(saved, isNull);
     },
   );
 

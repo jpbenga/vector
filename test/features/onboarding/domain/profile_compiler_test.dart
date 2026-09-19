@@ -205,6 +205,37 @@ void main() {
       },
     );
 
+    test(
+      'keeps the seven validated reading categories exhaustive and disjoint',
+      () {
+        final categories = ReadingPreferenceCategoryCatalog.values;
+        final categoryIds = categories.map((category) => category.id).toList();
+        final allReadingIds = [
+          for (final category in categories) ...category.readingIds,
+        ];
+
+        expect(categoryIds, [
+          'ranking_form',
+          'attack_defense',
+          'goals',
+          'match_periods',
+          'availability',
+          'context',
+          'player_statistics',
+        ]);
+        expect(allReadingIds.toSet(), hasLength(allReadingIds.length));
+        expect(allReadingIds.toSet(), {
+          for (final reading in ReadingPreferenceCatalog.values) reading.id,
+        });
+        expect(
+          ReadingPreferenceCategoryCatalog.byId(
+            'player_statistics',
+          )!.readingIds,
+          ['standout_decisive_player'],
+        );
+      },
+    );
+
     test('keeps xG signals out of selectable reading preferences', () {
       expect(ReadingPreferenceCatalog.contains('high_xg_creation'), isFalse);
       expect(
@@ -221,14 +252,14 @@ void main() {
       );
     });
 
-    test('maps legacy statistical selections to their three projections', () {
+    test('drops legacy statistical selections from the reading profile', () {
       expect(
         ReadingPreferenceCatalog.normalizeSelectionIds([
           'high_shot_volume',
           'low_total_corners_profile',
           'high_card_rate',
         ]),
-        {'match_shot_profile', 'match_corner_profile', 'match_card_profile'},
+        isEmpty,
       );
     });
 

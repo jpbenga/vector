@@ -556,9 +556,6 @@ IconData _readingPreferenceIcon(String readingId) {
     'frequent_first_half_conceding' ||
     'frequent_second_half_scoring' ||
     'frequent_second_half_conceding' => Icons.timelapse_rounded,
-    'match_shot_profile' => Icons.sports_soccer_rounded,
-    'match_corner_profile' => Icons.flag_outlined,
-    'match_card_profile' => Icons.style_outlined,
     _ => Icons.insights_outlined,
   };
 }
@@ -582,84 +579,23 @@ class _ReadingPreferenceGroup {
   ];
 }
 
-const _namedReadingPreferenceGroups = <_ReadingPreferenceGroup>[
-  _ReadingPreferenceGroup(
-    id: 'ranking_form',
-    label: 'Niveau, forme et lieu',
-    icon: Icons.trending_up_rounded,
-    ids: {
-      'structural_level_gap',
-      'positive_streak',
-      'negative_streak',
-      'improving_form',
-      'declining_form',
-      'strong_home_team',
-      'weak_home_team',
-      'strong_away_team',
-      'weak_away_team',
-      'home_away_advantage',
-      'away_home_advantage',
-    },
-  ),
-  _ReadingPreferenceGroup(
-    id: 'attack_xg',
-    label: 'Attaque, défense et xG',
-    icon: Icons.track_changes_rounded,
-    ids: {
-      'prolific_attack',
-      'scoring_difficulty',
-      'solid_defense',
-      'fragile_defense',
-      'frequent_clean_sheet',
-    },
-  ),
-  _ReadingPreferenceGroup(
-    id: 'goals',
-    label: 'Profil de buts',
-    icon: Icons.sports_soccer_rounded,
-    ids: {'frequent_over_25', 'frequent_btts', 'frequent_under_25'},
-  ),
-  _ReadingPreferenceGroup(
-    id: 'match_periods',
-    label: 'Moments du match',
-    icon: Icons.timelapse_rounded,
-    ids: {
-      'frequent_first_half_scoring',
-      'frequent_first_half_conceding',
-      'frequent_second_half_scoring',
-      'frequent_second_half_conceding',
-    },
-  ),
-  _ReadingPreferenceGroup(
-    id: 'shots_corners',
-    label: 'Tirs, corners et cartons',
-    icon: Icons.flag_outlined,
-    ids: {'match_shot_profile', 'match_corner_profile', 'match_card_profile'},
-  ),
-  _ReadingPreferenceGroup(
-    id: 'players',
-    label: 'Joueurs et absences',
-    icon: Icons.groups_outlined,
-    ids: {'standout_decisive_player', 'key_player_unavailable'},
-  ),
-  _ReadingPreferenceGroup(
-    id: 'context',
-    label: 'Contexte',
-    icon: Icons.info_outline_rounded,
-    ids: {'misleading_result'},
-  ),
-];
-
 List<_ReadingPreferenceGroup> get _readingPreferenceGroups {
   final classifiedIds = {
-    for (final group in _namedReadingPreferenceGroups) ...group.ids,
+    for (final category in ReadingPreferenceCategoryCatalog.values)
+      ...category.readingIds,
   };
   final otherIds = {
     for (final reading in ReadingPreferenceCatalog.values)
       if (!classifiedIds.contains(reading.id)) reading.id,
   };
   return [
-    ..._namedReadingPreferenceGroups,
+    for (final category in ReadingPreferenceCategoryCatalog.values)
+      _ReadingPreferenceGroup(
+        id: category.id,
+        label: category.label,
+        icon: _readingPreferenceCategoryIcon(category.id),
+        ids: category.readingIds.toSet(),
+      ),
     if (otherIds.isNotEmpty)
       _ReadingPreferenceGroup(
         id: 'other',
@@ -668,6 +604,19 @@ List<_ReadingPreferenceGroup> get _readingPreferenceGroups {
         ids: otherIds,
       ),
   ];
+}
+
+IconData _readingPreferenceCategoryIcon(String categoryId) {
+  return switch (categoryId) {
+    'ranking_form' => Icons.trending_up_rounded,
+    'attack_defense' => Icons.track_changes_rounded,
+    'goals' => Icons.sports_soccer_rounded,
+    'match_periods' => Icons.timelapse_rounded,
+    'player_statistics' => Icons.person_search_rounded,
+    'availability' => Icons.person_off_outlined,
+    'context' => Icons.info_outline_rounded,
+    _ => Icons.insights_outlined,
+  };
 }
 
 class _ReadingPreferencesHeader extends StatelessWidget {

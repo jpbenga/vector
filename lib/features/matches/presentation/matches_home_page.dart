@@ -260,10 +260,16 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             ),
             explorationFilterCount:
                 _explorationSelection?.activeFilterCount ?? 0,
+            isExplorationActive: _explorationSelection != null,
+            explorationReadingCount:
+                _explorationSelection?.readingIds.length ?? 0,
+            explorationScenarioCount:
+                _explorationSelection?.scenarioIds.length ?? 0,
             onOpenExplorer: () => _openLectorExplorer(
               repository: repository,
               selectedDate: effectiveSelectedDate,
             ),
+            onResetExploration: _resetLectorExploration,
             onOpenTicketHistory: _openTicketHistorySheet,
             onRecalculateTickets: _refreshTicketProposals,
             onOpenStrategies: _openTicketStrategies,
@@ -369,6 +375,13 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
       _explorationSelection = selection.matchesProfile(widget.profile)
           ? null
           : selection;
+      _scoresMode = _ScoresRedesignMode.forMe;
+    });
+  }
+
+  void _resetLectorExploration() {
+    setState(() {
+      _explorationSelection = null;
       _scoresMode = _ScoresRedesignMode.forMe;
     });
   }
@@ -1001,6 +1014,14 @@ bool _isSameCalendarDay(DateTime a, DateTime b) {
   return a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
+String _explorationProfileSignature(DecisionProfile profile) {
+  return [
+    'readings:${profile.optionIdsFor('readings').join(',')}',
+    'scenarios:${profile.optionIdsFor('opportunity_profiles').join(',')}',
+    'legacy:${profile.optionIdsFor('match_types').join(',')}',
+  ].join('|');
+}
+
 class _ScoresRedesignHome extends StatefulWidget {
   const _ScoresRedesignHome({
     required this.profile,
@@ -1021,7 +1042,11 @@ class _ScoresRedesignHome extends StatefulWidget {
     required this.hasSavedTickets,
     required this.hasActiveStrategies,
     required this.explorationFilterCount,
+    required this.isExplorationActive,
+    required this.explorationReadingCount,
+    required this.explorationScenarioCount,
     required this.onOpenExplorer,
+    required this.onResetExploration,
     required this.onOpenTicketHistory,
     required this.onRecalculateTickets,
     required this.onOpenStrategies,
@@ -1046,7 +1071,11 @@ class _ScoresRedesignHome extends StatefulWidget {
   final bool hasSavedTickets;
   final bool hasActiveStrategies;
   final int explorationFilterCount;
+  final bool isExplorationActive;
+  final int explorationReadingCount;
+  final int explorationScenarioCount;
   final VoidCallback onOpenExplorer;
+  final VoidCallback onResetExploration;
   final VoidCallback onOpenTicketHistory;
   final VoidCallback onRecalculateTickets;
   final VoidCallback onOpenStrategies;
@@ -1084,9 +1113,15 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
   @override
   void didUpdateWidget(covariant _ScoresRedesignHome oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final explorationChanged =
+        oldWidget.isExplorationActive != widget.isExplorationActive ||
+        _explorationProfileSignature(oldWidget.profile) !=
+            _explorationProfileSignature(widget.profile);
     if (oldWidget.mode != widget.mode ||
-        !_isSameCalendarDay(oldWidget.selectedDate, widget.selectedDate)) {
+        !_isSameCalendarDay(oldWidget.selectedDate, widget.selectedDate) ||
+        explorationChanged) {
       _areAllStoriesVisible = false;
+      _selectedForMeReadingId = null;
     }
     if (!_isSameCalendarDay(oldWidget.selectedDate, widget.selectedDate)) {
       _dateTransitionDirection =
@@ -1190,7 +1225,7 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                             },
                             child: KeyedSubtree(
                               key: ValueKey(
-                                '${widget.mode.name}-${_dateOnly(widget.selectedDate).toIso8601String()}',
+                                '${widget.mode.name}-${_dateOnly(widget.selectedDate).toIso8601String()}-${_explorationProfileSignature(widget.profile)}-${widget.isExplorationActive}',
                               ),
                               child: widget.mode == _ScoresRedesignMode.bilan
                                   ? const ReadingBilanSection()
@@ -1219,11 +1254,24 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                                           },
                                         ),
                                         const SizedBox(height: 8),
+                                        if (widget.isExplorationActive) ...[
+                                          _ExplorationStatusBanner(
+                                            readingCount:
+                                                widget.explorationReadingCount,
+                                            scenarioCount:
+                                                widget.explorationScenarioCount,
+                                            onEdit: widget.onOpenExplorer,
+                                            onReset: widget.onResetExploration,
+                                          ),
+                                          const SizedBox(height: 10),
+                                        ],
                                         _TodayStoriesSection(
                                           selectedDate: widget.selectedDate,
                                           matches: storyMatches,
                                           totalMatchCount:
                                               filteredStoryMatches.length,
+                                          isExplorationActive:
+                                              widget.isExplorationActive,
                                           onOpenMatch: _openStoryMatch,
                                           isExpanded: _areAllStoriesVisible,
                                           onToggleExpanded: hasMoreStories
@@ -3117,11 +3165,97 @@ class _ForMeReadingFilterTile extends StatelessWidget {
   }
 }
 
+class _ExplorationStatusBanner extends StatelessWidget {
+  const _ExplorationStatusBanner({
+    required this.readingCount,
+    required this.scenarioCount,
+    required this.onEdit,
+    required this.onReset,
+  });
+
+  final int readingCount;
+  final int scenarioCount;
+  final VoidCallback onEdit;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = context.brand.accent;
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: accent.withValues(alpha: 0.48)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 8, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.filter_alt_rounded, color: accent, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'EXPLORATION TEMPORAIRE',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: accent,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                TextButton(onPressed: onEdit, child: const Text('Modifier')),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 28),
+              child: Text(
+                '$readingCount lecture${readingCount > 1 ? 's' : ''} · '
+                '$scenarioCount scénario${scenarioCount > 1 ? 's' : ''}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: context.textColors.primary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 28, top: 2),
+              child: Text(
+                'Votre profil reste inchangé.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: context.textColors.secondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: onReset,
+                icon: const Icon(Icons.restart_alt_rounded, size: 17),
+                label: const Text('Réinitialiser'),
+                style: TextButton.styleFrom(
+                  foregroundColor: accent,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _TodayStoriesSection extends StatelessWidget {
   const _TodayStoriesSection({
     required this.selectedDate,
     required this.matches,
     required this.totalMatchCount,
+    required this.isExplorationActive,
     required this.onOpenMatch,
     required this.isExpanded,
     required this.onToggleExpanded,
@@ -3130,6 +3264,7 @@ class _TodayStoriesSection extends StatelessWidget {
   final DateTime selectedDate;
   final List<MatchBoardItem> matches;
   final int totalMatchCount;
+  final bool isExplorationActive;
   final ValueChanged<MatchBoardItem> onOpenMatch;
   final bool isExpanded;
   final VoidCallback? onToggleExpanded;
@@ -3156,13 +3291,19 @@ class _TodayStoriesSection extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _storySectionTitle(selectedDate),
+                    isExplorationActive
+                        ? 'Résultats de votre exploration'
+                        : _storySectionTitle(selectedDate),
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w900,
                     ),
                   ),
                   Text(
-                    matches.isEmpty
+                    isExplorationActive
+                        ? matches.isEmpty
+                              ? 'Aucune rencontre ne correspond à vos filtres temporaires.'
+                              : '$totalMatchCount rencontre${totalMatchCount > 1 ? 's' : ''} correspond${totalMatchCount > 1 ? 'ent' : ''} à vos filtres temporaires.'
+                        : matches.isEmpty
                         ? 'Aucune rencontre ne correspond à cette lecture'
                         : totalMatchCount > matches.length
                         ? 'Les rencontres les plus pertinentes pour votre profil'

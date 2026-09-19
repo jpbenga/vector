@@ -4,7 +4,10 @@ class DynamicTierParameters {
   static const supportedMinTeams = 10;
   static const supportedMaxTeams = 24;
 
-  static const minMedianPlayedMature = 6;
+  // From the completed fifth matchday, the standings can expose provisional
+  // tiers. They become established only once the season-progress threshold is
+  // reached below.
+  static const minMedianPlayedMature = 5;
   static const minMinPlayedMature = 4;
   static const minSeasonProgressMature = 0.25;
   static const maxPlayedSpreadBalanced = 2;
