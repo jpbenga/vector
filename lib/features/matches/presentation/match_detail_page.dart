@@ -192,8 +192,6 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                       _LectorSynthesisCard(
                         match: widget.match,
                         opportunity: widget.opportunity,
-                        ticketDraftListenable: widget.ticketDraftListenable,
-                        onToggleTicket: widget.onToggleTicket,
                       ),
                       const SizedBox(height: 12),
                       _LectorMatchTabBar(
@@ -786,17 +784,10 @@ class _HeroStatusBlock extends StatelessWidget {
 }
 
 class _LectorSynthesisCard extends StatelessWidget {
-  const _LectorSynthesisCard({
-    required this.match,
-    required this.ticketDraftListenable,
-    required this.onToggleTicket,
-    this.opportunity,
-  });
+  const _LectorSynthesisCard({required this.match, this.opportunity});
 
   final MatchBoardItem match;
   final Opportunity? opportunity;
-  final ValueListenable<TicketDraft>? ticketDraftListenable;
-  final ValueChanged<TicketDraftSelection>? onToggleTicket;
 
   @override
   Widget build(BuildContext context) {
@@ -804,8 +795,6 @@ class _LectorSynthesisCard extends StatelessWidget {
     final brand = context.brand;
     final textColors = context.textColors;
     final surfaces = context.surfaces;
-    final title = _scenarioTitle(match);
-    final count = _scenarioReadingCount(match);
     final scenarioRecommendedMarket = _scenarioRecommendedMarket(
       match,
       opportunity,
@@ -813,15 +802,19 @@ class _LectorSynthesisCard extends StatelessWidget {
     final showsScenarioPick = _hasScenarioRecommendedPick(
       scenarioRecommendedMarket,
     );
-    final recommendations = match.betRecommendations.isNotEmpty
-        ? match.betRecommendations
-        : [
-            for (final candidate in match.betCandidates)
-              _recommendationFromCandidate(candidate),
-          ];
-    final hasUnpricedRecommendation = recommendations.any(
-      (recommendation) => !recommendation.hasAvailableOdds,
-    );
+    final unpricedDirection =
+        !showsScenarioPick && match.betRecommendations.length == 1
+        ? match.betRecommendations.single
+        : null;
+    final hasClearDirection = showsScenarioPick || unpricedDirection != null;
+    // A detail card must never turn several compatible markets into an
+    // arbitrary team choice. When there is no single automatic candidate, it
+    // says so explicitly instead of rendering both teams' generic markets.
+    final title = hasClearDirection ? _scenarioTitle(match) : 'Match à suivre';
+    final summary = hasClearDirection
+        ? _scenarioSummary(match)
+        : 'Les signaux du match ne permettent pas de mettre une équipe en avant.';
+    final count = _scenarioReadingCount(match);
 
     return _LectorGlassCard(
       padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
@@ -899,7 +892,7 @@ class _LectorSynthesisCard extends StatelessWidget {
           ),
           const SizedBox(height: 9),
           Text(
-            _scenarioSummary(match),
+            summary,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodySmall?.copyWith(
@@ -908,47 +901,28 @@ class _LectorSynthesisCard extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-          if (showsScenarioPick || recommendations.isNotEmpty) ...[
+          if (hasClearDirection) ...[
             const SizedBox(height: 9),
             Divider(height: 1, color: surfaces.border),
             const SizedBox(height: 8),
-            if (showsScenarioPick && recommendations.isEmpty)
+            if (showsScenarioPick)
               _LectorCompactOpportunityPickRow(
                 match: match,
                 recommendedMarket: scenarioRecommendedMarket!,
+              )
+            else
+              _LectorCompactUnpricedRecommendationRow(
+                recommendation: unpricedDirection!,
               ),
-            for (var index = 0; index < recommendations.length; index += 1) ...[
-              _LectorCompactRecommendationRow(
-                match: match,
-                recommendation: recommendations[index],
-                ticketDraftListenable: ticketDraftListenable,
-                onToggleTicket: onToggleTicket,
-              ),
-              if (index != recommendations.length - 1)
-                const SizedBox(height: 7),
-            ],
-            if (hasUnpricedRecommendation) ...[
-              const SizedBox(height: 8),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.info_outline_rounded,
-                    color: textColors.secondary,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 7),
-                  Expanded(
-                    child: Text(
-                      'Préconisations visibles · ajout au ticket indisponible jusqu’à ce qu’une cote soit disponible.',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: textColors.secondary,
-                        fontWeight: FontWeight.w600,
-                        height: 1.25,
-                      ),
-                    ),
-                  ),
-                ],
+            if (unpricedDirection != null) ...[
+              const SizedBox(height: 7),
+              Text(
+                'Préconisation visible · ajout au ticket indisponible jusqu’à ce qu’une cote soit disponible.',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: textColors.secondary,
+                  fontWeight: FontWeight.w600,
+                  height: 1.25,
+                ),
               ),
             ],
           ],
@@ -958,36 +932,10 @@ class _LectorSynthesisCard extends StatelessWidget {
   }
 }
 
-BetRecommendation _recommendationFromCandidate(BetCandidate candidate) {
-  return BetRecommendation(
-    matchId: candidate.matchId,
-    marketId: candidate.marketId,
-    marketLabel: candidate.marketLabel,
-    selectionIntent: MarketSelectionIntent.yes,
-    selectionLabel: candidate.selectionLabel,
-    subjectTeamId: candidate.subjectTeamId,
-    subjectPlayerId: candidate.subjectPlayerId,
-    subjectPlayerName: candidate.subjectPlayerName,
-    supportingReadingIds: candidate.supportingReadingIds,
-    supportingScenarioIds: candidate.supportingScenarioIds,
-    contradictionIds: candidate.contradictionIds,
-    maturity: candidate.maturity,
-    pricedCandidate: candidate,
-  );
-}
+class _LectorCompactUnpricedRecommendationRow extends StatelessWidget {
+  const _LectorCompactUnpricedRecommendationRow({required this.recommendation});
 
-class _LectorCompactRecommendationRow extends StatelessWidget {
-  const _LectorCompactRecommendationRow({
-    required this.match,
-    required this.recommendation,
-    required this.ticketDraftListenable,
-    required this.onToggleTicket,
-  });
-
-  final MatchBoardItem match;
   final BetRecommendation recommendation;
-  final ValueListenable<TicketDraft>? ticketDraftListenable;
-  final ValueChanged<TicketDraftSelection>? onToggleTicket;
 
   @override
   Widget build(BuildContext context) {
@@ -996,22 +944,6 @@ class _LectorCompactRecommendationRow extends StatelessWidget {
     final textColors = context.textColors;
     final surfaces = context.surfaces;
     final warning = context.semantic.warning;
-    final candidate = recommendation.pricedCandidate;
-    final recommendedMarket = candidate == null
-        ? null
-        : match.recommendedMarketFor(candidate);
-    final selectionLabel = recommendedMarket == null
-        ? recommendation.selectionLabel
-        : _scenarioRecommendedPickLabel(match, recommendedMarket) ??
-              recommendedMarket.selection.label;
-    final ticketSelection = recommendedMarket == null
-        ? null
-        : TicketDraftSelection.fromMatchSelection(
-            match,
-            recommendedMarket.market,
-            recommendedMarket.selection,
-          );
-
     return DecoratedBox(
       decoration: BoxDecoration(
         color: surfaces.surfaceHover.withValues(alpha: 0.42),
@@ -1026,86 +958,21 @@ class _LectorCompactRecommendationRow extends StatelessWidget {
             const SizedBox(width: 9),
             Expanded(
               child: Text(
-                selectionLabel,
-                maxLines: 2,
-                overflow: TextOverflow.clip,
+                recommendation.selectionLabel,
                 style: theme.textTheme.labelMedium?.copyWith(
                   color: textColors.primary,
                   fontWeight: FontWeight.w900,
-                  height: 1.2,
                 ),
               ),
             ),
             const SizedBox(width: 8),
-            if (recommendedMarket == null || !recommendation.hasAvailableOdds)
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: warning.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(AppRadius.chip),
-                  border: Border.all(color: warning.withValues(alpha: 0.46)),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 5,
-                  ),
-                  child: Text(
-                    'Cote indisponible',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: warning,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              )
-            else ...[
-              Text(
-                recommendedMarket.selection.odds.toStringAsFixed(2),
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: brand.accent,
-                  fontWeight: FontWeight.w900,
-                ),
+            Text(
+              'Cote indisponible',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: warning,
+                fontWeight: FontWeight.w900,
               ),
-              if (candidate != null &&
-                  candidate.isAutomaticallyUsable &&
-                  ticketSelection != null &&
-                  ticketDraftListenable != null &&
-                  onToggleTicket != null) ...[
-                const SizedBox(width: 5),
-                ValueListenableBuilder<TicketDraft>(
-                  valueListenable: ticketDraftListenable!,
-                  builder: (context, ticket, _) {
-                    final isSelected = ticket.contains(ticketSelection.id);
-                    final blocked = ticket.containsAnotherSelectionForMatch(
-                      ticketSelection,
-                    );
-                    return IconButton.filledTonal(
-                      tooltip: isSelected
-                          ? 'Retirer du ticket'
-                          : blocked
-                          ? 'Ce match est déjà dans Mon ticket'
-                          : 'Ajouter au ticket',
-                      constraints: const BoxConstraints.tightFor(
-                        width: 32,
-                        height: 32,
-                      ),
-                      padding: EdgeInsets.zero,
-                      onPressed: isSelected || !blocked
-                          ? () => onToggleTicket!(ticketSelection)
-                          : null,
-                      icon: Icon(
-                        isSelected
-                            ? Icons.check_rounded
-                            : blocked
-                            ? Icons.block_rounded
-                            : Icons.add_rounded,
-                        size: 18,
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ],
+            ),
           ],
         ),
       ),

@@ -82,6 +82,13 @@ Deno.serve(async (request) => {
     const presentationRecentMatches = compactRecentMatches(
       objectList(raw.recent_league_matches),
     );
+    // Tier assignments are calculated here, from the same standings snapshot
+    // that powers the mobile table. The app only renders this compact result.
+    const tiersByLeagueId = buildTierSnapshots({
+      standings: objectList(raw.standings),
+      fixtures,
+      capturedAt: stringValue(snapshot.captured_at),
+    });
 
     // Announcements are immutable and intentionally written only once per
     // fixture/reading. A newer source snapshot must reuse the existing
@@ -133,6 +140,7 @@ Deno.serve(async (request) => {
     const computedFixtures: JsonObject[] = [];
     for (const fixtureRow of fixtures) {
       const fixture = objectValue(fixtureRow.fixture) ?? {};
+      const league = objectValue(fixtureRow.league) ?? {};
       const fixtureId = numberValue(fixture.id);
       if (fixtureId === null) continue;
       const items = computedByFixture.get(fixtureId) ?? [];
@@ -142,6 +150,9 @@ Deno.serve(async (request) => {
           item.kind === "reading" || item.kind === "nuance"
         ),
         scenarios: items.filter((item) => item.kind === "scenario"),
+        tier_snapshot: numberValue(league.id) === null
+          ? null
+          : tiersByLeagueId.get(numberValue(league.id)!),
       });
     }
 
@@ -269,6 +280,218 @@ async function supabaseFetch({
   const result = await response.json().catch(() => []);
   return Array.isArray(result) ? result : [];
 }
+
+type TierRow = {
+  teamId: number;
+  teamName: string;
+  rank: number;
+  points: number;
+  played: number;
+  group: string | null;
+  description: string | null;
+};
+
+// The display Tier map is intentionally data-led: the podium and the official
+// relegation zone are anchors, then at most two statistically visible breaks
+// split the middle of the standings. This keeps a compact three-to-five tier
+// presentation from the fifth completed matchday without inventing breaks.
+function buildTierSnapshots({
+  standings,
+  fixtures,
+  capturedAt,
+}: {
+  standings: JsonObject[];
+  fixtures: JsonObject[];
+  capturedAt: string | null;
+}): Map<number, JsonObject> {
+  const result = new Map<number, JsonObject>();
+  const fixtureLeagueData = new Map<number, JsonObject>();
+  for (const fixture of fixtures) {
+    const league = objectValue(fixture.league);
+    const leagueId = league === null ? null : numberValue(league.id);
+    if (league !== null && leagueId !== null && !fixtureLeagueData.has(leagueId)) {
+      fixtureLeagueData.set(leagueId, league);
+    }
+  }
+
+  for (const standingRow of standings) {
+    const league = objectValue(standingRow.league);
+    const leagueId = league === null ? null : numberValue(league.id);
+    if (league === null || leagueId === null) continue;
+    const groups = Array.isArray(league.standings) ? league.standings : [];
+    const rows = groups
+      .flatMap((group) => objectList(group))
+      .map(tierRowFromStanding)
+      .filter((row): row is TierRow => row !== null)
+      .sort((left, right) => left.rank - right.rank);
+    const snapshot = buildTierSnapshot({
+      leagueId,
+      season: numberValue(
+        fixtureLeagueData.get(leagueId)?.season ?? league.season,
+      ) ?? 0,
+      rows,
+      capturedAt,
+    });
+    if (snapshot !== null) result.set(leagueId, snapshot);
+  }
+  return result;
+}
+
+function tierRowFromStanding(value: JsonObject): TierRow | null {
+  const team = objectValue(value.team) ?? {};
+  const all = objectValue(value.all) ?? {};
+  const teamId = numberValue(team.id);
+  const rank = numberValue(value.rank);
+  const points = numberValue(value.points);
+  const played = numberValue(all.played);
+  if (teamId === null || rank === null || points === null || played === null) {
+    return null;
+  }
+  return {
+    teamId,
+    teamName: stringValue(team.name) ?? "Équipe",
+    rank,
+    points,
+    played,
+    group: stringValue(value.group),
+    description: stringValue(value.description),
+  };
+}
+
+function buildTierSnapshot({
+  leagueId,
+  season,
+  rows,
+  capturedAt,
+}: {
+  leagueId: number;
+  season: number;
+  rows: TierRow[];
+  capturedAt: string | null;
+}): JsonObject | null {
+  if (rows.length < 10 || rows.length > 24 || !hasValidRanks(rows)) {
+    return null;
+  }
+  const played = rows.map((row) => row.played);
+  const minPlayed = Math.min(...played);
+  const maxPlayed = Math.max(...played);
+  const medianPlayed = median(played);
+  // From the fifth matchday, publish provisional tiers. A severely uneven
+  // table stays hidden rather than pretending the ranking is comparable.
+  if (medianPlayed < 5 || minPlayed < 4 || maxPlayed - minPlayed > Math.max(4, Math.ceil(medianPlayed / 3))) {
+    return null;
+  }
+  const relegationStart = officialRelegationStart(rows);
+  if (relegationStart === null || relegationStart <= 3) return null;
+  const middleStart = 4;
+  const middleEnd = relegationStart - 1;
+  const middle = rows.filter((row) => row.rank >= middleStart && row.rank <= middleEnd);
+  const points = rows.map((row) => row.points);
+  const gaps = points.slice(0, -1).map((point, index) => point - points[index + 1]);
+  const positiveGaps = gaps.filter((gap) => gap > 0);
+  const medianGap = median(gaps);
+  const typicalGap = Math.max(1, positiveGaps.length === 0 ? 0 : median(positiveGaps));
+  const rawMad = median(gaps.map((gap) => Math.abs(gap - medianGap)));
+  const robustScale = rawMad > 0 ? rawMad * 1.4826 : Math.max(1, typicalGap * 0.5);
+  const candidates = [] as JsonObject[];
+  for (let index = middleStart; index < middleEnd; index += 1) {
+    const rawGap = gaps[index - 1];
+    const ratio = rawGap / typicalGap;
+    const robustZ = Math.max(0, (rawGap - medianGap) / robustScale);
+    const upperCount = index - middleStart + 1;
+    const lowerCount = middle.length - upperCount;
+    if (rawGap < 3 || upperCount < 2 || lowerCount < 2 || (ratio < 2 && robustZ < 2.5)) continue;
+    const score = Math.round(Math.min(100, 35 + ratio * 12 + robustZ * 9));
+    candidates.push({
+      boundary_index: index,
+      upper_rank: index,
+      lower_rank: index + 1,
+      raw_gap: rawGap,
+      score,
+      strength: score >= 78 ? "strong" : "moderate",
+    });
+  }
+  const selected = selectTierBoundaries(candidates, middleStart, middleEnd);
+  const selectedIndexes = selected.map((value) => numberValue(value.boundary_index)!).sort((a, b) => a - b);
+  const identity = rows.map((row) => `${row.teamId}:${row.rank}:${row.points}:${row.played}`).join("|");
+  const isMature = minPlayed >= 12;
+  const assignments = rows.map((row) => ({
+    team_id: row.teamId,
+    team_name: row.teamName,
+    rank: row.rank,
+    points: row.points,
+    played: row.played,
+    points_per_game: row.played === 0 ? 0 : row.points / row.played,
+    group: row.group,
+    description: row.description,
+    assigned_tier: tierForRank(row.rank, relegationStart, selectedIndexes),
+  }));
+  return {
+    competition_id: String(leagueId),
+    season,
+    analysis_as_of: capturedAt,
+    tier_system_version: "tier-server-v1",
+    standings_snapshot_identity: identity,
+    status: isMature ? "mature" : "immature",
+    maturity: isMature ? "mature" : "immature",
+    team_count: rows.length,
+    confirmed_boundaries: selected,
+    tier_partition_boundaries: selected,
+    team_assignments: assignments,
+  };
+}
+
+function hasValidRanks(rows: TierRow[]): boolean {
+  return rows.every((row, index) => row.rank === index + 1) &&
+    rows.every((row, index) => index === 0 || row.points <= rows[index - 1].points) &&
+    new Set(rows.map((row) => row.group).filter((group) => group !== null)).size <= 1;
+}
+
+function officialRelegationStart(rows: TierRow[]): number | null {
+  const last = rows.at(-1)?.description?.toLowerCase() ?? "";
+  if (!last.includes("relegation")) return null;
+  let index = rows.length - 1;
+  while (index > 0 && (rows[index - 1].description?.toLowerCase() ?? "") === last) index -= 1;
+  return rows[index].rank;
+}
+
+function selectTierBoundaries(candidates: JsonObject[], middleStart: number, middleEnd: number): JsonObject[] {
+  const selected: JsonObject[] = [];
+  for (const candidate of [...candidates].sort((left, right) =>
+    (numberValue(right.score) ?? 0) - (numberValue(left.score) ?? 0))) {
+    const boundary = numberValue(candidate.boundary_index)!;
+    const indexes = [...selected.map((value) => numberValue(value.boundary_index)!), boundary].sort((a, b) => a - b);
+    const separators = [
+      middleStart,
+      ...indexes.map((index) => index + 1),
+      middleEnd + 1,
+    ];
+    const segments = separators
+      .slice(0, -1)
+      .map((start, index) => separators[index + 1] - start);
+    if (segments.every((size) => size >= 2)) selected.push(candidate);
+    if (selected.length === 2) break;
+  }
+  return selected.sort((left, right) => (numberValue(left.boundary_index) ?? 0) - (numberValue(right.boundary_index) ?? 0));
+}
+
+function tierForRank(rank: number, relegationStart: number, boundaries: number[]): string {
+  if (rank <= 3) return "TIER_1";
+  if (rank >= relegationStart) return "TIER_5";
+  if (boundaries.length === 0) return "TIER_3";
+  if (boundaries.length === 1) return rank <= boundaries[0] ? "TIER_2" : "TIER_4";
+  if (rank <= boundaries[0]) return "TIER_2";
+  if (rank <= boundaries[1]) return "TIER_3";
+  return "TIER_4";
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((left, right) => left - right);
+  if (sorted.length === 0) return 0;
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
+}
+
 function compactStandings(rows: JsonObject[]): JsonObject[] {
   return rows.map((row) => {
     const league = objectValue(row.league) ?? {};

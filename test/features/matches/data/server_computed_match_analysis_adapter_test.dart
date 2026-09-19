@@ -1,5 +1,6 @@
 import 'package:copilot/features/matches/data/server_computed_match_analysis_adapter.dart';
 import 'package:copilot/features/matches/domain/football_reading.dart';
+import 'package:copilot/features/matches/domain/structural_tiers/tier_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -47,6 +48,49 @@ void main() {
                 'required_reading_ids': ['positive_streak'],
               },
             ],
+            'tier_snapshot': {
+              'competition_id': '61',
+              'season': 2026,
+              'analysis_as_of': '2026-09-18T06:00:00Z',
+              'tier_system_version': 'tier-server-v1',
+              'standings_snapshot_identity': 'server-tier-test',
+              'status': 'immature',
+              'maturity': 'immature',
+              'team_count': 10,
+              'confirmed_boundaries': [
+                {
+                  'boundary_index': 5,
+                  'upper_rank': 5,
+                  'lower_rank': 6,
+                  'raw_gap': 4,
+                  'score': 81,
+                  'strength': 'strong',
+                },
+              ],
+              'tier_partition_boundaries': [
+                {'boundary_index': 5, 'score': 81, 'strength': 'strong'},
+              ],
+              'team_assignments': [
+                {
+                  'team_id': 7,
+                  'team_name': 'Paris FC',
+                  'rank': 2,
+                  'points': 13,
+                  'played': 5,
+                  'points_per_game': 2.6,
+                  'assigned_tier': 'TIER_1',
+                },
+                {
+                  'team_id': 8,
+                  'team_name': 'Lens',
+                  'rank': 8,
+                  'points': 4,
+                  'played': 5,
+                  'points_per_game': 0.8,
+                  'assigned_tier': 'TIER_5',
+                },
+              ],
+            },
           },
         ],
       },
@@ -72,6 +116,20 @@ void main() {
     expect(
       analysis.displayReadings.first.playerPhotoUrl,
       'https://media.api-sports.io/football/players/278.png',
+    );
+    expect(analysis.championshipTierSnapshot, isNotNull);
+    expect(analysis.championshipTierSnapshot!.teamAssignments, hasLength(2));
+    expect(
+      analysis.championshipTierSnapshot!.assignmentForTeam(7)!.assignedTier,
+      TierLabel.tier1Podium,
+    );
+    expect(
+      analysis
+          .championshipTierSnapshot!
+          .confirmedStructuralBoundaries
+          .single
+          .boundaryIndex,
+      5,
     );
   });
 }

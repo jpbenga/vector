@@ -892,6 +892,56 @@ void main() {
     );
 
     testWidgets(
+      'does not present opposite generic markets as one Lector choice',
+      (tester) async {
+        final match =
+            _match(
+              id: 'ambiguous-direction',
+              homeName: 'AS Roma',
+              awayName: 'Inter',
+              kickoff: _relativeKickoff(0, hour: 18),
+            ).copyWith(
+              betRecommendations: const [
+                BetRecommendation(
+                  matchId: 'ambiguous-direction',
+                  marketId: 'matchResult',
+                  marketLabel: 'Résultat du match',
+                  selectionIntent: MarketSelectionIntent.home,
+                  selectionLabel: 'AS Roma gagne',
+                  supportingReadingIds: ['positive_streak'],
+                  supportingScenarioIds: ['positive_series'],
+                  contradictionIds: [],
+                  maturity: AnalysisMaturity.established,
+                ),
+                BetRecommendation(
+                  matchId: 'ambiguous-direction',
+                  marketId: 'matchResult',
+                  marketLabel: 'Résultat du match',
+                  selectionIntent: MarketSelectionIntent.away,
+                  selectionLabel: 'Inter gagne',
+                  supportingReadingIds: ['positive_streak'],
+                  supportingScenarioIds: ['positive_series'],
+                  contradictionIds: [],
+                  maturity: AnalysisMaturity.established,
+                ),
+              ],
+            );
+
+        await _pumpMatchDetail(tester, match: match);
+
+        expect(find.text('MATCH À SUIVRE'), findsOneWidget);
+        expect(find.text('AS Roma gagne'), findsNothing);
+        expect(find.text('Inter gagne'), findsNothing);
+        expect(
+          find.textContaining(
+            'ne permettent pas de mettre une équipe en avant',
+          ),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
       'shows engine support, resistance and contradiction in reading sheet',
       (tester) async {
         await tester.binding.setSurfaceSize(const Size(390, 844));

@@ -34,6 +34,19 @@ void main() {
     expect(analyzer, contains('fixtureIds.join(",")'));
   });
 
+  test('publishes server-computed Tier assignments with every fixture', () {
+    final analyzer = File(
+      'supabase/functions/analyze-match-feed-snapshot/index.ts',
+    ).readAsStringSync();
+
+    expect(analyzer, contains('const tiersByLeagueId = buildTierSnapshots'));
+    expect(analyzer, contains('tier_snapshot:'));
+    expect(analyzer, contains('function buildTierSnapshot'));
+    expect(analyzer, contains('medianPlayed < 5'));
+    expect(analyzer, contains('officialRelegationStart'));
+    expect(analyzer, contains('selectTierBoundaries'));
+  });
+
   test('keeps detailed final provider calls limited to announced fixtures', () {
     final results = File(
       'supabase/functions/sync-match-results/index.ts',

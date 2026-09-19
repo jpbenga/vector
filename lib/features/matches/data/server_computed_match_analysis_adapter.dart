@@ -2,6 +2,7 @@ import '../domain/analysis_maturity.dart';
 import '../domain/football_reading.dart';
 import '../domain/football_scenario.dart';
 import '../domain/match_board_item.dart';
+import '../domain/structural_tiers/tier_models.dart';
 
 /// Decodes the compact read model built by `analyze-match-feed-snapshot`.
 ///
@@ -42,6 +43,7 @@ class ServerComputedMatchAnalysisAdapter {
           _list(item['readings']),
           fixtureId: fixtureId,
         ),
+        championshipTierSnapshot: _tierSnapshot(_map(item['tier_snapshot'])),
       );
     }
     return Map.unmodifiable(results);
@@ -119,6 +121,83 @@ class ServerComputedMatchAnalysisAdapter {
     ]);
   }
 
+  ChampionshipTierSnapshot? _tierSnapshot(Map<String, Object?> row) {
+    if (row.isEmpty) return null;
+    final assignments = <TeamTierAssignment>[
+      for (final value in _list(row['team_assignments']))
+        if (_integer(value['team_id']) != null &&
+            _integer(value['rank']) != null &&
+            _integer(value['points']) != null &&
+            _integer(value['played']) != null &&
+            _tierLabel(value['assigned_tier']) != null)
+          TeamTierAssignment(
+            teamId: _integer(value['team_id'])!,
+            teamName: value['team_name']?.toString() ?? 'Équipe',
+            officialRank: _integer(value['rank'])!,
+            points: _integer(value['points'])!,
+            played: _integer(value['played'])!,
+            pointsPerGame: _double(value['points_per_game']) ?? 0,
+            assignedTier: _tierLabel(value['assigned_tier'])!,
+            group: value['group']?.toString(),
+            description: value['description']?.toString(),
+          ),
+    ];
+    if (assignments.isEmpty) return null;
+    final analysisAsOf = DateTime.tryParse(
+      row['analysis_as_of']?.toString() ?? '',
+    );
+    if (analysisAsOf == null) return null;
+    final boundaries = <ConfirmedStructuralBoundary>[
+      for (final value in _list(row['confirmed_boundaries']))
+        if (_integer(value['boundary_index']) != null &&
+            _integer(value['upper_rank']) != null &&
+            _integer(value['lower_rank']) != null &&
+            _integer(value['raw_gap']) != null)
+          ConfirmedStructuralBoundary(
+            boundaryIndex: _integer(value['boundary_index'])!,
+            upperRank: _integer(value['upper_rank'])!,
+            lowerRank: _integer(value['lower_rank'])!,
+            rawGap: _integer(value['raw_gap'])!,
+            score: _double(value['score']) ?? 0,
+            strength: _boundaryStrength(value['strength']),
+            standingsSnapshotIdentity:
+                row['standings_snapshot_identity']?.toString() ?? 'server',
+          ),
+    ];
+    final partitions = <TierPartitionBoundary>[
+      for (final value in _list(row['tier_partition_boundaries']))
+        if (_integer(value['boundary_index']) != null)
+          TierPartitionBoundary(
+            boundaryIndex: _integer(value['boundary_index'])!,
+            score: _double(value['score']) ?? 0,
+            strength: _boundaryStrength(value['strength']),
+          ),
+    ];
+    final presence = assignments
+        .map((assignment) => assignment.assignedTier)
+        .toSet();
+    return ChampionshipTierSnapshot(
+      competitionId: row['competition_id']?.toString() ?? '',
+      season: _integer(row['season']) ?? 0,
+      analysisAsOf: analysisAsOf,
+      tierSystemVersion: row['tier_system_version']?.toString() ?? 'tier-v1',
+      standingsSnapshotIdentity:
+          row['standings_snapshot_identity']?.toString() ?? 'server',
+      status: _tierStatus(row['status']),
+      maturity: _tierMaturity(row['maturity']),
+      teamCount: _integer(row['team_count']) ?? assignments.length,
+      pointDistribution: null,
+      ppgDistribution: null,
+      boundaryCandidates: const [],
+      confirmedStructuralBoundaries: boundaries,
+      tierPartitionBoundaries: partitions,
+      tierPresence: presence,
+      teamAssignments: assignments,
+      warnings: const [],
+      unavailabilityReasons: const [],
+    );
+  }
+
   String? _playerName(Map<String, Object?> row) {
     for (final evidence in _list(row['evidence'])) {
       final value = _map(evidence['value']);
@@ -155,12 +234,42 @@ class ServerComputedMatchAnalysis {
     required this.analysis,
     required this.scenarios,
     required this.displayReadings,
+    this.championshipTierSnapshot,
   });
 
   final FootballAnalysis analysis;
   final List<FootballScenarioMatch> scenarios;
   final List<MatchComputedReading> displayReadings;
+  final ChampionshipTierSnapshot? championshipTierSnapshot;
 }
+
+TierLabel? _tierLabel(Object? value) => switch (value?.toString()) {
+  'TIER_1' => TierLabel.tier1Podium,
+  'TIER_2' => TierLabel.tier2UpperChampionship,
+  'TIER_3' => TierLabel.tier3MiddleChampionship,
+  'TIER_4' => TierLabel.tier4LowerChampionship,
+  'TIER_5' => TierLabel.tier5Relegation,
+  _ => null,
+};
+
+TierSystemStatus _tierStatus(Object? value) => switch (value?.toString()) {
+  'mature' => TierSystemStatus.mature,
+  'immature' => TierSystemStatus.immature,
+  _ => TierSystemStatus.unavailable,
+};
+
+TierMaturity _tierMaturity(Object? value) => switch (value?.toString()) {
+  'mature' => TierMaturity.mature,
+  'immature' => TierMaturity.immature,
+  _ => TierMaturity.unavailable,
+};
+
+BoundaryStrength _boundaryStrength(Object? value) =>
+    switch (value?.toString()) {
+      'strong' => BoundaryStrength.strong,
+      'weak' => BoundaryStrength.weak,
+      _ => BoundaryStrength.moderate,
+    };
 
 ReadingSubjectSide _side(Object? value) => switch (value?.toString()) {
   'home' => ReadingSubjectSide.home,
@@ -214,5 +323,11 @@ int? _integer(Object? value) => switch (value) {
   int value => value,
   num value => value.toInt(),
   String value => int.tryParse(value),
+  _ => null,
+};
+
+double? _double(Object? value) => switch (value) {
+  num value => value.toDouble(),
+  String value => double.tryParse(value),
   _ => null,
 };

@@ -254,13 +254,33 @@ List<MatchBoardItem> _attachServerComputedReadings(
 ) {
   return List.unmodifiable([
     for (final match in matches)
-      match.copyWith(
-        analysis: match.analysis.copyWith(
-          computedReadings:
-              computedByFixture[match.id]?.displayReadings ?? const [],
-        ),
-      ),
+      _attachServerComputedAnalysis(match, computedByFixture[match.id]),
   ]);
+}
+
+/// This only attaches the precomputed Tier map to its fixture. It does not
+/// derive standings, boundaries or football signals on the device.
+MatchBoardItem _attachServerComputedAnalysis(
+  MatchBoardItem match,
+  ServerComputedMatchAnalysis? computed,
+) {
+  final snapshot = computed?.championshipTierSnapshot;
+  final homeTeamId = match.homeTeam.apiFootballTeamId;
+  final awayTeamId = match.awayTeam.apiFootballTeamId;
+  final relation = snapshot == null || homeTeamId == null || awayTeamId == null
+      ? null
+      : MatchStructuralRelation.fromSnapshot(
+          snapshot: snapshot,
+          homeTeamId: homeTeamId,
+          awayTeamId: awayTeamId,
+        );
+  return match.copyWith(
+    analysis: match.analysis.copyWith(
+      computedReadings: computed?.displayReadings ?? const [],
+      championshipTierSnapshot: snapshot,
+      structuralRelation: relation,
+    ),
+  );
 }
 
 bool _hasServerComputedAnalysis(Map<String, Object?> snapshot) {
