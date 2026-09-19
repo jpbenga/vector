@@ -152,7 +152,7 @@ void main() {
       final profile = const ProfileCompiler().compile(sourceProfile);
 
       expect(profile.isReadingAllowed('balanced_hierarchy'), isFalse);
-      expect(profile.isReadingAllowed('ranking_superiority'), isFalse);
+      expect(profile.isReadingAllowed('ranking_superiority'), isTrue);
       expect(profile.isReadingAllowed('structural_level_gap'), isTrue);
       expect(profile.isReadingAllowed('positive_streak'), isFalse);
       expect(profile.isOpportunityProfileEnabled('ranking_gap'), isTrue);
@@ -179,6 +179,28 @@ void main() {
       expect(profile.hasEnabledReadings, isTrue);
       expect(profile.isReadingAllowed('positive_streak'), isTrue);
       expect(profile.hasEnabledOpportunityProfiles, isFalse);
+    });
+
+    test('accepts server aliases for selected direct readings', () {
+      const sourceProfile = DecisionProfile(
+        onboardingVersion: '3.0',
+        answers: [
+          OnboardingAnswer(
+            questionId: 'competitions',
+            orderedOptionIds: ['eng_premier_league'],
+          ),
+          OnboardingAnswer(
+            questionId: 'readings',
+            orderedOptionIds: ['positive_streak', 'strong_away_team'],
+          ),
+        ],
+      );
+
+      final profile = const ProfileCompiler().compile(sourceProfile);
+
+      expect(profile.isReadingAllowed('form_advantage'), isTrue);
+      expect(profile.isReadingAllowed('venue_strength'), isTrue);
+      expect(profile.isReadingAllowed('match_card_profile'), isFalse);
     });
 
     test(

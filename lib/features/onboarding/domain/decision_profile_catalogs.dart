@@ -765,12 +765,41 @@ class ReadingPreferenceCatalog {
       values.any((definition) => definition.id == readingId);
 
   static String? preferenceIdForReading(String readingId) {
+    final ids = preferenceIdsForReading(readingId);
+    return ids.isEmpty ? null : ids.first;
+  }
+
+  /// A compact snapshot may use a factual id which represents one of the
+  /// readings selected in the profile. Keep this translation at the catalog
+  /// boundary so the server contract, the profile and the presentation all
+  /// make the same eligibility decision.
+  static Set<String> preferenceIdsForReading(String readingId) {
     if (readingId == 'standout_goal_scorer' ||
         readingId == 'standout_creator') {
-      return 'standout_decisive_player';
+      return const {'standout_decisive_player'};
     }
-    if (contains(readingId)) return readingId;
-    return null;
+    if (readingId == 'form_advantage') {
+      return const {'positive_streak', 'improving_form'};
+    }
+    if (readingId == 'ranking_superiority' ||
+        readingId == 'ranking_inferiority') {
+      return const {'structural_level_gap'};
+    }
+    if (readingId == 'venue_strength') {
+      return const {'strong_home_team', 'strong_away_team'};
+    }
+    if (readingId == 'high_xg_creation' || readingId == 'attack_in_form') {
+      return const {'prolific_attack'};
+    }
+    if (readingId == 'low_xg_creation' ||
+        readingId == 'offensive_underperformance') {
+      return const {'scoring_difficulty'};
+    }
+    if (readingId == 'high_xg_conceded' ||
+        readingId == 'defensive_underperformance') {
+      return const {'fragile_defense'};
+    }
+    return contains(readingId) ? {readingId} : const {};
   }
 
   static Set<String> normalizeSelectionIds(Iterable<String> readingIds) => {

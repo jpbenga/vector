@@ -386,6 +386,49 @@ void main() {
     });
 
     testWidgets(
+      'shows a compact reading badge when the server snapshot has readings',
+      (tester) async {
+        await _pumpPage(
+          tester,
+          repository: _FakeMatchFeedRepository(
+            opportunities: const [],
+            matches: [
+              _match(
+                id: 'server-computed-reading',
+                homeName: 'Cardiff',
+                awayName: 'Charlton',
+                competitionId: '40',
+                competitionName: 'Championship',
+                kickoff: _relativeKickoff(0, hour: 13),
+                analysis: const MatchAnalysisData(
+                  computedReadings: [
+                    MatchComputedReading(
+                      id: 'positive_streak',
+                      subjectTeamId: 'server-computed-reading-home',
+                      side: 'home',
+                      strength: 'moderate',
+                      isContradiction: false,
+                      evidenceLabel: 'Cardiff est en dynamique positive.',
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+
+        await tester.tap(find.text('Tous'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Championship'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Cardiff'), findsOneWidget);
+        expect(find.text('Charlton'), findsOneWidget);
+        expect(find.text('Lecture'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
       'For me filters reading-only matches by selected calendar date',
       (tester) async {
         MatchBoardItem readingMatch(String id, String home, int dayOffset) {
@@ -663,6 +706,64 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('AS Roma'), findsOneWidget);
         expect(find.text('Paris FC'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'lists followed competitions in the filter before they have a story',
+      (tester) async {
+        final readable =
+            _match(
+              id: 'readable-ligue-1',
+              homeName: 'Paris FC',
+              awayName: 'Lens',
+              competitionId: '61',
+              competitionName: 'Ligue 1',
+              kickoff: _relativeKickoff(0, hour: 20),
+            ).copyWith(
+              signals: const [
+                MatchSignal(
+                  id: 'positive_streak',
+                  title: 'Dynamique positive',
+                  summary: 'Dynamique positive détectée.',
+                  proofs: ['Signal confirmé.'],
+                ),
+              ],
+            );
+        final championshipWithoutStory = _match(
+          id: 'championship-without-story',
+          homeName: 'Cardiff',
+          awayName: 'Charlton',
+          competitionId: '40',
+          competitionName: 'Championship',
+          countryName: 'Angleterre',
+          kickoff: _relativeKickoff(0, hour: 20),
+        );
+
+        await _pumpPage(
+          tester,
+          profile: _completedProfile().withOptionIds('competitions', [
+            '61',
+            '40',
+          ]),
+          repository: _FakeMatchFeedRepository(
+            opportunities: const [],
+            matches: [readable, championshipWithoutStory],
+            personalizedMatches: [readable],
+          ),
+        );
+
+        await tester.tap(find.byKey(const ValueKey('for-me-open-filters')));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey('for-me-competition-option-61')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('for-me-competition-option-40')),
+          findsOneWidget,
+        );
       },
     );
 
@@ -1522,6 +1623,51 @@ void main() {
             '2 entrées en jeu · décisif sur 2/3 matchs · 2 buts · 74 min',
           ),
           findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'shows compact server readings in the detail sheet without local signals',
+      (tester) async {
+        final match = _match(
+          id: 'compact-detail',
+          homeName: 'Tottenham',
+          awayName: 'Aston Villa',
+          kickoff: _relativeKickoff(0, hour: 13),
+          analysis: const MatchAnalysisData(
+            computedReadings: [
+              MatchComputedReading(
+                id: 'form_advantage',
+                subjectTeamId: 'compact-detail-home',
+                side: 'home',
+                strength: 'moderate',
+                isContradiction: false,
+                evidenceLabel:
+                    'Tottenham totalise davantage de points sur les trois derniers matchs.',
+              ),
+            ],
+          ),
+        );
+
+        await _pumpMatchDetail(tester, match: match);
+        await tester.tap(find.text('Voir le détail'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Pourquoi ce match est proposé'), findsOneWidget);
+        expect(find.text('Autres lectures du match'), findsOneWidget);
+        expect(find.text('Avantage de forme pour Tottenham'), findsNWidgets(2));
+        expect(
+          find.text(
+            'Tottenham totalise davantage de points sur les trois derniers matchs.',
+          ),
+          findsNWidgets(2),
+        );
+        expect(
+          find.text(
+            'Aucune lecture moteur détaillée disponible pour cette rencontre.',
+          ),
+          findsNothing,
         );
       },
     );

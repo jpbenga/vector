@@ -182,6 +182,36 @@ void main() {
     });
 
     test(
+      'surfaces a server form reading in Pour moi through its selected preference',
+      () {
+        final analyzer = _CountingFootballAnalyzer({
+          'fixture-domination': [
+            _reading(
+              'form_advantage',
+              'home-domination',
+              side: ReadingSubjectSide.home,
+              kind: ReadingEvidenceKind.form,
+            ),
+          ],
+          'fixture-open': const [],
+        });
+        final repository = _personalizationRepository(analyzer);
+
+        final matches = repository.personalizedFor(
+          _profile(
+            markets: const [],
+            profiles: const [],
+            readings: const ['positive_streak'],
+          ),
+        );
+
+        expect(matches.map((match) => match.id), ['fixture-domination']);
+        expect(matches.single.signals, hasLength(1));
+        expect(matches.single.profileRelevance.readingMatches, 1);
+      },
+    );
+
+    test(
       'keeps a configured market candidate when its direct reading is selected',
       () {
         final analyzer = _CountingFootballAnalyzer({
@@ -203,7 +233,9 @@ void main() {
         );
         expect(marketMatch.thesis, isNull);
         expect(marketMatch.betCandidates, isNotEmpty);
-        expect(marketMatch.profileRelevance.readingMatches, 1);
+        // The server publishes both structural gap and ranking superiority;
+        // they share the user's selected hierarchy preference.
+        expect(marketMatch.profileRelevance.readingMatches, 2);
         expect(marketMatch.profileRelevance.scenarioMatches, 0);
         expect(marketMatch.profileRelevance.marketMatches, 1);
       },

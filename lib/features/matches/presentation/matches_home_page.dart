@@ -1133,6 +1133,11 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
 
   @override
   Widget build(BuildContext context) {
+    // The competition picker must be built from the complete match feed for
+    // the selected day, never from the already-filtered "Pour moi" stories.
+    // Otherwise a league with no currently rendered story cannot be selected
+    // to inspect it, which makes the filter itself hide part of its domain.
+    final allMatchesForSelectedDate = _matchesForDate(widget.matches);
     final visibleMatches = _matchesForModeAndDate();
     final allStoryMatches = _storyMatches(visibleMatches);
     final availableReadingFilters = _readingFilters(allStoryMatches);
@@ -1142,7 +1147,14 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
             .isNotEmpty
         ? _selectedForMeReadingId
         : null;
-    final competitionOptions = _competitionFilterOptions(allStoryMatches);
+    final competitionOptions = _competitionFilterOptions(
+      allMatchesForSelectedDate
+          .where((match) {
+            final configuredIds = _selectedCompetitionIds;
+            return configuredIds.isEmpty || _matchesSelectedCompetition(match);
+          })
+          .toList(growable: false),
+    );
     final filterableMatches = [
       for (final match in allStoryMatches)
         _ForMeFilterableMatch(
@@ -1821,7 +1833,8 @@ class _ForMeReadingCategory {
       'strong_away_team' ||
       'weak_away_team' ||
       'home_away_advantage' ||
-      'away_home_advantage' => 'venue',
+      'away_home_advantage' ||
+      'venue_strength' => 'venue',
       'prolific_attack' ||
       'scoring_difficulty' ||
       'high_xg_creation' ||
@@ -4829,7 +4842,11 @@ String _readingTitle(MatchBoardItem match) {
 
 String? _compactReadingLabel(MatchBoardItem match) {
   if (match.thesis == null && match.signals.isEmpty) {
-    return null;
+    // The compact feed is a direct reflection of the server-computed
+    // readings. A client-side profile interpretation may legitimately have
+    // no thesis or signal, but that must not hide a reading already published
+    // for this fixture.
+    return match.analysis.computedReadings.isNotEmpty ? 'Lecture' : null;
   }
   final title = _readingTitle(match).toLowerCase();
   if (title.contains('ouvert')) {

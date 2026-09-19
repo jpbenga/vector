@@ -187,7 +187,7 @@ class OpportunityEngineV2 {
     // A reading available in "Mes lectures" must be able to surface a match
     // in "Pour moi" when the user enables it. The catalog is the single
     // product contract; a second hard-coded subset silently lost readings.
-    return ReadingPreferenceCatalog.contains(id);
+    return ReadingPreferenceCatalog.preferenceIdsForReading(id).isNotEmpty;
   }
 
   List<_OpportunityCandidate> _scenarioCandidates(

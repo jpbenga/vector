@@ -8351,7 +8351,8 @@ _ScenarioSheetContent _scenarioSheetContentFor(
   final independentReadings = <_ScenarioReading>[];
   final directVigilances = <_ScenarioEvidenceDetail>[];
   for (final reading in otherReadings) {
-    if (_isVigilanceForSelectedScenario(reading, featuredTeamIds)) {
+    if (reading.isContradiction ||
+        _isVigilanceForSelectedScenario(reading, featuredTeamIds)) {
       directVigilances.add(
         _scenarioEvidenceDetailForIndependentReading(reading),
       );
@@ -8496,6 +8497,7 @@ class _ScenarioReading {
     this.strength,
     this.subjectTeamId,
     this.isScenario = false,
+    this.isContradiction = false,
   });
 
   final String id;
@@ -8505,6 +8507,7 @@ class _ScenarioReading {
   final ReadingStrength? strength;
   final String? subjectTeamId;
   final bool isScenario;
+  final bool isContradiction;
   final List<_ScenarioEvidenceDetail> supports;
   final List<_ScenarioEvidenceDetail> resistances;
   final List<_ScenarioEvidenceDetail> contradictions;
@@ -8645,6 +8648,13 @@ List<_ScenarioReading> _scenarioReadingsFor(
       (signal) => _scenarioReadingForDirectSignal(match, signal),
     ),
   );
+  // The detail can also be opened from "Tous", where no profile-specific
+  // signal has been built. In that case, render the same compact server
+  // readings already used by the badge and context instead of claiming that
+  // no detailed analysis exists.
+  if (readings.isEmpty) {
+    readings.addAll(_scenarioReadingsFromComputedSnapshot(match));
+  }
   if (readings.isNotEmpty) {
     return List.unmodifiable(readings);
   }
@@ -8655,7 +8665,82 @@ List<_ScenarioReading> _scenarioReadingsFor(
 bool _isScenarioSignal(MatchSignal signal) => signal.id.startsWith('scenario:');
 
 bool _isDirectReadingSignal(MatchSignal signal) =>
-    ReadingPreferenceCatalog.contains(signal.id);
+    ReadingPreferenceCatalog.preferenceIdsForReading(signal.id).isNotEmpty;
+
+List<_ScenarioReading> _scenarioReadingsFromComputedSnapshot(
+  MatchBoardItem match,
+) {
+  final seen = <String>{};
+  final readings = <_ScenarioReading>[];
+  for (final reading in match.analysis.computedReadings) {
+    if (ReadingPreferenceCatalog.preferenceIdsForReading(reading.id).isEmpty) {
+      continue;
+    }
+    final key =
+        '${reading.id}:${reading.subjectTeamId}:${reading.playerName ?? ''}';
+    if (!seen.add(key)) continue;
+
+    final team = _teamForSubject(match, reading.subjectTeamId);
+    final title =
+        reading.id == 'standout_decisive_player' &&
+            reading.playerName?.trim().isNotEmpty == true
+        ? '${reading.playerName} à surveiller'
+        : _quickContextTitle(reading.id, team?.name);
+    final evidence = _ScenarioEvidenceDetail(
+      title: title,
+      description: reading.evidenceLabel,
+      strengthLabel: _scenarioStrengthLabelForComputed(reading.strength),
+      readingId: reading.id,
+      subjectTeamId: reading.subjectTeamId,
+      playerName: reading.playerName,
+      playerPhotoUrl: reading.playerPhotoUrl,
+    );
+    readings.add(
+      _ScenarioReading(
+        id: reading.id,
+        title: title,
+        category: _scenarioCategoryForComputed(reading.id),
+        summary: reading.evidenceLabel,
+        strength: _scenarioStrengthForComputed(reading.strength),
+        supports: [evidence],
+        resistances: const [],
+        contradictions: const [],
+        limits: const [],
+        subjectTeamId: reading.subjectTeamId,
+        isContradiction: reading.isContradiction,
+      ),
+    );
+  }
+  return List.unmodifiable(readings);
+}
+
+ReadingStrength _scenarioStrengthForComputed(String value) =>
+    switch (value.trim().toLowerCase()) {
+      'strong' || 'fort' => ReadingStrength.strong,
+      'weak' || 'faible' => ReadingStrength.weak,
+      _ => ReadingStrength.moderate,
+    };
+
+String _scenarioStrengthLabelForComputed(String value) =>
+    _scenarioReadingStrengthLabel(_scenarioStrengthForComputed(value));
+
+String _scenarioCategoryForComputed(String readingId) => switch (readingId) {
+  'ranking_superiority' ||
+  'ranking_inferiority' ||
+  'structural_level_gap' => 'Classement',
+  'positive_streak' ||
+  'negative_streak' ||
+  'improving_form' ||
+  'declining_form' ||
+  'form_advantage' => 'Forme',
+  'strong_home_team' ||
+  'weak_home_team' ||
+  'strong_away_team' ||
+  'weak_away_team' ||
+  'venue_strength' => 'Lieu',
+  'standout_decisive_player' => 'Joueur décisif',
+  _ => 'Lecture',
+};
 
 _ScenarioReading _scenarioReadingForDirectSignal(
   MatchBoardItem match,

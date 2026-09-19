@@ -121,13 +121,12 @@ class CompiledDecisionProfile {
   }
 
   bool isReadingAllowed(String readingId) {
-    final preferenceId = ReadingPreferenceCatalog.preferenceIdForReading(
-      readingId,
-    );
-    if (!isCompleted || !canFilterReadings || preferenceId == null) {
+    if (!isCompleted || !canFilterReadings) {
       return false;
     }
-    return readings[preferenceId]?.enabled ?? false;
+    return ReadingPreferenceCatalog.preferenceIdsForReading(
+      readingId,
+    ).any((preferenceId) => readings[preferenceId]?.enabled ?? false);
   }
 
   bool isMatchTypeEnabled(String matchTypeId) {
