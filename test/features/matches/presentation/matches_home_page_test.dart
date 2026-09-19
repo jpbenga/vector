@@ -30,7 +30,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
   group('MatchesHomePage redesign', () {
-    testWidgets('keeps the three home navigation levels equally high', (
+    testWidgets('keeps primary navigation compact without stories to filter', (
       tester,
     ) async {
       await _pumpPage(
@@ -47,13 +47,13 @@ void main() {
       final primarySize = tester.getSize(
         find.byKey(const ValueKey('home-primary-navigation')),
       );
-      final readingSize = tester.getSize(
-        find.byKey(const ValueKey('home-reading-navigation')),
-      );
 
       expect(calendarSize.height, 48);
       expect(primarySize.height, calendarSize.height);
-      expect(readingSize.height, calendarSize.height);
+      final filterSize = tester.getSize(
+        find.byKey(const ValueKey('for-me-compact-filter-control')),
+      );
+      expect(filterSize.height, 58);
     });
 
     testWidgets('opens the global Bilan without the daily match calendar', (
@@ -499,37 +499,44 @@ void main() {
         ),
       );
 
-      expect(find.text('Tout'), findsOneWidget);
       expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('for-me-filter-all')),
-          matching: find.text('2'),
-        ),
+        find.byKey(const ValueKey('for-me-compact-filter-control')),
         findsOneWidget,
       );
-      expect(find.text('Avantage classement'), findsWidgets);
-      expect(find.text('Attaque efficace'), findsWidgets);
-
-      final rankingFilter = find.byKey(
-        const ValueKey('for-me-filter-ranking_gap'),
-      );
-      final filterList = find.ancestor(
-        of: rankingFilter,
-        matching: find.byType(ListView),
-      );
-      await tester.drag(filterList, const Offset(-220, 0));
+      await tester.tap(find.byKey(const ValueKey('for-me-open-filters')));
       await tester.pumpAndSettle();
-      await tester.tap(rankingFilter);
+      await tester.pumpAndSettle();
+      final rankingReading = find.byKey(
+        const ValueKey('for-me-reading-option-ranking_gap'),
+        skipOffstage: false,
+      );
+      final readingScroller = find
+          .ancestor(of: rankingReading, matching: find.byType(ListView))
+          .first;
+      await tester.drag(readingScroller, const Offset(-220, 0));
+      await tester.pumpAndSettle();
+      await tester.tap(rankingReading);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Voir 1 rencontres'));
       await tester.pumpAndSettle();
 
       expect(find.text('Ranking FC'), findsOneWidget);
       expect(find.text('Attack FC'), findsNothing);
 
-      final attackFilter = find.byKey(
-        const ValueKey('for-me-filter-prolific_attack'),
+      await tester.tap(find.byKey(const ValueKey('for-me-open-filters')));
+      await tester.pumpAndSettle();
+      final attackReading = find.byKey(
+        const ValueKey('for-me-reading-option-prolific_attack'),
+        skipOffstage: false,
       );
-      await tester.ensureVisible(attackFilter);
-      await tester.tap(attackFilter);
+      await tester.drag(
+        find.ancestor(of: attackReading, matching: find.byType(ListView)).first,
+        const Offset(-220, 0),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(attackReading);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Voir 1 rencontres'));
       await tester.pumpAndSettle();
 
       expect(find.text('Ranking FC'), findsNothing);
@@ -569,18 +576,13 @@ void main() {
         ),
       );
 
-      expect(find.text('Tout'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('for-me-open-filters')));
+      await tester.pumpAndSettle();
       expect(
-        find.byKey(const ValueKey('for-me-filter-attack')),
+        find.byKey(const ValueKey('for-me-reading-option-attack')),
         findsOneWidget,
       );
-      expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('for-me-filter-attack')),
-          matching: find.text('Attaque / xG'),
-        ),
-        findsOneWidget,
-      );
+      expect(find.text('Attaque / xG'), findsOneWidget);
     });
 
     testWidgets(
@@ -637,14 +639,12 @@ void main() {
         );
 
         expect(
-          find.byKey(const ValueKey('for-me-competition-all')),
+          find.byKey(const ValueKey('for-me-compact-filter-control')),
           findsOneWidget,
         );
-        await tester.tap(
-          find.byKey(const ValueKey('for-me-competition-open-filter')),
-        );
+        await tester.tap(find.byKey(const ValueKey('for-me-open-filters')));
         await tester.pumpAndSettle();
-        expect(find.text('Compétitions'), findsOneWidget);
+        expect(find.text('Filtrer les rencontres'), findsOneWidget);
 
         await tester.tap(
           find.byKey(const ValueKey('for-me-competition-option-135')),
@@ -656,10 +656,10 @@ void main() {
         expect(find.text('AS Roma'), findsOneWidget);
         expect(find.text('Paris FC'), findsNothing);
         expect(
-          find.byKey(const ValueKey('for-me-temporary-filter-banner')),
+          find.byKey(const ValueKey('for-me-compact-filter-control')),
           findsOneWidget,
         );
-        await tester.tap(find.text('Effacer'));
+        await tester.tap(find.text('Réinitialiser'));
         await tester.pumpAndSettle();
         expect(find.text('AS Roma'), findsOneWidget);
         expect(find.text('Paris FC'), findsOneWidget);
@@ -701,20 +701,21 @@ void main() {
           ),
         );
 
+        await tester.tap(find.byKey(const ValueKey('for-me-open-filters')));
+        await tester.pumpAndSettle();
+
         final filter = find.byKey(
-          const ValueKey('for-me-filter-fragile_defense'),
+          const ValueKey('for-me-reading-option-fragile_defense'),
         );
         expect(filter, findsOneWidget);
         expect(
           find.descendant(of: filter, matching: find.text('Défense fragile')),
           findsOneWidget,
         );
-        expect(
-          find.descendant(of: filter, matching: find.text('2')),
-          findsOneWidget,
-        );
-
         await tester.tap(filter);
+        await tester.pumpAndSettle();
+        expect(find.text('Voir 2 rencontres'), findsOneWidget);
+        await tester.tap(find.text('Voir 2 rencontres'));
         await tester.pumpAndSettle();
 
         expect(find.text('Alpha FC'), findsOneWidget);
@@ -772,8 +773,11 @@ void main() {
           ),
         );
 
+        await tester.tap(find.byKey(const ValueKey('for-me-open-filters')));
+        await tester.pumpAndSettle();
+
         final filter = find.byKey(
-          const ValueKey('for-me-filter-struggling_team'),
+          const ValueKey('for-me-reading-option-struggling_team'),
         );
         expect(filter, findsOneWidget);
         expect(
@@ -783,12 +787,10 @@ void main() {
           ),
           findsOneWidget,
         );
-        expect(
-          find.descendant(of: filter, matching: find.text('2')),
-          findsOneWidget,
-        );
-
         await tester.tap(filter);
+        await tester.pumpAndSettle();
+        expect(find.text('Voir 2 rencontres'), findsOneWidget);
+        await tester.tap(find.text('Voir 2 rencontres'));
         await tester.pumpAndSettle();
 
         expect(find.text('Home Weak FC'), findsOneWidget);
@@ -1406,7 +1408,7 @@ void main() {
       await tester.tap(find.text('Bodo/Glimt').first);
       await tester.pumpAndSettle();
 
-      expect(find.text('DOMINATION ATTENDUE'), findsOneWidget);
+      expect(find.text('MATCH À SUIVRE'), findsOneWidget);
       expect(find.text('Clés du match'), findsOneWidget);
       expect(
         find.text(
@@ -1723,7 +1725,7 @@ void main() {
       await tester.tap(find.text('Paris SG'));
       await tester.pumpAndSettle();
 
-      expect(find.text('LECTURE DISPONIBLE'), findsOneWidget);
+      expect(find.text('MATCH À SUIVRE'), findsOneWidget);
       expect(find.text('Paris SG'), findsWidgets);
       expect(find.text('Dortmund'), findsWidgets);
     });
