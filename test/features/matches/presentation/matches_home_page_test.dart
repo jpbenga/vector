@@ -584,6 +584,89 @@ void main() {
     });
 
     testWidgets(
+      'filters For me stories by competition and clears the temporary filter',
+      (tester) async {
+        MatchBoardItem readingMatch({
+          required String id,
+          required String homeName,
+          required String competitionId,
+          required String competitionName,
+          required String countryName,
+        }) {
+          return _match(
+            id: id,
+            homeName: homeName,
+            awayName: 'Away $homeName',
+            competitionId: competitionId,
+            competitionName: competitionName,
+            countryName: countryName,
+            kickoff: _relativeKickoff(0, hour: 20),
+          ).copyWith(
+            signals: [
+              const MatchSignal(
+                id: 'positive_streak',
+                title: 'Dynamique positive',
+                summary: 'Dynamique positive détectée.',
+                proofs: ['Signal confirmé.'],
+              ),
+            ],
+          );
+        }
+
+        final ligue1 = readingMatch(
+          id: 'ligue-1-filter',
+          homeName: 'Paris FC',
+          competitionId: '61',
+          competitionName: 'Ligue 1',
+          countryName: 'France',
+        );
+        final serieA = readingMatch(
+          id: 'serie-a-filter',
+          homeName: 'AS Roma',
+          competitionId: '135',
+          competitionName: 'Serie A',
+          countryName: 'Italie',
+        );
+        await _pumpPage(
+          tester,
+          repository: _FakeMatchFeedRepository(
+            opportunities: const [],
+            matches: [ligue1, serieA],
+            personalizedMatches: [ligue1, serieA],
+          ),
+        );
+
+        expect(
+          find.byKey(const ValueKey('for-me-competition-all')),
+          findsOneWidget,
+        );
+        await tester.tap(
+          find.byKey(const ValueKey('for-me-competition-open-filter')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Compétitions'), findsOneWidget);
+
+        await tester.tap(
+          find.byKey(const ValueKey('for-me-competition-option-135')),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Voir 1 rencontres'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('AS Roma'), findsOneWidget);
+        expect(find.text('Paris FC'), findsNothing);
+        expect(
+          find.byKey(const ValueKey('for-me-temporary-filter-banner')),
+          findsOneWidget,
+        );
+        await tester.tap(find.text('Effacer'));
+        await tester.pumpAndSettle();
+        expect(find.text('AS Roma'), findsOneWidget);
+        expect(find.text('Paris FC'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
       'deduplicates fragile-defense filters into one canonical preference',
       (tester) async {
         MatchBoardItem readingMatch(String id, String homeName) {

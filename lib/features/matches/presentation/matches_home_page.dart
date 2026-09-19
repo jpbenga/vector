@@ -1108,6 +1108,7 @@ class _ScoresRedesignHome extends StatefulWidget {
 class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
   bool _areAllStoriesVisible = false;
   String? _selectedForMeReadingId;
+  Set<String> _selectedForMeCompetitionIds = const {};
   double _dateTransitionDirection = 1;
 
   @override
@@ -1122,6 +1123,7 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
         explorationChanged) {
       _areAllStoriesVisible = false;
       _selectedForMeReadingId = null;
+      _selectedForMeCompetitionIds = const {};
     }
     if (!_isSameCalendarDay(oldWidget.selectedDate, widget.selectedDate)) {
       _dateTransitionDirection =
@@ -1133,16 +1135,41 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
   Widget build(BuildContext context) {
     final visibleMatches = _matchesForModeAndDate();
     final allStoryMatches = _storyMatches(visibleMatches);
-    final readingFilters = _readingFilters(allStoryMatches);
+    final availableReadingFilters = _readingFilters(allStoryMatches);
     final activeReadingId =
-        readingFilters
+        availableReadingFilters
             .where((filter) => filter.id == _selectedForMeReadingId)
             .isNotEmpty
         ? _selectedForMeReadingId
         : null;
-    final filteredStoryMatches = activeReadingId == null
+    final readingScopedStoryMatches = activeReadingId == null
         ? allStoryMatches
         : allStoryMatches
+              .where(
+                (match) => _matchReadingIds(match).contains(activeReadingId),
+              )
+              .toList(growable: false);
+    final competitionOptions = _competitionFilterOptions(
+      readingScopedStoryMatches,
+    );
+    final availableCompetitionIds = competitionOptions
+        .map((option) => option.id)
+        .toSet();
+    final selectedCompetitionIds = _selectedForMeCompetitionIds.intersection(
+      availableCompetitionIds,
+    );
+    final competitionScopedStoryMatches = selectedCompetitionIds.isEmpty
+        ? allStoryMatches
+        : allStoryMatches
+              .where(
+                (match) =>
+                    selectedCompetitionIds.contains(match.competition.id),
+              )
+              .toList(growable: false);
+    final readingFilters = _readingFilters(competitionScopedStoryMatches);
+    final filteredStoryMatches = activeReadingId == null
+        ? competitionScopedStoryMatches
+        : competitionScopedStoryMatches
               .where(
                 (match) => _matchReadingIds(match).contains(activeReadingId),
               )
@@ -1243,7 +1270,7 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                                           filters: readingFilters,
                                           selectedReadingId: activeReadingId,
                                           totalMatchCount: _uniqueMatchCount(
-                                            allStoryMatches,
+                                            filteredStoryMatches,
                                           ),
                                           onSelected: (readingId) {
                                             setState(() {
@@ -1254,6 +1281,63 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                                           },
                                         ),
                                         const SizedBox(height: 8),
+                                        _ForMeCompetitionFilterBar(
+                                          options: competitionOptions,
+                                          selectedCompetitionIds:
+                                              selectedCompetitionIds,
+                                          onSelectedAll: () {
+                                            setState(() {
+                                              _selectedForMeCompetitionIds =
+                                                  const {};
+                                              _areAllStoriesVisible = false;
+                                            });
+                                          },
+                                          onSelectedTopFive: () {
+                                            setState(() {
+                                              _selectedForMeCompetitionIds = {
+                                                for (final option
+                                                    in competitionOptions)
+                                                  if (option.isTopFive)
+                                                    option.id,
+                                              };
+                                              _areAllStoriesVisible = false;
+                                            });
+                                          },
+                                          onOpenFilter: () =>
+                                              _openCompetitionFilters(
+                                                competitionOptions,
+                                              ),
+                                        ),
+                                        if (activeReadingId != null ||
+                                            selectedCompetitionIds
+                                                .isNotEmpty) ...[
+                                          const SizedBox(height: 8),
+                                          _ForMeTemporaryFilterBanner(
+                                            readingLabel:
+                                                activeReadingId == null
+                                                ? null
+                                                : availableReadingFilters
+                                                      .firstWhere(
+                                                        (filter) =>
+                                                            filter.id ==
+                                                            activeReadingId,
+                                                      )
+                                                      .label,
+                                            competitionLabel:
+                                                _competitionFilterLabel(
+                                                  selectedCompetitionIds,
+                                                  competitionOptions,
+                                                ),
+                                            onClear: () {
+                                              setState(() {
+                                                _selectedForMeReadingId = null;
+                                                _selectedForMeCompetitionIds =
+                                                    const {};
+                                                _areAllStoriesVisible = false;
+                                              });
+                                            },
+                                          ),
+                                        ],
                                         if (widget.isExplorationActive) ...[
                                           _ExplorationStatusBanner(
                                             readingCount:
@@ -1506,6 +1590,73 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
 
   Set<String> _matchReadingIds(MatchBoardItem match) {
     return _profileReadings(match).map((reading) => reading.id).toSet();
+  }
+
+  List<_ScoresCompetitionFilterOption> _competitionFilterOptions(
+    List<MatchBoardItem> matches,
+  ) {
+    final builders = <String, _ScoresCompetitionFilterOptionBuilder>{};
+    for (final match in matches) {
+      builders
+          .putIfAbsent(
+            match.competition.id,
+            () => _ScoresCompetitionFilterOptionBuilder(
+              id: match.competition.id,
+              name: match.competition.name,
+              country: match.competition.country.name,
+            ),
+          )
+          .matchIds
+          .add(match.id);
+    }
+    final options = [for (final builder in builders.values) builder.build()]
+      ..sort((left, right) {
+        if (left.isTopFive != right.isTopFive) {
+          return left.isTopFive ? -1 : 1;
+        }
+        return left.name.compareTo(right.name);
+      });
+    return options;
+  }
+
+  String _competitionFilterLabel(
+    Set<String> selectedIds,
+    List<_ScoresCompetitionFilterOption> options,
+  ) {
+    final topFiveIds = {
+      for (final option in options)
+        if (option.isTopFive) option.id,
+    };
+    if (topFiveIds.isNotEmpty &&
+        selectedIds.length == topFiveIds.length &&
+        selectedIds.containsAll(topFiveIds)) {
+      return 'Top 5';
+    }
+    if (selectedIds.length == 1) {
+      return options
+          .firstWhere((option) => option.id == selectedIds.single)
+          .name;
+    }
+    return '${selectedIds.length} compétitions';
+  }
+
+  Future<void> _openCompetitionFilters(
+    List<_ScoresCompetitionFilterOption> options,
+  ) async {
+    final selected = await showModalBottomSheet<Set<String>>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => _ScoresCompetitionFiltersSheet(
+        options: options,
+        initialSelectedIds: _selectedForMeCompetitionIds,
+      ),
+    );
+    if (!mounted || selected == null) return;
+    setState(() {
+      _selectedForMeCompetitionIds = Set.unmodifiable(selected);
+      _areAllStoriesVisible = false;
+    });
   }
 
   int _profileRelevanceCount(MatchBoardItem match) {
@@ -3053,6 +3204,465 @@ class _ForMeReadingFilterBar extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ForMeCompetitionFilterBar extends StatelessWidget {
+  const _ForMeCompetitionFilterBar({
+    required this.options,
+    required this.selectedCompetitionIds,
+    required this.onSelectedAll,
+    required this.onSelectedTopFive,
+    required this.onOpenFilter,
+  });
+
+  final List<_ScoresCompetitionFilterOption> options;
+  final Set<String> selectedCompetitionIds;
+  final VoidCallback onSelectedAll;
+  final VoidCallback onSelectedTopFive;
+  final VoidCallback onOpenFilter;
+
+  @override
+  Widget build(BuildContext context) {
+    final topFiveIds = {
+      for (final option in options)
+        if (option.isTopFive) option.id,
+    };
+    final topFiveSelected =
+        topFiveIds.isNotEmpty &&
+        selectedCompetitionIds.length == topFiveIds.length &&
+        selectedCompetitionIds.containsAll(topFiveIds);
+    final allCount = options.fold<int>(0, (sum, option) => sum + option.count);
+    final topFiveCount = options
+        .where((option) => option.isTopFive)
+        .fold<int>(0, (sum, option) => sum + option.count);
+
+    return SizedBox(
+      key: const ValueKey('for-me-competition-navigation'),
+      height: _homeNavigationControlHeight,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
+        children: [
+          _ForMeCompetitionFilterTile(
+            key: const ValueKey('for-me-competition-all'),
+            label: 'Toutes',
+            count: allCount,
+            icon: Icons.public_rounded,
+            isSelected: selectedCompetitionIds.isEmpty,
+            onTap: onSelectedAll,
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          _ForMeCompetitionFilterTile(
+            key: const ValueKey('for-me-competition-top-five'),
+            label: 'Top 5',
+            count: topFiveCount,
+            icon: Icons.star_rounded,
+            isSelected: topFiveSelected,
+            isEnabled: topFiveIds.isNotEmpty,
+            onTap: onSelectedTopFive,
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          _ForMeCompetitionFilterTile(
+            key: const ValueKey('for-me-competition-open-filter'),
+            label: selectedCompetitionIds.isEmpty
+                ? 'Filtrer'
+                : '${selectedCompetitionIds.length} sélectionnée${selectedCompetitionIds.length > 1 ? 's' : ''}',
+            icon: Icons.tune_rounded,
+            isSelected: selectedCompetitionIds.isNotEmpty && !topFiveSelected,
+            onTap: onOpenFilter,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ForMeCompetitionFilterTile extends StatelessWidget {
+  const _ForMeCompetitionFilterTile({
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+    this.count,
+    this.isEnabled = true,
+    super.key,
+  });
+
+  final String label;
+  final int? count;
+  final IconData icon;
+  final bool isSelected;
+  final bool isEnabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = context.brand;
+    final accent = isSelected ? brand.accent : context.textColors.secondary;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 108),
+      child: Material(
+        color: AppColors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          side: BorderSide(
+            color: isSelected ? brand.accent : context.surfaces.border,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: InkWell(
+          onTap: isEnabled ? onTap : null,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          child: Opacity(
+            opacity: isEnabled ? 1 : .45,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 17, color: accent),
+                  const SizedBox(width: 7),
+                  Text(
+                    label,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: accent,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  if (count != null) ...[
+                    const SizedBox(width: 6),
+                    Text(
+                      '$count',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: accent,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ForMeTemporaryFilterBanner extends StatelessWidget {
+  const _ForMeTemporaryFilterBanner({
+    required this.readingLabel,
+    required this.competitionLabel,
+    required this.onClear,
+  });
+
+  final String? readingLabel;
+  final String? competitionLabel;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final labels = [?readingLabel, ?competitionLabel];
+    return DecoratedBox(
+      key: const ValueKey('for-me-temporary-filter-banner'),
+      decoration: BoxDecoration(
+        color: context.brand.accent.withValues(alpha: .09),
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        border: Border.all(color: context.brand.accent.withValues(alpha: .35)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+        child: Row(
+          children: [
+            Icon(
+              Icons.filter_alt_rounded,
+              size: 18,
+              color: context.brand.accent,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Filtre temporaire · ${labels.join(' · ')}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: context.textColors.primary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            TextButton(onPressed: onClear, child: const Text('Effacer')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScoresCompetitionFilterOption {
+  const _ScoresCompetitionFilterOption({
+    required this.id,
+    required this.name,
+    required this.country,
+    required this.count,
+  });
+
+  final String id;
+  final String country;
+  final String name;
+  final int count;
+
+  bool get isTopFive => _topFiveCompetitionIds.contains(id);
+}
+
+class _ScoresCompetitionFilterOptionBuilder {
+  _ScoresCompetitionFilterOptionBuilder({
+    required this.id,
+    required this.name,
+    required this.country,
+  });
+
+  final String id;
+  final String name;
+  final String country;
+  final Set<String> matchIds = <String>{};
+
+  _ScoresCompetitionFilterOption build() => _ScoresCompetitionFilterOption(
+    id: id,
+    name: name,
+    country: country,
+    count: matchIds.length,
+  );
+}
+
+const _topFiveCompetitionIds = {'39', '61', '78', '135', '140'};
+
+class _ScoresCompetitionFiltersSheet extends StatefulWidget {
+  const _ScoresCompetitionFiltersSheet({
+    required this.options,
+    required this.initialSelectedIds,
+  });
+
+  final List<_ScoresCompetitionFilterOption> options;
+  final Set<String> initialSelectedIds;
+
+  @override
+  State<_ScoresCompetitionFiltersSheet> createState() =>
+      _ScoresCompetitionFiltersSheetState();
+}
+
+class _ScoresCompetitionFiltersSheetState
+    extends State<_ScoresCompetitionFiltersSheet> {
+  late Set<String> _selectedIds = {...widget.initialSelectedIds};
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final normalizedQuery = _query.trim().toLowerCase();
+    final visible = widget.options
+        .where((option) {
+          return normalizedQuery.isEmpty ||
+              option.name.toLowerCase().contains(normalizedQuery) ||
+              option.country.toLowerCase().contains(normalizedQuery);
+        })
+        .toList(growable: false);
+    final topFive = visible.where((option) => option.isTopFive).toList();
+    final other = visible.where((option) => !option.isTopFive).toList();
+    final topFiveIds = {
+      for (final option in widget.options)
+        if (option.isTopFive) option.id,
+    };
+    final topFiveSelected =
+        topFiveIds.isNotEmpty &&
+        _selectedIds.length == topFiveIds.length &&
+        _selectedIds.containsAll(topFiveIds);
+    final selectedCount = widget.options
+        .where((option) => _selectedIds.contains(option.id))
+        .fold<int>(0, (sum, option) => sum + option.count);
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          0,
+          20,
+          20 + MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: SizedBox(
+          height: MediaQuery.sizeOf(context).height * .76,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Compétitions',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Fermer',
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+              Text(
+                'Limiter temporairement les rencontres affichées.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.textColors.secondary,
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                onChanged: (value) => setState(() => _query = value),
+                decoration: const InputDecoration(
+                  hintText: 'Rechercher un championnat',
+                  prefixIcon: Icon(Icons.search_rounded),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Toutes'),
+                    selected: _selectedIds.isEmpty,
+                    onSelected: (_) => setState(() => _selectedIds = {}),
+                  ),
+                  ChoiceChip(
+                    label: const Text('Top 5'),
+                    selected: topFiveSelected,
+                    onSelected: topFiveIds.isEmpty
+                        ? null
+                        : (_) => setState(() => _selectedIds = {...topFiveIds}),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView(
+                  children: [
+                    if (topFive.isNotEmpty) ...[
+                      _CompetitionSheetSectionTitle(label: 'Top 5'),
+                      for (final option in topFive)
+                        _ScoresCompetitionCheckboxTile(
+                          option: option,
+                          selected: _selectedIds.contains(option.id),
+                          onChanged: (value) => _toggle(option.id, value),
+                        ),
+                    ],
+                    if (other.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      _CompetitionSheetSectionTitle(
+                        label: 'Autres championnats',
+                      ),
+                      for (final option in other)
+                        _ScoresCompetitionCheckboxTile(
+                          option: option,
+                          selected: _selectedIds.contains(option.id),
+                          onChanged: (value) => _toggle(option.id, value),
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => setState(() => _selectedIds = {}),
+                      child: const Text('Réinitialiser'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: FilledButton.icon(
+                      onPressed: () => Navigator.of(context).pop(_selectedIds),
+                      icon: const Icon(Icons.arrow_forward_rounded),
+                      label: Text(
+                        'Voir ${_selectedIds.isEmpty ? widget.options.fold<int>(0, (sum, option) => sum + option.count) : selectedCount} rencontres',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _toggle(String id, bool value) {
+    setState(() {
+      if (value) {
+        _selectedIds.add(id);
+      } else {
+        _selectedIds.remove(id);
+      }
+    });
+  }
+}
+
+class _CompetitionSheetSectionTitle extends StatelessWidget {
+  const _CompetitionSheetSectionTitle({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    label.toUpperCase(),
+    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+      color: context.brand.accent,
+      fontWeight: FontWeight.w900,
+    ),
+  );
+}
+
+class _ScoresCompetitionCheckboxTile extends StatelessWidget {
+  const _ScoresCompetitionCheckboxTile({
+    required this.option,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final _ScoresCompetitionFilterOption option;
+  final bool selected;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) => KeyedSubtree(
+    key: ValueKey('for-me-competition-option-${option.id}'),
+    child: CheckboxListTile(
+      contentPadding: EdgeInsets.zero,
+      dense: true,
+      value: selected,
+      onChanged: (value) => onChanged(value ?? false),
+      controlAffinity: ListTileControlAffinity.leading,
+      title: Text(
+        option.name,
+        style: Theme.of(
+          context,
+        ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w800),
+      ),
+      subtitle: option.country.isEmpty ? null : Text(option.country),
+      secondary: Text(
+        '${option.count}',
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+          color: context.brand.accent,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    ),
+  );
 }
 
 class _ForMeReadingFilterTile extends StatelessWidget {
