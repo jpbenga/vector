@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('Supabase Lot 2 API-Football server foundation', () {
     late String migration;
-    late String eventAndInjuryMigration;
+    late String endpointAllowlistMigration;
     late String functionSource;
     late String envExample;
 
@@ -13,8 +13,8 @@ void main() {
       migration = File(
         'supabase/migrations/20260811103000_backend_lot_2_api_football_server.sql',
       ).readAsStringSync();
-      eventAndInjuryMigration = File(
-        'supabase/migrations/20260916190000_backend_allow_fixture_events_and_injuries_cache.sql',
+      endpointAllowlistMigration = File(
+        'supabase/migrations/20260919060000_backend_allow_fixture_players_cache.sql',
       ).readAsStringSync();
       functionSource = File(
         'supabase/functions/api-football-sync/index.ts',
@@ -63,7 +63,7 @@ void main() {
         r'endpoint:\s*"(/[^"]+)"',
       ).allMatches(functionSource).map((match) => match.group(1)!).toSet();
       final allowedEndpoints = RegExp(r"'(/[^']+)'")
-          .allMatches(eventAndInjuryMigration)
+          .allMatches(endpointAllowlistMigration)
           .map((match) => match.group(1)!)
           .toSet();
       expect(collectorEndpoints, isNotEmpty);
