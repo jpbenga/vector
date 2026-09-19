@@ -674,6 +674,10 @@ void main() {
         );
         await _pumpPage(
           tester,
+          profile: _completedProfile().withOptionIds('competitions', [
+            '61',
+            '135',
+          ]),
           repository: _FakeMatchFeedRepository(
             opportunities: const [],
             matches: [ligue1, serieA],
