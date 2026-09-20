@@ -439,6 +439,34 @@ class TeamRecentMatchSnapshot {
   final int? goalsAgainst;
 }
 
+/// A completed direct meeting between the two teams of the current fixture.
+///
+/// The feed keeps the competition identity so presentation can isolate the
+/// current championship and never blend it with cups or friendlies.
+class HeadToHeadFixtureSnapshot {
+  const HeadToHeadFixtureSnapshot({
+    required this.competitionId,
+    required this.competitionName,
+    required this.playedAt,
+    required this.homeTeamId,
+    required this.homeTeamName,
+    required this.awayTeamId,
+    required this.awayTeamName,
+    required this.homeGoals,
+    required this.awayGoals,
+  });
+
+  final int competitionId;
+  final String competitionName;
+  final DateTime playedAt;
+  final int homeTeamId;
+  final String homeTeamName;
+  final int awayTeamId;
+  final String awayTeamName;
+  final int homeGoals;
+  final int awayGoals;
+}
+
 /// Factual season statistics for one player in the competition of this match.
 /// They are deliberately separate from a team identifier: player identity is
 /// always carried by [playerId].
@@ -618,6 +646,7 @@ class MatchAnalysisData {
     this.homeRecentLeagueMatches = const [],
     this.awayRecentLeagueMatches = const [],
     this.leagueRecentLeagueMatches = const {},
+    this.headToHeadMatches = const [],
     this.homeStatistics,
     this.awayStatistics,
     this.leagueTeamStatistics = const [],
@@ -654,6 +683,7 @@ class MatchAnalysisData {
   final List<TeamRecentMatchSnapshot> homeRecentLeagueMatches;
   final List<TeamRecentMatchSnapshot> awayRecentLeagueMatches;
   final Map<int, List<TeamRecentMatchSnapshot>> leagueRecentLeagueMatches;
+  final List<HeadToHeadFixtureSnapshot> headToHeadMatches;
   final TeamStatisticsSnapshot? homeStatistics;
   final TeamStatisticsSnapshot? awayStatistics;
   final List<TeamStatisticsSnapshot> leagueTeamStatistics;
@@ -695,6 +725,7 @@ class MatchAnalysisData {
   bool get hasStatistics => homeStatistics != null || awayStatistics != null;
   bool get hasRecentLeagueMatches =>
       homeRecentLeagueMatches.isNotEmpty || awayRecentLeagueMatches.isNotEmpty;
+  bool get hasHeadToHead => headToHeadMatches.isNotEmpty;
   bool get hasExpectedGoals =>
       homeExpectedGoals != null || awayExpectedGoals != null;
   bool get hasPlayerStatistics =>
@@ -723,6 +754,7 @@ class MatchAnalysisData {
     List<TeamRecentMatchSnapshot>? homeRecentLeagueMatches,
     List<TeamRecentMatchSnapshot>? awayRecentLeagueMatches,
     Map<int, List<TeamRecentMatchSnapshot>>? leagueRecentLeagueMatches,
+    List<HeadToHeadFixtureSnapshot>? headToHeadMatches,
     TeamStatisticsSnapshot? homeStatistics,
     TeamStatisticsSnapshot? awayStatistics,
     List<TeamStatisticsSnapshot>? leagueTeamStatistics,
@@ -763,6 +795,7 @@ class MatchAnalysisData {
           awayRecentLeagueMatches ?? this.awayRecentLeagueMatches,
       leagueRecentLeagueMatches:
           leagueRecentLeagueMatches ?? this.leagueRecentLeagueMatches,
+      headToHeadMatches: headToHeadMatches ?? this.headToHeadMatches,
       homeStatistics: homeStatistics ?? this.homeStatistics,
       awayStatistics: awayStatistics ?? this.awayStatistics,
       leagueTeamStatistics: leagueTeamStatistics ?? this.leagueTeamStatistics,

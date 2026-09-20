@@ -1005,16 +1005,15 @@ class FootballAnalyzer {
         matches: match.analysis.awayRecentLeagueMatches,
       ),
     ]) {
-      final recent = entry.matches.take(3).toList(growable: false);
-      if (recent.length < 3) continue;
+      final recent = entry.matches.take(5).toList(growable: false);
+      if (recent.length < 5) continue;
       final form = recent.map((item) => item.result.toUpperCase()).join('');
       final points = recent.map(_pointsForRecentMatch).toList(growable: false);
       final total = points.fold(0, (sum, value) => sum + value);
       final hasLoss = points.contains(0);
-      final hasWin = points.contains(3);
 
-      if (!hasLoss && total >= 5) {
-        final strong = total >= 7;
+      if (!hasLoss && total >= 9) {
+        final strong = total >= 13;
         readings.add(
           _reading(
             id: 'positive_streak',
@@ -1027,20 +1026,20 @@ class FootballAnalyzer {
             sampleSize: recent.length,
             evidence: [
               ReadingEvidence(
-                label: total == 9
-                    ? '${entry.team.name} signe une série parfaite : trois victoires, 9/9 ($form).'
-                    : '${entry.team.name} reste invaincu sur ses trois derniers matchs ($form, $total/9).',
+                label: total == 15
+                    ? '${entry.team.name} signe une série parfaite : cinq victoires, 15/15 ($form).'
+                    : '${entry.team.name} reste invaincu sur ses cinq derniers matchs ($form, $total/15).',
                 kind: ReadingEvidenceKind.form,
                 sourcePath: 'recent_league_matches[].matches',
-                value: {'form': form, 'points': total, 'window': 3},
+                value: {'form': form, 'points': total, 'window': 5},
               ),
             ],
           ),
         );
       }
 
-      if (!hasWin && total <= 2) {
-        final strong = total <= 1;
+      if (total <= 4) {
+        final strong = total <= 2;
         readings.add(
           _reading(
             id: 'negative_streak',
@@ -1054,10 +1053,10 @@ class FootballAnalyzer {
             evidence: [
               ReadingEvidence(
                 label:
-                    '${entry.team.name} reste sans victoire sur ses trois derniers matchs ($form, $total/9).',
+                    '${entry.team.name} totalise $total/15 sur ses cinq derniers matchs ($form).',
                 kind: ReadingEvidenceKind.form,
                 sourcePath: 'recent_league_matches[].matches',
-                value: {'form': form, 'points': total, 'window': 3},
+                value: {'form': form, 'points': total, 'window': 5},
               ),
             ],
           ),
@@ -1084,12 +1083,18 @@ class FootballAnalyzer {
         matches: match.analysis.awayRecentLeagueMatches,
       ),
     ]) {
-      final recent = entry.matches.take(3).toList(growable: false);
-      if (recent.length < 3) continue;
-      final newest = _pointsForRecentMatch(recent[0]);
-      final middle = _pointsForRecentMatch(recent[1]);
-      final oldest = _pointsForRecentMatch(recent[2]);
-      final value = ((newest + middle) / 2) - oldest;
+      final recent = entry.matches.take(5).toList(growable: false);
+      if (recent.length < 5) continue;
+      final newestAverage =
+          (_pointsForRecentMatch(recent[0]) +
+              _pointsForRecentMatch(recent[1])) /
+          2;
+      final earlierAverage =
+          (_pointsForRecentMatch(recent[2]) +
+              _pointsForRecentMatch(recent[3]) +
+              _pointsForRecentMatch(recent[4])) /
+          3;
+      final value = newestAverage - earlierAverage;
       if (value.abs() < 1) continue;
       final improving = value > 0;
       final form = recent.map((item) => item.result.toUpperCase()).join('');
@@ -1104,10 +1109,10 @@ class FootballAnalyzer {
           evidence: [
             ReadingEvidence(
               label:
-                  '${entry.team.name} ${improving ? 'progresse' : 'recule'} sur ses trois derniers matchs ($form, évolution de ${value.abs().toStringAsFixed(1)} point par match).',
+                  '${entry.team.name} suit une trajectoire ${improving ? 'en hausse' : 'en baisse'} sur les cinq derniers matchs (du plus ancien au plus récent : $form, évolution de ${value.abs().toStringAsFixed(1)} point par match).',
               kind: ReadingEvidenceKind.form,
               sourcePath: 'recent_league_matches[].matches',
-              value: {'form': form, 'trend': value, 'window': 3},
+              value: {'form': form, 'trend': value, 'window': 5},
             ),
           ],
         ),

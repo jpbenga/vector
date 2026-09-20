@@ -306,6 +306,16 @@ void main() {
               venue: RecentMatchVenue.home,
               result: 'L',
             ),
+            TeamRecentMatchSnapshot(
+              opponentName: 'D',
+              venue: RecentMatchVenue.away,
+              result: 'L',
+            ),
+            TeamRecentMatchSnapshot(
+              opponentName: 'E',
+              venue: RecentMatchVenue.home,
+              result: 'L',
+            ),
           ],
         ),
       );
@@ -609,6 +619,16 @@ MatchBoardItem _match({
       venue: RecentMatchVenue.home,
       result: 'W',
     ),
+    TeamRecentMatchSnapshot(
+      opponentName: 'D',
+      venue: RecentMatchVenue.away,
+      result: 'W',
+    ),
+    TeamRecentMatchSnapshot(
+      opponentName: 'E',
+      venue: RecentMatchVenue.home,
+      result: 'W',
+    ),
   ],
   List<TeamRecentMatchSnapshot> awayRecentLeagueMatches = const [
     TeamRecentMatchSnapshot(
@@ -623,6 +643,16 @@ MatchBoardItem _match({
     ),
     TeamRecentMatchSnapshot(
       opponentName: 'C',
+      venue: RecentMatchVenue.home,
+      result: 'L',
+    ),
+    TeamRecentMatchSnapshot(
+      opponentName: 'D',
+      venue: RecentMatchVenue.away,
+      result: 'L',
+    ),
+    TeamRecentMatchSnapshot(
+      opponentName: 'E',
       venue: RecentMatchVenue.home,
       result: 'L',
     ),

@@ -1,0 +1,111 @@
+# Périmètre approuvé des compétitions
+
+Périmètre validé à partir de l’inventaire API-Football du 19 septembre 2026.
+
+**74 compétitions** : 40 déjà suivies et 34 ajouts validés.
+
+Ce périmètre servira de source pour la carte d’identité : couleur propriétaire, cadre et cartouche.
+
+## Déjà suivies par l’application
+
+| ID API | Compétition | Pays | Type | Saison API | Statut |
+| ---: | --- | --- | --- | --- | --- |
+| 2 | UEFA Champions League | World | Cup | 2026 | conserver |
+| 3 | UEFA Europa League | World | Cup | 2026 | conserver |
+| 848 | UEFA Europa Conference League | World | Cup | 2026 | conserver |
+| 39 | Premier League | England | League | 2026 | conserver |
+| 61 | Ligue 1 | France | League | 2026 | conserver |
+| 140 | La Liga | Spain | League | 2026 | conserver |
+| 78 | Bundesliga | Germany | League | 2026 | conserver |
+| 135 | Serie A | Italy | League | 2026 | conserver |
+| 94 | Primeira Liga | Portugal | League | 2026 | conserver |
+| 95 | Segunda Liga | Portugal | League | 2026 | conserver |
+| 88 | Eredivisie | Netherlands | League | 2026 | conserver |
+| 144 | Jupiler Pro League | Belgium | League | 2026 | conserver |
+| 179 | Premiership | Scotland | League | 2026 | conserver |
+| 203 | Süper Lig | Turkey | League | 2026 | conserver |
+| 197 | Super League 1 | Greece | League | 2026 | conserver |
+| 119 | Superliga | Denmark | League | 2026 | conserver |
+| 207 | Super League | Switzerland | League | 2026 | conserver |
+| 218 | Bundesliga | Austria | League | 2026 | conserver |
+| 40 | Championship | England | League | 2026 | conserver |
+| 62 | Ligue 2 | France | League | 2026 | conserver |
+| 136 | Serie B | Italy | League | 2026 | conserver |
+| 79 | 2. Bundesliga | Germany | League | 2026 | conserver |
+| 141 | Segunda División | Spain | League | 2026 | conserver |
+| 106 | Ekstraklasa | Poland | League | 2026 | conserver |
+| 210 | HNL | Croatia | League | 2026 | conserver |
+| 209 | Schweizer Cup | Switzerland | Cup | 2026 | conserver |
+| 283 | Liga I | Romania | League | 2026 | conserver |
+| 253 | Major League Soccer | USA | League | 2026 | conserver |
+| 71 | Serie A | Brazil | League | 2026 | conserver |
+| 128 | Liga Profesional Argentina | Argentina | League | 2026 | conserver |
+| 262 | Liga MX | Mexico | League | 2026 | conserver |
+| 307 | Pro League | Saudi-Arabia | League | 2026 | conserver |
+| 98 | J1 League | Japan | League | 2027 | conserver |
+| 188 | A-League | Australia | League | 2026 | conserver |
+| 103 | Eliteserien | Norway | League | 2026 | conserver |
+| 113 | Allsvenskan | Sweden | League | 2026 | conserver |
+| 164 | Úrvalsdeild | Iceland | League | 2026 | conserver |
+| 169 | Super League | China | League | 2026 | conserver |
+| 244 | Veikkausliiga | Finland | League | 2026 | conserver |
+| 292 | K League 1 | South-Korea | League | 2026 | conserver |
+
+## Ajout validé — clubs européens
+
+| ID API | Compétition | Pays | Type | Saison API | Statut |
+| ---: | --- | --- | --- | --- | --- |
+| 531 | UEFA Super Cup | World | Cup | 2026 | conserver |
+
+## Ajout validé — coupes nationales européennes masculines
+
+| ID API | Compétition | Pays | Type | Saison API | Statut |
+| ---: | --- | --- | --- | --- | --- |
+| 45 | FA Cup | England | Cup | 2026 | conserver |
+| 48 | League Cup | England | Cup | 2026 | conserver |
+| 528 | Community Shield | England | Cup | 2026 | conserver |
+| 66 | Coupe de France | France | Cup | 2025 | conserver |
+| 526 | Trophée des Champions | France | Cup | 2026 | conserver |
+| 81 | DFB Pokal | Germany | Cup | 2026 | conserver |
+| 529 | Super Cup | Germany | Cup | 2026 | conserver |
+| 96 | Taça de Portugal | Portugal | Cup | 2026 | conserver |
+| 550 | Super Cup | Portugal | Cup | 2026 | conserver |
+| 143 | Copa del Rey | Spain | Cup | 2026 | conserver |
+| 556 | Super Cup | Spain | Cup | 2026 | conserver |
+| 137 | Coppa Italia | Italy | Cup | 2026 | conserver |
+| 547 | Super Cup | Italy | Cup | 2025 | conserver |
+| 90 | KNVB Beker | Netherlands | Cup | 2026 | conserver |
+| 543 | Super Cup | Netherlands | Cup | 2025 | conserver |
+| 147 | Cup | Belgium | Cup | 2026 | conserver |
+| 519 | Super Cup | Belgium | Cup | 2026 | conserver |
+| 181 | FA Cup | Scotland | Cup | 2026 | conserver |
+| 185 | League Cup | Scotland | Cup | 2026 | conserver |
+| 551 | Super Cup | Turkey | Cup | 2025 | conserver |
+
+## Ajout validé — sélections masculines
+
+| ID API | Compétition | Pays | Type | Saison API | Statut |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | World Cup | World | Cup | 2026 | conserver |
+| 32 | World Cup - Qualification Europe | World | Cup | 2024 | conserver |
+| 4 | Euro Championship | World | Cup | 2024 | conserver |
+| 5 | UEFA Nations League | World | Cup | 2026 | conserver |
+| 9 | Copa America | World | Cup | 2024 | conserver |
+| 6 | Africa Cup of Nations | World | Cup | 2025 | conserver |
+| 7 | Asian Cup | World | Cup | 2027 | conserver |
+| 22 | CONCACAF Gold Cup | World | Cup | 2025 | conserver |
+| 536 | CONCACAF Nations League | World | Cup | 2025 | conserver |
+
+## Ajout validé — championnat féminin
+
+| ID API | Compétition | Pays | Type | Saison API | Statut |
+| ---: | --- | --- | --- | --- | --- |
+| 64 | Feminine Division 1 | France | League | 2026 | conserver |
+
+## Ajout validé — compétitions féminines internationales
+
+| ID API | Compétition | Pays | Type | Saison API | Statut |
+| ---: | --- | --- | --- | --- | --- |
+| 525 | UEFA Champions League Women | World | Cup | 2026 | conserver |
+| 1191 | UEFA Europa Cup - Women | World | Cup | 2026 | conserver |
+| 8 | World Cup - Women | World | Cup | 2023 | conserver |

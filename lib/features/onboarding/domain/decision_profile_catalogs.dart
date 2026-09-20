@@ -117,6 +117,7 @@ class CompetitionCountryCatalog {
 
   static const _countries = {
     'ar': CompetitionCountryDefinition(code: 'ar', name: 'Argentine'),
+    'au': CompetitionCountryDefinition(code: 'au', name: 'Australie'),
     'at': CompetitionCountryDefinition(code: 'at', name: 'Autriche'),
     'be': CompetitionCountryDefinition(code: 'be', name: 'Belgique'),
     'br': CompetitionCountryDefinition(code: 'br', name: 'Bresil'),
@@ -169,12 +170,19 @@ class CompetitionCountryCatalog {
   static const _leagueCountryCodes = {
     78: 'de',
     79: 'de',
+    81: 'de',
+    529: 'de',
     39: 'gb',
     40: 'gb',
+    45: 'gb',
+    48: 'gb',
+    528: 'gb',
     307: 'sa',
     128: 'ar',
     218: 'at',
     144: 'be',
+    147: 'be',
+    519: 'be',
     71: 'br',
     172: 'bg',
     265: 'cl',
@@ -184,14 +192,21 @@ class CompetitionCountryCatalog {
     210: 'hr',
     119: 'dk',
     179: 'gb',
+    181: 'gb',
+    185: 'gb',
     240: 'ec',
     140: 'es',
     141: 'es',
+    143: 'es',
+    556: 'es',
     327: 'ee',
     253: 'us',
     244: 'fi',
     61: 'fr',
     62: 'fr',
+    64: 'fr',
+    66: 'fr',
+    526: 'fr',
     329: 'ge',
     197: 'gr',
     271: 'hu',
@@ -199,16 +214,22 @@ class CompetitionCountryCatalog {
     164: 'is',
     135: 'it',
     136: 'it',
+    137: 'it',
+    547: 'it',
     98: 'jp',
     331: 'lt',
     262: 'mx',
     103: 'no',
     284: 'py',
     88: 'nl',
+    90: 'nl',
+    543: 'nl',
     110: 'wls',
     106: 'pl',
     94: 'pt',
     95: 'pt',
+    96: 'pt',
+    550: 'pt',
     345: 'cz',
     283: 'ro',
     286: 'rs',
@@ -216,7 +237,9 @@ class CompetitionCountryCatalog {
     373: 'si',
     113: 'se',
     207: 'ch',
+    209: 'ch',
     203: 'tr',
+    551: 'tr',
     235: 'ua',
   };
 }
@@ -406,6 +429,129 @@ class CompetitionCatalog {
       name: 'Premier League (Ukraine)',
       apiFootballLeagueId: 235,
     ),
+    DecisionCompetitionDefinition(
+      name: 'Schweizer Cup',
+      apiFootballLeagueId: 209,
+    ),
+    DecisionCompetitionDefinition(name: 'A-League', apiFootballLeagueId: 188),
+    // Approved expansion: national cups, international competitions and the
+    // selected women's scope. These IDs feed the same API-Football pipeline as
+    // domestic leagues; the active subset is declared below.
+    DecisionCompetitionDefinition(
+      name: 'UEFA Super Cup',
+      apiFootballLeagueId: 531,
+    ),
+    DecisionCompetitionDefinition(name: 'FA Cup', apiFootballLeagueId: 45),
+    DecisionCompetitionDefinition(name: 'League Cup', apiFootballLeagueId: 48),
+    DecisionCompetitionDefinition(
+      name: 'Community Shield',
+      apiFootballLeagueId: 528,
+    ),
+    DecisionCompetitionDefinition(
+      name: 'Coupe de France',
+      apiFootballLeagueId: 66,
+    ),
+    DecisionCompetitionDefinition(
+      name: 'Trophée des Champions',
+      apiFootballLeagueId: 526,
+    ),
+    DecisionCompetitionDefinition(name: 'DFB Pokal', apiFootballLeagueId: 81),
+    DecisionCompetitionDefinition(
+      name: 'Super Cup (Allemagne)',
+      apiFootballLeagueId: 529,
+    ),
+    DecisionCompetitionDefinition(
+      name: 'Taça de Portugal',
+      apiFootballLeagueId: 96,
+    ),
+    DecisionCompetitionDefinition(
+      name: 'Super Cup (Portugal)',
+      apiFootballLeagueId: 550,
+    ),
+    DecisionCompetitionDefinition(
+      name: 'Copa del Rey',
+      apiFootballLeagueId: 143,
+    ),
+    DecisionCompetitionDefinition(
+      name: 'Super Cup (Espagne)',
+      apiFootballLeagueId: 556,
+    ),
+    DecisionCompetitionDefinition(
+      name: 'Coppa Italia',
+      apiFootballLeagueId: 137,
+    ),
+    DecisionCompetitionDefinition(
+      name: 'Super Cup (Italie)',
+      apiFootballLeagueId: 547,
+    ),
+    DecisionCompetitionDefinition(name: 'KNVB Beker', apiFootballLeagueId: 90),
+    DecisionCompetitionDefinition(
+      name: 'Super Cup (Pays-Bas)',
+      apiFootballLeagueId: 543,
+    ),
+    DecisionCompetitionDefinition(
+      name: 'Coupe de Belgique',
+      apiFootballLeagueId: 147,
+    ),
+    DecisionCompetitionDefinition(
+      name: 'Super Cup (Belgique)',
+      apiFootballLeagueId: 519,
+    ),
+    DecisionCompetitionDefinition(
+      name: 'FA Cup (Écosse)',
+      apiFootballLeagueId: 181,
+    ),
+    DecisionCompetitionDefinition(
+      name: 'League Cup (Écosse)',
+      apiFootballLeagueId: 185,
+    ),
+    DecisionCompetitionDefinition(
+      name: 'Super Cup (Turquie)',
+      apiFootballLeagueId: 551,
+    ),
+    DecisionCompetitionDefinition(
+      name: 'Coupe du Monde',
+      apiFootballLeagueId: 1,
+    ),
+    DecisionCompetitionDefinition(
+      name: 'Qualifications Coupe du Monde Europe',
+      apiFootballLeagueId: 32,
+    ),
+    DecisionCompetitionDefinition(name: 'Euro', apiFootballLeagueId: 4),
+    DecisionCompetitionDefinition(
+      name: 'UEFA Nations League',
+      apiFootballLeagueId: 5,
+    ),
+    DecisionCompetitionDefinition(name: 'Copa America', apiFootballLeagueId: 9),
+    DecisionCompetitionDefinition(
+      name: 'Coupe d’Afrique des Nations',
+      apiFootballLeagueId: 6,
+    ),
+    DecisionCompetitionDefinition(name: 'Coupe d’Asie', apiFootballLeagueId: 7),
+    DecisionCompetitionDefinition(
+      name: 'CONCACAF Gold Cup',
+      apiFootballLeagueId: 22,
+    ),
+    DecisionCompetitionDefinition(
+      name: 'CONCACAF Nations League',
+      apiFootballLeagueId: 536,
+    ),
+    DecisionCompetitionDefinition(
+      name: 'Première Ligue féminine',
+      apiFootballLeagueId: 64,
+    ),
+    DecisionCompetitionDefinition(
+      name: 'UEFA Champions League Women',
+      apiFootballLeagueId: 525,
+    ),
+    DecisionCompetitionDefinition(
+      name: 'UEFA Europa Cup Women',
+      apiFootballLeagueId: 1191,
+    ),
+    DecisionCompetitionDefinition(
+      name: 'Coupe du Monde féminine',
+      apiFootballLeagueId: 8,
+    ),
   ];
 
   static DecisionCompetitionDefinition? byApiFootballLeagueId(int id) {
@@ -475,6 +621,43 @@ class RuntimeCompetitionCatalog {
     169,
     244,
     292,
+    // Clubs européens et coupes nationales.
+    531,
+    45,
+    48,
+    528,
+    66,
+    526,
+    81,
+    529,
+    96,
+    550,
+    143,
+    556,
+    137,
+    547,
+    90,
+    543,
+    147,
+    519,
+    181,
+    185,
+    551,
+    // Sélections masculines.
+    1,
+    32,
+    4,
+    5,
+    9,
+    6,
+    7,
+    22,
+    536,
+    // Périmètre féminin validé.
+    64,
+    525,
+    1191,
+    8,
   ];
 
   static final Set<int> _apiFootballLeagueIdSet = Set.unmodifiable(

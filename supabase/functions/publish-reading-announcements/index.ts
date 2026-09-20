@@ -379,8 +379,8 @@ function recentFormsByTeam(rows: JsonObject[]): Map<string, RecentForm> {
       .filter((result): result is string =>
         result === "W" || result === "D" || result === "L"
       )
-      .slice(0, 3);
-    if (results.length === 3) result.set(`${leagueId}:${teamId}`, { results });
+      .slice(0, 5);
+    if (results.length === 5) result.set(`${leagueId}:${teamId}`, { results });
   }
   return result;
 }
@@ -1982,7 +1982,7 @@ function scenarioSupportAnnouncementRows({
           source_path: "snapshot.raw",
           value: null,
         }],
-        sample_size: 3,
+        sample_size: 5,
         outcome_rule: null,
         rule_version: 1,
       });
@@ -2028,11 +2028,13 @@ function scenarioSupportAnnouncementRows({
         team: home,
         teamId: homeId,
         opponentId: awayId,
+        opponent: away,
       }, {
         side: "away" as const,
         team: away,
         teamId: awayId,
         opponentId: homeId,
+        opponent: home,
       }]
     ) {
       const form = recentForms.get(`${leagueId}:${subject.teamId}`);
@@ -2054,9 +2056,9 @@ function scenarioSupportAnnouncementRows({
           "Avantage de forme",
           subject.side,
           subject.teamId,
-          `${
-            teamName(subject.team)
-          } totalise davantage de points sur les trois derniers matchs.`,
+          `${teamName(subject.team)} : ${formPoints}/15 contre ${
+            teamName(subject.opponent)
+          } : ${opponentPoints}/15 sur les cinq derniers matchs.`,
         );
       }
       const venue = venueProfiles.get(`${leagueId}:${subject.teamId}`);
@@ -2281,7 +2283,7 @@ function formAnnouncementRows({
   const total = points.reduce((sum, value) => sum + value, 0);
   const label = form.results.join("");
   const rows: JsonObject[] = [];
-  if (!points.includes(0) && total >= 5) {
+  if (!points.includes(0) && total >= 9) {
     rows.push(directionAnnouncement({
       snapshotId,
       capturedAt,
@@ -2291,14 +2293,14 @@ function formAnnouncementRows({
       subject,
       readingId: "positive_streak",
       label: "Dynamique positive",
-      sampleSize: 3,
+      sampleSize: 5,
       evidence: `${
         teamName(subject.team)
-      } reste invaincu sur ses trois derniers matchs (${label}, ${total}/9).`,
+      } reste invaincu sur ses cinq derniers matchs (${label}, ${total}/15).`,
       outcomeRule: "team_not_lose",
     }));
   }
-  if (!points.includes(3) && total <= 2) {
+  if (total <= 4) {
     rows.push(directionAnnouncement({
       snapshotId,
       capturedAt,
@@ -2307,15 +2309,17 @@ function formAnnouncementRows({
       leagueId,
       subject,
       readingId: "negative_streak",
-      label: "Dynamique négative",
-      sampleSize: 3,
+      label: "Méforme",
+      sampleSize: 5,
       evidence: `${
         teamName(subject.team)
-      } reste sans victoire sur ses trois derniers matchs (${label}, ${total}/9).`,
+      } totalise ${total}/15 sur ses cinq derniers matchs (${label}).`,
       outcomeRule: "team_loss",
     }));
   }
-  const trend = ((points[0] + points[1]) / 2) - points[2];
+  const recentAverage = (points[0] + points[1]) / 2;
+  const earlierAverage = (points[2] + points[3] + points[4]) / 3;
+  const trend = recentAverage - earlierAverage;
   if (Math.abs(trend) >= 1) {
     const improving = trend > 0;
     rows.push(directionAnnouncement({
@@ -2326,11 +2330,11 @@ function formAnnouncementRows({
       leagueId,
       subject,
       readingId: improving ? "improving_form" : "declining_form",
-      label: improving ? "Forme en hausse" : "Forme en baisse",
-      sampleSize: 3,
-      evidence: `${teamName(subject.team)} ${
-        improving ? "progresse" : "recule"
-      } sur ses trois derniers matchs (${label}).`,
+      label: improving ? "Trajectoire en hausse" : "Trajectoire en baisse",
+      sampleSize: 5,
+      evidence: `${teamName(subject.team)} suit une trajectoire ${
+        improving ? "en hausse" : "en baisse"
+      } sur les cinq derniers matchs (du plus ancien au plus récent : ${label}, ${total}/15).`,
       outcomeRule: improving ? "team_not_lose" : "team_loss",
     }));
   }

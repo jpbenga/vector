@@ -136,6 +136,9 @@ class ApiFootballMatchAdapter {
     final recentMatchesByLeagueTeamId = _recentLeagueMatchesByLeagueTeamId(
       _list(raw['recent_league_matches']),
     );
+    final headToHeadByFixtureId = _headToHeadByFixtureId(
+      _list(raw['head_to_head']),
+    );
     final expectedGoalsByLeagueTeamId = _expectedGoalsByLeagueTeamId(
       _list(raw['expected_goals']),
       capturedAt,
@@ -167,6 +170,7 @@ class ApiFootballMatchAdapter {
         standingsByLeagueTeamId,
         statisticsByLeagueTeamId,
         recentMatchesByLeagueTeamId,
+        headToHeadByFixtureId,
         expectedGoalsByLeagueTeamId,
         playerStatisticsByLeagueTeamId,
         injuriesByFixtureId,
@@ -194,6 +198,7 @@ class ApiFootballMatchAdapter {
     Map<String, TeamStandingSnapshot> standingsByLeagueTeamId,
     Map<String, TeamStatisticsSnapshot> statisticsByLeagueTeamId,
     Map<String, List<TeamRecentMatchSnapshot>> recentMatchesByLeagueTeamId,
+    Map<int, List<HeadToHeadFixtureSnapshot>> headToHeadByFixtureId,
     Map<String, TeamExpectedGoalsSnapshot> expectedGoalsByLeagueTeamId,
     Map<String, List<PlayerSeasonStatisticsSnapshot>>
     playerStatisticsByLeagueTeamId,
@@ -360,6 +365,9 @@ class ApiFootballMatchAdapter {
                   if (entry.key.startsWith('$leagueId:'))
                     int.parse(entry.key.split(':').last): entry.value,
               }),
+        headToHeadMatches: apiFixtureId == null
+            ? const []
+            : headToHeadByFixtureId[apiFixtureId] ?? const [],
         homeExpectedGoals: homeTeamId == null || leagueId == null
             ? null
             : expectedGoalsByLeagueTeamId[_standingKey(leagueId, homeTeamId)],
@@ -1253,6 +1261,69 @@ class ApiFootballMatchAdapter {
     }
 
     return result;
+  }
+
+  Map<int, List<HeadToHeadFixtureSnapshot>> _headToHeadByFixtureId(
+    List<Object?> rows,
+  ) {
+    final result = <int, List<HeadToHeadFixtureSnapshot>>{};
+    for (final row in rows) {
+      final root = _map(row);
+      final fixtureId =
+          _intValue(_map(root['fixture'])['id']) ??
+          _intValue(root['fixtureId']);
+      if (fixtureId == null) continue;
+
+      final meetings =
+          _list(root['matches'])
+              .map(_headToHeadFixtureSnapshot)
+              .whereType<HeadToHeadFixtureSnapshot>()
+              .toList(growable: false)
+            ..sort((left, right) => right.playedAt.compareTo(left.playedAt));
+      result[fixtureId] = List.unmodifiable(meetings);
+    }
+    return result;
+  }
+
+  HeadToHeadFixtureSnapshot? _headToHeadFixtureSnapshot(Object? value) {
+    final root = _map(value);
+    final fixture = _map(root['fixture']);
+    final league = _map(root['league']);
+    final teams = _map(root['teams']);
+    final home = _map(teams['home']);
+    final away = _map(teams['away']);
+    final goals = _map(root['goals']);
+    final playedAt = _dateTimeValue(fixture['date']);
+    final competitionId = _intValue(league['id']);
+    final competitionName = _stringValue(league['name']);
+    final homeTeamId = _intValue(home['id']);
+    final homeTeamName = _stringValue(home['name']);
+    final awayTeamId = _intValue(away['id']);
+    final awayTeamName = _stringValue(away['name']);
+    final homeGoals = _intValue(goals['home']);
+    final awayGoals = _intValue(goals['away']);
+    if (playedAt == null ||
+        competitionId == null ||
+        competitionName == null ||
+        homeTeamId == null ||
+        homeTeamName == null ||
+        awayTeamId == null ||
+        awayTeamName == null ||
+        homeGoals == null ||
+        awayGoals == null) {
+      return null;
+    }
+    return HeadToHeadFixtureSnapshot(
+      competitionId: competitionId,
+      competitionName: competitionName,
+      playedAt: playedAt,
+      homeTeamId: homeTeamId,
+      homeTeamName: homeTeamName,
+      awayTeamId: awayTeamId,
+      awayTeamName: awayTeamName,
+      homeGoals: homeGoals,
+      awayGoals: awayGoals,
+    );
   }
 
   TeamRecentMatchSnapshot? _recentMatchSnapshot(Object? matchJson) {

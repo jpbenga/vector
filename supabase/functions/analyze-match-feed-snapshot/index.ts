@@ -82,6 +82,9 @@ Deno.serve(async (request) => {
     const presentationRecentMatches = compactRecentMatches(
       objectList(raw.recent_league_matches),
     );
+    const presentationHeadToHead = compactHeadToHead(
+      objectList(raw.head_to_head),
+    );
     // Tier assignments are calculated here, from the same standings snapshot
     // that powers the mobile table. The app only renders this compact result.
     const tiersByLeagueId = buildTierSnapshots({
@@ -170,6 +173,7 @@ Deno.serve(async (request) => {
         // does not calculate football signals from provider history.
         standings: presentationStandings,
         recent_league_matches: presentationRecentMatches,
+        head_to_head: presentationHeadToHead,
       },
       computed: {
         engine_version: "server_computed_feed_v1",
@@ -561,6 +565,49 @@ function compactRecentMatches(rows: JsonObject[]): JsonObject[] {
         };
       }),
     };
+  });
+}
+
+// H2H is presentation data, not a raw provider payload. Keep only the fields
+// needed by the app to compare meetings within the current competition.
+function compactHeadToHead(rows: JsonObject[]): JsonObject[] {
+  return rows.flatMap((row) => {
+    const fixture = objectValue(row.fixture) ?? {};
+    const fixtureId = numberValue(fixture.id);
+    if (fixtureId === null) return [];
+
+    const matches = objectList(row.matches).flatMap((match) => {
+      const matchFixture = objectValue(match.fixture) ?? {};
+      const league = objectValue(match.league) ?? {};
+      const teams = objectValue(match.teams) ?? {};
+      const home = objectValue(teams.home) ?? {};
+      const away = objectValue(teams.away) ?? {};
+      const goals = objectValue(match.goals) ?? {};
+      const date = stringValue(matchFixture.date);
+      const leagueId = numberValue(league.id);
+      const homeId = numberValue(home.id);
+      const awayId = numberValue(away.id);
+      const homeGoals = numberValue(goals.home);
+      const awayGoals = numberValue(goals.away);
+      if (
+        date === null || leagueId === null || homeId === null || awayId === null ||
+        homeGoals === null || awayGoals === null
+      ) return [];
+      return [{
+        fixture: { date },
+        league: { id: leagueId, name: stringValue(league.name) },
+        teams: {
+          home: { id: homeId, name: stringValue(home.name) },
+          away: { id: awayId, name: stringValue(away.name) },
+        },
+        goals: { home: homeGoals, away: awayGoals },
+      }];
+    });
+
+    return matches.length == 0 ? [] : [{
+      fixture: { id: fixtureId },
+      matches: matches.slice(0, 20),
+    }];
   });
 }
 

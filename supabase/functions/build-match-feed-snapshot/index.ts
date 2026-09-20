@@ -158,6 +158,7 @@ Deno.serve(async (request) => {
         standings: build.rawStandings,
         team_statistics: build.rawTeamStatistics,
         recent_league_matches: build.rawRecentLeagueMatches,
+        head_to_head: build.rawHeadToHead,
         expected_goals: build.rawExpectedGoals,
         performance_statistics: build.rawPerformanceStatistics,
         player_statistics: build.rawPlayerStatistics,
@@ -295,6 +296,7 @@ type SourceBuild = {
   rawStandings: JsonObject[];
   rawTeamStatistics: JsonObject[];
   rawRecentLeagueMatches: JsonObject[];
+  rawHeadToHead: JsonObject[];
   rawExpectedGoals: JsonObject[];
   rawPerformanceStatistics: JsonObject[];
   rawPlayerStatistics: JsonObject[];
@@ -345,6 +347,7 @@ async function collectSnapshotSources({
   const rawStandings: JsonObject[] = [];
   const rawTeamStatistics: JsonObject[] = [];
   const rawRecentLeagueMatches: JsonObject[] = [];
+  const rawHeadToHead: JsonObject[] = [];
   const rawPlayerStatistics: JsonObject[] = [];
   const fixturePlayerRows: Array<{ fixtureId: number; teams: JsonObject[] }> =
     [];
@@ -608,6 +611,23 @@ async function collectSnapshotSources({
     }
   }
 
+  // Head-to-head data is collected once per fixture pair by the sync worker.
+  // The snapshot builder only consumes that cache: it never calls the provider.
+  for (const request of headToHeadRequests(rawFixtures)) {
+    const rows = await cachedResponsesFor({
+      supabaseUrl,
+      serviceRoleKey,
+      endpoint: "/fixtures/headtohead",
+      filters: { h2h: request.pair, last: "20" },
+      exactQuery: true,
+    });
+    addSourceRows(rows);
+    rawHeadToHead.push({
+      fixture: { id: request.fixtureId },
+      matches: flatResponseItems(rows),
+    });
+  }
+
   // The league fixture response already covers every club. Complete the
   // championship comparison from that cached response instead of issuing one
   // extra /fixtures request for each club outside the feed window.
@@ -750,6 +770,7 @@ async function collectSnapshotSources({
     rawStandings,
     rawTeamStatistics,
     rawRecentLeagueMatches,
+    rawHeadToHead,
     rawExpectedGoals,
     rawPerformanceStatistics,
     rawPlayerStatistics,
@@ -1617,6 +1638,37 @@ type RecentFixtureRequest = {
   from: string;
   to: string;
 };
+
+type HeadToHeadRequest = {
+  fixtureId: number;
+  pair: string;
+};
+
+function headToHeadRequests(fixtures: JsonObject[]): HeadToHeadRequest[] {
+  const requests = new Map<string, HeadToHeadRequest>();
+  for (const row of fixtures) {
+    const fixtureId = numberValue((objectValue(row.fixture) ?? {}).id);
+    const teams = objectValue(row.teams) ?? {};
+    const homeTeamId = numberValue((objectValue(teams.home) ?? {}).id);
+    const awayTeamId = numberValue((objectValue(teams.away) ?? {}).id);
+    if (
+      fixtureId === null || homeTeamId === null || awayTeamId === null ||
+      homeTeamId === awayTeamId
+    ) continue;
+    requests.set(String(fixtureId), {
+      fixtureId,
+      pair: headToHeadPair(homeTeamId, awayTeamId),
+    });
+  }
+  return [...requests.values()];
+}
+
+function headToHeadPair(firstTeamId: number, secondTeamId: number): string {
+  const [lowest, highest] = [firstTeamId, secondTeamId].sort((left, right) =>
+    left - right
+  );
+  return `${lowest}-${highest}`;
+}
 
 type FixtureStatisticsPayload = {
   fixtureId: number;

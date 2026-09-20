@@ -444,6 +444,31 @@ void main() {
               ],
             },
           ],
+          'head_to_head': [
+            {
+              'fixture': {'id': 1},
+              'matches': [
+                {
+                  'fixture': {'date': '2026-01-12T19:00:00Z'},
+                  'league': {'id': 61, 'name': 'Ligue 1'},
+                  'teams': {
+                    'home': {'id': 10, 'name': 'Home'},
+                    'away': {'id': 11, 'name': 'Away'},
+                  },
+                  'goals': {'home': 2, 'away': 1},
+                },
+                {
+                  'fixture': {'date': '2025-12-04T19:00:00Z'},
+                  'league': {'id': 66, 'name': 'Coupe de France'},
+                  'teams': {
+                    'home': {'id': 11, 'name': 'Away'},
+                    'away': {'id': 10, 'name': 'Home'},
+                  },
+                  'goals': {'home': 0, 'away': 1},
+                },
+              ],
+            },
+          ],
         },
       };
 
@@ -503,6 +528,10 @@ void main() {
         'Away Opponent',
       );
       expect(match.analysis.awayRecentLeagueMatches.single.result, 'D');
+      expect(match.analysis.hasHeadToHead, isTrue);
+      expect(match.analysis.headToHeadMatches, hasLength(2));
+      expect(match.analysis.headToHeadMatches.first.competitionName, 'Ligue 1');
+      expect(match.analysis.headToHeadMatches.first.homeGoals, 2);
     });
 
     test('maps snapshot asOf, home-away splits and expected-goals context', () {

@@ -3,6 +3,7 @@ import 'package:copilot/core/config/app_config.dart';
 import 'package:copilot/core/config/app_environment.dart';
 import 'package:copilot/core/di/service_locator.dart';
 import 'package:copilot/core/identity/identity_scope.dart';
+import 'package:copilot/core/theme/app_components.dart';
 import 'package:copilot/core/supabase/supabase_initializer.dart';
 import 'package:copilot/core/theme/app_theme.dart';
 import 'package:copilot/core/theme/app_theme_controller.dart';
@@ -53,7 +54,7 @@ void main() {
       final filterSize = tester.getSize(
         find.byKey(const ValueKey('for-me-compact-filter-control')),
       );
-      expect(filterSize.height, 58);
+      expect(filterSize.height, primarySize.height);
     });
 
     testWidgets('opens the global Bilan without the daily match calendar', (
@@ -284,6 +285,10 @@ void main() {
         ),
       );
 
+      await tester.tap(
+        find.byKey(const ValueKey('for-me-competition-toggle-61')),
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Second Club').first);
       await tester.pumpAndSettle();
 
@@ -819,8 +824,18 @@ void main() {
         );
         await tester.tap(filter);
         await tester.pumpAndSettle();
-        expect(find.text('Voir 2 rencontres'), findsOneWidget);
         await tester.tap(find.text('Voir 2 rencontres'));
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('for-me-competition-toggle-61')),
+          findsOneWidget,
+        );
+        final competitionToggle = find.byKey(
+          const ValueKey('for-me-competition-toggle-61'),
+        );
+        await tester.ensureVisible(competitionToggle);
+        await tester.pumpAndSettle();
+        await tester.tap(competitionToggle);
         await tester.pumpAndSettle();
 
         expect(find.text('Alpha FC'), findsOneWidget);
@@ -894,8 +909,18 @@ void main() {
         );
         await tester.tap(filter);
         await tester.pumpAndSettle();
-        expect(find.text('Voir 2 rencontres'), findsOneWidget);
         await tester.tap(find.text('Voir 2 rencontres'));
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('for-me-competition-toggle-61')),
+          findsOneWidget,
+        );
+        final competitionToggle = find.byKey(
+          const ValueKey('for-me-competition-toggle-61'),
+        );
+        await tester.ensureVisible(competitionToggle);
+        await tester.pumpAndSettle();
+        await tester.tap(competitionToggle);
         await tester.pumpAndSettle();
 
         expect(find.text('Home Weak FC'), findsOneWidget);
@@ -904,7 +929,7 @@ void main() {
     );
 
     testWidgets(
-      'the bottom list action expands only personalized stories for the selected date',
+      'expands only the selected competition stories for the selected date',
       (tester) async {
         MatchBoardItem readingMatch(String id, String home, int dayOffset) {
           return _match(
@@ -940,26 +965,28 @@ void main() {
           ),
         );
 
-        expect(find.text('Afficher les 2 autres rencontres'), findsOneWidget);
-        expect(find.text('Home 0'), findsWidgets);
-        expect(find.text('Home 1'), findsWidgets);
-        expect(find.text('Home 2'), findsWidgets);
-        expect(find.text('1 lecture'), findsNWidgets(3));
+        final competitionToggle = find.byKey(
+          const ValueKey('for-me-competition-toggle-61'),
+        );
+        expect(competitionToggle, findsOneWidget);
+        expect(find.text('Afficher 4 autres matchs'), findsOneWidget);
+        expect(find.text('Home 0'), findsOneWidget);
+        expect(find.text('Home 1'), findsNothing);
         expect(find.text('Tomorrow Club'), findsNothing);
 
-        await tester.ensureVisible(
-          find.text('Afficher les 2 autres rencontres'),
-        );
+        await tester.ensureVisible(competitionToggle);
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Afficher les 2 autres rencontres'));
+        await tester.tap(competitionToggle);
         await tester.pumpAndSettle();
 
+        expect(find.text('Home 1'), findsOneWidget);
+        expect(find.text('Away Home 1'), findsOneWidget);
         expect(find.text('Home 3'), findsOneWidget);
         expect(find.text('Away Home 3'), findsOneWidget);
         expect(find.text('Home 4'), findsOneWidget);
         expect(find.text('Away Home 4'), findsOneWidget);
         expect(find.text('Tomorrow Club'), findsNothing);
-        expect(find.text('Réduire la liste'), findsOneWidget);
+        expect(find.text('Réduire'), findsOneWidget);
       },
     );
 
@@ -1535,6 +1562,72 @@ void main() {
     });
 
     testWidgets(
+      'shows only championship head-to-head meetings in the Confrontation tab',
+      (tester) async {
+        final match = _match(
+          id: 'head-to-head-detail',
+          homeName: 'Viking',
+          awayName: 'Lillestrom',
+          competitionName: 'Eliteserien',
+          competitionApiLeagueId: 103,
+          homeApiTeamId: 101,
+          awayApiTeamId: 202,
+          kickoff: _relativeKickoff(0, hour: 17),
+          analysis: MatchAnalysisData(
+            headToHeadMatches: [
+              HeadToHeadFixtureSnapshot(
+                competitionId: 103,
+                competitionName: 'Eliteserien',
+                playedAt: DateTime.utc(2026, 5, 10),
+                homeTeamId: 101,
+                homeTeamName: 'Viking',
+                awayTeamId: 202,
+                awayTeamName: 'Lillestrom',
+                homeGoals: 2,
+                awayGoals: 0,
+              ),
+              HeadToHeadFixtureSnapshot(
+                competitionId: 999,
+                competitionName: 'Coupe de Norvège',
+                playedAt: DateTime.utc(2026, 3, 10),
+                homeTeamId: 202,
+                homeTeamName: 'Coupe Lillestrom',
+                awayTeamId: 101,
+                awayTeamName: 'Viking',
+                homeGoals: 0,
+                awayGoals: 1,
+              ),
+            ],
+          ),
+        );
+        await _pumpPage(
+          tester,
+          repository: _FakeMatchFeedRepository(
+            opportunities: [
+              _opportunity(
+                match: match,
+                retainedTheses: [_thesis(id: 'form', title: 'Forme')],
+              ),
+            ],
+          ),
+        );
+
+        await tester.tap(find.text('Viking').first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('TAT'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Confrontation directe'), findsOneWidget);
+        expect(
+          find.text('Championnat uniquement · coupes et amicaux exclus.'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('Viking 2–0 Lillestrom'), findsOneWidget);
+        expect(find.text('Coupe Lillestrom'), findsNothing);
+      },
+    );
+
+    testWidgets(
       'shows server-computed match facts and grouped decisive-player profiles in context',
       (tester) async {
         final match = _match(
@@ -1675,6 +1768,194 @@ void main() {
         );
       },
     );
+
+    testWidgets(
+      'groups quick context readings by their subject team with one crest',
+      (tester) async {
+        final match = _match(
+          id: 'reading-grouping',
+          homeName: 'Werder Bremen',
+          awayName: 'FC Augsburg',
+          kickoff: _relativeKickoff(0, hour: 15),
+          analysis: const MatchAnalysisData(
+            computedReadings: [
+              MatchComputedReading(
+                id: 'declining_form',
+                subjectTeamId: 'reading-grouping-away',
+                side: 'away',
+                strength: 'moderate',
+                isContradiction: false,
+                evidenceLabel:
+                    'FC Augsburg suit une trajectoire en baisse sur les cinq derniers matchs (du plus ancien au plus récent : DWW, 7/15).',
+              ),
+              MatchComputedReading(
+                id: 'form_advantage',
+                subjectTeamId: 'reading-grouping-away',
+                side: 'away',
+                strength: 'moderate',
+                isContradiction: false,
+                evidenceLabel:
+                    'FC Augsburg totalise davantage de points sur les trois derniers matchs.',
+              ),
+              MatchComputedReading(
+                id: 'improving_form',
+                subjectTeamId: 'reading-grouping-home',
+                side: 'home',
+                strength: 'moderate',
+                isContradiction: false,
+                evidenceLabel:
+                    'Werder Bremen progresse sur ses trois derniers matchs.',
+              ),
+            ],
+          ),
+        );
+
+        await _pumpMatchDetail(tester, match: match);
+
+        final werderGroup = find.byKey(
+          const ValueKey('context-reading-team-reading-grouping-home'),
+        );
+        final augsburgGroup = find.byKey(
+          const ValueKey('context-reading-team-reading-grouping-away'),
+        );
+        expect(werderGroup, findsOneWidget);
+        expect(augsburgGroup, findsOneWidget);
+        expect(
+          find.byKey(
+            const ValueKey('context-reading-team-logo-reading-grouping-home'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(
+            const ValueKey('context-reading-team-logo-reading-grouping-away'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: augsburgGroup,
+            matching: find.text('Trajectoire en baisse pour FC Augsburg'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: augsburgGroup,
+            matching: find.text('Avantage de forme pour FC Augsburg'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: werderGroup,
+            matching: find.text('Trajectoire en hausse pour Werder Bremen'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: augsburgGroup,
+            matching: find.byIcon(Icons.trending_down_rounded),
+          ),
+          findsOneWidget,
+        );
+
+        final localizedEvidence = tester.widget<RichText>(
+          find.descendant(
+            of: find.byKey(
+              const ValueKey(
+                'context-reading-evidence-declining_form-FC Augsburg',
+              ),
+            ),
+            matching: find.byType(RichText),
+          ),
+        );
+        expect(
+          localizedEvidence.text.toPlainText(),
+          'FC Augsburg suit une trajectoire en baisse sur les cinq derniers matchs (du plus ancien au plus récent : V, V, N, 7/15).',
+        );
+
+        final semantic = tester.element(augsburgGroup).semantic;
+        final decliningTitleFinder = find.text(
+          'Trajectoire en baisse pour FC Augsburg',
+        );
+        final advantageTitleFinder = find.text(
+          'Avantage de forme pour FC Augsburg',
+        );
+        final decliningTitle = tester.widget<Text>(decliningTitleFinder);
+        final advantageTitle = tester.widget<Text>(advantageTitleFinder);
+        final decliningIcon = tester.widget<Icon>(
+          find.descendant(
+            of: augsburgGroup,
+            matching: find.byIcon(Icons.trending_down_rounded),
+          ),
+        );
+        expect(decliningTitle.style?.color, semantic.warning);
+        expect(decliningIcon.color, semantic.warning);
+        expect(advantageTitle.style?.color, semantic.success);
+        expect(
+          tester.getTopLeft(advantageTitleFinder).dy,
+          lessThan(tester.getTopLeft(decliningTitleFinder).dy),
+        );
+      },
+    );
+
+    testWidgets('shows every recent-form series from oldest to newest', (
+      tester,
+    ) async {
+      final match = _match(
+        id: 'chronological-form',
+        homeName: 'Alpha FC',
+        awayName: 'Beta FC',
+        kickoff: _relativeKickoff(0, hour: 18),
+        analysis: const MatchAnalysisData(
+          // Raw snapshots are stored newest first by the backend.
+          homeRecentLeagueMatches: [
+            TeamRecentMatchSnapshot(
+              opponentName: 'Dernier adversaire',
+              venue: RecentMatchVenue.home,
+              result: 'W',
+              goalsFor: 2,
+              goalsAgainst: 0,
+            ),
+            TeamRecentMatchSnapshot(
+              opponentName: 'Adversaire intermédiaire',
+              venue: RecentMatchVenue.away,
+              result: 'D',
+              goalsFor: 1,
+              goalsAgainst: 1,
+            ),
+            TeamRecentMatchSnapshot(
+              opponentName: 'Premier adversaire',
+              venue: RecentMatchVenue.home,
+              result: 'L',
+              goalsFor: 0,
+              goalsAgainst: 1,
+            ),
+          ],
+          awayRecentLeagueMatches: [
+            TeamRecentMatchSnapshot(
+              opponentName: 'Autre dernier adversaire',
+              venue: RecentMatchVenue.home,
+              result: 'W',
+              goalsFor: 1,
+              goalsAgainst: 0,
+            ),
+          ],
+        ),
+      );
+
+      await _pumpMatchDetail(tester, match: match);
+      await tester.tap(find.text('Forme').first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Du plus ancien au plus récent'), findsWidgets);
+      expect(
+        tester.getTopLeft(find.text('Premier adversaire')).dy,
+        lessThan(tester.getTopLeft(find.text('Dernier adversaire')).dy),
+      );
+    });
 
     testWidgets('renders the semantic highlight carried by a context key', (
       tester,
@@ -1869,6 +2150,8 @@ void main() {
       );
 
       await tester.tap(find.text('Tous'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('France'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Ligue des champions'));
       await tester.pumpAndSettle();
@@ -2671,6 +2954,7 @@ MatchBoardItem _match({
   String countryName = 'France',
   String competitionId = '61',
   String competitionName = 'Ligue 1',
+  int? competitionApiLeagueId,
   FixtureStatus status = FixtureStatus.scheduled,
   String kickoffLabel = '20:00',
   DateTime? kickoff,
@@ -2690,6 +2974,7 @@ MatchBoardItem _match({
         name: competitionName,
         country: CountryInfo(code: countryCode, name: countryName),
         season: 2026,
+        apiFootballLeagueId: competitionApiLeagueId,
       ),
       homeTeam: TeamInfo(
         id: '$id-home',

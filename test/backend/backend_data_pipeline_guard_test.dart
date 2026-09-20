@@ -38,6 +38,9 @@ void main() {
             'supabase/migrations/20260915130000_backend_add_uefa_league_phase_scope.sql',
           ).readAsStringSync() +
           File(
+            'supabase/migrations/20260920020000_backend_expand_approved_competition_scope.sql',
+          ).readAsStringSync() +
+          File(
             'supabase/migrations/20260831120000_backend_reject_empty_api_football_snapshots.sql',
           ).readAsStringSync();
       quotaGuardMigration =
@@ -128,6 +131,59 @@ void main() {
       );
       expect(cronGenerator, isNot(contains('api-football-build-snapshot')));
       expect(cronGenerator, isNot(contains('DateTime.now()')));
+    });
+
+    test('keeps the approved 74-competition scope resolvable end to end', () {
+      const approvedAdditions = <int>[
+        531,
+        45,
+        48,
+        528,
+        66,
+        526,
+        81,
+        529,
+        96,
+        550,
+        143,
+        556,
+        137,
+        547,
+        90,
+        543,
+        147,
+        519,
+        181,
+        185,
+        551,
+        1,
+        32,
+        4,
+        5,
+        9,
+        6,
+        7,
+        22,
+        536,
+        64,
+        525,
+        1191,
+        8,
+      ];
+
+      expect(RuntimeCompetitionCatalog.apiFootballLeagueIds, hasLength(74));
+      expect(
+        RuntimeCompetitionCatalog.apiFootballLeagueIds,
+        containsAll(approvedAdditions),
+      );
+      expect(RuntimeCompetitionCatalog.values, hasLength(74));
+      for (final leagueId in RuntimeCompetitionCatalog.apiFootballLeagueIds) {
+        expect(
+          CompetitionCatalog.byApiFootballLeagueId(leagueId),
+          isNotNull,
+          reason: 'competition $leagueId must be selectable in Flutter',
+        );
+      }
     });
 
     test('collects UEFA league phases and reuses factual domestic caches', () {

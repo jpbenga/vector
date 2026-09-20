@@ -1106,7 +1106,6 @@ class _ScoresRedesignHome extends StatefulWidget {
 }
 
 class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
-  bool _areAllStoriesVisible = false;
   String? _selectedForMeReadingId;
   Set<String> _selectedForMeCompetitionIds = const {};
   double _dateTransitionDirection = 1;
@@ -1121,7 +1120,6 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
     if (oldWidget.mode != widget.mode ||
         !_isSameCalendarDay(oldWidget.selectedDate, widget.selectedDate) ||
         explorationChanged) {
-      _areAllStoriesVisible = false;
       _selectedForMeReadingId = null;
       _selectedForMeCompetitionIds = const {};
     }
@@ -1184,10 +1182,11 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                 (match) => _matchReadingIds(match).contains(activeReadingId),
               )
               .toList(growable: false);
-    final storyMatches = _areAllStoriesVisible
-        ? filteredStoryMatches
-        : filteredStoryMatches.take(3).toList(growable: false);
-    final competitionGroups = _competitionGroups(visibleMatches);
+    final storyCompetitionGroups = _competitionGroups(
+      filteredStoryMatches,
+      orderByFirstKickoff: true,
+    );
+    final allCompetitionGroups = _competitionGroups(visibleMatches);
     final showsGenerator = widget.mode == _ScoresRedesignMode.generator;
     final listTitle = switch (widget.mode) {
       _ScoresRedesignMode.forMe => 'Ma sélection',
@@ -1204,7 +1203,6 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
       _ScoresRedesignMode.bilan => 'Toutes les lectures annoncées.',
     };
     final showsStories = widget.mode == _ScoresRedesignMode.forMe;
-    final hasMoreStories = filteredStoryMatches.length > 3;
 
     return Stack(
       children: [
@@ -1298,8 +1296,6 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                                                   setState(() {
                                                     _selectedForMeReadingId =
                                                         null;
-                                                    _areAllStoriesVisible =
-                                                        false;
                                                   });
                                                 },
                                           onClearCompetitions:
@@ -1309,8 +1305,6 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                                                   setState(() {
                                                     _selectedForMeCompetitionIds =
                                                         const {};
-                                                    _areAllStoriesVisible =
-                                                        false;
                                                   });
                                                 },
                                           onOpenFilter: () =>
@@ -1320,6 +1314,8 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                                                 filterableMatches,
                                               ),
                                         ),
+                                        if (!widget.isExplorationActive)
+                                          const SizedBox(height: AppSpacing.md),
                                         if (widget.isExplorationActive) ...[
                                           const SizedBox(height: 8),
                                           _ExplorationStatusBanner(
@@ -1332,26 +1328,21 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                                           ),
                                           const SizedBox(height: 10),
                                         ],
-                                        _TodayStoriesSection(
+                                        _TodayCompetitionStoriesSection(
                                           selectedDate: widget.selectedDate,
-                                          matches: storyMatches,
+                                          groups: storyCompetitionGroups,
                                           totalMatchCount:
                                               filteredStoryMatches.length,
                                           isExplorationActive:
                                               widget.isExplorationActive,
                                           onOpenMatch: _openStoryMatch,
-                                          isExpanded: _areAllStoriesVisible,
-                                          onToggleExpanded: hasMoreStories
-                                              ? _toggleStoryMatchesVisibility
-                                              : null,
                                         ),
                                       ],
                                     )
-                                  : _AllMatchesDenseSection(
+                                  : _AllMatchesCountrySection(
                                       title: listTitle,
                                       emptySubtitle: listSubtitle,
-                                      initiallyExpanded: false,
-                                      groups: competitionGroups,
+                                      groups: allCompetitionGroups,
                                       onOpenMatch: widget.onOpenMatch,
                                     ),
                             ),
@@ -1406,12 +1397,6 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
           ),
       ],
     );
-  }
-
-  void _toggleStoryMatchesVisibility() {
-    setState(() {
-      _areAllStoriesVisible = !_areAllStoriesVisible;
-    });
   }
 
   void _openStoryMatch(MatchBoardItem match) {
@@ -1496,19 +1481,8 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
   }
 
   List<MatchBoardItem> _storyMatches(List<MatchBoardItem> source) {
-    final candidates =
-        source.where(_ScoresRedesignHome._hasReadableSignal).toList()
-          ..sort((a, b) {
-            final scoreComparison = _profileRelevanceCount(
-              b,
-            ).compareTo(_profileRelevanceCount(a));
-            if (scoreComparison != 0) {
-              return scoreComparison;
-            }
-            return _ScoresRedesignHome._compareMatches(a, b);
-          });
-
-    return candidates;
+    return source.where(_ScoresRedesignHome._hasReadableSignal).toList()
+      ..sort(_ScoresRedesignHome._compareMatches);
   }
 
   List<_ForMeReadingFilter> _readingFilters(List<MatchBoardItem> matches) {
@@ -1623,23 +1597,13 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
     setState(() {
       _selectedForMeReadingId = selection.readingId;
       _selectedForMeCompetitionIds = Set.unmodifiable(selection.competitionIds);
-      _areAllStoriesVisible = false;
     });
   }
 
-  int _profileRelevanceCount(MatchBoardItem match) {
-    if (match.profileRelevance.isRelevant) {
-      return match.profileRelevance.total;
-    }
-
-    final readingCount = _profileReadings(match).length;
-    final opportunityBonus = match.thesis?.hasRecommendedMarket == true ? 1 : 0;
-    return readingCount + opportunityBonus;
-  }
-
   List<_ScoresCompetitionGroup> _competitionGroups(
-    List<MatchBoardItem> source,
-  ) {
+    List<MatchBoardItem> source, {
+    bool orderByFirstKickoff = false,
+  }) {
     final byCompetition = <String, _ScoresCompetitionGroupBuilder>{};
     for (final match in source) {
       final id = match.competition.id;
@@ -1652,11 +1616,15 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
 
     final groups = [for (final builder in byCompetition.values) builder.build()]
       ..sort((a, b) {
+        if (orderByFirstKickoff) {
+          return _ScoresRedesignHome._compareMatches(
+            a.matches.first,
+            b.matches.first,
+          );
+        }
         final aSelected = _matchesSelectedCompetition(a.matches.first);
         final bSelected = _matchesSelectedCompetition(b.matches.first);
-        if (aSelected != bSelected) {
-          return aSelected ? -1 : 1;
-        }
+        if (aSelected != bSelected) return aSelected ? -1 : 1;
         return a.competition.name.compareTo(b.competition.name);
       });
 
@@ -3181,7 +3149,7 @@ class _ForMeCompactFilterControl extends StatelessWidget {
             border: Border.all(color: context.surfaces.border),
           ),
           child: SizedBox(
-            height: 58,
+            height: _homeNavigationControlHeight,
             child: Row(
               children: [
                 Padding(
@@ -3768,31 +3736,26 @@ class _ExplorationStatusBanner extends StatelessWidget {
   }
 }
 
-class _TodayStoriesSection extends StatelessWidget {
-  const _TodayStoriesSection({
+/// Progressive disclosure for dense days: every competition stays visible,
+/// but only its first chronological match occupies a full card initially.
+class _TodayCompetitionStoriesSection extends StatelessWidget {
+  const _TodayCompetitionStoriesSection({
     required this.selectedDate,
-    required this.matches,
+    required this.groups,
     required this.totalMatchCount,
     required this.isExplorationActive,
     required this.onOpenMatch,
-    required this.isExpanded,
-    required this.onToggleExpanded,
   });
 
   final DateTime selectedDate;
-  final List<MatchBoardItem> matches;
+  final List<_ScoresCompetitionGroup> groups;
   final int totalMatchCount;
   final bool isExplorationActive;
   final ValueChanged<MatchBoardItem> onOpenMatch;
-  final bool isExpanded;
-  final VoidCallback? onToggleExpanded;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final canToggle = onToggleExpanded != null;
-    final hiddenMatchCount = totalMatchCount - matches.length;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -3811,21 +3774,15 @@ class _TodayStoriesSection extends StatelessWidget {
                   Text(
                     isExplorationActive
                         ? 'Résultats de votre exploration'
-                        : _storySectionTitle(selectedDate),
+                        : _todayStorySectionTitle(selectedDate),
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w900,
                     ),
                   ),
                   Text(
-                    isExplorationActive
-                        ? matches.isEmpty
-                              ? 'Aucune rencontre ne correspond à vos filtres temporaires.'
-                              : '$totalMatchCount rencontre${totalMatchCount > 1 ? 's' : ''} correspond${totalMatchCount > 1 ? 'ent' : ''} à vos filtres temporaires.'
-                        : matches.isEmpty
-                        ? 'Aucune rencontre ne correspond à cette lecture'
-                        : totalMatchCount > matches.length
-                        ? 'Les rencontres les plus pertinentes pour votre profil'
-                        : 'Rencontres correspondant à vos lectures',
+                    groups.isEmpty
+                        ? 'Aucune rencontre ne correspond à cette lecture.'
+                        : '$totalMatchCount rencontre${totalMatchCount > 1 ? 's' : ''} · ${groups.length} compétition${groups.length > 1 ? 's' : ''}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: context.textColors.secondary,
                       fontWeight: FontWeight.w600,
@@ -3837,49 +3794,114 @@ class _TodayStoriesSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 10),
-        if (matches.isEmpty)
-          _ScoresEmptyPanel(
+        if (groups.isEmpty)
+          const _ScoresEmptyPanel(
             title: 'Rien de vraiment lisible',
             subtitle:
                 'Lector ne force pas une lecture quand les signaux sont faibles.',
           )
         else
-          for (var index = 0; index < matches.length; index++) ...[
-            _TodayStoryCard(
-              match: matches[index],
-              onTap: () => onOpenMatch(matches[index]),
+          for (final indexed in groups.indexed) ...[
+            _ForMeCompetitionStoriesSection(
+              group: indexed.$2,
+              onOpenMatch: onOpenMatch,
             ),
-            if (index != matches.length - 1)
-              const SizedBox(height: AppSpacing.sm),
+            if (indexed.$1 != groups.length - 1)
+              const SizedBox(height: AppSpacing.md),
           ],
-        if (matches.isNotEmpty && canToggle) ...[
-          const SizedBox(height: AppSpacing.md),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: onToggleExpanded,
+      ],
+    );
+  }
+}
+
+class _ForMeCompetitionStoriesSection extends StatefulWidget {
+  const _ForMeCompetitionStoriesSection({
+    required this.group,
+    required this.onOpenMatch,
+  });
+
+  final _ScoresCompetitionGroup group;
+  final ValueChanged<MatchBoardItem> onOpenMatch;
+
+  @override
+  State<_ForMeCompetitionStoriesSection> createState() =>
+      _ForMeCompetitionStoriesSectionState();
+}
+
+class _ForMeCompetitionStoriesSectionState
+    extends State<_ForMeCompetitionStoriesSection> {
+  bool _isExpanded = false;
+
+  @override
+  void didUpdateWidget(covariant _ForMeCompetitionStoriesSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.group.competition.id != widget.group.competition.id) {
+      _isExpanded = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final group = widget.group;
+    final matchCount = group.matches.length;
+    final firstMatch = group.matches.first;
+    final hiddenCount = matchCount - 1;
+    final hasMore = hiddenCount > 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _ForMeCompetitionHeader(
+          competition: group.competition,
+          firstKickoff: _fixtureTime(firstMatch.fixture),
+          matchCount: matchCount,
+          isExpanded: _isExpanded,
+          onToggle: hasMore
+              ? () => setState(() => _isExpanded = !_isExpanded)
+              : null,
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        _TodayStoryCard(
+          match: firstMatch,
+          onTap: () => widget.onOpenMatch(firstMatch),
+          showCompetitionHeader: false,
+        ),
+        if (_isExpanded)
+          for (final match in group.matches.skip(1)) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _TodayStoryCard(
+              match: match,
+              onTap: () => widget.onOpenMatch(match),
+              showCompetitionHeader: false,
+            ),
+          ],
+        if (hasMore) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              key: ValueKey(
+                'for-me-competition-toggle-${group.competition.id}',
+              ),
+              onPressed: () => setState(() => _isExpanded = !_isExpanded),
               icon: Icon(
-                isExpanded
+                _isExpanded
                     ? Icons.keyboard_arrow_up_rounded
                     : Icons.keyboard_arrow_down_rounded,
+                size: 18,
               ),
               label: Text(
-                isExpanded
-                    ? 'Réduire la liste'
-                    : hiddenMatchCount == 1
-                    ? 'Afficher 1 autre rencontre'
-                    : 'Afficher les $hiddenMatchCount autres rencontres',
+                _isExpanded
+                    ? 'Réduire'
+                    : 'Afficher $hiddenCount autre${hiddenCount > 1 ? 's' : ''} match${hiddenCount > 1 ? 's' : ''}',
               ),
-              style: OutlinedButton.styleFrom(
+              style: TextButton.styleFrom(
                 foregroundColor: context.brand.accent,
-                backgroundColor: context.brand.accent.withValues(alpha: 0.06),
-                side: BorderSide(
-                  color: context.brand.accent.withValues(alpha: 0.55),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                textStyle: theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w900,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                textStyle: Theme.of(
+                  context,
+                ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w900),
               ),
             ),
           ),
@@ -3887,30 +3909,107 @@ class _TodayStoriesSection extends StatelessWidget {
       ],
     );
   }
+}
 
-  String _storySectionTitle(DateTime date) {
-    if (_isSameCalendarDay(date, _todayDate())) {
-      return 'À suivre aujourd’hui';
+class _ForMeCompetitionHeader extends StatelessWidget {
+  const _ForMeCompetitionHeader({
+    required this.competition,
+    required this.firstKickoff,
+    required this.matchCount,
+    required this.isExpanded,
+    required this.onToggle,
+  });
+
+  final CompetitionInfo competition;
+  final String firstKickoff;
+  final int matchCount;
+  final bool isExpanded;
+  final VoidCallback? onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final content = Row(
+      children: [
+        SportsAssetBadge(
+          size: 24,
+          imageUrl: competition.logoUrl,
+          fallbackLabel: competition.name,
+          contrastPlate: true,
+          icon: Icons.emoji_events_rounded,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            competition.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: context.textColors.primary,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '$firstKickoff · $matchCount match${matchCount > 1 ? 's' : ''}',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: context.textColors.secondary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        if (onToggle != null) ...[
+          const SizedBox(width: 2),
+          Icon(
+            isExpanded
+                ? Icons.keyboard_arrow_up_rounded
+                : Icons.keyboard_arrow_down_rounded,
+            color: context.textColors.secondary,
+          ),
+        ],
+      ],
+    );
+    if (onToggle == null) {
+      return Padding(padding: const EdgeInsets.all(2), child: content);
     }
-    final day = switch (date.weekday) {
-      DateTime.monday => 'lundi',
-      DateTime.tuesday => 'mardi',
-      DateTime.wednesday => 'mercredi',
-      DateTime.thursday => 'jeudi',
-      DateTime.friday => 'vendredi',
-      DateTime.saturday => 'samedi',
-      DateTime.sunday => 'dimanche',
-      _ => '',
-    };
-    return 'À suivre $day';
+    return Material(
+      color: AppColors.transparent,
+      child: InkWell(
+        onTap: onToggle,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+          child: content,
+        ),
+      ),
+    );
   }
 }
 
+String _todayStorySectionTitle(DateTime date) {
+  if (_isSameCalendarDay(date, _todayDate())) return 'À suivre aujourd’hui';
+  final day = switch (date.weekday) {
+    DateTime.monday => 'lundi',
+    DateTime.tuesday => 'mardi',
+    DateTime.wednesday => 'mercredi',
+    DateTime.thursday => 'jeudi',
+    DateTime.friday => 'vendredi',
+    DateTime.saturday => 'samedi',
+    DateTime.sunday => 'dimanche',
+    _ => '',
+  };
+  return 'À suivre $day';
+}
+
 class _TodayStoryCard extends StatelessWidget {
-  const _TodayStoryCard({required this.match, required this.onTap});
+  const _TodayStoryCard({
+    required this.match,
+    required this.onTap,
+    this.showCompetitionHeader = true,
+  });
 
   final MatchBoardItem match;
   final VoidCallback onTap;
+  final bool showCompetitionHeader;
 
   @override
   Widget build(BuildContext context) {
@@ -3937,7 +4036,13 @@ class _TodayStoryCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _StoryCompetitionHeader(match: match, readingCount: readingCount),
+              if (showCompetitionHeader)
+                _StoryCompetitionHeader(
+                  match: match,
+                  readingCount: readingCount,
+                )
+              else
+                _StoryMatchTimeHeader(match: match, readingCount: readingCount),
               const SizedBox(height: 9),
               Divider(height: 1, color: context.surfaces.border),
               const SizedBox(height: 10),
@@ -4086,6 +4191,35 @@ class _StoryCompetitionHeader extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _StoryMatchTimeHeader extends StatelessWidget {
+  const _StoryMatchTimeHeader({
+    required this.match,
+    required this.readingCount,
+  });
+
+  final MatchBoardItem match;
+  final int readingCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(Icons.schedule_rounded, size: 17, color: context.brand.accent),
+        const SizedBox(width: 6),
+        Text(
+          _fixtureTime(match.fixture),
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: context.textColors.primary,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const Spacer(),
+        if (readingCount > 0) _StoryRelevanceLabel(readingCount: readingCount),
+      ],
     );
   }
 }
@@ -4440,23 +4574,29 @@ class _StoryReadingPill extends StatelessWidget {
   }
 }
 
-class _AllMatchesDenseSection extends StatelessWidget {
-  const _AllMatchesDenseSection({
+class _AllMatchesCountrySection extends StatelessWidget {
+  const _AllMatchesCountrySection({
     required this.title,
     required this.emptySubtitle,
-    required this.initiallyExpanded,
     required this.groups,
     required this.onOpenMatch,
   });
 
   final String title;
   final String emptySubtitle;
-  final bool initiallyExpanded;
   final List<_ScoresCompetitionGroup> groups;
   final ValueChanged<MatchBoardItem> onOpenMatch;
 
   @override
   Widget build(BuildContext context) {
+    final countryGroups = _scoresCountryGroups(groups);
+    final topFive = countryGroups
+        .where((group) => group.isTopFiveCountry)
+        .toList(growable: false);
+    final otherCountries = countryGroups
+        .where((group) => !group.isTopFiveCountry)
+        .toList(growable: false);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -4476,26 +4616,192 @@ class _AllMatchesDenseSection extends StatelessWidget {
                 ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
               ),
             ),
-            OutlinedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.tune_rounded, size: 18),
-              label: const Text('Filtres'),
+            SizedBox(
+              height: _homeNavigationControlHeight,
+              child: OutlinedButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.tune_rounded, size: 18),
+                label: const Text('Filtres'),
+              ),
             ),
           ],
         ),
         const SizedBox(height: 10),
-        if (groups.isEmpty)
+        if (countryGroups.isEmpty)
           _ScoresEmptyPanel(title: 'Aucune rencontre', subtitle: emptySubtitle)
-        else
-          for (final group in groups) ...[
-            _DenseCompetitionSection(
-              group: group,
-              initiallyExpanded: initiallyExpanded,
-              onOpenMatch: onOpenMatch,
+        else ...[
+          if (topFive.isNotEmpty) ...[
+            const _AllMatchesCountrySectionLabel(
+              title: 'Top 5 européen',
+              subtitle: 'Les grands championnats suivis en priorité.',
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.xs),
+            for (final group in topFive) ...[
+              _AllMatchesCountryGroup(group: group, onOpenMatch: onOpenMatch),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+            const SizedBox(height: AppSpacing.md),
           ],
+          const _AllMatchesCountrySectionLabel(
+            title: 'Tous les pays',
+            subtitle: 'Compétitions classées par pays, de A à Z.',
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          for (final group in otherCountries) ...[
+            _AllMatchesCountryGroup(group: group, onOpenMatch: onOpenMatch),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        ],
       ],
+    );
+  }
+}
+
+class _AllMatchesCountrySectionLabel extends StatelessWidget {
+  const _AllMatchesCountrySectionLabel({
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 2, top: 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              color: context.textColors.primary,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: context.textColors.secondary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AllMatchesCountryGroup extends StatefulWidget {
+  const _AllMatchesCountryGroup({
+    required this.group,
+    required this.onOpenMatch,
+  });
+
+  final _ScoresCountryGroup group;
+  final ValueChanged<MatchBoardItem> onOpenMatch;
+
+  @override
+  State<_AllMatchesCountryGroup> createState() =>
+      _AllMatchesCountryGroupState();
+}
+
+class _AllMatchesCountryGroupState extends State<_AllMatchesCountryGroup> {
+  bool _isExpanded = false;
+
+  @override
+  void didUpdateWidget(covariant _AllMatchesCountryGroup oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.group.country.code != widget.group.country.code) {
+      _isExpanded = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final group = widget.group;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.surfaces.surface.withValues(alpha: 0.58),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: context.surfaces.border),
+      ),
+      child: Column(
+        children: [
+          Material(
+            color: AppColors.transparent,
+            child: InkWell(
+              onTap: () => setState(() => _isExpanded = !_isExpanded),
+              borderRadius: BorderRadius.circular(AppRadius.card),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 9, 10, 8),
+                child: Row(
+                  children: [
+                    SportsAssetBadge(
+                      size: 26,
+                      imageUrl: group.country.flagUrl,
+                      fallbackLabel: group.country.name,
+                      contrastPlate: true,
+                      icon: Icons.flag_rounded,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        group.country.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                    Text(
+                      '${group.competitions.length} compétition${group.competitions.length > 1 ? 's' : ''}',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: context.textColors.secondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    AnimatedRotation(
+                      turns: _isExpanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 180),
+                      child: Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: context.textColors.secondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox(width: double.infinity),
+            secondChild: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+              child: Column(
+                children: [
+                  for (final competition in group.competitions) ...[
+                    _DenseCompetitionSection(
+                      group: competition,
+                      initiallyExpanded: false,
+                      onOpenMatch: widget.onOpenMatch,
+                    ),
+                    if (competition != group.competitions.last)
+                      const SizedBox(height: AppSpacing.xs),
+                  ],
+                ],
+              ),
+            ),
+            crossFadeState: _isExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 180),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -4826,6 +5132,45 @@ class _ScoresCompetitionGroup {
 
   final CompetitionInfo competition;
   final List<MatchBoardItem> matches;
+}
+
+class _ScoresCountryGroup {
+  const _ScoresCountryGroup({
+    required this.country,
+    required this.competitions,
+  });
+
+  final CountryInfo country;
+  final List<_ScoresCompetitionGroup> competitions;
+
+  bool get isTopFiveCountry => competitions.any(
+    (competition) =>
+        _topFiveCompetitionIds.contains(competition.competition.id),
+  );
+}
+
+List<_ScoresCountryGroup> _scoresCountryGroups(
+  List<_ScoresCompetitionGroup> groups,
+) {
+  final byCountry = <String, List<_ScoresCompetitionGroup>>{};
+  for (final group in groups) {
+    byCountry.putIfAbsent(group.competition.country.code, () => []).add(group);
+  }
+  final countries = [
+    for (final groupsForCountry in byCountry.values)
+      _ScoresCountryGroup(
+        country: groupsForCountry.first.competition.country,
+        competitions: groupsForCountry
+          ..sort(
+            (left, right) =>
+                left.competition.name.compareTo(right.competition.name),
+          ),
+      ),
+  ];
+  countries.sort(
+    (left, right) => left.country.name.compareTo(right.country.name),
+  );
+  return countries;
 }
 
 String _readingTitle(MatchBoardItem match) {

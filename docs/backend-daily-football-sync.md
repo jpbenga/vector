@@ -179,6 +179,18 @@ deploiement en cours de journee ne remette jamais le budget a zero.
 La cadence sequentielle de `750 ms` reste volontairement bien plus basse que
 le plafond Ultra : environ 80 requetes/minute par collecteur.
 
+### Confrontations directes
+
+Pour chaque affiche future, `api-football-sync` collecte
+`/fixtures/headtohead` une seule fois par paire de clubs, sans tenir compte de
+l'ordre domicile/exterieur. La reponse est mise en cache 30 jours : le builder
+de snapshot lit exclusivement ce cache et n'appelle jamais API-Football.
+
+Le read model mobile ne conserve que la date, la competition, les deux equipes
+et le score. L'ecran **Confrontation** filtre ensuite les rencontres sur
+l'identifiant de la competition du match consulte. Une affiche de championnat
+ne melange donc ni coupe, ni competition europeenne, ni amical.
+
 Si la fenetre ne contient aucun match a venir, la collecte quotidienne s'arrete
 apres les sources de ligue et l'orchestrateur valide le cycle sans publier de
 snapshot vide. Cela evite les enrichissements joueurs et matchs historiques
@@ -258,7 +270,7 @@ A configurer dans Vercel :
 ```text
 SUPABASE_URL
 API_FOOTBALL_TIMEZONE=Europe/Paris
-API_FOOTBALL_LEAGUE_IDS=2,3,848,39,61,140,78,135,94,95,88,144,179,203,197,119,207,218,40,62,136,79,141,106,210,209,283,253,71,128,262,307,98,188,103,113,164,169,244,292
+API_FOOTBALL_LEAGUE_IDS=2,3,848,39,61,140,78,135,94,95,88,144,179,203,197,119,207,218,40,62,136,79,141,106,210,209,283,253,71,128,262,307,98,188,103,113,164,169,244,292,531,45,48,528,66,526,81,529,96,550,143,556,137,547,90,543,147,519,181,185,551,1,32,4,5,9,6,7,22,536,64,525,1191,8
 API_FOOTBALL_RESULTS_DAYS_BACK=2
 API_FOOTBALL_FUTURE_DAYS=3
 API_FOOTBALL_REQUEST_DELAY_MS=750

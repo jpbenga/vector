@@ -14,7 +14,7 @@ void main() {
         'supabase/migrations/20260811103000_backend_lot_2_api_football_server.sql',
       ).readAsStringSync();
       endpointAllowlistMigration = File(
-        'supabase/migrations/20260919060000_backend_allow_fixture_players_cache.sql',
+        'supabase/migrations/20260920040000_backend_allow_head_to_head_cache.sql',
       ).readAsStringSync();
       functionSource = File(
         'supabase/functions/api-football-sync/index.ts',

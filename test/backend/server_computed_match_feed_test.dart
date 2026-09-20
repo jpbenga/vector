@@ -24,14 +24,33 @@ void main() {
     expect(analyzer, contains('name: "publish-reading-announcements"'));
     expect(analyzer, contains('const presentationStandings'));
     expect(analyzer, contains('const presentationRecentMatches'));
+    expect(analyzer, contains('const presentationHeadToHead'));
     expect(analyzer, contains('standings: presentationStandings'));
     expect(
       analyzer,
       contains('recent_league_matches: presentationRecentMatches'),
     );
+    expect(analyzer, contains('head_to_head: presentationHeadToHead'));
+    expect(analyzer, contains('function compactHeadToHead'));
     expect(analyzer, contains('computed: {'));
     expect(analyzer, contains(r'fixture_id=in.(${'));
     expect(analyzer, contains('fixtureIds.join(",")'));
+  });
+
+  test('keeps direct confrontations cache-backed and scoped per fixture', () {
+    final sync = File(
+      'supabase/functions/api-football-sync/index.ts',
+    ).readAsStringSync();
+    final snapshot = File(
+      'supabase/functions/build-match-feed-snapshot/index.ts',
+    ).readAsStringSync();
+
+    expect(sync, contains('endpoint: "/fixtures/headtohead"'));
+    expect(sync, contains('upcomingHeadToHeadPairs'));
+    expect(sync, contains('ttlSeconds: 30 * 24 * 60 * 60'));
+    expect(snapshot, contains('endpoint: "/fixtures/headtohead"'));
+    expect(snapshot, contains('headToHeadRequests'));
+    expect(snapshot, contains('head_to_head: build.rawHeadToHead'));
   });
 
   test('publishes server-computed Tier assignments with every fixture', () {
@@ -125,6 +144,35 @@ void main() {
     expect(migration, contains('where kickoff_at > now()'));
     expect(migration, contains("'standout_decisive_player'"));
     expect(migration, contains("'key_player_unavailable'"));
+    expect(migration, isNot(contains('match_result_snapshots')));
+  });
+
+  test('derives form and trajectory readings from one five-match window', () {
+    final publisher = File(
+      'supabase/functions/publish-reading-announcements/index.ts',
+    ).readAsStringSync();
+    final migration = File(
+      'supabase/migrations/20260920030000_form_window_trajectory_v2.sql',
+    ).readAsStringSync();
+
+    expect(publisher, contains('.slice(0, 5)'));
+    expect(publisher, contains('if (results.length === 5)'));
+    expect(publisher, contains('const recentAverage'));
+    expect(publisher, contains('const earlierAverage'));
+    expect(publisher, contains(r'contre ${'));
+    expect(publisher, contains('/15 sur les cinq derniers matchs'));
+    expect(publisher, contains('Trajectoire en baisse'));
+    expect(publisher, contains('label: "Méforme"'));
+    expect(migration, contains('where kickoff_at > now()'));
+    for (final readingId in const [
+      'positive_streak',
+      'negative_streak',
+      'improving_form',
+      'declining_form',
+      'form_advantage',
+    ]) {
+      expect(migration, contains("'$readingId'"));
+    }
     expect(migration, isNot(contains('match_result_snapshots')));
   });
 

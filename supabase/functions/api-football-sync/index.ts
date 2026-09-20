@@ -65,6 +65,7 @@ Deno.serve(async (request) => {
     fixtureStatistics: 0,
     fixtureEvents: 0,
     fixturePlayerStatistics: 0,
+    headToHead: 0,
     injuries: 0,
     playerStatisticsRequests: 0,
     playerStatisticsPages: 0,
@@ -87,6 +88,7 @@ Deno.serve(async (request) => {
     string,
     { leagueId: number; season: number; teamId: number }
   >();
+  const headToHeadPairs = new Set<string>();
   let recentFixtureRequests = 0;
 
   try {
@@ -267,6 +269,16 @@ Deno.serve(async (request) => {
         });
         summary.fixtures += responseRows(fixtures.body).length;
         summary.cachedResponses += 1;
+        for (
+          const pair of upcomingHeadToHeadPairs(
+            fixtures.body,
+            options.windowStart,
+            options.windowEnd,
+            options.timezone,
+          )
+        ) {
+          headToHeadPairs.add(pair);
+        }
         for (const fixture of responseRows(fixtures.body)) {
           const root = objectValue(fixture) ?? {};
           const details = objectValue(root.fixture) ?? {};
@@ -366,6 +378,24 @@ Deno.serve(async (request) => {
           }
         }
       }
+    }
+
+    // One cache key per unordered pair across the whole window. H2H history
+    // is immutable, so a 30-day TTL avoids paying again for every daily run.
+    for (const pair of headToHeadPairs) {
+      await fetchAndAccount({
+        apiBaseUrl,
+        apiKey,
+        supabaseUrl,
+        serviceRoleKey,
+        runId,
+        endpoint: "/fixtures/headtohead",
+        query: { h2h: pair, last: "20" },
+        ttlSeconds: 30 * 24 * 60 * 60,
+        requestDelayMs: apiRequestDelayMs,
+      });
+      summary.headToHead += 1;
+      summary.cachedResponses += 1;
     }
 
     if (
@@ -551,6 +581,7 @@ type SyncSummary = {
   fixtureStatistics: number;
   fixtureEvents: number;
   fixturePlayerStatistics: number;
+  headToHead: number;
   injuries: number;
   playerStatisticsRequests: number;
   playerStatisticsPages: number;
@@ -1285,6 +1316,50 @@ function upcomingTeamIdsInWindow(
     }
   }
   return [...teamIds];
+}
+
+function upcomingHeadToHeadPairs(
+  payload: JsonObject,
+  windowStart: string,
+  windowEnd: string,
+  timezone: string,
+): string[] {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const now = Date.now();
+  const pairs = new Set<string>();
+  for (const row of responseRows(payload)) {
+    const root = objectValue(row) ?? {};
+    const fixture = objectValue(root.fixture) ?? {};
+    const kickoff = stringValue(fixture.date);
+    const status = stringValue(objectValue(fixture.status)?.short);
+    if (kickoff === null || !["NS", "TBD"].includes(status ?? "")) continue;
+    const kickoffTime = Date.parse(kickoff);
+    if (!Number.isFinite(kickoffTime) || kickoffTime <= now) continue;
+    const parts = Object.fromEntries(
+      formatter.formatToParts(new Date(kickoffTime))
+        .map((part) => [part.type, part.value]),
+    );
+    const date = `${parts.year}-${parts.month}-${parts.day}`;
+    if (date < windowStart || date > windowEnd) continue;
+    const teams = objectValue(root.teams) ?? {};
+    const homeTeamId = numberValue((objectValue(teams.home) ?? {}).id);
+    const awayTeamId = numberValue((objectValue(teams.away) ?? {}).id);
+    if (homeTeamId === null || awayTeamId === null || homeTeamId === awayTeamId) {
+      continue;
+    }
+    pairs.add(headToHeadPair(homeTeamId, awayTeamId));
+  }
+  return [...pairs];
+}
+
+function headToHeadPair(firstTeamId: number, secondTeamId: number): string {
+  const [lowest, highest] = [firstTeamId, secondTeamId].sort((a, b) => a - b);
+  return `${lowest}-${highest}`;
 }
 
 function dateWindow(start: string, end: string): string[] {
