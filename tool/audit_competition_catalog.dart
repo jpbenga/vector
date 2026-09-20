@@ -30,7 +30,7 @@ Future<void> main() async {
       jsonDecode(providerResponse.body) as Map<String, dynamic>;
   final rows =
       (providerPayload['response'] as List<dynamic>? ?? const [])
-          .whereType<Map>()
+          .whereType<Map<String, dynamic>>()
           .map(_Competition.fromApi)
           .toList()
         ..sort((left, right) {
@@ -137,7 +137,7 @@ Future<List<_BudgetDay>> _fetchBudgetRows({
   if (response.statusCode != HttpStatus.ok) return const [];
   final payload = jsonDecode(response.body) as List<dynamic>;
   return payload
-      .whereType<Map>()
+      .whereType<Map<String, dynamic>>()
       .map(
         (row) => _BudgetDay(
           date: row['budget_date']?.toString() ?? 'unknown',
@@ -277,12 +277,16 @@ final class _Competition {
     required this.flagUrl,
   });
 
-  factory _Competition.fromApi(Map row) {
-    final league = (row['league'] as Map?) ?? const {};
-    final country = (row['country'] as Map?) ?? const {};
-    final seasons = (row['seasons'] as List?) ?? const [];
+  factory _Competition.fromApi(Map<String, dynamic> row) {
+    final league = Map<String, dynamic>.from(
+      (row['league'] as Map<Object?, Object?>?) ?? const <Object?, Object?>{},
+    );
+    final country = Map<String, dynamic>.from(
+      (row['country'] as Map<Object?, Object?>?) ?? const <Object?, Object?>{},
+    );
+    final seasons = (row['seasons'] as List<dynamic>?) ?? const <dynamic>[];
     String? currentSeason;
-    for (final season in seasons.whereType<Map>()) {
+    for (final season in seasons.whereType<Map<String, dynamic>>()) {
       if (season['current'] == true) {
         currentSeason = season['year']?.toString();
         break;

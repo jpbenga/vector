@@ -344,10 +344,6 @@ String _toCsv(List<_Identity> entries) {
 }
 
 String _toHtml(List<_Identity> entries) {
-  final samples = <int>[39, 66, 2, 3, 531, 1, 32, 4, 64, 525, 8]
-      .map((id) => entries.firstWhere((entry) => entry.competition.id == id))
-      .toList(growable: false);
-  final sampleCards = samples.map(_sampleCard).join();
   final registryRows = entries
       .map(
         (entry) => '''
@@ -377,29 +373,6 @@ main{max-width:1280px;margin:auto;padding:48px 28px 72px}.eyebrow{color:#30e5d2;
 <h2 class="section-title">Registre complet</h2><p class="section-copy">Ce registre est la future source de vérité : l’ID API décide de la couleur, tandis que la famille décide du cadre et de la cartouche.</p>
 <div class="registry"><table><thead><tr><th>ID</th><th>Compétition</th><th>Famille</th><th>Couleur</th><th>Cadre</th><th>Cartouche</th></tr></thead><tbody>$registryRows</tbody></table></div>
 </main></body></html>''';
-}
-
-String _sampleCard(_Identity entry) {
-  final cssClass = switch (entry.family) {
-    'Championnat' => 'league',
-    'Championnat féminin' => 'women',
-    'Coupe nationale' => 'cup',
-    'Supercoupe' => 'super',
-    'Europe des clubs' => 'europe',
-    'Qualifications internationales' => 'qualif',
-    'Sélections internationales' => 'national',
-    _ => 'league',
-  };
-  final initials = entry.competition.name
-      .split(RegExp(r'\\s+'))
-      .where((word) => word.isNotEmpty)
-      .take(2)
-      .map((word) => word[0])
-      .join();
-  return '''<article class="match $cssClass" style="--accent:${entry.color}">
-  <div class="banner"><div class="mark">$initials</div><div class="comp">${_escape(entry.competition.name)}</div><div class="time">20:45</div></div>
-  <div class="chip">${entry.label}</div><div class="body"><div class="teams"><span>Équipe domicile</span><span>—</span><span>Équipe extérieure</span></div><div class="reading"><i></i> 4 lectures convergent · ${entry.frame}</div></div>
-</article>''';
 }
 
 String _toSvg(List<_Identity> entries) {
@@ -454,7 +427,7 @@ String _svgCard(_Identity entry, int x, int y) {
       '<rect width="582" height="148" rx="18" fill="#111B24" stroke="${entry.color}"/>',
   };
   return '''<g transform="translate($x $y)">
-${frame}
+$frame
 <path d="M18 0H564Q582 0 582 18V46H0V18Q0 0 18 0" fill="${entry.color}" opacity=".72"/><line x1="0" y1="46" x2="582" y2="46" stroke="${entry.color}" opacity=".85"/>
 <rect x="14" y="11" width="26" height="26" rx="8" fill="#0D1720" stroke="#F7FAFF" stroke-width="1.5"/><text x="27" y="29" text-anchor="middle" fill="#F7FAFF" font-family="Arial, sans-serif" font-size="9" font-weight="700">$initials</text><text x="51" y="30" fill="#F7FAFF" font-family="Arial, sans-serif" font-size="14" font-weight="700">$name</text><text x="551" y="30" text-anchor="end" fill="#D9FCF8" font-family="Arial, sans-serif" font-size="13" font-weight="700">20:45</text>
 <path d="M437 56H566V78L558 86H429V64Z" fill="#101A23" stroke="${entry.color}"/><text x="497" y="75" text-anchor="middle" fill="#F7FAFF" font-family="Arial, sans-serif" font-size="9" font-weight="700">$chip</text><text x="18" y="109" fill="#F3F7FB" font-family="Arial, sans-serif" font-size="16" font-weight="700">Équipe domicile</text><text x="291" y="109" text-anchor="middle" fill="#A9B7C5" font-family="Arial, sans-serif" font-size="13">—</text><text x="564" y="109" text-anchor="end" fill="#F3F7FB" font-family="Arial, sans-serif" font-size="16" font-weight="700">Équipe extérieure</text><circle cx="21" cy="132" r="4" fill="${entry.color}"/><text x="33" y="137" fill="#DDE7EF" font-family="Arial, sans-serif" font-size="12">4 lectures convergent · ${entry.frame}</text></g>''';
