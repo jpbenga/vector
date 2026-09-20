@@ -54,7 +54,7 @@ void main() {
       );
       expect(
         FootballReadingCopyCatalog.summaryFor(negativeStreak),
-        'LDLLL sur les 5 derniers matchs · 1 nul · 4 défaites.',
+        'Du plus ancien au plus récent : D, D, D, N, D sur les 5 derniers matchs · 1 nul · 4 défaites.',
       );
       expect(
         FootballReadingCopyCatalog.summaryFor(scoringDifficulty),

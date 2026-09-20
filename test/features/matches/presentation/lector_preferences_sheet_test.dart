@@ -79,6 +79,7 @@ void main() {
       'negative_streak',
       'improving_form',
       'declining_form',
+      'form_gap',
       'strong_home_team',
       'weak_home_team',
       'strong_away_team',

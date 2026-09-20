@@ -392,7 +392,7 @@ class FootballReadingCopyCatalog {
           },
         )
         .join(', ');
-    return 'Du plus ancien au plus récent : $orderedFrenchForm, '
+    return 'Du plus ancien au plus récent : $orderedFrenchForm '
         'sur les $size derniers matchs$record.';
   }
 
