@@ -184,6 +184,7 @@ class MatchComputedReading {
     required this.strength,
     required this.isContradiction,
     required this.evidenceLabel,
+    this.label,
     this.evidenceValue,
     this.playerName,
     this.playerPhotoUrl,
@@ -195,6 +196,7 @@ class MatchComputedReading {
   final String strength;
   final bool isContradiction;
   final String evidenceLabel;
+  final String? label;
   final Object? evidenceValue;
   final String? playerName;
   final String? playerPhotoUrl;
@@ -428,6 +430,7 @@ class TeamRecentMatchSnapshot {
     this.opponentLogoUrl,
     this.goalsFor,
     this.goalsAgainst,
+    this.playedAt,
   });
 
   final int? opponentTeamId;
@@ -437,6 +440,9 @@ class TeamRecentMatchSnapshot {
   final String result;
   final int? goalsFor;
   final int? goalsAgainst;
+
+  /// Provider kickoff for this completed league fixture, when available.
+  final DateTime? playedAt;
 }
 
 /// A completed direct meeting between the two teams of the current fixture.

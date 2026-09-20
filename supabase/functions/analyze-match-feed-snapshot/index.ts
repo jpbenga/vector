@@ -548,9 +548,11 @@ function compactRecentMatches(rows: JsonObject[]): JsonObject[] {
       team: { id: numberValue(team.id), name: stringValue(team.name) },
       matches: objectList(row.matches).slice(0, 5).map((match) => {
         const value = objectValue(match) ?? {};
+        const fixture = objectValue(value.fixture) ?? {};
         const opponent = objectValue(value.opponent) ?? {};
         const goals = objectValue(value.goals) ?? {};
         return {
+          fixture: { date: stringValue(fixture.date) },
           opponent: {
             id: numberValue(opponent.id),
             name: stringValue(opponent.name),

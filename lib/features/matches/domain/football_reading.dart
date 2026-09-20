@@ -184,7 +184,9 @@ class FootballReading {
       'scoring_difficulty' => CopilotArgumentType.weakRecentForm,
       'positive_streak' ||
       'improving_form' ||
-      'form_advantage' => CopilotArgumentType.strongRecentForm,
+      'form_advantage' ||
+      'form_gap' ||
+      'head_to_head_dominance' => CopilotArgumentType.strongRecentForm,
       'fragile_defense' ||
       'high_xg_conceded' ||
       'defensive_underperformance' ||
@@ -236,7 +238,9 @@ class FootballReading {
       'negative_streak' ||
       'improving_form' ||
       'declining_form' ||
-      'form_advantage' => CopilotArgumentFamily.form,
+      'form_advantage' ||
+      'form_gap' => CopilotArgumentFamily.form,
+      'head_to_head_dominance' => CopilotArgumentFamily.performance,
       'strong_home_team' ||
       'weak_home_team' ||
       'strong_away_team' ||

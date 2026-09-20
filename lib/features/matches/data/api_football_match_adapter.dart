@@ -1337,8 +1337,10 @@ class ApiFootballMatchAdapter {
       return null;
     }
 
+    final fixture = _map(root['fixture']);
     final goals = _map(root['goals']);
     return TeamRecentMatchSnapshot(
+      playedAt: _dateTimeValue(fixture['date'] ?? root['date']),
       opponentTeamId:
           _intValue(opponent['id']) ?? _intValue(root['opponentId']),
       opponentName: opponentName,

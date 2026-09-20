@@ -4,6 +4,50 @@ import 'package:copilot/features/onboarding/domain/onboarding_answer.dart';
 import 'package:copilot/features/onboarding/domain/profile_compiler.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+const _canonicalReadingIds = <String>[
+  'structural_level_gap',
+  'positive_streak',
+  'negative_streak',
+  'improving_form',
+  'declining_form',
+  'form_gap',
+  'strong_home_team',
+  'weak_home_team',
+  'strong_away_team',
+  'weak_away_team',
+  'home_away_advantage',
+  'away_home_advantage',
+  'prolific_attack',
+  'scoring_difficulty',
+  'solid_defense',
+  'fragile_defense',
+  'frequent_clean_sheet',
+  'frequent_over_25',
+  'frequent_btts',
+  'frequent_under_25',
+  'misleading_result',
+  'head_to_head_dominance',
+  'frequent_first_half_scoring',
+  'frequent_first_half_conceding',
+  'frequent_second_half_scoring',
+  'frequent_second_half_conceding',
+  'standout_decisive_player',
+  'key_player_unavailable',
+];
+
+const _canonicalScenarioIds = <String>[
+  'solid_favorite',
+  'struggling_team',
+  'offensive_match',
+  'defensive_match',
+  'ranking_gap',
+  'credible_outsider',
+  'fragile_defense',
+  'prolific_attack',
+  'positive_series',
+  'negative_series',
+];
+
 void main() {
   group('ProfileCompiler', () {
     test('compiles completed V3 answers into a versioned decision profile', () {
@@ -83,7 +127,7 @@ void main() {
       ]);
     });
 
-    test('maps former scorer and creator readings to decisive players', () {
+    test('does not promote former scorer and creator ids into a reading', () {
       const sourceProfile = DecisionProfile(
         onboardingVersion: '3.0',
         answers: [
@@ -100,9 +144,10 @@ void main() {
 
       final profile = const ProfileCompiler().compile(sourceProfile);
 
-      expect(profile.readings['standout_decisive_player']?.enabled, isTrue);
-      expect(profile.isReadingAllowed('standout_goal_scorer'), isTrue);
-      expect(profile.isReadingAllowed('standout_creator'), isTrue);
+      expect(profile.readings['standout_decisive_player']?.enabled, isFalse);
+      expect(profile.isReadingAllowed('standout_goal_scorer'), isFalse);
+      expect(profile.isReadingAllowed('standout_creator'), isFalse);
+      expect(profile.isReadingAllowed('standout_decisive_player'), isFalse);
       expect(profile.isReadingAllowed('high_volume_shooter'), isFalse);
     });
 
@@ -152,10 +197,119 @@ void main() {
       final profile = const ProfileCompiler().compile(sourceProfile);
 
       expect(profile.isReadingAllowed('balanced_hierarchy'), isFalse);
-      expect(profile.isReadingAllowed('ranking_superiority'), isTrue);
+      expect(profile.isReadingAllowed('ranking_superiority'), isFalse);
       expect(profile.isReadingAllowed('structural_level_gap'), isTrue);
       expect(profile.isReadingAllowed('positive_streak'), isFalse);
       expect(profile.isOpportunityProfileEnabled('ranking_gap'), isTrue);
+    });
+
+    test('locks the canonical reading and scenario contracts', () {
+      expect(
+        ReadingPreferenceCatalog.values.map((reading) => reading.id),
+        _canonicalReadingIds,
+      );
+      expect(
+        OpportunityProfileCatalog.values.map((scenario) => scenario.id),
+        _canonicalScenarioIds,
+      );
+    });
+
+    test('matches every selected reading only by its exact canonical id', () {
+      for (final selectedId in _canonicalReadingIds) {
+        final profile = const ProfileCompiler().compile(
+          DecisionProfile(
+            onboardingVersion: '3.0',
+            answers: [
+              const OnboardingAnswer(
+                questionId: 'competitions',
+                orderedOptionIds: ['eng_premier_league'],
+              ),
+              OnboardingAnswer(
+                questionId: 'readings',
+                orderedOptionIds: [selectedId],
+              ),
+            ],
+          ),
+        );
+
+        for (final candidateId in _canonicalReadingIds) {
+          expect(
+            profile.isReadingAllowed(candidateId),
+            candidateId == selectedId,
+            reason: '$selectedId must not authorize $candidateId.',
+          );
+        }
+      }
+    });
+
+    test('never promotes technical signals into selected readings', () {
+      const technicalIds = [
+        'ranking_superiority',
+        'ranking_inferiority',
+        'standout_goal_scorer',
+        'standout_creator',
+        'form_advantage',
+        'venue_strength',
+        'high_xg_creation',
+        'attack_in_form',
+        'low_xg_creation',
+        'offensive_underperformance',
+        'high_xg_conceded',
+        'defensive_underperformance',
+      ];
+
+      for (final selectedId in _canonicalReadingIds) {
+        final profile = const ProfileCompiler().compile(
+          DecisionProfile(
+            onboardingVersion: '3.0',
+            answers: [
+              const OnboardingAnswer(
+                questionId: 'competitions',
+                orderedOptionIds: ['eng_premier_league'],
+              ),
+              OnboardingAnswer(
+                questionId: 'readings',
+                orderedOptionIds: [selectedId],
+              ),
+            ],
+          ),
+        );
+        for (final technicalId in technicalIds) {
+          expect(
+            profile.isReadingAllowed(technicalId),
+            isFalse,
+            reason: '$technicalId must never be promoted to $selectedId.',
+          );
+        }
+      }
+    });
+
+    test('matches every selected scenario only by its exact id', () {
+      for (final selectedId in _canonicalScenarioIds) {
+        final profile = const ProfileCompiler().compile(
+          DecisionProfile(
+            onboardingVersion: '3.0',
+            answers: [
+              const OnboardingAnswer(
+                questionId: 'competitions',
+                orderedOptionIds: ['eng_premier_league'],
+              ),
+              OnboardingAnswer(
+                questionId: 'opportunity_profiles',
+                orderedOptionIds: [selectedId],
+              ),
+            ],
+          ),
+        );
+
+        for (final candidateId in _canonicalScenarioIds) {
+          expect(
+            profile.isOpportunityProfileEnabled(candidateId),
+            candidateId == selectedId,
+            reason: '$selectedId must not authorize $candidateId.',
+          );
+        }
+      }
     });
 
     test('allows a completed reading-only profile', () {
@@ -181,7 +335,7 @@ void main() {
       expect(profile.hasEnabledOpportunityProfiles, isFalse);
     });
 
-    test('accepts server aliases for selected direct readings', () {
+    test('keeps technical server signals separate from user readings', () {
       const sourceProfile = DecisionProfile(
         onboardingVersion: '3.0',
         answers: [
@@ -198,8 +352,8 @@ void main() {
 
       final profile = const ProfileCompiler().compile(sourceProfile);
 
-      expect(profile.isReadingAllowed('form_advantage'), isTrue);
-      expect(profile.isReadingAllowed('venue_strength'), isTrue);
+      expect(profile.isReadingAllowed('form_advantage'), isFalse);
+      expect(profile.isReadingAllowed('venue_strength'), isFalse);
       expect(profile.isReadingAllowed('match_card_profile'), isFalse);
     });
 

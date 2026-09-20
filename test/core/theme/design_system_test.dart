@@ -78,6 +78,36 @@ void main() {
       expect(aurora.colorScheme.primary, AppAuroraColors.accent);
     });
 
+    test('build every selectable theme with its own complete palette', () {
+      final themes = <ThemeData>[
+        CopilotTheme.dark,
+        CopilotTheme.light,
+        CopilotTheme.gold,
+        CopilotTheme.aurora,
+        CopilotTheme.dracula,
+        CopilotTheme.tokyoNight,
+        CopilotTheme.catppuccinMocha,
+        CopilotTheme.catppuccinLatte,
+        CopilotTheme.solarizedLight,
+        CopilotTheme.quietLight,
+      ];
+
+      expect(themes, hasLength(10));
+      expect(
+        themes.map((theme) => theme.colorScheme.primary).toSet(),
+        hasLength(10),
+      );
+      for (final theme in themes) {
+        expect(theme.extension<AppBrandPalette>(), isNotNull);
+        expect(theme.extension<AppSurfacePalette>(), isNotNull);
+        expect(theme.extension<AppTextPalette>(), isNotNull);
+        expect(theme.extension<AppSemanticPalette>(), isNotNull);
+        expect(theme.extension<AppComponentColors>(), isNotNull);
+        expect(theme.extension<AppOpportunityPalette>(), isNotNull);
+        expect(theme.extension<AppStrategyPalette>(), isNotNull);
+      }
+    });
+
     test('register semantic theme extensions for dark and light modes', () {
       final dark = CopilotTheme.dark;
       final light = CopilotTheme.light;
@@ -254,6 +284,12 @@ void main() {
         CopilotTheme.light,
         CopilotTheme.gold,
         CopilotTheme.aurora,
+        CopilotTheme.dracula,
+        CopilotTheme.tokyoNight,
+        CopilotTheme.catppuccinMocha,
+        CopilotTheme.catppuccinLatte,
+        CopilotTheme.solarizedLight,
+        CopilotTheme.quietLight,
       ];
 
       for (final theme in themes) {

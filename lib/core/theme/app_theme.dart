@@ -70,6 +70,116 @@ class VectorThemeTokens {
     opportunities: AppOpportunityPalette.aurora,
     strategies: AppStrategyPalette.aurora,
   );
+
+  static final dracula = _fromDefinition(AppThemePaletteDefinition.dracula);
+
+  static final tokyoNight = _fromDefinition(
+    AppThemePaletteDefinition.tokyoNight,
+  );
+
+  static final catppuccinMocha = _fromDefinition(
+    AppThemePaletteDefinition.catppuccinMocha,
+  );
+
+  static final catppuccinLatte = _fromDefinition(
+    AppThemePaletteDefinition.catppuccinLatte,
+  );
+
+  static final solarizedLight = _fromDefinition(
+    AppThemePaletteDefinition.solarizedLight,
+  );
+
+  static final quietLight = _fromDefinition(
+    AppThemePaletteDefinition.quietLight,
+  );
+
+  static VectorThemeTokens _fromDefinition(AppThemePaletteDefinition colors) {
+    final surfaces = AppSurfacePalette(
+      background: colors.background,
+      backgroundSecondary: colors.backgroundSecondary,
+      surface: colors.surface,
+      surfaceHover: colors.surfaceHover,
+      border: colors.border,
+      disabled: colors.surfaceHover,
+      shadow: colors.shadow,
+      scrim: colors.shadow,
+    );
+    final brand = AppBrandPalette(
+      accent: colors.accent,
+      accentHover: colors.accentHover,
+      accentDark: colors.accentDark,
+      onAccent: colors.onAccent,
+    );
+    final text = AppTextPalette(
+      primary: colors.textPrimary,
+      secondary: colors.textSecondary,
+      weak: colors.textWeak,
+      disabled: colors.textDisabled,
+      onImage: colors.textPrimary,
+    );
+    final semantic = AppSemanticPalette(
+      success: colors.success,
+      successHover: colors.successHover,
+      warning: colors.warning,
+      error: colors.error,
+      live: colors.live,
+      info: colors.info,
+    );
+
+    Color blend(Color foreground, double opacity, Color background) {
+      return Color.alphaBlend(
+        foreground.withValues(alpha: opacity),
+        background,
+      );
+    }
+
+    final components = AppComponentColors(
+      oddsBackground: blend(colors.accent, 0.12, colors.surface),
+      oddsText: colors.accent,
+      oddsBorder: blend(colors.accent, 0.42, colors.surface),
+      liveBadgeBackground: blend(colors.error, 0.16, colors.surface),
+      liveBadgeText: colors.error,
+      analyzeBadgeBackground: blend(colors.accent, 0.15, colors.surface),
+      analyzeBadgeText: colors.accent,
+      resultBadgeBackground: blend(colors.success, 0.15, colors.surface),
+      resultBadgeText: colors.success,
+      postponedBadgeBackground: blend(colors.warning, 0.16, colors.surface),
+      postponedBadgeText: colors.warning,
+      favorite: colors.warning,
+    );
+    final opportunities = AppOpportunityPalette.fromColors(
+      surface: colors.surface,
+      surfaceHover: colors.surfaceHover,
+      solidFavorite: colors.success,
+      openMatch: colors.warning,
+      closedMatch: colors.info,
+      levelGap: colors.accent,
+      credibleOutsider: colors.warning,
+      fragileDefense: colors.error,
+      prolificAttack: colors.accent,
+      positiveStreak: colors.success,
+      negativeStreak: colors.error,
+      strugglingTeam: colors.error,
+    );
+
+    return VectorThemeTokens(
+      brightness: colors.brightness,
+      brand: brand,
+      surfaces: surfaces,
+      text: text,
+      semantic: semantic,
+      components: components,
+      opportunities: opportunities,
+      strategies: AppStrategyPalette.fromColors(
+        surface: colors.surface,
+        surfaceHover: colors.surfaceHover,
+        violet: colors.accent,
+        amber: colors.warning,
+        blue: colors.info,
+        green: colors.success,
+      ),
+    );
+  }
 }
 
 class CopilotTheme {
@@ -83,6 +193,30 @@ class CopilotTheme {
 
   static ThemeData get aurora {
     return _buildTheme(VectorThemeTokens.aurora);
+  }
+
+  static ThemeData get dracula {
+    return _buildTheme(VectorThemeTokens.dracula);
+  }
+
+  static ThemeData get tokyoNight {
+    return _buildTheme(VectorThemeTokens.tokyoNight);
+  }
+
+  static ThemeData get catppuccinMocha {
+    return _buildTheme(VectorThemeTokens.catppuccinMocha);
+  }
+
+  static ThemeData get catppuccinLatte {
+    return _buildTheme(VectorThemeTokens.catppuccinLatte);
+  }
+
+  static ThemeData get solarizedLight {
+    return _buildTheme(VectorThemeTokens.solarizedLight);
+  }
+
+  static ThemeData get quietLight {
+    return _buildTheme(VectorThemeTokens.quietLight);
   }
 
   static ThemeData _buildTheme(VectorThemeTokens tokens) {

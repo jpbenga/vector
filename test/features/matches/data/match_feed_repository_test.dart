@@ -14,6 +14,7 @@ import 'package:copilot/features/matches/domain/match_board_item.dart';
 import 'package:copilot/features/matches/domain/opportunity_engine_v2.dart';
 import 'package:copilot/features/matches/domain/structural_tiers/tier_models.dart';
 import 'package:copilot/features/onboarding/domain/decision_profile.dart';
+import 'package:copilot/features/onboarding/domain/decision_profile_catalogs.dart';
 import 'package:copilot/features/onboarding/domain/onboarding_answer.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -181,35 +182,107 @@ void main() {
       expect(analyzer.calls, 2);
     });
 
+    test('does not surface a simple ranking lead as a structural gap', () {
+      final analyzer = _CountingFootballAnalyzer({
+        'fixture-domination': [
+          _reading(
+            'ranking_superiority',
+            'home-domination',
+            side: ReadingSubjectSide.home,
+            kind: ReadingEvidenceKind.standing,
+          ),
+        ],
+        'fixture-open': const [],
+      });
+      final repository = _personalizationRepository(analyzer);
+
+      final matches = repository.personalizedFor(
+        _profile(
+          markets: const [],
+          profiles: const [],
+          readings: const ['structural_level_gap'],
+        ),
+      );
+
+      expect(matches, isEmpty);
+    });
+
     test(
-      'surfaces a server form reading in Pour moi through its selected preference',
+      'never lets technical supports satisfy any selectable reading in Pour moi',
       () {
+        const technicalIds = [
+          'ranking_superiority',
+          'ranking_inferiority',
+          'standout_goal_scorer',
+          'standout_creator',
+          'form_advantage',
+          'venue_strength',
+          'high_xg_creation',
+          'attack_in_form',
+          'low_xg_creation',
+          'offensive_underperformance',
+          'high_xg_conceded',
+          'defensive_underperformance',
+        ];
         final analyzer = _CountingFootballAnalyzer({
           'fixture-domination': [
-            _reading(
-              'form_advantage',
-              'home-domination',
-              side: ReadingSubjectSide.home,
-              kind: ReadingEvidenceKind.form,
-            ),
+            for (final id in technicalIds)
+              _reading(
+                id,
+                'home-domination',
+                side: ReadingSubjectSide.home,
+                kind: ReadingEvidenceKind.sample,
+              ),
           ],
           'fixture-open': const [],
         });
         final repository = _personalizationRepository(analyzer);
 
-        final matches = repository.personalizedFor(
-          _profile(
-            markets: const [],
-            profiles: const [],
-            readings: const ['positive_streak'],
-          ),
-        );
+        for (final reading in ReadingPreferenceCatalog.values) {
+          final matches = repository.personalizedFor(
+            _profile(
+              markets: const [],
+              profiles: const [],
+              readings: [reading.id],
+            ),
+          );
 
-        expect(matches.map((match) => match.id), ['fixture-domination']);
-        expect(matches.single.signals, hasLength(1));
-        expect(matches.single.profileRelevance.readingMatches, 1);
+          expect(
+            matches,
+            isEmpty,
+            reason:
+                'Technical supports must not satisfy ${reading.id} in Pour moi.',
+          );
+        }
       },
     );
+
+    test('surfaces a selected canonical form reading in Pour moi', () {
+      final analyzer = _CountingFootballAnalyzer({
+        'fixture-domination': [
+          _reading(
+            'positive_streak',
+            'home-domination',
+            side: ReadingSubjectSide.home,
+            kind: ReadingEvidenceKind.form,
+          ),
+        ],
+        'fixture-open': const [],
+      });
+      final repository = _personalizationRepository(analyzer);
+
+      final matches = repository.personalizedFor(
+        _profile(
+          markets: const [],
+          profiles: const [],
+          readings: const ['positive_streak'],
+        ),
+      );
+
+      expect(matches.map((match) => match.id), ['fixture-domination']);
+      expect(matches.single.signals, hasLength(1));
+      expect(matches.single.profileRelevance.readingMatches, 1);
+    });
 
     test(
       'keeps a configured market candidate when its direct reading is selected',
@@ -233,9 +306,7 @@ void main() {
         );
         expect(marketMatch.thesis, isNull);
         expect(marketMatch.betCandidates, isNotEmpty);
-        // The server publishes both structural gap and ranking superiority;
-        // they share the user's selected hierarchy preference.
-        expect(marketMatch.profileRelevance.readingMatches, 2);
+        expect(marketMatch.profileRelevance.readingMatches, 1);
         expect(marketMatch.profileRelevance.scenarioMatches, 0);
         expect(marketMatch.profileRelevance.marketMatches, 1);
       },

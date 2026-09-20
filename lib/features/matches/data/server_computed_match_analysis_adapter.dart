@@ -114,6 +114,7 @@ class ServerComputedMatchAnalysisAdapter {
           evidenceLabel:
               _list(row['evidence']).firstOrNull?['label']?.toString() ??
               'Donnée calculée côté serveur.',
+          label: row['label']?.toString(),
           evidenceValue: _list(row['evidence']).firstOrNull?['value'],
           playerName: row['player_name']?.toString() ?? _playerName(row),
           playerPhotoUrl: _playerPhotoUrl(row),

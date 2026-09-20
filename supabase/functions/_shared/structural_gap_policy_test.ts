@@ -33,3 +33,34 @@ Deno.test("relaxes the threshold as a championship matures", () => {
     throw new Error("Twelve matches restore the established threshold.");
   }
 });
+
+Deno.test("never treats a first-versus-second match as structural", () => {
+  const assessment = assessStructuralGap(
+    { rank: 1, points: 18, played: 6 },
+    { rank: 2, points: 0, played: 6 },
+  );
+
+  if (assessment !== null) {
+    throw new Error("One rank of separation must never be structural.");
+  }
+});
+
+Deno.test("accepts only the exact points-per-game threshold", () => {
+  const atThreshold = assessStructuralGap(
+    { rank: 1, points: 16, played: 8 },
+    { rank: 7, points: 9.6, played: 8 },
+  );
+  if (atThreshold?.minimumPointsPerGameGap !== 0.8) {
+    throw new Error("Eight matches must accept exactly 0.80 PPG difference.");
+  }
+
+  const belowThreshold = assessStructuralGap(
+    { rank: 1, points: 16, played: 8 },
+    { rank: 7, points: 9.61, played: 8 },
+  );
+  if (belowThreshold !== null) {
+    throw new Error(
+      "An 0.79875 PPG difference must be rejected after eight matches.",
+    );
+  }
+});

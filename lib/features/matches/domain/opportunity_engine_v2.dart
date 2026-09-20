@@ -1012,6 +1012,8 @@ class OpportunityEngineV2 {
       'weak_away_team' => '$subjectName fragile à l’extérieur',
       'home_away_advantage' => 'Avantage domicile / extérieur',
       'away_home_advantage' => 'Avantage extérieur / domicile',
+      'form_gap' => 'Écart de forme pour $subjectName',
+      'head_to_head_dominance' => 'Domination en tête-à-tête pour $subjectName',
       'prolific_attack' => 'Attaque prolifique pour $subjectName',
       'scoring_difficulty' => 'Production offensive faible pour $subjectName',
       'solid_defense' => 'Défense solide pour $subjectName',

@@ -228,3 +228,199 @@ class AppAuroraOpportunityColors {
 
   const AppAuroraOpportunityColors._();
 }
+
+/// Complete palette definition used for the selectable community themes.
+///
+/// Keeping each palette in one immutable object prevents a theme from mixing
+/// its surfaces with the semantic colors of another theme.
+class AppThemePaletteDefinition {
+  const AppThemePaletteDefinition({
+    required this.brightness,
+    required this.background,
+    required this.backgroundSecondary,
+    required this.surface,
+    required this.surfaceHover,
+    required this.border,
+    required this.shadow,
+    required this.accent,
+    required this.accentHover,
+    required this.accentDark,
+    required this.onAccent,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.textWeak,
+    required this.textDisabled,
+    required this.success,
+    required this.successHover,
+    required this.warning,
+    required this.error,
+    required this.live,
+    required this.info,
+  });
+
+  final Brightness brightness;
+  final Color background;
+  final Color backgroundSecondary;
+  final Color surface;
+  final Color surfaceHover;
+  final Color border;
+  final Color shadow;
+  final Color accent;
+  final Color accentHover;
+  final Color accentDark;
+  final Color onAccent;
+  final Color textPrimary;
+  final Color textSecondary;
+  final Color textWeak;
+  final Color textDisabled;
+  final Color success;
+  final Color successHover;
+  final Color warning;
+  final Color error;
+  final Color live;
+  final Color info;
+
+  static const dracula = AppThemePaletteDefinition(
+    brightness: Brightness.dark,
+    background: Color(0xFF282A36),
+    backgroundSecondary: Color(0xFF30323E),
+    surface: Color(0xFF343746),
+    surfaceHover: Color(0xFF44475A),
+    border: Color(0xFF6272A4),
+    shadow: Color(0xFF171820),
+    accent: Color(0xFFBD93F9),
+    accentHover: Color(0xFFD1B5FF),
+    accentDark: Color(0xFF9E72DD),
+    onAccent: Color(0xFF282A36),
+    textPrimary: Color(0xFFF8F8F2),
+    textSecondary: Color(0xFFD7DAE0),
+    textWeak: Color(0xFF9CA1B4),
+    textDisabled: Color(0xFF74798C),
+    success: Color(0xFF50FA7B),
+    successHover: Color(0xFF75FF9A),
+    warning: Color(0xFFF1FA8C),
+    error: Color(0xFFFF6E7D),
+    live: Color(0xFFFF5555),
+    info: Color(0xFF8BE9FD),
+  );
+
+  static const tokyoNight = AppThemePaletteDefinition(
+    brightness: Brightness.dark,
+    background: Color(0xFF1A1B26),
+    backgroundSecondary: Color(0xFF1F2335),
+    surface: Color(0xFF24283B),
+    surfaceHover: Color(0xFF2A2F46),
+    border: Color(0xFF414868),
+    shadow: Color(0xFF11111A),
+    accent: Color(0xFF7AA2F7),
+    accentHover: Color(0xFFA9C4FF),
+    accentDark: Color(0xFF5B80CF),
+    onAccent: Color(0xFF10131D),
+    textPrimary: Color(0xFFC0CAF5),
+    textSecondary: Color(0xFFA9B1D6),
+    textWeak: Color(0xFF7A83A8),
+    textDisabled: Color(0xFF565F89),
+    success: Color(0xFF9ECE6A),
+    successHover: Color(0xFFB9E68A),
+    warning: Color(0xFFE0AF68),
+    error: Color(0xFFF7768E),
+    live: Color(0xFFFF657A),
+    info: Color(0xFF7DCFFF),
+  );
+
+  static const catppuccinMocha = AppThemePaletteDefinition(
+    brightness: Brightness.dark,
+    background: Color(0xFF1E1E2E),
+    backgroundSecondary: Color(0xFF181825),
+    surface: Color(0xFF313244),
+    surfaceHover: Color(0xFF45475A),
+    border: Color(0xFF585B70),
+    shadow: Color(0xFF11111B),
+    accent: Color(0xFFCBA6F7),
+    accentHover: Color(0xFFDCC4FF),
+    accentDark: Color(0xFFA980D9),
+    onAccent: Color(0xFF1E1E2E),
+    textPrimary: Color(0xFFCDD6F4),
+    textSecondary: Color(0xFFA6ADC8),
+    textWeak: Color(0xFF7F849C),
+    textDisabled: Color(0xFF585B70),
+    success: Color(0xFFA6E3A1),
+    successHover: Color(0xFFC3F0BE),
+    warning: Color(0xFFF9E2AF),
+    error: Color(0xFFF38BA8),
+    live: Color(0xFFF38BA8),
+    info: Color(0xFF89DCEB),
+  );
+
+  static const catppuccinLatte = AppThemePaletteDefinition(
+    brightness: Brightness.light,
+    background: Color(0xFFEFF1F5),
+    backgroundSecondary: Color(0xFFE6E9EF),
+    surface: Color(0xFFFFFFFF),
+    surfaceHover: Color(0xFFDCE0E8),
+    border: Color(0xFFBCC0CC),
+    shadow: Color(0xFF4C4F69),
+    accent: Color(0xFF8839EF),
+    accentHover: Color(0xFF9D5BF1),
+    accentDark: Color(0xFF6E29C5),
+    onAccent: Color(0xFFFFFFFF),
+    textPrimary: Color(0xFF4C4F69),
+    textSecondary: Color(0xFF5C5F77),
+    textWeak: Color(0xFF7C7F93),
+    textDisabled: Color(0xFF9CA0B0),
+    success: Color(0xFF40A02B),
+    successHover: Color(0xFF5CB847),
+    warning: Color(0xFFDF8E1D),
+    error: Color(0xFFD20F39),
+    live: Color(0xFFD20F39),
+    info: Color(0xFF1E66F5),
+  );
+
+  static const solarizedLight = AppThemePaletteDefinition(
+    brightness: Brightness.light,
+    background: Color(0xFFFDF6E3),
+    backgroundSecondary: Color(0xFFEEE8D5),
+    surface: Color(0xFFFFFDF7),
+    surfaceHover: Color(0xFFE5DFC9),
+    border: Color(0xFF93A1A1),
+    shadow: Color(0xFF586E75),
+    accent: Color(0xFF268BD2),
+    accentHover: Color(0xFF4BA1DC),
+    accentDark: Color(0xFF176DAA),
+    onAccent: Color(0xFFFFFFFF),
+    textPrimary: Color(0xFF586E75),
+    textSecondary: Color(0xFF657B83),
+    textWeak: Color(0xFF839496),
+    textDisabled: Color(0xFF93A1A1),
+    success: Color(0xFF859900),
+    successHover: Color(0xFFA0B51E),
+    warning: Color(0xFFB58900),
+    error: Color(0xFFDC322F),
+    live: Color(0xFFDC322F),
+    info: Color(0xFF2AA198),
+  );
+
+  static const quietLight = AppThemePaletteDefinition(
+    brightness: Brightness.light,
+    background: Color(0xFFF7F7F7),
+    backgroundSecondary: Color(0xFFF0F0F0),
+    surface: Color(0xFFFFFFFF),
+    surfaceHover: Color(0xFFE7E7E7),
+    border: Color(0xFFD1D1D1),
+    shadow: Color(0xFF3C3C3C),
+    accent: Color(0xFF4F6BC6),
+    accentHover: Color(0xFF6D86D8),
+    accentDark: Color(0xFF3B55A9),
+    onAccent: Color(0xFFFFFFFF),
+    textPrimary: Color(0xFF333333),
+    textSecondary: Color(0xFF5F5F5F),
+    textWeak: Color(0xFF808080),
+    textDisabled: Color(0xFFA4A4A4),
+    success: Color(0xFF2F8F54),
+    successHover: Color(0xFF4DAA6D),
+    warning: Color(0xFFB06C18),
+    error: Color(0xFFC84C4C),
+    live: Color(0xFFC84C4C),
+    info: Color(0xFF3C78C2),
+  );
+}

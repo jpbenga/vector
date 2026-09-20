@@ -901,30 +901,39 @@ class _LectorSynthesisCard extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-          if (hasClearDirection) ...[
-            const SizedBox(height: 9),
-            Divider(height: 1, color: surfaces.border),
-            const SizedBox(height: 8),
-            if (showsScenarioPick)
-              _LectorCompactOpportunityPickRow(
-                match: match,
-                recommendedMarket: scenarioRecommendedMarket!,
-              )
-            else
-              _LectorCompactUnpricedRecommendationRow(
-                recommendation: unpricedDirection!,
+          const SizedBox(height: 9),
+          Divider(height: 1, color: surfaces.border),
+          const SizedBox(height: 8),
+          Text(
+            'CHOIX LECTOR',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: metaAccent,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 5),
+          if (showsScenarioPick)
+            _LectorCompactOpportunityPickRow(
+              match: match,
+              recommendedMarket: scenarioRecommendedMarket!,
+            )
+          else if (unpricedDirection != null)
+            _LectorCompactUnpricedRecommendationRow(
+              recommendation: unpricedDirection,
+            )
+          else
+            const _LectorNoAutomaticPickRow(),
+          if (unpricedDirection != null) ...[
+            const SizedBox(height: 7),
+            Text(
+              'Préconisation visible · ajout au ticket indisponible jusqu’à ce qu’une cote soit disponible.',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: textColors.secondary,
+                fontWeight: FontWeight.w600,
+                height: 1.25,
               ),
-            if (unpricedDirection != null) ...[
-              const SizedBox(height: 7),
-              Text(
-                'Préconisation visible · ajout au ticket indisponible jusqu’à ce qu’une cote soit disponible.',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: textColors.secondary,
-                  fontWeight: FontWeight.w600,
-                  height: 1.25,
-                ),
-              ),
-            ],
+            ),
           ],
         ],
       ),
@@ -980,6 +989,45 @@ class _LectorCompactUnpricedRecommendationRow extends StatelessWidget {
   }
 }
 
+class _LectorNoAutomaticPickRow extends StatelessWidget {
+  const _LectorNoAutomaticPickRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.surfaces.surfaceHover.withValues(alpha: 0.34),
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        border: Border.all(color: context.surfaces.border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Row(
+          children: [
+            Icon(
+              Icons.remove_circle_outline_rounded,
+              color: context.textColors.secondary,
+              size: 18,
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Text(
+                'Aucun choix automatique : les lectures ne désignent pas un marché unique.',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: context.textColors.secondary,
+                  height: 1.25,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _LectorCompactOpportunityPickRow extends StatelessWidget {
   const _LectorCompactOpportunityPickRow({
     required this.match,
@@ -1010,19 +1058,33 @@ class _LectorCompactOpportunityPickRow extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(Icons.bar_chart_rounded, color: brand.accent, size: 18),
             const SizedBox(width: 9),
             Expanded(
-              child: Text(
-                label,
-                maxLines: 2,
-                overflow: TextOverflow.clip,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: textColors.primary,
-                  fontWeight: FontWeight.w900,
-                  height: 1.2,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    maxLines: 2,
+                    overflow: TextOverflow.clip,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: textColors.primary,
+                      fontWeight: FontWeight.w900,
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    recommendedMarket.market.label,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: textColors.secondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(width: 8),
@@ -1360,6 +1422,8 @@ List<MatchComputedReading> _quickContextReadingsFor(MatchBoardItem match) {
     'high_shots_on_target_conceded',
     'high_corner_creation',
     'high_corners_conceded',
+    // The same server reading is rendered in the TAT tab with its record.
+    'head_to_head_dominance',
   };
   return match.analysis.computedReadings
       .where(
@@ -1419,7 +1483,7 @@ int _quickContextReadingPriority(String readingId) => switch (readingId) {
   // The five-match comparison establishes the baseline. The current
   // trajectory then reads as a nuance of that baseline rather than its
   // contradiction.
-  'form_advantage' => 0,
+  'form_advantage' || 'form_gap' => 0,
   'positive_streak' || 'negative_streak' => 1,
   'improving_form' || 'declining_form' => 2,
   _ => 3,
@@ -1569,7 +1633,9 @@ IconData _quickContextIcon(String readingId) => switch (readingId) {
   'ranking_inferiority' => Icons.trending_down_rounded,
   'positive_streak' ||
   'improving_form' ||
-  'form_advantage' => Icons.trending_up_rounded,
+  'form_advantage' ||
+  'form_gap' => Icons.trending_up_rounded,
+  'head_to_head_dominance' => Icons.handshake_outlined,
   'negative_streak' || 'declining_form' => Icons.trending_down_rounded,
   'strong_home_team' ||
   'weak_home_team' ||
@@ -1596,6 +1662,8 @@ Color _quickContextSignalColor(BuildContext context, String readingId) =>
       'positive_streak' ||
       'improving_form' ||
       'form_advantage' ||
+      'form_gap' ||
+      'head_to_head_dominance' ||
       'strong_home_team' ||
       'strong_away_team' ||
       'venue_strength' ||
@@ -1616,6 +1684,8 @@ String _quickContextTitle(String readingId, String? teamName) {
     'improving_form' => 'Trajectoire en hausse$team',
     'declining_form' => 'Trajectoire en baisse$team',
     'form_advantage' => 'Avantage de forme$team',
+    'form_gap' => 'Écart de forme$team',
+    'head_to_head_dominance' => 'Domination en tête-à-tête$team',
     'strong_home_team' => 'Solide à domicile$team',
     'weak_home_team' => 'Fragile à domicile$team',
     'strong_away_team' => 'Solide à l’extérieur$team',
@@ -1652,7 +1722,7 @@ class _LocalizedFormEvidenceText extends StatelessWidget {
     final baseStyle = style ?? DefaultTextStyle.of(context).style;
     final spans = <InlineSpan>[
       TextSpan(text: sequence.before, style: baseStyle),
-      for (final indexed in sequence.results.reversed.indexed) ...[
+      for (final indexed in sequence.results.indexed) ...[
         TextSpan(
           text: _formResultLabel(indexed.$2),
           style: baseStyle.copyWith(
@@ -1680,16 +1750,32 @@ class _FormSequenceInEvidence {
   final List<String> results;
   final String after;
 
-  static final _pattern = RegExp(r'(?<=:\s)([WDL]{2,5})(?=,|\))');
+  static final _pattern = RegExp(
+    r'(?<![A-Z])([WDLVND](?:,\s*[WDLVND]){1,4}|[WDLVND]{2,5})(?![A-Z])',
+  );
 
   static _FormSequenceInEvidence? parse(String text) {
     final match = _pattern.firstMatch(text);
     if (match == null) return null;
     final rawResults = match.group(1);
     if (rawResults == null) return null;
+    final before = text.substring(0, match.start);
+    final alreadyOrdered = before.toLowerCase().contains(
+      'du plus ancien au plus récent',
+    );
+    // Existing snapshots contain API W/D/L in newest-to-oldest order. New
+    // snapshots publish French V/N/D already ordered from oldest to newest.
+    // Keep both renderable while the scheduled analysis refreshes old data.
+    final results = rawResults.replaceAll(RegExp(r'[^WDLVND]'), '');
+    final isLegacySequence =
+        results.contains(RegExp(r'[WL]')) || !alreadyOrdered;
     return _FormSequenceInEvidence(
-      before: text.substring(0, match.start),
-      results: rawResults.split(''),
+      before: alreadyOrdered
+          ? before
+          : '${before}du plus ancien au plus récent : ',
+      results: isLegacySequence
+          ? results.split('').reversed.toList(growable: false)
+          : results.split(''),
       after: text.substring(match.end),
     );
   }
@@ -3241,7 +3327,8 @@ ChampionshipStandingView? _standingViewForReading(String readingId) {
     'negative_streak' ||
     'improving_form' ||
     'declining_form' ||
-    'form_advantage' => ChampionshipStandingView.form,
+    'form_advantage' ||
+    'form_gap' => ChampionshipStandingView.form,
     'prolific_attack' ||
     'scoring_difficulty' ||
     'high_shots_on_target' => ChampionshipStandingView.attack,
@@ -4731,12 +4818,6 @@ class _LectorFormContextCard extends StatelessWidget {
             awayStats: awayStats,
           ),
           const SizedBox(height: 14),
-          _LectorFormEvolutionSection(
-            match: match,
-            homeResults: homeResults,
-            awayResults: awayResults,
-          ),
-          const SizedBox(height: 14),
           _LectorRecentFormSection(
             match: match,
             homeMatches: homeMatches,
@@ -5061,94 +5142,6 @@ class _LectorFormDotsRow extends StatelessWidget {
   }
 }
 
-class _LectorFormEvolutionSection extends StatelessWidget {
-  const _LectorFormEvolutionSection({
-    required this.match,
-    required this.homeResults,
-    required this.awayResults,
-  });
-
-  final MatchBoardItem match;
-  final List<String> homeResults;
-  final List<String> awayResults;
-
-  @override
-  Widget build(BuildContext context) {
-    final textColors = context.textColors;
-    final surfaces = context.surfaces;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _LectorSubsectionTitle(
-          icon: Icons.show_chart_rounded,
-          title: 'ÉVOLUTION SUR LES 5 DERNIERS MATCHS',
-        ),
-        const SizedBox(height: 3),
-        const _FormChronologyHint(compact: true),
-        const SizedBox(height: 8),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final stack = constraints.maxWidth < 390;
-            if (stack) {
-              return Column(
-                children: [
-                  _LectorFormChartCard(
-                    teamName: match.homeTeam.name,
-                    results: homeResults,
-                    color: _formPerformanceColor(context, homeResults),
-                  ),
-                  const SizedBox(height: 8),
-                  _LectorFormChartCard(
-                    teamName: match.awayTeam.name,
-                    results: awayResults,
-                    color: _formPerformanceColor(context, awayResults),
-                  ),
-                ],
-              );
-            }
-
-            return Row(
-              children: [
-                Expanded(
-                  child: _LectorFormChartCard(
-                    teamName: match.homeTeam.name,
-                    results: homeResults,
-                    color: _formPerformanceColor(context, homeResults),
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 92,
-                  margin: const EdgeInsets.symmetric(horizontal: 10),
-                  color: surfaces.border,
-                ),
-                Expanded(
-                  child: _LectorFormChartCard(
-                    teamName: match.awayTeam.name,
-                    results: awayResults,
-                    color: _formPerformanceColor(context, awayResults),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-        if (homeResults.isEmpty || awayResults.isEmpty) ...[
-          const SizedBox(height: 8),
-          Text(
-            'Certaines séries sont incomplètes dans le snapshot actuel.',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: textColors.secondary,
-              fontSize: 10,
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
 class _LectorSubsectionTitle extends StatelessWidget {
   const _LectorSubsectionTitle({required this.icon, required this.title});
 
@@ -5180,169 +5173,6 @@ class _LectorSubsectionTitle extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-class _LectorFormChartCard extends StatelessWidget {
-  const _LectorFormChartCard({
-    required this.teamName,
-    required this.results,
-    required this.color,
-  });
-
-  final String teamName;
-  final List<String> results;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final textColors = context.textColors;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          teamName,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: textColors.primary,
-            fontSize: 10,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 5),
-        SizedBox(
-          height: 78,
-          width: double.infinity,
-          child: CustomPaint(
-            painter: _LectorFormChartPainter(
-              values: _formChartValues(results),
-              color: color,
-              gridColor: context.surfaces.border,
-              textColor: textColors.secondary,
-              pointTextColor: textColors.primary,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _LectorFormChartPainter extends CustomPainter {
-  const _LectorFormChartPainter({
-    required this.values,
-    required this.color,
-    required this.gridColor,
-    required this.textColor,
-    required this.pointTextColor,
-  });
-
-  final List<int> values;
-  final Color color;
-  final Color gridColor;
-  final Color textColor;
-  final Color pointTextColor;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final chart = Rect.fromLTWH(24, 8, size.width - 28, size.height - 24);
-    final gridPaint = Paint()
-      ..color = gridColor.withValues(alpha: 0.72)
-      ..strokeWidth = 1;
-    for (final yValue in [0, 2, 4]) {
-      final y = chart.bottom - (yValue / 4) * chart.height;
-      canvas.drawLine(Offset(chart.left, y), Offset(chart.right, y), gridPaint);
-      _paintChartText(canvas, '$yValue', Offset(2, y - 7), textColor);
-    }
-
-    final axisPaint = Paint()
-      ..color = gridColor.withValues(alpha: 0.82)
-      ..strokeWidth = 1;
-    canvas.drawLine(
-      Offset(chart.left, chart.top),
-      Offset(chart.left, chart.bottom),
-      axisPaint,
-    );
-    canvas.drawLine(
-      Offset(chart.left, chart.bottom),
-      Offset(chart.right, chart.bottom),
-      axisPaint,
-    );
-
-    final displayValues = values.isEmpty
-        ? const [0, 0, 0, 0, 0]
-        : values.take(5).toList();
-    final step = displayValues.length <= 1
-        ? 0.0
-        : chart.width / (displayValues.length - 1);
-    final points = <Offset>[
-      for (var index = 0; index < displayValues.length; index++)
-        Offset(
-          chart.left + step * index,
-          chart.bottom - (displayValues[index] / 4) * chart.height,
-        ),
-    ];
-
-    if (points.length > 1) {
-      final path = Path()..moveTo(points.first.dx, points.first.dy);
-      for (final point in points.skip(1)) {
-        path.lineTo(point.dx, point.dy);
-      }
-      final linePaint = Paint()
-        ..color = color
-        ..strokeWidth = 2.4
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round;
-      canvas.drawPath(path, linePaint);
-    }
-
-    final dotPaint = Paint()..color = color;
-    for (var index = 0; index < points.length; index++) {
-      canvas.drawCircle(points[index], 4.2, dotPaint);
-      _paintChartText(
-        canvas,
-        '${displayValues[index]}',
-        Offset(points[index].dx - 4, points[index].dy - 19),
-        pointTextColor,
-        weight: FontWeight.w900,
-      );
-      _paintChartText(
-        canvas,
-        'J-${displayValues.length - index}',
-        Offset(points[index].dx - 10, chart.bottom + 5),
-        textColor,
-      );
-    }
-  }
-
-  void _paintChartText(
-    Canvas canvas,
-    String text,
-    Offset offset,
-    Color color, {
-    FontWeight weight = FontWeight.w700,
-  }) {
-    final painter = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: TextStyle(color: color, fontSize: 9, fontWeight: weight),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    painter.paint(canvas, offset);
-  }
-
-  @override
-  bool shouldRepaint(covariant _LectorFormChartPainter oldDelegate) {
-    return values != oldDelegate.values ||
-        color != oldDelegate.color ||
-        gridColor != oldDelegate.gridColor ||
-        textColor != oldDelegate.textColor ||
-        pointTextColor != oldDelegate.pointTextColor;
   }
 }
 
@@ -5528,6 +5358,17 @@ class _LectorCompactRecentFormRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
         child: Row(
           children: [
+            SizedBox(
+              width: 43,
+              child: Text(
+                _recentMatchDateLabel(match.playedAt),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: context.textColors.secondary,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
             SizedBox(
               width: 28,
               child: Text(
@@ -5723,14 +5564,17 @@ class _LectorHeadToHeadContextCard extends StatelessWidget {
     final leagueId = match.fixture.competition.apiFootballLeagueId;
     final homeTeamId = match.fixture.homeTeam.apiFootballTeamId;
     final awayTeamId = match.fixture.awayTeam.apiFootballTeamId;
-    // For a league fixture, H2H is deliberately restricted to this exact
-    // competition. Cups and friendlies never influence this comparison.
+    // A TAT sample is always scoped to the exact current competition.
+    // A league, cup or friendly from another context cannot influence it.
     final meetings = leagueId == null
         ? const <HeadToHeadFixtureSnapshot>[]
         : match.analysis.headToHeadMatches
               .where((meeting) => meeting.competitionId == leagueId)
-              .take(10)
+              .take(6)
               .toList(growable: false);
+    final dominanceReadings = match.analysis.computedReadings
+        .where((reading) => reading.id == 'head_to_head_dominance')
+        .toList(growable: false);
 
     return _LectorGlassCard(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
@@ -5766,7 +5610,7 @@ class _LectorHeadToHeadContextCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Championnat uniquement · coupes et amicaux exclus.',
+                      'Même compétition uniquement · autres contextes exclus.',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: textColors.secondary,
                         fontWeight: FontWeight.w600,
@@ -5778,6 +5622,13 @@ class _LectorHeadToHeadContextCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 13),
+          if (dominanceReadings.isNotEmpty) ...[
+            _HeadToHeadDominanceCallout(
+              match: match,
+              readings: dominanceReadings,
+            ),
+            const SizedBox(height: 12),
+          ],
           if (meetings.isEmpty)
             _HeadToHeadEmptyState(
               hasCompetition: leagueId != null,
@@ -5793,24 +5644,114 @@ class _LectorHeadToHeadContextCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'Derniers résultats',
+              'Les ${meetings.length} derniers résultats',
               style: theme.textTheme.labelLarge?.copyWith(
                 color: textColors.primary,
                 fontWeight: FontWeight.w900,
               ),
             ),
             const SizedBox(height: 7),
-            for (final indexed in meetings.take(5).indexed) ...[
+            for (final indexed in meetings.indexed) ...[
               _HeadToHeadMeetingRow(
                 meeting: indexed.$2,
                 homeTeamId: homeTeamId,
               ),
-              if (indexed.$1 < meetings.take(5).length - 1)
+              if (indexed.$1 < meetings.length - 1)
                 Divider(height: 14, color: surfaces.border),
             ],
           ],
         ],
       ),
+    );
+  }
+}
+
+class _HeadToHeadDominanceCallout extends StatelessWidget {
+  const _HeadToHeadDominanceCallout({
+    required this.match,
+    required this.readings,
+  });
+
+  final MatchBoardItem match;
+  final List<MatchComputedReading> readings;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = context.semantic;
+    final surfaces = context.surfaces;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: semantic.success.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        border: Border.all(color: semantic.success.withValues(alpha: 0.52)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(11),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.local_fire_department_rounded,
+                  color: semantic.success,
+                ),
+                const SizedBox(width: 7),
+                Text(
+                  'Lecture TAT',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: semantic.success,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 7),
+            for (final indexed in readings.indexed) ...[
+              _HeadToHeadDominanceLine(match: match, reading: indexed.$2),
+              if (indexed.$1 < readings.length - 1) ...[
+                const SizedBox(height: 8),
+                Divider(height: 1, color: surfaces.border),
+                const SizedBox(height: 8),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeadToHeadDominanceLine extends StatelessWidget {
+  const _HeadToHeadDominanceLine({required this.match, required this.reading});
+
+  final MatchBoardItem match;
+  final MatchComputedReading reading;
+
+  @override
+  Widget build(BuildContext context) {
+    final team = _teamForSubject(match, reading.subjectTeamId);
+    final textColors = context.textColors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          reading.label ?? _quickContextTitle(reading.id, team?.name),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: textColors.primary,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          reading.evidenceLabel,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: textColors.secondary,
+            fontWeight: FontWeight.w600,
+            height: 1.3,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -5843,7 +5784,7 @@ class _HeadToHeadEmptyState extends StatelessWidget {
             Expanded(
               child: Text(
                 hasCompetition
-                    ? 'Aucune confrontation de championnat disponible dans le snapshot actuel.'
+                    ? 'Aucune confrontation dans cette compétition n’est disponible dans le snapshot actuel.'
                     : 'La compétition de cette rencontre ne permet pas encore de filtrer les confrontations.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: textColors.secondary,
@@ -6072,6 +6013,14 @@ int _headToHeadResultFor(int? teamId, HeadToHeadFixtureSnapshot meeting) {
 }
 
 String _headToHeadDateLabel(DateTime value) {
+  final local = value.toLocal();
+  final day = local.day.toString().padLeft(2, '0');
+  final month = local.month.toString().padLeft(2, '0');
+  return '$day.$month.${local.year.toString().substring(2)}';
+}
+
+String _recentMatchDateLabel(DateTime? value) {
+  if (value == null) return '—';
   final local = value.toLocal();
   final day = local.day.toString().padLeft(2, '0');
   final month = local.month.toString().padLeft(2, '0');
@@ -9281,7 +9230,9 @@ String _scenarioCategoryForComputed(String readingId) => switch (readingId) {
   'negative_streak' ||
   'improving_form' ||
   'declining_form' ||
-  'form_advantage' => 'Forme',
+  'form_advantage' ||
+  'form_gap' => 'Forme',
+  'head_to_head_dominance' => 'TAT',
   'strong_home_team' ||
   'weak_home_team' ||
   'strong_away_team' ||
@@ -9661,7 +9612,9 @@ CopilotArgumentType _scenarioArgumentTypeForSignal(String signalId) {
     'structural_level_gap' ||
     'balanced_hierarchy' => CopilotArgumentType.rankingGap,
     'positive_streak' ||
-    'improving_form' => CopilotArgumentType.strongRecentForm,
+    'improving_form' ||
+    'form_gap' ||
+    'head_to_head_dominance' => CopilotArgumentType.strongRecentForm,
     'negative_streak' || 'declining_form' => CopilotArgumentType.weakRecentForm,
     'prolific_attack' ||
     'high_xg_creation' ||
@@ -9692,7 +9645,9 @@ CopilotArgumentFamily _scenarioArgumentFamilyForSignal(String signalId) {
     'positive_streak' ||
     'negative_streak' ||
     'improving_form' ||
-    'declining_form' => CopilotArgumentFamily.form,
+    'declining_form' ||
+    'form_gap' => CopilotArgumentFamily.form,
+    'head_to_head_dominance' => CopilotArgumentFamily.performance,
     'prolific_attack' ||
     'scoring_difficulty' ||
     'high_xg_creation' ||
@@ -9728,7 +9683,9 @@ CopilotEvidenceAction _scenarioEvidenceActionForSignal(String signalId) {
     'positive_streak' ||
     'negative_streak' ||
     'improving_form' ||
-    'declining_form' => CopilotEvidenceAction.form,
+    'declining_form' ||
+    'form_gap' => CopilotEvidenceAction.form,
+    'head_to_head_dominance' => CopilotEvidenceAction.results,
     'prolific_attack' ||
     'scoring_difficulty' ||
     'high_xg_creation' ||
@@ -9991,20 +9948,6 @@ class _FormChronologyHint extends StatelessWidget {
       ),
     );
   }
-}
-
-List<int> _formChartValues(List<String> results) {
-  return results
-      .take(5)
-      .map((result) {
-        return switch (_normalizeResult(result)) {
-          'W' => 3,
-          'D' => 1,
-          'L' => 0,
-          _ => 0,
-        };
-      })
-      .toList(growable: false);
 }
 
 String _recentScoreLabel(TeamRecentMatchSnapshot match) {

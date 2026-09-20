@@ -14,6 +14,7 @@ void main() {
             'readings': [
               {
                 'id': 'positive_streak',
+                'label': 'Dynamique positive',
                 'side': 'home',
                 'subject_team_id': 'api-team-7',
                 'sample_size': 3,
@@ -113,6 +114,7 @@ void main() {
     );
     expect(analysis.displayReadings, hasLength(2));
     expect(analysis.displayReadings.first.evidenceLabel, 'Série positive.');
+    expect(analysis.displayReadings.first.label, 'Dynamique positive');
     expect(
       analysis.displayReadings.first.playerPhotoUrl,
       'https://media.api-sports.io/football/players/278.png',

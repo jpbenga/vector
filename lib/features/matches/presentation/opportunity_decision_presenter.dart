@@ -297,6 +297,8 @@ class FootballReadingCopyCatalog {
     'negative_streak': 'Dynamique négative',
     'improving_form': 'Dynamique en hausse',
     'declining_form': 'Dynamique en baisse',
+    'form_gap': 'Écart de forme',
+    'head_to_head_dominance': 'Domination en tête-à-tête',
     'strong_home_team': 'Solide à domicile',
     'weak_home_team': 'Fragile à domicile',
     'strong_away_team': 'Solide à l’extérieur',
@@ -355,6 +357,7 @@ class FootballReadingCopyCatalog {
         readingId == 'negative_streak' ||
         readingId == 'improving_form' ||
         readingId == 'declining_form' ||
+        readingId == 'form_gap' ||
         readingId == 'strong_recent_form' ||
         readingId == 'weak_recent_form';
   }
@@ -377,7 +380,20 @@ class FootballReadingCopyCatalog {
       if (losses > 0) '$losses défaite${losses > 1 ? 's' : ''}',
     ];
     final record = parts.isEmpty ? '' : ' · ${parts.join(' · ')}';
-    return '$form sur les $size derniers matchs$record.';
+    final orderedFrenchForm = form
+        .split('')
+        .reversed
+        .map(
+          (result) => switch (result) {
+            'W' => 'V',
+            'D' => 'N',
+            'L' => 'D',
+            _ => result,
+          },
+        )
+        .join(', ');
+    return 'Du plus ancien au plus récent : $orderedFrenchForm, '
+        'sur les $size derniers matchs$record.';
   }
 
   static String _numericSummary(

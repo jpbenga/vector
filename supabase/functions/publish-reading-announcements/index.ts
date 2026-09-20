@@ -1,3 +1,8 @@
+import { assessFormGap } from "../_shared/form_gap_policy.ts";
+import {
+  assessHeadToHeadDominance,
+  type HeadToHeadMeeting,
+} from "../_shared/head_to_head_dominance_policy.ts";
 import { assessStructuralGap } from "../_shared/structural_gap_policy.ts";
 
 type JsonObject = Record<string, unknown>;
@@ -167,6 +172,12 @@ Deno.serve(async (request) => {
       venueProfiles,
       standings,
     });
+    const headToHeadAnnouncements = headToHeadDominanceAnnouncementRows({
+      snapshotId,
+      capturedAt,
+      fixtures,
+      headToHead: objectList(raw.head_to_head),
+    });
     const attackDefenseAnnouncements = attackDefenseAnnouncementRows({
       snapshotId,
       capturedAt,
@@ -217,6 +228,7 @@ Deno.serve(async (request) => {
     const baseAnnouncements = [
       ...goalAnnouncements,
       ...levelFormVenueAnnouncements,
+      ...headToHeadAnnouncements,
       ...attackDefenseAnnouncements,
       ...playerAnnouncements,
       ...timingAnnouncements,
@@ -2160,6 +2172,33 @@ function levelFormVenueAnnouncementRows({
       }
     }
 
+    const homeForm = recentForms.get(`${leagueId}:${homeId}`);
+    const awayForm = recentForms.get(`${leagueId}:${awayId}`);
+    if (homeForm !== undefined && awayForm !== undefined) {
+      const formGap = assessFormGap(homeForm.results, awayForm.results);
+      if (formGap !== null) {
+        const subject = formGap.stronger === "home" ? subjects[0] : subjects[1];
+        const opponent = formGap.stronger === "home" ? away : home;
+        rows.push(directionAnnouncement({
+          snapshotId,
+          capturedAt,
+          fixtureId,
+          kickoffAt,
+          leagueId,
+          readingId: "form_gap",
+          label: "Écart de forme",
+          subject,
+          sampleSize: 5,
+          evidence: `${
+            teamName(subject.team)
+          } totalise ${formGap.strongerPoints}/15 contre ${formGap.weakerPoints}/15 pour ${
+            teamName(opponent)
+          }, soit +${formGap.gap} points de forme sur les cinq derniers matchs.`,
+          outcomeRule: "team_not_lose",
+        }));
+      }
+    }
+
     const homeVenue = venueProfiles.get(`${leagueId}:${homeId}`);
     const awayVenue = venueProfiles.get(`${leagueId}:${awayId}`);
     const homeStanding = standings.get(`${leagueId}:${homeId}`);
@@ -2262,6 +2301,141 @@ function levelFormVenueAnnouncementRows({
   return rows;
 }
 
+function headToHeadDominanceAnnouncementRows({
+  snapshotId,
+  capturedAt,
+  fixtures,
+  headToHead,
+}: {
+  snapshotId: string;
+  capturedAt: Date;
+  fixtures: JsonObject[];
+  headToHead: JsonObject[];
+}): JsonObject[] {
+  const rows: JsonObject[] = [];
+  const seenFixtures = new Set<number>();
+  const meetingsByFixtureId = headToHeadMeetingsByFixtureId(headToHead);
+  for (const row of fixtures) {
+    const fixture = objectValue(row.fixture) ?? {};
+    const league = objectValue(row.league) ?? {};
+    const teams = objectValue(row.teams) ?? {};
+    const fixtureId = numberValue(fixture.id);
+    const kickoffAt = dateValue(fixture.date);
+    const leagueId = numberValue(league.id);
+    const home = objectValue(teams.home) ?? {};
+    const away = objectValue(teams.away) ?? {};
+    const homeId = numberValue(home.id);
+    const awayId = numberValue(away.id);
+    if (
+      fixtureId === null || seenFixtures.has(fixtureId) || kickoffAt === null ||
+      kickoffAt <= capturedAt || leagueId === null || homeId === null ||
+      awayId === null
+    ) continue;
+    seenFixtures.add(fixtureId);
+
+    const assessments = assessHeadToHeadDominance({
+      meetings: meetingsByFixtureId.get(fixtureId) ?? [],
+      competitionId: leagueId,
+      homeTeamId: homeId,
+      awayTeamId: awayId,
+    });
+    for (const assessment of assessments) {
+      const subject = assessment.teamId === homeId
+        ? { side: "home" as const, team: home, teamId: homeId }
+        : { side: "away" as const, team: away, teamId: awayId };
+      const opponent = assessment.teamId === homeId ? away : home;
+      const place = assessment.venue === "home"
+        ? "à domicile"
+        : assessment.venue === "away"
+        ? "à l’extérieur"
+        : null;
+      const label = assessment.variant === "total"
+        ? "Domination totale en TAT"
+        : assessment.variant === "unbeaten"
+        ? "Invaincu en TAT"
+        : assessment.variant === "net"
+        ? "Ascendant net en TAT"
+        : place === "à domicile"
+        ? "Domination à domicile en TAT"
+        : "Domination à l’extérieur en TAT";
+      const record =
+        `${assessment.wins} V · ${assessment.draws} N · ${assessment.losses} D`;
+      const evidence = place === null
+        ? assessment.variant === "total"
+          ? `${
+            teamName(subject.team)
+          } a gagné les six dernières confrontations face à ${
+            teamName(opponent)
+          } dans cette compétition : ${record}.`
+          : assessment.variant === "unbeaten"
+          ? `${teamName(subject.team)} reste invaincu face à ${
+            teamName(opponent)
+          } dans cette compétition : ${record} sur les six dernières confrontations.`
+          : `${teamName(subject.team)} garde un ascendant net face à ${
+            teamName(opponent)
+          } dans cette compétition : ${record} sur les six dernières confrontations.`
+        : `${teamName(subject.team)} est invaincu ${place} face à ${
+          teamName(opponent)
+        } dans cette compétition : ${record} sur ${assessment.meetings} confrontations.`;
+      rows.push(directionAnnouncement({
+        snapshotId,
+        capturedAt,
+        fixtureId,
+        kickoffAt,
+        leagueId,
+        readingId: "head_to_head_dominance",
+        label,
+        subject,
+        sampleSize: assessment.meetings,
+        evidence,
+        outcomeRule: "team_not_lose",
+        announcementVariant: `${assessment.variant}:${
+          assessment.venue ?? "all"
+        }`,
+      }));
+    }
+  }
+  return rows;
+}
+
+function headToHeadMeetingsByFixtureId(
+  rows: JsonObject[],
+): Map<number, HeadToHeadMeeting[]> {
+  const result = new Map<number, HeadToHeadMeeting[]>();
+  for (const row of rows) {
+    const fixtureId = numberValue((objectValue(row.fixture) ?? {}).id);
+    if (fixtureId === null) continue;
+    const meetings = objectList(row.matches).flatMap((match) => {
+      const fixture = objectValue(match.fixture) ?? {};
+      const league = objectValue(match.league) ?? {};
+      const teams = objectValue(match.teams) ?? {};
+      const home = objectValue(teams.home) ?? {};
+      const away = objectValue(teams.away) ?? {};
+      const goals = objectValue(match.goals) ?? {};
+      const playedAt = dateValue(fixture.date);
+      const competitionId = numberValue(league.id);
+      const homeTeamId = numberValue(home.id);
+      const awayTeamId = numberValue(away.id);
+      const homeGoals = numberValue(goals.home);
+      const awayGoals = numberValue(goals.away);
+      if (
+        playedAt === null || competitionId === null || homeTeamId === null ||
+        awayTeamId === null || homeGoals === null || awayGoals === null
+      ) return [];
+      return [{
+        competitionId,
+        playedAt: playedAt.getTime(),
+        homeTeamId,
+        awayTeamId,
+        homeGoals,
+        awayGoals,
+      }];
+    });
+    result.set(fixtureId, meetings);
+  }
+  return result;
+}
+
 function formAnnouncementRows({
   snapshotId,
   capturedAt,
@@ -2281,7 +2455,14 @@ function formAnnouncementRows({
 }): JsonObject[] {
   const points = form.results.map(pointsForResult);
   const total = points.reduce((sum, value) => sum + value, 0);
-  const label = form.results.join("");
+  // Provider history is newest first.  A form sequence is a reading aid, so
+  // publish it in the same left-to-right order used everywhere in the product:
+  // oldest match to most recent match, with French result initials.
+  const label = form.results
+    .slice()
+    .reverse()
+    .map((result) => result === "W" ? "V" : result === "D" ? "N" : "D")
+    .join(", ");
   const rows: JsonObject[] = [];
   if (!points.includes(0) && total >= 9) {
     rows.push(directionAnnouncement({
@@ -2296,7 +2477,7 @@ function formAnnouncementRows({
       sampleSize: 5,
       evidence: `${
         teamName(subject.team)
-      } reste invaincu sur ses cinq derniers matchs (${label}, ${total}/15).`,
+      } reste invaincu sur ses cinq derniers matchs (du plus ancien au plus récent : ${label}, ${total}/15).`,
       outcomeRule: "team_not_lose",
     }));
   }
@@ -2313,7 +2494,7 @@ function formAnnouncementRows({
       sampleSize: 5,
       evidence: `${
         teamName(subject.team)
-      } totalise ${total}/15 sur ses cinq derniers matchs (${label}).`,
+      } totalise ${total}/15 sur ses cinq derniers matchs (du plus ancien au plus récent : ${label}).`,
       outcomeRule: "team_loss",
     }));
   }
@@ -2413,6 +2594,7 @@ function directionAnnouncement({
   sampleSize,
   evidence,
   outcomeRule = "team_win",
+  announcementVariant = "1",
 }: {
   snapshotId: string;
   capturedAt: Date;
@@ -2425,11 +2607,12 @@ function directionAnnouncement({
   sampleSize: number;
   evidence: string;
   outcomeRule?: string;
+  announcementVariant?: string;
 }): JsonObject {
   const subjectTeamId = `api-team-${subject.teamId}`;
   return {
     announcement_key:
-      `${fixtureId}:${readingId}:${subject.side}:${subjectTeamId}:1`,
+      `${fixtureId}:${readingId}:${subject.side}:${subjectTeamId}:${announcementVariant}`,
     fixture_id: fixtureId,
     source_snapshot_id: snapshotId,
     league_id: leagueId,

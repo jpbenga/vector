@@ -539,7 +539,10 @@ class _ReadingPreferencesEditorState extends State<_ReadingPreferencesEditor> {
 
 IconData _readingPreferenceIcon(String readingId) {
   return switch (readingId) {
-    'positive_streak' || 'improving_form' => Icons.trending_up_rounded,
+    'positive_streak' ||
+    'improving_form' ||
+    'form_gap' => Icons.trending_up_rounded,
+    'head_to_head_dominance' => Icons.handshake_outlined,
     'negative_streak' || 'declining_form' => Icons.trending_down_rounded,
     'prolific_attack' || 'scoring_difficulty' => Icons.sports_soccer_rounded,
     'solid_defense' ||

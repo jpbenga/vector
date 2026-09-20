@@ -897,7 +897,9 @@ class AppOpportunityPalette extends ThemeExtension<AppOpportunityPalette> {
       'positive_form' ||
       'improving_form' ||
       'form_advantage' ||
+      'form_gap' ||
       'team_better_than_results' => Icons.show_chart_rounded,
+      'head_to_head_dominance' => Icons.handshake_outlined,
       'negative_streak' ||
       'weak_recent_form' ||
       'declining_form' ||
@@ -979,7 +981,9 @@ class AppOpportunityPalette extends ThemeExtension<AppOpportunityPalette> {
       'positive_form' ||
       'improving_form' ||
       'form_advantage' ||
+      'form_gap' ||
       'team_better_than_results' => positiveStreakStyle,
+      'head_to_head_dominance' => solidFavoriteStyle,
       'negative_streak' ||
       'weak_recent_form' ||
       'declining_form' ||

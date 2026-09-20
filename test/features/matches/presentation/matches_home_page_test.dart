@@ -95,6 +95,7 @@ void main() {
                 homeName: 'Chelsea',
                 awayName: 'Tottenham',
                 kickoff: _relativeKickoff(0, hour: 20),
+                markets: [_matchResultMarket()],
               ),
               retainedTheses: [
                 _thesis(
@@ -120,6 +121,7 @@ void main() {
               homeName: 'Chelsea',
               awayName: 'Tottenham',
               kickoff: _relativeKickoff(0, hour: 20),
+              markets: [_matchResultMarket()],
             ),
           ],
         ),
@@ -129,6 +131,14 @@ void main() {
       expect(find.text('Ma sélection'), findsNothing);
       expect(find.text('Chelsea'), findsWidgets);
       expect(find.text('Tottenham'), findsWidgets);
+      expect(
+        find.byKey(const ValueKey('for-me-competition-country-flag-61')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('story-match-result-odds-chelsea-spurs')),
+        findsOneWidget,
+      );
       expect(find.text('3 lectures'), findsOneWidget);
       expect(find.text('Écart de niveau structurel'), findsOneWidget);
       expect(find.text('Tous les matchs'), findsNothing);
@@ -405,6 +415,7 @@ void main() {
                 competitionId: '40',
                 competitionName: 'Championship',
                 kickoff: _relativeKickoff(0, hour: 13),
+                markets: [_matchResultMarket()],
                 analysis: const MatchAnalysisData(
                   computedReadings: [
                     MatchComputedReading(
@@ -429,7 +440,13 @@ void main() {
 
         expect(find.text('Cardiff'), findsOneWidget);
         expect(find.text('Charlton'), findsOneWidget);
-        expect(find.text('Lecture'), findsOneWidget);
+        expect(find.byTooltip('Lecture disponible'), findsOneWidget);
+        expect(
+          find.byKey(
+            const ValueKey('dense-match-result-odds-match_result_home'),
+          ),
+          findsOneWidget,
+        );
       },
     );
 
@@ -524,13 +541,13 @@ void main() {
       final rankingMatch = readingMatch(
         id: 'ranking-match',
         homeName: 'Ranking FC',
-        readingId: 'ranking_gap',
+        readingId: 'scenario:ranking_gap',
         title: 'Écart de niveau structurel',
       );
       final attackMatch = readingMatch(
         id: 'attack-match',
         homeName: 'Attack FC',
-        readingId: 'prolific_attack',
+        readingId: 'scenario:prolific_attack',
         title: 'Attaque efficace',
       );
 
@@ -591,47 +608,48 @@ void main() {
       expect(find.text('Attack FC'), findsOneWidget);
     });
 
-    testWidgets('builds filter sections from selected reading preferences', (
-      tester,
-    ) async {
-      final xgMatch =
-          _match(
-            id: 'xg-reading-match',
-            homeName: 'xG FC',
-            awayName: 'Away xG FC',
-            kickoff: _relativeKickoff(0, hour: 20),
-          ).copyWith(
-            signals: [
-              MatchSignal(
-                id: 'high_xg_creation',
-                title: 'Création xG élevée',
-                summary: 'Création xG élevée détectée.',
-                proofs: const ['Signal xG confirmé.'],
-              ),
-            ],
-          );
+    testWidgets(
+      'keeps a selected reading distinct from an unselected scenario with the same id',
+      (tester) async {
+        final xgMatch =
+            _match(
+              id: 'xg-reading-match',
+              homeName: 'xG FC',
+              awayName: 'Away xG FC',
+              kickoff: _relativeKickoff(0, hour: 20),
+            ).copyWith(
+              signals: [
+                MatchSignal(
+                  id: 'prolific_attack',
+                  title: 'Attaque prolifique',
+                  summary: 'Attaque prolifique détectée.',
+                  proofs: const ['Lecture attaque confirmée.'],
+                ),
+              ],
+            );
 
-      await _pumpPage(
-        tester,
-        profile: _completedProfile().withOptionIds('readings', [
-          'high_xg_creation',
-          'fragile_defense',
-        ]),
-        repository: _FakeMatchFeedRepository(
-          opportunities: const [],
-          matches: [xgMatch],
-          personalizedMatches: [xgMatch],
-        ),
-      );
+        await _pumpPage(
+          tester,
+          profile: _completedProfile().withOptionIds('readings', [
+            'prolific_attack',
+            'fragile_defense',
+          ]),
+          repository: _FakeMatchFeedRepository(
+            opportunities: const [],
+            matches: [xgMatch],
+            personalizedMatches: [xgMatch],
+          ),
+        );
 
-      await tester.tap(find.byKey(const ValueKey('for-me-open-filters')));
-      await tester.pumpAndSettle();
-      expect(
-        find.byKey(const ValueKey('for-me-reading-option-attack')),
-        findsOneWidget,
-      );
-      expect(find.text('Attaque / xG'), findsOneWidget);
-    });
+        await tester.tap(find.byKey(const ValueKey('for-me-open-filters')));
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('for-me-reading-option-attack')),
+          findsOneWidget,
+        );
+        expect(find.text('Attaque / xG'), findsOneWidget);
+      },
+    );
 
     testWidgets(
       'filters For me stories by competition and clears the temporary filter',
@@ -801,7 +819,7 @@ void main() {
         final second = readingMatch('fragile-b', 'Beta FC');
         await _pumpPage(
           tester,
-          profile: _completedProfile().withOptionIds('opportunity_profiles', [
+          profile: _completedProfile().withOptionIds('readings', [
             'fragile_defense',
           ]),
           repository: _FakeMatchFeedRepository(
@@ -815,11 +833,11 @@ void main() {
         await tester.pumpAndSettle();
 
         final filter = find.byKey(
-          const ValueKey('for-me-reading-option-fragile_defense'),
+          const ValueKey('for-me-reading-option-defense'),
         );
         expect(filter, findsOneWidget);
         expect(
-          find.descendant(of: filter, matching: find.text('Défense fragile')),
+          find.descendant(of: filter, matching: find.text('Défense')),
           findsOneWidget,
         );
         await tester.tap(filter);
@@ -1095,6 +1113,7 @@ void main() {
         await _pumpMatchDetail(tester, match: match);
 
         expect(find.text('Victoire de Fram Reykjavik'), findsOneWidget);
+        expect(find.text('CHOIX LECTOR'), findsOneWidget);
         expect(find.text('Cote indisponible'), findsOneWidget);
         expect(
           find.text('Paris liés à vos lectures et scénarios'),
@@ -1149,6 +1168,7 @@ void main() {
         expect(find.text('MATCH À SUIVRE'), findsOneWidget);
         expect(find.text('AS Roma gagne'), findsNothing);
         expect(find.text('Inter gagne'), findsNothing);
+        expect(find.textContaining('Aucun choix automatique'), findsOneWidget);
         expect(
           find.textContaining(
             'ne permettent pas de mettre une équipe en avant',
@@ -1574,6 +1594,18 @@ void main() {
           awayApiTeamId: 202,
           kickoff: _relativeKickoff(0, hour: 17),
           analysis: MatchAnalysisData(
+            computedReadings: const [
+              MatchComputedReading(
+                id: 'head_to_head_dominance',
+                subjectTeamId: 'api-team-202',
+                side: 'away',
+                strength: 'strong',
+                isContradiction: false,
+                label: 'Domination à l’extérieur en TAT',
+                evidenceLabel:
+                    'Lillestrom est invaincu à l’extérieur face à Viking dans cette compétition : 3 V · 0 N · 0 D sur 3 confrontations.',
+              ),
+            ],
             headToHeadMatches: [
               HeadToHeadFixtureSnapshot(
                 competitionId: 103,
@@ -1619,10 +1651,17 @@ void main() {
 
         expect(find.text('Confrontation directe'), findsOneWidget);
         expect(
-          find.text('Championnat uniquement · coupes et amicaux exclus.'),
+          find.text('Même compétition uniquement · autres contextes exclus.'),
+          findsOneWidget,
+        );
+        expect(find.text('Lecture TAT'), findsOneWidget);
+        expect(find.text('Domination à l’extérieur en TAT'), findsOneWidget);
+        expect(
+          find.textContaining('Lillestrom est invaincu à l’extérieur'),
           findsOneWidget,
         );
         expect(find.textContaining('Viking 2–0 Lillestrom'), findsOneWidget);
+        expect(find.text('10.05.26'), findsOneWidget);
         expect(find.text('Coupe Lillestrom'), findsNothing);
       },
     );
@@ -1725,7 +1764,7 @@ void main() {
     );
 
     testWidgets(
-      'shows compact server readings in the detail sheet without local signals',
+      'shows compact canonical readings in the detail sheet without local signals',
       (tester) async {
         final match = _match(
           id: 'compact-detail',
@@ -1735,13 +1774,12 @@ void main() {
           analysis: const MatchAnalysisData(
             computedReadings: [
               MatchComputedReading(
-                id: 'form_advantage',
+                id: 'positive_streak',
                 subjectTeamId: 'compact-detail-home',
                 side: 'home',
                 strength: 'moderate',
                 isContradiction: false,
-                evidenceLabel:
-                    'Tottenham totalise davantage de points sur les trois derniers matchs.',
+                evidenceLabel: 'Tottenham enchaîne des résultats favorables.',
               ),
             ],
           ),
@@ -1753,11 +1791,12 @@ void main() {
 
         expect(find.text('Pourquoi ce match est proposé'), findsOneWidget);
         expect(find.text('Autres lectures du match'), findsOneWidget);
-        expect(find.text('Avantage de forme pour Tottenham'), findsNWidgets(2));
         expect(
-          find.text(
-            'Tottenham totalise davantage de points sur les trois derniers matchs.',
-          ),
+          find.text('Dynamique positive pour Tottenham'),
+          findsNWidgets(2),
+        );
+        expect(
+          find.text('Tottenham enchaîne des résultats favorables.'),
           findsNWidgets(2),
         );
         expect(
@@ -1765,6 +1804,47 @@ void main() {
             'Aucune lecture moteur détaillée disponible pour cette rencontre.',
           ),
           findsNothing,
+        );
+      },
+    );
+
+    testWidgets(
+      'does not present technical support as a user reading in the detail sheet',
+      (tester) async {
+        final match = _match(
+          id: 'technical-detail',
+          homeName: 'Tottenham',
+          awayName: 'Aston Villa',
+          kickoff: _relativeKickoff(0, hour: 13),
+          analysis: const MatchAnalysisData(
+            computedReadings: [
+              MatchComputedReading(
+                id: 'form_advantage',
+                subjectTeamId: 'technical-detail-home',
+                side: 'home',
+                strength: 'moderate',
+                isContradiction: false,
+                evidenceLabel:
+                    'Tottenham totalise davantage de points sur les cinq derniers matchs.',
+              ),
+            ],
+          ),
+        );
+
+        await _pumpMatchDetail(tester, match: match);
+        await tester.tap(find.text('Voir le détail'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Autres lectures du match'), findsNothing);
+        // The compact context behind the sheet may still expose this raw
+        // support fact. It must not be promoted into the detail sheet as a
+        // selectable user reading.
+        expect(find.text('Avantage de forme pour Tottenham'), findsOneWidget);
+        expect(
+          find.text(
+            'Aucune lecture moteur détaillée disponible pour cette rencontre.',
+          ),
+          findsOneWidget,
         );
       },
     );
@@ -1909,7 +1989,7 @@ void main() {
         homeName: 'Alpha FC',
         awayName: 'Beta FC',
         kickoff: _relativeKickoff(0, hour: 18),
-        analysis: const MatchAnalysisData(
+        analysis: MatchAnalysisData(
           // Raw snapshots are stored newest first by the backend.
           homeRecentLeagueMatches: [
             TeamRecentMatchSnapshot(
@@ -1918,6 +1998,7 @@ void main() {
               result: 'W',
               goalsFor: 2,
               goalsAgainst: 0,
+              playedAt: DateTime.utc(2026, 9, 19),
             ),
             TeamRecentMatchSnapshot(
               opponentName: 'Adversaire intermédiaire',
@@ -1925,6 +2006,7 @@ void main() {
               result: 'D',
               goalsFor: 1,
               goalsAgainst: 1,
+              playedAt: DateTime.utc(2026, 9, 12),
             ),
             TeamRecentMatchSnapshot(
               opponentName: 'Premier adversaire',
@@ -1932,6 +2014,7 @@ void main() {
               result: 'L',
               goalsFor: 0,
               goalsAgainst: 1,
+              playedAt: DateTime.utc(2026, 9, 5),
             ),
           ],
           awayRecentLeagueMatches: [
@@ -1941,6 +2024,7 @@ void main() {
               result: 'W',
               goalsFor: 1,
               goalsAgainst: 0,
+              playedAt: DateTime.utc(2026, 9, 18),
             ),
           ],
         ),
@@ -1951,9 +2035,51 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Du plus ancien au plus récent'), findsWidgets);
+      expect(find.text('05.09.26'), findsOneWidget);
+      expect(find.text('12.09.26'), findsOneWidget);
+      expect(find.text('19.09.26'), findsOneWidget);
       expect(
         tester.getTopLeft(find.text('Premier adversaire')).dy,
         lessThan(tester.getTopLeft(find.text('Dernier adversaire')).dy),
+      );
+    });
+
+    testWidgets('renders fresh French form sequences in their published order', (
+      tester,
+    ) async {
+      final match = _match(
+        id: 'fresh-french-form',
+        homeName: 'Alpha FC',
+        awayName: 'Beta FC',
+        kickoff: _relativeKickoff(0, hour: 18),
+        analysis: const MatchAnalysisData(
+          computedReadings: [
+            MatchComputedReading(
+              id: 'positive_streak',
+              subjectTeamId: 'fresh-french-form-home',
+              side: 'home',
+              strength: 'moderate',
+              isContradiction: false,
+              evidenceLabel:
+                  'Alpha FC reste invaincu sur ses cinq derniers matchs (du plus ancien au plus récent : V, N, V, V, N, 11/15).',
+            ),
+          ],
+        ),
+      );
+
+      await _pumpMatchDetail(tester, match: match);
+
+      final evidence = tester.widget<RichText>(
+        find.descendant(
+          of: find.byKey(
+            const ValueKey('context-reading-evidence-positive_streak-Alpha FC'),
+          ),
+          matching: find.byType(RichText),
+        ),
+      );
+      expect(
+        evidence.text.toPlainText(),
+        'Alpha FC reste invaincu sur ses cinq derniers matchs (du plus ancien au plus récent : V, N, V, V, N, 11/15).',
       );
     });
 
@@ -2371,6 +2497,8 @@ void main() {
     testWidgets(
       'opens Lector space and appearance submenu instead of onboarding',
       (tester) async {
+        final originalTheme = appThemeController.variant;
+        addTearDown(() => appThemeController.select(originalTheme));
         await _pumpPage(
           tester,
           repository: _FakeMatchFeedRepository(opportunities: const []),
@@ -2409,13 +2537,32 @@ void main() {
           find.byKey(const ValueKey('appearance-theme-preview-vectorDark')),
           findsOneWidget,
         );
+        for (final variant in [
+          AppThemeVariant.dracula,
+          AppThemeVariant.tokyoNight,
+          AppThemeVariant.catppuccinMocha,
+          AppThemeVariant.catppuccinLatte,
+          AppThemeVariant.solarizedLight,
+          AppThemeVariant.quietLight,
+        ]) {
+          final themeChoice = find.byKey(
+            ValueKey('appearance-theme-${variant.name}'),
+          );
+          await tester.scrollUntilVisible(
+            themeChoice,
+            300,
+            scrollable: find.byType(Scrollable),
+          );
+          expect(themeChoice, findsOneWidget);
+        }
 
-        await tester.tap(
-          find.byKey(const ValueKey('appearance-theme-vectorLight')),
+        final quietLight = find.byKey(
+          const ValueKey('appearance-theme-quietLight'),
         );
+        await tester.tap(quietLight);
         await tester.pumpAndSettle();
 
-        expect(appThemeController.variant, AppThemeVariant.vectorLight);
+        expect(appThemeController.variant, AppThemeVariant.quietLight);
       },
     );
 
@@ -3283,6 +3430,33 @@ MatchMarket _doubleChanceMarket() {
     ],
     bookmakerId: 16,
     bookmakerName: 'Unibet',
+  );
+}
+
+MatchMarket _matchResultMarket() {
+  return const MatchMarket(
+    id: 'matchResult',
+    label: 'Résultat du match',
+    selections: [
+      MarketOdds(
+        id: 'match_result_home',
+        label: 'Domicile',
+        odds: 1.82,
+        apiFootballValue: 'Home',
+      ),
+      MarketOdds(
+        id: 'match_result_draw',
+        label: 'Nul',
+        odds: 3.55,
+        apiFootballValue: 'Draw',
+      ),
+      MarketOdds(
+        id: 'match_result_away',
+        label: 'Extérieur',
+        odds: 4.10,
+        apiFootballValue: 'Away',
+      ),
+    ],
   );
 }
 

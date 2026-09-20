@@ -32,3 +32,18 @@ jobs:
 
       - name: Test
         run: flutter test
+
+  supabase-functions:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Test Supabase reading policies
+        run: deno test supabase/functions/_shared

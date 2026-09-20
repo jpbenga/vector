@@ -1473,8 +1473,11 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
   }
 
   Set<String> get _selectedReadingIds {
+    return widget.profile.optionIdsFor('readings').toSet();
+  }
+
+  Set<String> get _selectedScenarioIds {
     return {
-      ...widget.profile.optionIdsFor('readings'),
       ...widget.profile.optionIdsFor('opportunity_profiles'),
       ...widget.profile.optionIdsFor('match_types'),
     };
@@ -1513,13 +1516,16 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
   }
 
   List<_ForMeReading> _profileReadings(MatchBoardItem match) {
-    final selectedProfileIds = _selectedReadingIds;
+    final selectedReadingIds = _selectedReadingIds;
+    final selectedScenarioIds = _selectedScenarioIds;
     final readingsById = <String, _ForMeReading>{};
 
-    void add(String runtimeId) {
+    void add(String runtimeId, {required bool isScenario}) {
       final category = _ForMeReadingCategory.fromRuntimeId(
         runtimeId,
-        selectedProfileIds: selectedProfileIds,
+        selectedReadingIds: selectedReadingIds,
+        selectedScenarioIds: selectedScenarioIds,
+        isScenario: isScenario,
       );
       if (category == null || readingsById.containsKey(category.id)) {
         return;
@@ -1532,14 +1538,14 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
 
     final thesis = match.thesis;
     if (thesis != null) {
-      add(thesis.id);
+      add(thesis.id, isScenario: true);
       for (final argument in thesis.arguments) {
         final readingId = FootballReadingCopyCatalog.readingIdFor(argument);
-        add(readingId);
+        add(readingId, isScenario: false);
       }
     }
     for (final signal in match.signals) {
-      add(signal.id);
+      add(signal.id, isScenario: signal.id.startsWith('scenario:'));
     }
 
     return readingsById.values.toList(growable: false);
@@ -1760,27 +1766,26 @@ class _ForMeReadingCategory {
 
   static _ForMeReadingCategory? fromRuntimeId(
     String runtimeId, {
-    required Set<String> selectedProfileIds,
+    required Set<String> selectedReadingIds,
+    required Set<String> selectedScenarioIds,
+    required bool isScenario,
   }) {
-    final scenarioId = runtimeId.startsWith('scenario:')
-        ? runtimeId.split(':').elementAtOrNull(1)
-        : OpportunityProfileCatalog.byId(runtimeId)?.id;
-    if (scenarioId != null) {
-      if (selectedProfileIds.isNotEmpty &&
-          !selectedProfileIds.contains(scenarioId)) {
+    if (isScenario) {
+      final scenarioId = runtimeId.startsWith('scenario:')
+          ? runtimeId.split(':').elementAtOrNull(1)
+          : OpportunityProfileCatalog.byId(runtimeId)?.id;
+      if (scenarioId == null || !selectedScenarioIds.contains(scenarioId)) {
         return null;
       }
       return _categoriesByProfileId[scenarioId];
     }
 
+    if (!ReadingPreferenceCatalog.contains(runtimeId) ||
+        !selectedReadingIds.contains(runtimeId)) {
+      return null;
+    }
     final readingCategoryId = _readingCategoryId(runtimeId);
-    if (readingCategoryId == null ||
-        (selectedProfileIds.isNotEmpty &&
-            !selectedProfileIds.any(
-              (selectedId) =>
-                  selectedId == runtimeId ||
-                  _readingCategoryId(selectedId) == readingCategoryId,
-            ))) {
+    if (readingCategoryId == null) {
       return null;
     }
     return _categoriesByReadingId[readingCategoryId];
@@ -1795,7 +1800,8 @@ class _ForMeReadingCategory {
       'negative_streak' ||
       'improving_form' ||
       'declining_form' ||
-      'form_advantage' => 'form',
+      'form_advantage' ||
+      'form_gap' => 'form',
       'strong_home_team' ||
       'weak_home_team' ||
       'strong_away_team' ||
@@ -1821,6 +1827,7 @@ class _ForMeReadingCategory {
       'frequent_btts' ||
       'closed_match_profile' ||
       'frequent_under_25' => 'goals',
+      'head_to_head_dominance' => 'context',
       'standout_decisive_player' => 'scorers',
       'frequent_first_half_scoring' ||
       'frequent_first_half_conceding' ||
@@ -1911,8 +1918,12 @@ String _readingLabelForId(String id, {required String fallback}) {
     'ranking_gap' || 'structural_level_gap' => 'Avantage classement',
     'ranking_superiority' => 'Écart au classement',
     'balanced_hierarchy' => 'Hiérarchie équilibrée',
-    'positive_streak' || 'improving_form' || 'form_advantage' => 'Forme',
+    'positive_streak' ||
+    'improving_form' ||
+    'form_advantage' ||
+    'form_gap' => 'Forme',
     'negative_streak' || 'declining_form' => 'Dynamique négative',
+    'head_to_head_dominance' => 'Domination TAT',
     'frequent_first_half_scoring' => 'Marque en première mi-temps',
     'frequent_first_half_conceding' => 'Encaisse en première mi-temps',
     'frequent_second_half_scoring' => 'Marque en seconde mi-temps',
@@ -2022,7 +2033,7 @@ class _HeaderThemeToggleButton extends StatelessWidget {
     return ValueListenableBuilder<AppThemeVariant>(
       valueListenable: appThemeController,
       builder: (context, variant, _) {
-        final isLight = variant == AppThemeVariant.vectorLight;
+        final isLight = variant.isLight;
         return IconButton(
           tooltip: isLight ? 'Passer en thème sombre' : 'Passer en thème clair',
           onPressed: appThemeController.toggleBrightness,
@@ -3930,6 +3941,19 @@ class _ForMeCompetitionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final content = Row(
       children: [
+        Semantics(
+          label: 'Pays : ${competition.country.name}',
+          image: true,
+          child: SportsAssetBadge(
+            key: ValueKey('for-me-competition-country-flag-${competition.id}'),
+            size: 20,
+            imageUrl: competition.country.flagUrl,
+            fallbackLabel: competition.country.code,
+            borderRadius: 3,
+            padding: 0,
+          ),
+        ),
+        const SizedBox(width: 6),
         SportsAssetBadge(
           size: 24,
           imageUrl: competition.logoUrl,
@@ -4120,6 +4144,18 @@ class _StoryCompetitionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final countryFlag = Semantics(
+      label: 'Pays : ${match.competition.country.name}',
+      image: true,
+      child: SportsAssetBadge(
+        key: ValueKey('story-country-flag-${match.id}'),
+        size: 20,
+        imageUrl: match.competition.country.flagUrl,
+        fallbackLabel: match.competition.country.code,
+        borderRadius: 3,
+        padding: 0,
+      ),
+    );
     final logo = SportsAssetBadge(
       size: 24,
       imageUrl: match.competition.logoUrl,
@@ -4142,7 +4178,6 @@ class _StoryCompetitionHeader extends StatelessWidget {
         fontWeight: FontWeight.w700,
       ),
     );
-
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < 480) {
@@ -4151,6 +4186,8 @@ class _StoryCompetitionHeader extends StatelessWidget {
             children: [
               Row(
                 children: [
+                  countryFlag,
+                  const SizedBox(width: 6),
                   logo,
                   const SizedBox(width: 8),
                   Expanded(child: competitionName),
@@ -4161,7 +4198,7 @@ class _StoryCompetitionHeader extends StatelessWidget {
                 ],
               ),
               Padding(
-                padding: const EdgeInsets.only(left: 32, top: 2),
+                padding: const EdgeInsets.only(left: 58, top: 2),
                 child: kickoff,
               ),
             ],
@@ -4170,6 +4207,8 @@ class _StoryCompetitionHeader extends StatelessWidget {
 
         return Row(
           children: [
+            countryFlag,
+            const SizedBox(width: 6),
             logo,
             const SizedBox(width: 8),
             Flexible(child: competitionName),
@@ -4487,12 +4526,23 @@ class _StoryTeams extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final resultOdds = _matchResultOddsFor(match);
+    return Row(
       children: [
-        _StoryTeamLine(team: match.homeTeam),
-        const SizedBox(height: 8),
-        _StoryTeamLine(team: match.awayTeam),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _StoryTeamLine(team: match.homeTeam),
+              const SizedBox(height: 10),
+              _StoryTeamLine(team: match.awayTeam),
+            ],
+          ),
+        ),
+        if (resultOdds.length == 3) ...[
+          const SizedBox(width: 10),
+          _StoryMatchResultOdds(matchId: match.id, resultOdds: resultOdds),
+        ],
       ],
     );
   }
@@ -4930,6 +4980,7 @@ class _DenseMatchRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final reading = _compactReadingLabel(match);
+    final resultOdds = _matchResultOddsFor(match);
 
     return Material(
       color: AppColors.transparent,
@@ -4963,17 +5014,24 @@ class _DenseMatchRow extends StatelessWidget {
               Container(width: 1, height: 40, color: context.surfaces.border),
               const SizedBox(width: 10),
               Expanded(
-                child: Column(
-                  children: [
-                    _DenseTeamLine(team: match.homeTeam),
-                    const SizedBox(height: AppSpacing.xs),
-                    _DenseTeamLine(team: match.awayTeam),
-                  ],
+                child: SizedBox(
+                  height: 48,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _DenseTeamLine(team: match.homeTeam),
+                      _DenseTeamLine(team: match.awayTeam),
+                    ],
+                  ),
                 ),
               ),
               if (reading != null) ...[
                 const SizedBox(width: 6),
                 _CompactReadingBadge(label: reading),
+              ],
+              if (resultOdds.length == 3) ...[
+                const SizedBox(width: 7),
+                _DenseMatchResultOdds(resultOdds: resultOdds),
               ],
               const SizedBox(width: 4),
               Icon(
@@ -5028,31 +5086,134 @@ class _CompactReadingBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.brand.accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadius.chip),
-        border: Border.all(color: context.brand.accent.withValues(alpha: 0.72)),
+    return Semantics(
+      label: 'Lecture disponible : $label',
+      child: Tooltip(
+        message: 'Lecture disponible',
+        child: SizedBox(
+          width: 20,
+          height: 28,
+          child: Center(
+            child: Icon(
+              Icons.radar_rounded,
+              size: 17,
+              color: context.brand.accent,
+            ),
+          ),
+        ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.radar_rounded, size: 13, color: context.brand.accent),
-            const SizedBox(width: 4),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 66),
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: context.brand.accent,
+    );
+  }
+}
+
+class _StoryMatchResultOdds extends StatelessWidget {
+  const _StoryMatchResultOdds({
+    required this.matchId,
+    required this.resultOdds,
+  });
+
+  final String matchId;
+  final List<_MatchResultOdd> resultOdds;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Cotes 1 N 2',
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            key: ValueKey('story-match-result-odds-$matchId'),
+            width: 47,
+            height: 66,
+            child: Column(
+              children: [
+                _StoryResultOddLine(odd: resultOdds[0]),
+                const SizedBox(height: 10),
+                _StoryResultOddLine(odd: resultOdds[1]),
+                const SizedBox(height: 10),
+                _StoryResultOddLine(odd: resultOdds[2]),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StoryResultOddLine extends StatelessWidget {
+  const _StoryResultOddLine({required this.odd});
+
+  final _MatchResultOdd odd;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      height: (66 - 20) / 3,
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: RichText(
+          text: TextSpan(
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: context.textColors.secondary,
+              fontWeight: FontWeight.w800,
+            ),
+            children: [
+              TextSpan(text: '${odd.label} '),
+              TextSpan(
+                text: odd.value.odds.toStringAsFixed(2),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: context.textColors.primary,
                   fontWeight: FontWeight.w900,
                 ),
               ),
-            ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DenseMatchResultOdds extends StatelessWidget {
+  const _DenseMatchResultOdds({required this.resultOdds});
+
+  final List<_MatchResultOdd> resultOdds;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      label: 'Cotes 1 N 2',
+      child: SizedBox(
+        key: ValueKey('dense-match-result-odds-${resultOdds.first.value.id}'),
+        width: 47,
+        height: 48,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            for (final odd in resultOdds)
+              RichText(
+                text: TextSpan(
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: context.textColors.secondary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                  children: [
+                    TextSpan(text: '${odd.label} '),
+                    TextSpan(
+                      text: odd.value.odds.toStringAsFixed(2),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: context.textColors.primary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -5207,6 +5368,51 @@ String? _compactReadingLabel(MatchBoardItem match) {
     return 'Fermé';
   }
   return 'Lecture';
+}
+
+class _MatchResultOdd {
+  const _MatchResultOdd({required this.label, required this.value});
+
+  final String label;
+  final MarketOdds value;
+}
+
+/// Returns the canonical 1/N/2 market in its visual order.  Home cards only
+/// expose the basic result market; they never substitute an unrelated market
+/// merely to fill the available space.
+List<_MatchResultOdd> _matchResultOddsFor(MatchBoardItem match) {
+  MatchMarket? market;
+  for (final candidate in match.availableMarkets) {
+    if (candidate.id == 'matchResult') {
+      market = candidate;
+      break;
+    }
+  }
+  if (market == null) return const [];
+
+  MarketOdds? selectionFor(String expectedValue) {
+    for (final selection in market!.selections) {
+      final apiValue = selection.apiFootballValue?.toLowerCase();
+      final label = selection.label.trim().toLowerCase();
+      if (apiValue == expectedValue || label == expectedValue) {
+        return selection;
+      }
+    }
+    return null;
+  }
+
+  final home = selectionFor('home');
+  final draw = selectionFor('draw');
+  final away = selectionFor('away');
+  if (home == null || draw == null || away == null) return const [];
+  if (!home.odds.isFinite || !draw.odds.isFinite || !away.odds.isFinite) {
+    return const [];
+  }
+  return [
+    _MatchResultOdd(label: '1', value: home),
+    _MatchResultOdd(label: 'N', value: draw),
+    _MatchResultOdd(label: '2', value: away),
+  ];
 }
 
 String _freeReadingCopy(String value) {

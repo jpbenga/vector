@@ -7,12 +7,14 @@ import 'core/config/app_config.dart';
 import 'core/di/service_locator.dart';
 import 'core/identity/identity_controller.dart';
 import 'core/supabase/supabase_initializer.dart';
+import 'core/theme/app_theme_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   usePathUrlStrategy();
 
   final config = AppConfig.fromEnvironment();
+  await appThemeController.restore(SharedPreferencesThemePreferenceStore());
   await configureDependencies(config);
   await getIt<SupabaseInitializer>().initialize();
   await getIt<SupabaseAuthController>().start();

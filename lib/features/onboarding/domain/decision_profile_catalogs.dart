@@ -831,6 +831,12 @@ class ReadingPreferenceCatalog {
       description: 'Les résultats récents se dégradent.',
     ),
     ReadingPreferenceDefinition(
+      id: 'form_gap',
+      label: 'Écart de forme',
+      description:
+          'Une équipe possède au moins neuf points de plus sur les cinq derniers matchs.',
+    ),
+    ReadingPreferenceDefinition(
       id: 'strong_home_team',
       label: 'Solide à domicile',
       description: 'Une équipe se distingue dans ses matchs à domicile.',
@@ -908,6 +914,12 @@ class ReadingPreferenceCatalog {
       description: 'Les résultats ne reflètent pas entièrement les xG.',
     ),
     ReadingPreferenceDefinition(
+      id: 'head_to_head_dominance',
+      label: 'Domination en tête-à-tête',
+      description:
+          'Une équipe domine les six dernières confrontations dans la même compétition.',
+    ),
+    ReadingPreferenceDefinition(
       id: 'frequent_first_half_scoring',
       label: 'Marque souvent en première mi-temps',
       description:
@@ -952,38 +964,12 @@ class ReadingPreferenceCatalog {
     return ids.isEmpty ? null : ids.first;
   }
 
-  /// A compact snapshot may use a factual id which represents one of the
-  /// readings selected in the profile. Keep this translation at the catalog
-  /// boundary so the server contract, the profile and the presentation all
-  /// make the same eligibility decision.
-  static Set<String> preferenceIdsForReading(String readingId) {
-    if (readingId == 'standout_goal_scorer' ||
-        readingId == 'standout_creator') {
-      return const {'standout_decisive_player'};
-    }
-    if (readingId == 'form_advantage') {
-      return const {'positive_streak', 'improving_form'};
-    }
-    if (readingId == 'ranking_superiority' ||
-        readingId == 'ranking_inferiority') {
-      return const {'structural_level_gap'};
-    }
-    if (readingId == 'venue_strength') {
-      return const {'strong_home_team', 'strong_away_team'};
-    }
-    if (readingId == 'high_xg_creation' || readingId == 'attack_in_form') {
-      return const {'prolific_attack'};
-    }
-    if (readingId == 'low_xg_creation' ||
-        readingId == 'offensive_underperformance') {
-      return const {'scoring_difficulty'};
-    }
-    if (readingId == 'high_xg_conceded' ||
-        readingId == 'defensive_underperformance') {
-      return const {'fragile_defense'};
-    }
-    return contains(readingId) ? {readingId} : const {};
-  }
+  /// A user preference matches only the same canonical reading id.
+  ///
+  /// Technical evidence and scenario support must never be promoted into a
+  /// different user-facing reading at this boundary.
+  static Set<String> preferenceIdsForReading(String readingId) =>
+      contains(readingId) ? {readingId} : const {};
 
   static Set<String> normalizeSelectionIds(Iterable<String> readingIds) => {
     for (final readingId in readingIds) ?preferenceIdForReading(readingId),
@@ -1018,6 +1004,7 @@ class ReadingPreferenceCategoryCatalog {
         'negative_streak',
         'improving_form',
         'declining_form',
+        'form_gap',
         'strong_home_team',
         'weak_home_team',
         'strong_away_team',
@@ -1060,7 +1047,7 @@ class ReadingPreferenceCategoryCatalog {
     ReadingPreferenceCategory(
       id: 'context',
       label: 'Contexte et nuances',
-      readingIds: ['misleading_result'],
+      readingIds: ['misleading_result', 'head_to_head_dominance'],
     ),
     ReadingPreferenceCategory(
       id: 'player_statistics',
