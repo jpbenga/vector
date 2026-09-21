@@ -57,6 +57,56 @@ void main() {
       expect(filterSize.height, primarySize.height);
     });
 
+    testWidgets('reloads the remote snapshot when the selected day changes', (
+      tester,
+    ) async {
+      final today = _dayOnly(DateTime.now());
+      final nextDay = DateTime(today.year, today.month, today.day + 1);
+      final requestedDates = <DateTime>[];
+      final todayRepository = _FakeMatchFeedRepository(
+        opportunities: const [],
+        matches: [
+          _match(
+            id: 'today-fixture',
+            homeName: 'Today FC',
+            awayName: 'Home FC',
+            kickoff: _relativeKickoff(0, hour: 20),
+          ),
+        ],
+      );
+      final nextDayRepository = _FakeMatchFeedRepository(
+        opportunities: const [],
+        matches: [
+          _match(
+            id: 'next-day-fixture',
+            homeName: 'Tomorrow FC',
+            awayName: 'Away FC',
+            kickoff: _relativeKickoff(1, hour: 20),
+          ),
+        ],
+      );
+
+      await _pumpPage(
+        tester,
+        repositoryForDateLoader: (date) async {
+          final day = _dayOnly(date);
+          requestedDates.add(day);
+          return day == nextDay ? nextDayRepository : todayRepository;
+        },
+      );
+
+      await tester.tap(find.text('Tous'));
+      await tester.pumpAndSettle();
+      expect(find.text('Today FC'), findsOneWidget);
+
+      await tester.tap(find.text(_calendarLabel(nextDay)));
+      await tester.pumpAndSettle();
+
+      expect(requestedDates, [today, nextDay]);
+      expect(find.text('Tomorrow FC'), findsOneWidget);
+      expect(find.text('Today FC'), findsNothing);
+    });
+
     testWidgets('opens the global Bilan without the daily match calendar', (
       tester,
     ) async {
@@ -1705,6 +1755,30 @@ void main() {
                     'minutes': 248,
                     'contributions_per_90': 1.45,
                   },
+                  'activity': [
+                    {
+                      'fixture_id': 'history-1',
+                      'played_at': '2026-08-20T18:00:00Z',
+                      'source': 'club',
+                      'source_name': 'Monaco',
+                      'appeared': true,
+                      'starter': true,
+                      'substitute': false,
+                      'goals': 1,
+                      'assists': 0,
+                    },
+                    {
+                      'fixture_id': 'history-2',
+                      'played_at': '2026-09-02T18:00:00Z',
+                      'source': 'selection',
+                      'source_name': 'France',
+                      'appeared': true,
+                      'starter': false,
+                      'substitute': true,
+                      'goals': 1,
+                      'assists': 1,
+                    },
+                  ],
                 },
               ),
               MatchComputedReading(
@@ -1760,6 +1834,27 @@ void main() {
           ),
           findsOneWidget,
         );
+        expect(find.text('Activité de saison'), findsNothing);
+        final activityToggle = find.byKey(
+          const ValueKey('decisive-player-toggle-player-context-home:Joueur A'),
+        );
+        tester.widget<InkWell>(activityToggle).onTap!.call();
+        await tester.pumpAndSettle();
+        expect(find.text('Activité de saison'), findsOneWidget);
+        expect(find.text('Tout'), findsOneWidget);
+        expect(find.text('Club'), findsOneWidget);
+        expect(find.text('Sélection'), findsOneWidget);
+        expect(find.text('Titulaire'), findsOneWidget);
+        expect(find.text('Entrée en jeu'), findsOneWidget);
+        expect(find.text('But'), findsOneWidget);
+        expect(find.text('Passe'), findsOneWidget);
+        expect(find.text('⚽🥾'), findsOneWidget);
+        final clubButton = find
+            .ancestor(of: find.text('Club'), matching: find.byType(InkWell))
+            .first;
+        tester.widget<InkWell>(clubButton).onTap!.call();
+        await tester.pumpAndSettle();
+        expect(find.text('⚽🥾'), findsNothing);
       },
     );
 
@@ -2940,7 +3035,8 @@ void main() {
 Future<void> _pumpPage(
   WidgetTester tester, {
   DecisionProfile? profile,
-  required MatchFeedRepository repository,
+  MatchFeedRepository? repository,
+  Future<MatchFeedRepository> Function(DateTime date)? repositoryForDateLoader,
   List<TicketStrategy> strategies = const [],
   Size viewSize = const Size(390, 844),
 }) async {
@@ -2967,6 +3063,7 @@ Future<void> _pumpPage(
         identityScope: const IdentityScope.guest('test-guest'),
         ticketStrategies: strategies,
         repositoryOverride: repository,
+        repositoryForDateLoader: repositoryForDateLoader,
         onEditProfile: () {},
       ),
     ),

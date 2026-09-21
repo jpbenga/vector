@@ -31,7 +31,7 @@ class _CopilotCalendarState extends State<CopilotCalendar> {
   void initState() {
     super.initState();
     _windowCenterDate = _dayOnly(widget.selectedDate);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _centerToday());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _centerWindow());
   }
 
   @override
@@ -48,6 +48,7 @@ class _CopilotCalendarState extends State<CopilotCalendar> {
     if (selectedDay.isBefore(firstVisible) ||
         selectedDay.isAfter(lastVisible)) {
       _windowCenterDate = selectedDay;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _centerWindow());
     }
   }
 
@@ -86,8 +87,12 @@ class _CopilotCalendarState extends State<CopilotCalendar> {
                     );
 
                 return ListView.separated(
+                  key: const ValueKey('home-calendar-day-strip'),
                   controller: _controller,
                   scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
                   padding: EdgeInsets.zero,
                   itemCount: dates.length,
                   separatorBuilder: (_, _) =>
@@ -117,8 +122,8 @@ class _CopilotCalendarState extends State<CopilotCalendar> {
     );
   }
 
-  void _centerToday() {
-    if (!_controller.hasClients) {
+  void _centerWindow() {
+    if (!mounted || !_controller.hasClients) {
       return;
     }
 

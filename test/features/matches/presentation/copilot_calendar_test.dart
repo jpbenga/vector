@@ -41,6 +41,40 @@ void main() {
     final selectedText = tester.widget<Text>(find.text(_weekday(tomorrow)));
     expect(todayText.style?.color, isNot(selectedText.style?.color));
   });
+
+  testWidgets('scrolls horizontally to days outside the initial viewport', (
+    tester,
+  ) async {
+    final today = _dayOnly(DateTime.now());
+    final laterDay = today.add(const Duration(days: 12));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: CopilotTheme.dark,
+        home: Center(
+          child: SizedBox(
+            width: 390,
+            child: CopilotCalendar(
+              selectedDate: today,
+              visibleWindowDays: 31,
+              onDateSelected: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.scrollUntilVisible(
+      find.text(_calendarLabel(laterDay)),
+      180,
+      scrollable: find.descendant(
+        of: find.byKey(const ValueKey('home-calendar-day-strip')),
+        matching: find.byType(Scrollable),
+      ),
+    );
+
+    expect(find.text(_calendarLabel(laterDay)), findsOneWidget);
+  });
 }
 
 DateTime _dayOnly(DateTime date) => DateTime(date.year, date.month, date.day);
@@ -57,3 +91,6 @@ String _weekday(DateTime date) {
     _ => '',
   };
 }
+
+String _calendarLabel(DateTime date) =>
+    '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}';

@@ -1,5 +1,7 @@
 // ignore_for_file: unused_element, unused_element_parameter
 
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -1322,7 +1324,12 @@ class _LectorQuickContextCard extends StatelessWidget {
             ],
             if (decisivePlayerGroups.isNotEmpty) ...[
               const SizedBox(height: 18),
-              _DecisivePlayersContextSection(groups: decisivePlayerGroups),
+              _DecisivePlayersContextSection(
+                groups: decisivePlayerGroups,
+                startsOnAllSources: _isNationalCompetition(
+                  match.competition.apiFootballLeagueId,
+                ),
+              ),
             ],
             if (vigilanceReadings.isNotEmpty) ...[
               const SizedBox(height: 18),
@@ -1820,9 +1827,13 @@ int _playerRank(MatchComputedReading reading) {
 }
 
 class _DecisivePlayersContextSection extends StatelessWidget {
-  const _DecisivePlayersContextSection({required this.groups});
+  const _DecisivePlayersContextSection({
+    required this.groups,
+    required this.startsOnAllSources,
+  });
 
   final List<_DecisivePlayerGroup> groups;
+  final bool startsOnAllSources;
 
   @override
   Widget build(BuildContext context) {
@@ -1850,7 +1861,10 @@ class _DecisivePlayersContextSection extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         for (final indexed in groups.indexed) ...[
-          _DecisivePlayerTeamCard(group: indexed.$2),
+          _DecisivePlayerTeamCard(
+            group: indexed.$2,
+            startsOnAllSources: startsOnAllSources,
+          ),
           if (indexed.$1 < groups.length - 1) const SizedBox(height: 9),
         ],
       ],
@@ -1950,13 +1964,26 @@ class _ContextVigilanceCard extends StatelessWidget {
   }
 }
 
-class _DecisivePlayerTeamCard extends StatelessWidget {
-  const _DecisivePlayerTeamCard({required this.group});
+class _DecisivePlayerTeamCard extends StatefulWidget {
+  const _DecisivePlayerTeamCard({
+    required this.group,
+    required this.startsOnAllSources,
+  });
 
   final _DecisivePlayerGroup group;
+  final bool startsOnAllSources;
+
+  @override
+  State<_DecisivePlayerTeamCard> createState() =>
+      _DecisivePlayerTeamCardState();
+}
+
+class _DecisivePlayerTeamCardState extends State<_DecisivePlayerTeamCard> {
+  String? _expandedPlayerKey;
 
   @override
   Widget build(BuildContext context) {
+    final group = widget.group;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: context.surfaces.surface.withValues(alpha: 0.72),
@@ -1992,7 +2019,20 @@ class _DecisivePlayerTeamCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             for (final indexed in group.readings.indexed) ...[
-              _DecisivePlayerRow(reading: indexed.$2),
+              _DecisivePlayerRow(
+                reading: indexed.$2,
+                isExpanded:
+                    _expandedPlayerKey == _decisivePlayerKey(indexed.$2),
+                startsOnAllSources: widget.startsOnAllSources,
+                onToggle: () {
+                  final key = _decisivePlayerKey(indexed.$2);
+                  setState(
+                    () => _expandedPlayerKey = _expandedPlayerKey == key
+                        ? null
+                        : key,
+                  );
+                },
+              ),
               if (indexed.$1 < group.readings.length - 1)
                 Divider(
                   height: 17,
@@ -2006,73 +2046,515 @@ class _DecisivePlayerTeamCard extends StatelessWidget {
   }
 }
 
+String _decisivePlayerKey(MatchComputedReading reading) =>
+    '${reading.subjectTeamId}:${reading.playerName ?? reading.playerPhotoUrl ?? reading.evidenceLabel}';
+
 class _DecisivePlayerRow extends StatelessWidget {
-  const _DecisivePlayerRow({required this.reading});
+  const _DecisivePlayerRow({
+    required this.reading,
+    required this.isExpanded,
+    required this.startsOnAllSources,
+    required this.onToggle,
+  });
 
   final MatchComputedReading reading;
+  final bool isExpanded;
+  final bool startsOnAllSources;
+  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) {
     final value = _computedMap(reading.evidenceValue);
     final recent = _computedMap(value['recent']);
+    final activity = _decisivePlayerActivity(value['activity']);
     final isSuperSub = value['is_super_sub'] == true;
     final profile = _displayProfile(value['profile_label']);
     final name = reading.playerName ?? 'Joueur à surveiller';
     final details = _playerContributionLine(recent, isSuperSub: isSuperSub);
     final rate = _computedDouble(recent['contributions_per_90']);
-    return Row(
+    final canExpand = activity.isNotEmpty;
+    final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SportsAssetBadge(
-          size: 40,
-          imageUrl: reading.playerPhotoUrl,
-          fallbackLabel: name,
-          borderRadius: 20,
-          backgroundColor: AppColors.transparent,
-          contrastPlate: true,
-        ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SportsAssetBadge(
+              size: 40,
+              imageUrl: reading.playerPhotoUrl,
+              fallbackLabel: name,
+              borderRadius: 20,
+              backgroundColor: AppColors.transparent,
+              contrastPlate: true,
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      name,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: context.textColors.primary,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          name,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: context.textColors.primary,
+                                fontWeight: FontWeight.w900,
+                              ),
+                        ),
+                      ),
+                      _DecisiveProfileChip(label: profile),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    details,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.textColors.secondary,
+                      fontWeight: FontWeight.w600,
+                      height: 1.22,
+                    ),
+                  ),
+                  if (rate != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      '${rate.toStringAsFixed(2).replaceAll('.', ',')} action${rate == 1 ? '' : 's'} décisive${rate == 1 ? '' : 's'} / 90 min',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.brand.accent,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                  ),
-                  _DecisiveProfileChip(label: profile),
+                  ],
                 ],
               ),
-              const SizedBox(height: 3),
-              Text(
-                details,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            ),
+            if (canExpand)
+              Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: Icon(
+                  isExpanded
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
                   color: context.textColors.secondary,
-                  fontWeight: FontWeight.w600,
-                  height: 1.22,
                 ),
               ),
-              if (rate != null) ...[
-                const SizedBox(height: 2),
-                Text(
-                  '${rate.toStringAsFixed(2).replaceAll('.', ',')} action${rate == 1 ? '' : 's'} décisive${rate == 1 ? '' : 's'} / 90 min',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.brand.accent,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ],
+          ],
+        ),
+        if (isExpanded) ...[
+          const SizedBox(height: 10),
+          Divider(height: 1, color: context.surfaces.border),
+          const SizedBox(height: 10),
+          _DecisivePlayerActivityTimeline(
+            activity: activity,
+            initialScope: startsOnAllSources
+                ? _PlayerActivityScope.all
+                : _PlayerActivityScope.club,
+          ),
+        ],
+      ],
+    );
+    if (!canExpand) return content;
+    return Semantics(
+      button: true,
+      expanded: isExpanded,
+      label: 'Afficher l’activité de saison de $name',
+      child: InkWell(
+        key: ValueKey('decisive-player-toggle-${_decisivePlayerKey(reading)}'),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        onTap: onToggle,
+        child: content,
+      ),
+    );
+  }
+}
+
+bool _isNationalCompetition(int? leagueId) {
+  return leagueId != null &&
+      const {1, 4, 5, 6, 7, 8, 9, 22, 32, 536}.contains(leagueId);
+}
+
+enum _PlayerActivityScope { all, club, selection }
+
+class _DecisivePlayerActivity {
+  const _DecisivePlayerActivity({
+    required this.fixtureId,
+    required this.playedAt,
+    required this.source,
+    required this.sourceName,
+    required this.sourceLogoUrl,
+    required this.starter,
+    required this.substitute,
+    required this.appeared,
+    required this.goals,
+    required this.assists,
+  });
+  final String fixtureId;
+  final DateTime playedAt;
+  final String source;
+  final String sourceName;
+  final String? sourceLogoUrl;
+  final bool starter;
+  final bool substitute;
+  final bool appeared;
+  final int goals;
+  final int assists;
+  bool get isClub => source == 'club';
+  bool get isSelection => source == 'selection';
+}
+
+List<_DecisivePlayerActivity> _decisivePlayerActivity(Object? raw) {
+  if (raw is! List) return const [];
+  final values = <_DecisivePlayerActivity>[];
+  for (final item in raw) {
+    final map = _computedMap(item);
+    final date = DateTime.tryParse(map['played_at']?.toString() ?? '');
+    final fixtureId = map['fixture_id']?.toString();
+    final source = map['source']?.toString();
+    if (date == null ||
+        fixtureId == null ||
+        fixtureId.isEmpty ||
+        (source != 'club' && source != 'selection')) {
+      continue;
+    }
+    values.add(
+      _DecisivePlayerActivity(
+        fixtureId: fixtureId,
+        playedAt: date,
+        source: source!,
+        sourceName:
+            map['source_name']?.toString() ??
+            (source == 'club' ? 'Club' : 'Sélection'),
+        sourceLogoUrl: map['source_logo_url']?.toString(),
+        starter: map['starter'] == true,
+        substitute: map['substitute'] == true,
+        appeared: map['appeared'] == true,
+        goals: _computedInt(map['goals']) ?? 0,
+        assists: _computedInt(map['assists']) ?? 0,
+      ),
+    );
+  }
+  values.sort((left, right) => left.playedAt.compareTo(right.playedAt));
+  return List.unmodifiable(values);
+}
+
+class _DecisivePlayerActivityTimeline extends StatefulWidget {
+  const _DecisivePlayerActivityTimeline({
+    required this.activity,
+    required this.initialScope,
+  });
+  final List<_DecisivePlayerActivity> activity;
+  final _PlayerActivityScope initialScope;
+  @override
+  State<_DecisivePlayerActivityTimeline> createState() =>
+      _DecisivePlayerActivityTimelineState();
+}
+
+class _DecisivePlayerActivityTimelineState
+    extends State<_DecisivePlayerActivityTimeline> {
+  late final ScrollController _scrollController;
+  _PlayerActivityScope _scope = _PlayerActivityScope.all;
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  List<_DecisivePlayerActivity> get _visibleActivity => switch (_scope) {
+    _PlayerActivityScope.all => widget.activity,
+    _PlayerActivityScope.club =>
+      widget.activity.where((item) => item.isClub).toList(),
+    _PlayerActivityScope.selection =>
+      widget.activity.where((item) => item.isSelection).toList(),
+  };
+  @override
+  Widget build(BuildContext context) {
+    final visible = _visibleActivity;
+    return Column(
+      key: const ValueKey('decisive-player-activity'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Activité de saison',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: context.textColors.primary,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          children: [
+            _ActivityScopeButton(
+              label: 'Tout',
+              selected: _scope == _PlayerActivityScope.all,
+              onTap: () => setState(() => _scope = _PlayerActivityScope.all),
+            ),
+            _ActivityScopeButton(
+              label: 'Club',
+              selected: _scope == _PlayerActivityScope.club,
+              onTap: () => setState(() => _scope = _PlayerActivityScope.club),
+            ),
+            _ActivityScopeButton(
+              label: 'Sélection',
+              selected: _scope == _PlayerActivityScope.selection,
+              onTap: () =>
+                  setState(() => _scope = _PlayerActivityScope.selection),
+            ),
+          ],
+        ),
+        const SizedBox(height: 9),
+        _ActivityLegend(),
+        const SizedBox(height: 9),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Plus ancien',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: context.textColors.secondary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              'Plus récent',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: context.textColors.secondary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        if (visible.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              'Aucune activité ${_scope == _PlayerActivityScope.club ? 'club' : 'en sélection'} disponible dans ce snapshot.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: context.textColors.secondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          )
+        else
+          SizedBox(
+            height: 96,
+            child: Scrollbar(
+              controller: _scrollController,
+              thumbVisibility: true,
+              child: ListView.separated(
+                key: ValueKey('decisive-player-activity-${_scope.name}'),
+                controller: _scrollController,
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.only(bottom: 9),
+                itemCount: visible.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 7),
+                itemBuilder: (context, index) =>
+                    _ActivityMatchCell(activity: visible[index]),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _ActivityLegend extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final success = context.semantic.success;
+    final warning = context.semantic.warning;
+    return Wrap(
+      spacing: 9,
+      runSpacing: 5,
+      children: [
+        _ActivityLegendItem(
+          marker: DecoratedBox(
+            decoration: BoxDecoration(
+              color: success,
+              borderRadius: BorderRadius.circular(2),
+            ),
+            child: const SizedBox(width: 12, height: 8),
+          ),
+          label: 'Titulaire',
+        ),
+        _ActivityLegendItem(
+          marker: DecoratedBox(
+            decoration: BoxDecoration(
+              color: warning,
+              borderRadius: BorderRadius.circular(2),
+            ),
+            child: const SizedBox(width: 18, height: 8),
+          ),
+          label: 'Entrée en jeu',
+        ),
+        const _ActivityLegendItem(marker: Text('⚽'), label: 'But'),
+        const _ActivityLegendItem(marker: Text('🥾'), label: 'Passe'),
+      ],
+    );
+  }
+}
+
+class _ActivityLegendItem extends StatelessWidget {
+  const _ActivityLegendItem({required this.marker, required this.label});
+  final Widget marker;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(width: 18, child: Center(child: marker)),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: context.textColors.secondary,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ActivityScopeButton extends StatelessWidget {
+  const _ActivityScopeButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    final color = context.brand.accent;
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: selected
+                ? color.withValues(alpha: 0.15)
+                : AppColors.transparent,
+            border: Border.all(
+              color: selected ? color : context.surfaces.border,
+            ),
+            borderRadius: BorderRadius.circular(AppRadius.chip),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: selected ? color : context.textColors.secondary,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _activityDateLabel(DateTime value) {
+  const months = [
+    'jan',
+    'fév',
+    'mars',
+    'avr',
+    'mai',
+    'juin',
+    'juil',
+    'août',
+    'sept',
+    'oct',
+    'nov',
+    'déc',
+  ];
+  return '${value.day.toString().padLeft(2, '0')} ${months[value.month - 1]}';
+}
+
+class _ActivityMatchCell extends StatelessWidget {
+  const _ActivityMatchCell({required this.activity});
+  final _DecisivePlayerActivity activity;
+  @override
+  Widget build(BuildContext context) {
+    final date = _activityDateLabel(activity.playedAt);
+    final markerColor = activity.starter
+        ? context.semantic.success
+        : context.semantic.warning;
+    final appearance = activity.appeared
+        ? DecoratedBox(
+            decoration: BoxDecoration(
+              color: markerColor,
+              borderRadius: BorderRadius.circular(2),
+            ),
+            child: SizedBox(width: activity.starter ? 14 : 20, height: 9),
+          )
+        : Text(
+            '—',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: context.textColors.secondary,
+              fontWeight: FontWeight.w900,
+            ),
+          );
+    final events = '${'⚽' * activity.goals}${'🥾' * activity.assists}';
+    return Semantics(
+      label:
+          '$date, ${activity.sourceName}, ${activity.appeared ? (activity.starter ? 'titulaire' : 'remplaçant entré en jeu') : 'n’a pas joué'}${activity.goals > 0 ? ', ${activity.goals} but' : ''}${activity.assists > 0 ? ', ${activity.assists} passe décisive' : ''}',
+      child: SizedBox(
+        width: 53,
+        child: Column(
+          children: [
+            Text(
+              date,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: context.textColors.secondary,
+                fontWeight: FontWeight.w800,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            SportsAssetBadge(
+              size: 24,
+              imageUrl: activity.sourceLogoUrl,
+              fallbackLabel: activity.sourceName,
+              borderRadius: 12,
+              backgroundColor: AppColors.transparent,
+              contrastPlate: true,
+            ),
+            const SizedBox(height: 5),
+            appearance,
+            const SizedBox(height: 4),
+            Text(
+              events.isEmpty ? ' ' : events,
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(fontSize: 12),
+              maxLines: 1,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -3698,7 +4180,7 @@ class _StandingTeamSummary extends StatelessWidget {
     final textColors = context.textColors;
 
     return Row(
-      textDirection: alignRight ? TextDirection.rtl : TextDirection.ltr,
+      textDirection: alignRight ? ui.TextDirection.rtl : ui.TextDirection.ltr,
       children: [
         SportsAssetBadge(
           size: 32,

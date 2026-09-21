@@ -54,6 +54,7 @@ class MatchesHomePage extends StatefulWidget {
     this.onProfileChanged,
     this.onTicketStrategiesChanged,
     this.repositoryOverride,
+    this.repositoryForDateLoader,
     super.key,
   });
 
@@ -64,13 +65,15 @@ class MatchesHomePage extends StatefulWidget {
   final TicketStrategyPreferenceSaver? onTicketStrategiesChanged;
   final List<TicketStrategy> ticketStrategies;
   final MatchFeedRepository? repositoryOverride;
+  final Future<MatchFeedRepository> Function(DateTime date)?
+  repositoryForDateLoader;
 
   @override
   State<MatchesHomePage> createState() => _MatchesHomePageState();
 }
 
 class _MatchesHomePageState extends State<MatchesHomePage> {
-  late final Future<MatchFeedRepository> _repository;
+  late Future<MatchFeedRepository> _repository;
   final SavedTicketStore _savedTicketStore = const SavedTicketStore();
   final TicketSettlementEngine _ticketSettlementEngine =
       const TicketSettlementEngine();
@@ -98,7 +101,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
   void initState() {
     super.initState();
     _repository = widget.repositoryOverride == null
-        ? _loadRepository()
+        ? _loadRepository(_selectedScoresDate)
         : Future.value(widget.repositoryOverride);
     _loadSavedTickets();
   }
@@ -243,10 +246,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
               });
             },
             onDateSelected: (date) {
-              setState(() {
-                _selectedScoresDate = _dateOnly(date);
-                _hasUserSelectedScoresDate = true;
-              });
+              _selectScoresDate(date);
             },
             onChooseDate: _chooseScoresDate,
             onOpenMatch: openAnalyzedMatch,
@@ -319,9 +319,17 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
       return;
     }
 
+    _selectScoresDate(selected);
+  }
+
+  void _selectScoresDate(DateTime date) {
+    final selectedDate = _dateOnly(date);
     setState(() {
-      _selectedScoresDate = _dateOnly(selected);
+      _selectedScoresDate = selectedDate;
       _hasUserSelectedScoresDate = true;
+      if (widget.repositoryOverride == null) {
+        _repository = _loadRepository(selectedDate);
+      }
     });
   }
 
@@ -862,8 +870,12 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
     );
   }
 
-  Future<MatchFeedRepository> _loadRepository() async {
-    return getIt<MatchFeedRepositoryLoader>().load();
+  Future<MatchFeedRepository> _loadRepository(DateTime date) async {
+    final testLoader = widget.repositoryForDateLoader;
+    if (testLoader != null) {
+      return testLoader(date);
+    }
+    return getIt<MatchFeedRepositoryLoader>().load(now: date);
   }
 }
 
@@ -1227,7 +1239,7 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                           if (widget.mode != _ScoresRedesignMode.bilan) ...[
                             CopilotCalendar(
                               selectedDate: widget.selectedDate,
-                              visibleWindowDays: 7,
+                              visibleWindowDays: 31,
                               onDateSelected: widget.onDateSelected,
                               onChooseDate: widget.onChooseDate,
                             ),
@@ -6079,7 +6091,7 @@ class _ChampionshipsByCountryViewState
                   const SizedBox(height: AppSpacing.md),
                   CopilotCalendar(
                     selectedDate: effectiveDate,
-                    visibleWindowDays: 7,
+                    visibleWindowDays: 31,
                     onDateSelected: (date) {
                       setState(() {
                         _selectedDate = date;
@@ -8638,7 +8650,7 @@ class _ForMeRecommendationsDashboard extends StatelessWidget {
         const SizedBox(height: 18),
         CopilotCalendar(
           selectedDate: selectedDate,
-          visibleWindowDays: 7,
+          visibleWindowDays: 31,
           onDateSelected: onDateSelected,
           onChooseDate: onChooseDate,
         ),
