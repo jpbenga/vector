@@ -17,13 +17,22 @@ class SupabaseMatchFeedSnapshotRepository
   @override
   Future<Map<String, Object?>?> loadLatestForDate(DateTime date) async {
     final day = _dateOnly(date).toIso8601String().split('T').first;
-    final rows = await _client
+    var request = _client
         .from('match_feed_analysis_snapshots')
         .select('id,scope,league_ids')
         .lte('window_start', day)
-        .gte('window_end', day)
-        .order('as_of', ascending: false)
-        .limit(500);
+        .gte('window_end', day);
+
+    // A past calendar day must use the latest snapshot that was available at
+    // the end of that day. Future days keep the latest available snapshot so
+    // the Radar can clearly present the current state before kick-off.
+    if (_dateOnly(date).isBefore(_dateOnly(DateTime.now()))) {
+      final endOfDay = _dateOnly(
+        date,
+      ).add(const Duration(days: 1)).toUtc().toIso8601String();
+      request = request.lte('as_of', endOfDay);
+    }
+    final rows = await request.order('as_of', ascending: false).limit(500);
 
     return _loadSelectedPayloads(rows);
   }
@@ -182,6 +191,7 @@ Map<String, Object?>? mergeMatchFeedSnapshotPayloads(
     'standings',
     'team_statistics',
     'recent_league_matches',
+    'player_form_radar',
     'expected_goals',
     'predictions',
   ]) {
@@ -291,6 +301,7 @@ String _rawEntryKey(String key, Object? entry) {
   final leagueId = _leagueIdFromRawEntry(key, entry);
   final fixtureId = _nestedNumber(map, const ['fixture', 'id']);
   final teamId = _nestedNumber(map, const ['team', 'id']);
+  final playerId = _nestedNumber(map, const ['player', 'id']);
 
   if (key == 'fixtures' && fixtureId != null) {
     return '$key:$fixtureId';
@@ -306,6 +317,12 @@ String _rawEntryKey(String key, Object? entry) {
   }
   if (key == 'recent_league_matches' && leagueId != null && teamId != null) {
     return '$key:$leagueId:$teamId';
+  }
+  if (key == 'player_form_radar' &&
+      leagueId != null &&
+      teamId != null &&
+      playerId != null) {
+    return '$key:$leagueId:$teamId:$playerId';
   }
   if (key == 'expected_goals' && teamId != null) {
     return '$key:${leagueId ?? 'unknown'}:$teamId';
@@ -337,6 +354,7 @@ Set<int> _leagueIdsForPayload(Map<String, Object?> payload) {
     'standings',
     'team_statistics',
     'recent_league_matches',
+    'player_form_radar',
   ]) {
     for (final entry in _objectList(raw[key])) {
       final leagueId = _leagueIdFromRawEntry(key, entry);

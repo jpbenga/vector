@@ -41,6 +41,9 @@ void main() {
             'supabase/migrations/20260920020000_backend_expand_approved_competition_scope.sql',
           ).readAsStringSync() +
           File(
+            'supabase/migrations/20260926160000_backend_expand_radar_international_scope.sql',
+          ).readAsStringSync() +
+          File(
             'supabase/migrations/20260831120000_backend_reject_empty_api_football_snapshots.sql',
           ).readAsStringSync();
       quotaGuardMigration =
@@ -133,7 +136,7 @@ void main() {
       expect(cronGenerator, isNot(contains('DateTime.now()')));
     });
 
-    test('keeps the approved 74-competition scope resolvable end to end', () {
+    test('keeps the approved 76-competition scope resolvable end to end', () {
       const approvedAdditions = <int>[
         531,
         45,
@@ -160,6 +163,8 @@ void main() {
         32,
         4,
         5,
+        38,
+        10,
         9,
         6,
         7,
@@ -171,12 +176,12 @@ void main() {
         8,
       ];
 
-      expect(RuntimeCompetitionCatalog.apiFootballLeagueIds, hasLength(74));
+      expect(RuntimeCompetitionCatalog.apiFootballLeagueIds, hasLength(76));
       expect(
         RuntimeCompetitionCatalog.apiFootballLeagueIds,
         containsAll(approvedAdditions),
       );
-      expect(RuntimeCompetitionCatalog.values, hasLength(74));
+      expect(RuntimeCompetitionCatalog.values, hasLength(76));
       for (final leagueId in RuntimeCompetitionCatalog.apiFootballLeagueIds) {
         expect(
           CompetitionCatalog.byApiFootballLeagueId(leagueId),

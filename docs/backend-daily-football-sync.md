@@ -311,7 +311,10 @@ Planifier l'appel quotidien depuis Supabase, pas depuis Vercel.
 
 Pour un test court, `daily-football-sync` reste utile avec 1 ou 2 ligues.
 Pour le scope complet MVP, utiliser des jobs Supabase Cron separes par ligue,
-mais chaque job doit appeler l'orchestrateur complet :
+mais chaque job doit appeler l'orchestrateur complet. Le périmètre comprend notamment
+l’Euro U21 (`38`) et les matchs amicaux internationaux (`10`). Les amicaux ne sont
+présentés dans l’application que lorsqu’un marché de cote est effectivement disponible :
+
 
 ```text
 00:00 UTC -> daily-football-sync ligue 1
@@ -368,7 +371,7 @@ Body interne envoye par `daily-football-sync` au builder de snapshot :
   "window_end": "YYYY-MM-DD",
   "force_rebuild": false,
   "recent_form_days_back": 180,
-  "recent_form_matches": 5
+  "recent_form_matches": 10
 }
 ```
 
@@ -441,9 +444,9 @@ Puis coller le SQL dans Supabase SQL Editor.
 Le SQL genere :
 
 - supprime les anciens jobs `api-football-*` ;
-- cree 40 jobs `api-football-league-<id>` qui appellent
+- crée un job `api-football-league-<id>` par compétition active qui appellent
   `daily-football-sync` ;
-- cree 40 jobs `api-football-enrichment-<id>` repartis sur la semaine pour les
+- crée un job `api-football-enrichment-<id>` par compétition active, réparti sur la semaine pour les
   statistiques joueurs ;
 - laisse `daily-football-sync` calculer les fenetres `J-7 -> J-1` et
   `J -> J+3` ;
@@ -458,9 +461,9 @@ Le generateur cree aussi un SQL d'execution immediate :
 pbcopy < /tmp/lector_api_football_run_now.sql
 ```
 
-Ce SQL planifie 40 jobs temporaires `api-football-run-now-*` :
+Ce SQL planifie un job temporaire `api-football-run-now-*` par compétition active :
 
-- 40 runs orchestres, un par ligue ;
+- un run orchestré par compétition active ;
 - meme cadence que le cron quotidien ;
 - chaque job temporaire s'auto-supprime apres execution.
 

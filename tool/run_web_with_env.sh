@@ -40,6 +40,7 @@ mode="${2:-release}"
 web_hostname="${WEB_HOSTNAME:-localhost}"
 app_public_url="${APP_PUBLIC_URL:-$(read_env_value APP_PUBLIC_URL)}"
 match_feed_source="${MATCH_FEED_SOURCE:-$(read_env_value MATCH_FEED_SOURCE)}"
+form_radar_fixture="${FORM_RADAR_FIXTURE:-false}"
 
 if [[ -z "${app_public_url:-}" ]]; then
   app_public_url="http://localhost:$port/"
@@ -64,4 +65,5 @@ flutter run -d chrome "--$mode" \
   --dart-define=SUPABASE_URL="$SUPABASE_URL" \
   --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
   --dart-define=APP_PUBLIC_URL="$app_public_url" \
-  --dart-define=MATCH_FEED_SOURCE="$match_feed_source"
+  --dart-define=MATCH_FEED_SOURCE="$match_feed_source" \
+  --dart-define=FORM_RADAR_FIXTURE="$form_radar_fixture"

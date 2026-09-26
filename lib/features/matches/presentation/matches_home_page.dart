@@ -23,6 +23,9 @@ import '../../onboarding/domain/decision_profile.dart';
 import '../../onboarding/domain/decision_profile_catalogs.dart';
 import '../../onboarding/domain/profile_compiler.dart';
 import '../../opportunities/domain/opportunity.dart';
+import '../../form_radar/data/player_form_radar_fixture.dart';
+import '../../form_radar/domain/player_form_radar.dart';
+import '../../form_radar/presentation/form_radar_signal_panel.dart';
 import '../../tickets/data/saved_ticket_store.dart';
 import '../../tickets/domain/saved_ticket.dart';
 import '../../tickets/domain/ticket_settlement_engine.dart';
@@ -42,6 +45,7 @@ import 'lector_space_page.dart';
 import 'match_detail_page.dart';
 import 'opportunity_decision_presenter.dart';
 import 'reading_bilan_section.dart';
+import '../../form_radar/presentation/player_form_radar_page.dart';
 import 'widgets/copilot_calendar.dart';
 import 'widgets/sports_asset_badge.dart';
 
@@ -879,11 +883,12 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
   }
 }
 
-enum _ScoresRedesignMode { forMe, all, generator, bilan }
+enum _ScoresRedesignMode { forMe, radar, all, generator, bilan }
 
 LectorDeckScope _deckScopeForMode(_ScoresRedesignMode mode) {
   return switch (mode) {
     _ScoresRedesignMode.forMe => LectorDeckScope.forMe,
+    _ScoresRedesignMode.radar => LectorDeckScope.all,
     _ScoresRedesignMode.all => LectorDeckScope.all,
     _ScoresRedesignMode.generator => LectorDeckScope.generator,
     _ScoresRedesignMode.bilan => LectorDeckScope.all,
@@ -1200,8 +1205,15 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
     );
     final allCompetitionGroups = _competitionGroups(visibleMatches);
     final showsGenerator = widget.mode == _ScoresRedesignMode.generator;
+    final showsRadar = widget.mode == _ScoresRedesignMode.radar;
+    // The Radar owns its player/team selection. Keeping its subtree key stable
+    // across calendar changes preserves that selection while its data refreshes.
+    final contentKey = showsRadar
+        ? '${widget.mode.name}-radar'
+        : '${widget.mode.name}-${_dateOnly(widget.selectedDate).toIso8601String()}-${_explorationProfileSignature(widget.profile)}-${widget.isExplorationActive}';
     final listTitle = switch (widget.mode) {
       _ScoresRedesignMode.forMe => 'Ma sélection',
+      _ScoresRedesignMode.radar => 'Radar',
       _ScoresRedesignMode.all => 'Tous les matchs',
       _ScoresRedesignMode.generator => 'Générateur',
       _ScoresRedesignMode.bilan => 'Bilan',
@@ -1209,6 +1221,7 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
     final listSubtitle = switch (widget.mode) {
       _ScoresRedesignMode.forMe =>
         'Modifiez vos championnats ou vos scénarios depuis Mon espace.',
+      _ScoresRedesignMode.radar => 'Les joueurs chauds des matchs du jour.',
       _ScoresRedesignMode.all => 'Essayez un autre jour ou un autre mode.',
       _ScoresRedesignMode.generator =>
         'Configurez vos sélections depuis les paramètres Lector.',
@@ -1271,11 +1284,15 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                               );
                             },
                             child: KeyedSubtree(
-                              key: ValueKey(
-                                '${widget.mode.name}-${_dateOnly(widget.selectedDate).toIso8601String()}-${_explorationProfileSignature(widget.profile)}-${widget.isExplorationActive}',
-                              ),
+                              key: ValueKey(contentKey),
                               child: widget.mode == _ScoresRedesignMode.bilan
                                   ? const ReadingBilanSection()
+                                  : showsRadar
+                                  ? PlayerFormRadarPage(
+                                      matches: allMatchesForSelectedDate,
+                                      selectedDate: widget.selectedDate,
+                                      onOpenMatch: widget.onOpenMatch,
+                                    )
                                   : showsGenerator
                                   ? SizedBox(
                                       height: _generatorViewportHeight(context),
@@ -1369,7 +1386,8 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
             ],
           ),
         ),
-        if (widget.mode != _ScoresRedesignMode.bilan)
+        if (widget.mode != _ScoresRedesignMode.bilan &&
+            widget.mode != _ScoresRedesignMode.radar)
           Positioned(
             left: 14,
             bottom: 16 + MediaQuery.paddingOf(context).bottom,
@@ -1426,6 +1444,7 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
     final dateMatches = _matchesForDate(widget.matches);
     final source = switch (widget.mode) {
       _ScoresRedesignMode.forMe => _matchesForDate(_forMeMatches()),
+      _ScoresRedesignMode.radar => const <MatchBoardItem>[],
       _ScoresRedesignMode.all => dateMatches,
       _ScoresRedesignMode.generator => const <MatchBoardItem>[],
       _ScoresRedesignMode.bilan => const <MatchBoardItem>[],
@@ -3007,6 +3026,14 @@ class _ScoresModeControl extends StatelessWidget {
                 ),
                 _ModeDivider(),
                 _ScoresModeTab(
+                  icon: Icons.bar_chart_rounded,
+                  label: 'Radar',
+                  compact: compact,
+                  isSelected: selected == _ScoresRedesignMode.radar,
+                  onTap: () => onChanged(_ScoresRedesignMode.radar),
+                ),
+                _ModeDivider(),
+                _ScoresModeTab(
                   icon: Icons.format_list_bulleted_rounded,
                   label: 'Tous',
                   compact: compact,
@@ -4051,6 +4078,12 @@ class _TodayStoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final readings = _representativeReadingTags(match);
     final scenarios = _representativeScenarios(match);
+    final storedRadarEntries = _formRadarEntriesForMatch(match);
+    final usesLocalRadarPreview =
+        storedRadarEntries.isEmpty && formRadarFixtureEnabled;
+    final radarEntries = usesLocalRadarPreview
+        ? playerFormRadarFixtureEntriesForMatch(match)
+        : storedRadarEntries;
     final readingCount = _storyReadingCount(match, readings);
     final actionColor = scenarios.isNotEmpty
         ? context.strategies.violetStyle.color
@@ -4136,12 +4169,34 @@ class _TodayStoryCard extends StatelessWidget {
                   );
                 },
               ),
+              if (radarEntries.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Divider(height: 1, color: context.surfaces.border),
+                const SizedBox(height: 10),
+                FormRadarSignalPanel(
+                  entries: radarEntries,
+                  isLocalPreview: usesLocalRadarPreview,
+                ),
+              ],
             ],
           ),
         ),
       ),
     );
   }
+}
+
+List<PlayerFormRadarEntry> _formRadarEntriesForMatch(MatchBoardItem match) {
+  final hotPlayers = PlayerFormRadarRanker.rank(
+    match.analysis.playerFormRadarProfiles,
+  );
+  return hotPlayers
+      .where(
+        (entry) =>
+            entry.profile.teamId == match.homeTeam.apiFootballTeamId ||
+            entry.profile.teamId == match.awayTeam.apiFootballTeamId,
+      )
+      .toList(growable: false);
 }
 
 class _StoryCompetitionHeader extends StatelessWidget {
@@ -4450,18 +4505,24 @@ List<_ForMeReading> _representativeReadingTags(MatchBoardItem match) {
     if (signal.id.startsWith('scenario:') || signal.id.startsWith('market:')) {
       continue;
     }
+    if (signal.id.startsWith('standout_decisive_player')) {
+      continue;
+    }
     add(signal.id, _readingLabelForId(signal.id, fallback: signal.title));
   }
   final thesis = match.thesis;
   if (thesis != null) {
     for (final argument in thesis.arguments) {
       final id = FootballReadingCopyCatalog.readingIdFor(argument);
+      if (id == 'standout_decisive_player') {
+        continue;
+      }
       add(id, FootballReadingCopyCatalog.titleFor(argument));
     }
     // Some legacy/demo opportunities only expose their retained thesis and do
     // not carry the underlying reading signals. Keep that thesis visible as a
     // presentation fallback without mixing it with explicit scenario signals.
-    if (thesis.arguments.isEmpty) {
+    if (thesis.arguments.isEmpty && thesis.id != 'standout_decisive_player') {
       add(thesis.id, _readingLabelForId(thesis.id, fallback: thesis.title));
     }
   }
@@ -4475,16 +4536,29 @@ int _storyReadingCount(
   final thesis = match.thesis;
   if (thesis != null) {
     final supportingArguments = thesis.arguments.where((argument) {
-      return argument.family != CopilotArgumentFamily.market &&
+      final readingId = FootballReadingCopyCatalog.readingIdFor(argument);
+      return readingId != 'standout_decisive_player' &&
+          argument.family != CopilotArgumentFamily.market &&
           argument.family != CopilotArgumentFamily.contradiction;
     }).length;
     if (supportingArguments > 0) {
       return supportingArguments;
     }
+    if (thesis.arguments.isNotEmpty ||
+        thesis.id == 'standout_decisive_player') {
+      return 0;
+    }
     if (thesis.supportingEvidence.isNotEmpty) {
       return thesis.supportingEvidence.length;
     }
   }
+
+  final hasOnlyPlayerReading =
+      displayedReadings.isEmpty &&
+      match.signals.any(
+        (signal) => signal.id.startsWith('standout_decisive_player'),
+      );
+  if (hasOnlyPlayerReading) return 0;
 
   if (match.profileRelevance.readingMatches > 0) {
     return match.profileRelevance.readingMatches;

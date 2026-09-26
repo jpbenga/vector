@@ -431,11 +431,19 @@ class TeamRecentMatchSnapshot {
     this.goalsFor,
     this.goalsAgainst,
     this.playedAt,
+    this.fixtureId,
+    this.competitionName,
+    this.teamLogoUrl,
+    this.statistics,
+    this.events = const [],
   });
 
+  final int? fixtureId;
   final int? opponentTeamId;
   final String opponentName;
   final String? opponentLogoUrl;
+  final String? competitionName;
+  final String? teamLogoUrl;
   final RecentMatchVenue venue;
   final String result;
   final int? goalsFor;
@@ -443,6 +451,44 @@ class TeamRecentMatchSnapshot {
 
   /// Provider kickoff for this completed league fixture, when available.
   final DateTime? playedAt;
+  final TeamRecentMatchStatisticsSnapshot? statistics;
+  final List<TeamRecentMatchEventSnapshot> events;
+}
+
+class TeamRecentMatchStatisticsSnapshot {
+  const TeamRecentMatchStatisticsSnapshot({
+    this.shotsFor,
+    this.shotsAgainst,
+    this.shotsOnTargetFor,
+    this.shotsOnTargetAgainst,
+    this.expectedGoalsFor,
+    this.expectedGoalsAgainst,
+    this.possessionFor,
+    this.possessionAgainst,
+  });
+
+  final double? shotsFor;
+  final double? shotsAgainst;
+  final double? shotsOnTargetFor;
+  final double? shotsOnTargetAgainst;
+  final double? expectedGoalsFor;
+  final double? expectedGoalsAgainst;
+  final double? possessionFor;
+  final double? possessionAgainst;
+}
+
+class TeamRecentMatchEventSnapshot {
+  const TeamRecentMatchEventSnapshot({
+    required this.minute,
+    required this.teamId,
+    required this.teamName,
+    this.playerName,
+  });
+
+  final int minute;
+  final int? teamId;
+  final String? teamName;
+  final String? playerName;
 }
 
 /// A completed direct meeting between the two teams of the current fixture.
@@ -536,6 +582,91 @@ class PlayerSeasonStatisticsSnapshot {
     }
     return total / playedMinutes * 90;
   }
+}
+
+/// Compact, match-by-match activity used by Form Radar.
+///
+/// The list is chronological. A row exists for every team match in the
+/// collection window, including the matches where the player did not play.
+/// This makes an interrupted decisive run visible instead of inferring one
+/// from an aggregate season statistic.
+class PlayerFormRadarMatchSnapshot {
+  const PlayerFormRadarMatchSnapshot({
+    required this.fixtureId,
+    required this.playedAt,
+    required this.appeared,
+    required this.starter,
+    required this.substitute,
+    required this.minutes,
+    required this.goals,
+    required this.assists,
+    this.competitionName,
+    this.round,
+    this.homeTeamName,
+    this.homeTeamLogoUrl,
+    this.homeGoals,
+    this.awayTeamName,
+    this.awayTeamLogoUrl,
+    this.awayGoals,
+    this.actions = const [],
+  });
+
+  final int fixtureId;
+  final DateTime playedAt;
+  final bool appeared;
+  final bool starter;
+  final bool substitute;
+  final int minutes;
+  final int goals;
+  final int assists;
+  final String? competitionName;
+  final String? round;
+  final String? homeTeamName;
+  final String? homeTeamLogoUrl;
+  final int? homeGoals;
+  final String? awayTeamName;
+  final String? awayTeamLogoUrl;
+  final int? awayGoals;
+  final List<PlayerFormRadarActionSnapshot> actions;
+
+  int get contributions => goals + assists;
+  bool get isDecisive => contributions > 0;
+}
+
+/// An explainable goal or assist made by a player during one Radar match.
+class PlayerFormRadarActionSnapshot {
+  const PlayerFormRadarActionSnapshot({
+    required this.minute,
+    required this.kind,
+  });
+
+  final int minute;
+  final PlayerFormRadarActionKind kind;
+}
+
+enum PlayerFormRadarActionKind { goal, assist }
+
+/// A player eligible for Form Radar on a given match-feed day.
+class PlayerFormRadarProfile {
+  const PlayerFormRadarProfile({
+    required this.playerId,
+    required this.playerName,
+    required this.teamId,
+    required this.teamName,
+    required this.leagueId,
+    required this.activity,
+    this.photoUrl,
+    this.teamLogoUrl,
+  });
+
+  final int playerId;
+  final String playerName;
+  final int teamId;
+  final String teamName;
+  final int leagueId;
+  final String? photoUrl;
+  final String? teamLogoUrl;
+  final List<PlayerFormRadarMatchSnapshot> activity;
 }
 
 class TeamPerformanceStatisticsSnapshot {
@@ -662,6 +793,7 @@ class MatchAnalysisData {
     this.homePlayerStatistics = const [],
     this.awayPlayerStatistics = const [],
     this.leaguePlayerStatistics = const [],
+    this.playerFormRadarProfiles = const [],
     this.unavailablePlayers = const [],
     this.homePerformanceStatistics,
     this.awayPerformanceStatistics,
@@ -699,6 +831,7 @@ class MatchAnalysisData {
   final List<PlayerSeasonStatisticsSnapshot> homePlayerStatistics;
   final List<PlayerSeasonStatisticsSnapshot> awayPlayerStatistics;
   final List<PlayerSeasonStatisticsSnapshot> leaguePlayerStatistics;
+  final List<PlayerFormRadarProfile> playerFormRadarProfiles;
   final List<PlayerUnavailableSnapshot> unavailablePlayers;
   final TeamPerformanceStatisticsSnapshot? homePerformanceStatistics;
   final TeamPerformanceStatisticsSnapshot? awayPerformanceStatistics;
@@ -770,6 +903,7 @@ class MatchAnalysisData {
     List<PlayerSeasonStatisticsSnapshot>? homePlayerStatistics,
     List<PlayerSeasonStatisticsSnapshot>? awayPlayerStatistics,
     List<PlayerSeasonStatisticsSnapshot>? leaguePlayerStatistics,
+    List<PlayerFormRadarProfile>? playerFormRadarProfiles,
     List<PlayerUnavailableSnapshot>? unavailablePlayers,
     TeamPerformanceStatisticsSnapshot? homePerformanceStatistics,
     TeamPerformanceStatisticsSnapshot? awayPerformanceStatistics,
@@ -812,6 +946,8 @@ class MatchAnalysisData {
       awayPlayerStatistics: awayPlayerStatistics ?? this.awayPlayerStatistics,
       leaguePlayerStatistics:
           leaguePlayerStatistics ?? this.leaguePlayerStatistics,
+      playerFormRadarProfiles:
+          playerFormRadarProfiles ?? this.playerFormRadarProfiles,
       unavailablePlayers: unavailablePlayers ?? this.unavailablePlayers,
       homePerformanceStatistics:
           homePerformanceStatistics ?? this.homePerformanceStatistics,
