@@ -4,9 +4,9 @@ const defaultTimezone = "Europe/Paris";
 const defaultResultsDaysBack = 7;
 const defaultFutureDays = 3;
 const defaultDatabaseSizeLimitBytes = 500 * 1024 * 1024;
-const defaultApiRequestDelayMs = 750;
+const defaultApiRequestDelayMs = 220;
 const defaultRecentFormDaysBack = 180;
-const defaultRecentFormMatches = 10;
+const defaultRecentFormMatches = 5;
 
 const corsHeaders = {
   "access-control-allow-origin": "*",
@@ -33,7 +33,19 @@ Deno.serve(async (request) => {
   const serviceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
   const syncSecret = requireEnv("API_FOOTBALL_SYNC_SECRET");
   const payload = await readJson(request);
+
+  if (booleanValue(payload.process_queue) === true) {
+    return processQueuedJob({ supabaseUrl, serviceRoleKey, syncSecret });
+  }
+
+  // Cron and manual calls only place an idempotent request in the durable
+  // queue. The worker below is the only path that can contact API-Football.
+  if (booleanValue(payload._queue_job) !== true) {
+    return enqueueDailySync({ supabaseUrl, serviceRoleKey, payload });
+  }
+
   const options = dailyOptionsFromPayload(payload);
+  const queueJobId = stringValue(payload.queue_job_id);
 
   let runId: string | null = null;
   let syncResponse: JsonObject = {};
@@ -57,7 +69,7 @@ Deno.serve(async (request) => {
       supabaseUrl,
       name: "api-football-sync",
       syncSecret,
-      payload: syncPayload(options),
+      payload: syncPayload(options, queueJobId),
     });
 
     resultResponse = await callFunction({
@@ -74,6 +86,8 @@ Deno.serve(async (request) => {
         window_start: options.resultsWindowStart,
         window_end: options.resultsWindowEnd,
         api_request_delay_ms: options.apiRequestDelayMs,
+        api_football_sync_run_id: stringValue(syncResponse.runId),
+        queue_job_id: queueJobId,
       },
     });
 
@@ -311,7 +325,10 @@ function dailyOptionsFromPayload(payload: JsonObject): DailyOptions {
   };
 }
 
-function syncPayload(options: DailyOptions): JsonObject {
+function syncPayload(
+  options: DailyOptions,
+  queueJobId: string | null,
+): JsonObject {
   const payload: JsonObject = {
     timezone: options.timezone,
     window_start: options.feedWindowStart,
@@ -328,6 +345,9 @@ function syncPayload(options: DailyOptions): JsonObject {
     purpose: "daily_football_sync",
     windows: windowsPayload(options),
   };
+  if (queueJobId !== null) {
+    payload.queue_job_id = queueJobId;
+  }
   if (options.bookmakerId !== null) {
     payload.bookmaker_id = options.bookmakerId;
   }
@@ -518,6 +538,212 @@ async function callFunction({
     );
   }
   return body;
+}
+
+type QueueJob = {
+  id: string;
+  payload: JsonObject;
+  attempts: number;
+};
+
+async function enqueueDailySync({
+  supabaseUrl,
+  serviceRoleKey,
+  payload,
+}: {
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  payload: JsonObject;
+}): Promise<Response> {
+  const options = dailyOptionsFromPayload(payload);
+  const requestedAt = parisDateOnly(new Date());
+  const manualRequested = booleanValue(payload.manual_override) === true;
+  const manualOverride = manualRequested ||
+    booleanValue(payload.manual_cycle) === true;
+  if (manualRequested) {
+    await supabaseFetch({
+      supabaseUrl,
+      serviceRoleKey,
+      path: "/rest/v1/rpc/prepare_manual_api_football_cycle",
+      method: "POST",
+      body: {},
+      prefer: "return=minimal",
+    });
+    if (options.leagueIds.length > 1) {
+      const queued = await Promise.all(options.leagueIds.map((leagueId) =>
+        enqueueDailySync({
+          supabaseUrl,
+          serviceRoleKey,
+          payload: {
+            ...payload,
+            league_ids: [leagueId],
+            manual_override: false,
+            manual_cycle: true,
+          },
+        })
+      ));
+      return jsonResponse({
+        ok: true,
+        status: "queued",
+        manual: true,
+        queuedLeagues: options.leagueIds.length,
+        responses: await Promise.all(queued.map(async (response) => response.json())),
+      }, 202);
+    }
+  }
+  const mode = manualOverride
+    ? "manual"
+    : options.includePlayerStatistics ? "enrichment" : "rolling";
+  const dedupeKey = `${mode}:${requestedAt}:${[...options.leagueIds].sort((a, b) => a - b).join(",")}`;
+  const existing = await supabaseFetch({
+    supabaseUrl,
+    serviceRoleKey,
+    path: `/rest/v1/api_football_sync_queue_jobs?dedupe_key=eq.${encodeURIComponent(dedupeKey)}` +
+      "&status=in.(queued,running,retrying)&select=id,status,available_at,attempts&limit=1",
+    method: "GET",
+    prefer: "return=representation",
+  });
+  const active = objectValue(existing[0]);
+  if (active !== null) {
+    return jsonResponse({
+      ok: true,
+      status: "already_queued",
+      queueJobId: stringValue(active.id),
+      queueStatus: stringValue(active.status),
+      availableAt: stringValue(active.available_at),
+    }, 202);
+  }
+
+  const queuedPayload = { ...payload };
+  delete queuedPayload.process_queue;
+  delete queuedPayload._queue_job;
+  const rows = await supabaseFetch({
+    supabaseUrl,
+    serviceRoleKey,
+    path: "/rest/v1/api_football_sync_queue_jobs",
+    method: "POST",
+    body: [{
+      dedupe_key: dedupeKey,
+      payload: queuedPayload,
+      priority: manualOverride ? 1000 : 0,
+    }],
+    prefer: "return=representation",
+  });
+  const queued = objectValue(rows[0]) ?? {};
+  return jsonResponse({
+    ok: true,
+    status: "queued",
+    queueJobId: stringValue(queued.id),
+    leagueIds: options.leagueIds,
+  }, 202);
+}
+
+async function processQueuedJob({
+  supabaseUrl,
+  serviceRoleKey,
+  syncSecret,
+}: {
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  syncSecret: string;
+}): Promise<Response> {
+  const rows = await supabaseFetch({
+    supabaseUrl,
+    serviceRoleKey,
+    path: "/rest/v1/rpc/claim_next_api_football_sync_queue_job",
+    method: "POST",
+    body: { p_lease_seconds: 900 },
+    prefer: "return=representation",
+  });
+  const row = objectValue(rows[0]);
+  const id = stringValue(row?.id);
+  const payload = objectValue(row?.payload);
+  if (id === null || payload === null) {
+    return jsonResponse({ ok: true, status: "idle" }, 200);
+  }
+
+  const job: QueueJob = {
+    id,
+    payload,
+    attempts: numberValue(row?.attempts) ?? 1,
+  };
+  try {
+    const response = await callFunction({
+      supabaseUrl,
+      name: "daily-football-sync",
+      syncSecret,
+      payload: { ...job.payload, _queue_job: true, queue_job_id: job.id },
+    });
+    if (booleanValue(response.ok) !== true) {
+      throw new Error(`Queued orchestration returned ${JSON.stringify(response)}`);
+    }
+    await finishQueuedJob({
+      supabaseUrl,
+      serviceRoleKey,
+      jobId: job.id,
+      status: "succeeded",
+    });
+    return jsonResponse({ ok: true, status: "succeeded", queueJobId: job.id }, 200);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const retry = isRetryableQueueError(message) && job.attempts < 3;
+    await finishQueuedJob({
+      supabaseUrl,
+      serviceRoleKey,
+      jobId: job.id,
+      status: retry ? "retrying" : "failed",
+      errorMessage: message,
+      availableAt: retry
+        ? new Date(Date.now() + retryDelayMs(job.attempts)).toISOString()
+        : undefined,
+    });
+    return jsonResponse({
+      ok: false,
+      status: retry ? "retrying" : "failed",
+      queueJobId: job.id,
+      error: message,
+    }, 200);
+  }
+}
+
+async function finishQueuedJob({
+  supabaseUrl,
+  serviceRoleKey,
+  jobId,
+  status,
+  errorMessage,
+  availableAt,
+}: {
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  jobId: string;
+  status: "succeeded" | "retrying" | "failed";
+  errorMessage?: string;
+  availableAt?: string;
+}): Promise<void> {
+  await supabaseFetch({
+    supabaseUrl,
+    serviceRoleKey,
+    path: `/rest/v1/api_football_sync_queue_jobs?id=eq.${encodeURIComponent(jobId)}`,
+    method: "PATCH",
+    body: {
+      status,
+      lease_expires_at: null,
+      available_at: availableAt,
+      last_error: errorMessage ?? null,
+      finished_at: status === "retrying" ? null : new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    prefer: "return=minimal",
+  });
+}
+
+function isRetryableQueueError(message: string): boolean {
+  return /\b429\b|rate.?limit|timeout|network|temporar/i.test(message);
+}
+
+function retryDelayMs(attempt: number): number {
+  return Math.min(15 * 60 * 1000, 2 ** attempt * 60 * 1000);
 }
 
 async function currentDatabaseSizeBytes({

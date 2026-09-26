@@ -52,6 +52,9 @@ void main() {
           ).readAsStringSync() +
           File(
             'supabase/migrations/20260916183000_backend_api_football_ultra_quota.sql',
+          ).readAsStringSync() +
+          File(
+            'supabase/migrations/20260926193000_backend_api_football_pro_quota.sql',
           ).readAsStringSync();
     });
 
@@ -112,7 +115,8 @@ void main() {
       expect(cronGenerator, contains("'future_days', 3"));
       expect(cronGenerator, contains("'include_player_statistics', false"));
       expect(cronGenerator, contains("'api-football-enrichment-\$leagueId'"));
-      expect(cronGenerator, contains("'include_player_statistics', true"));
+      expect(cronGenerator, contains("'api-football-queue-worker'"));
+      expect(cronGenerator, contains("'manual_override', true"));
       expect(
         apiSync,
         contains('const registerPlayerStatisticsTeam'),
@@ -250,7 +254,7 @@ void main() {
       );
       expect(
         quotaGuardMigration,
-        contains('p_minute_limit integer default 450'),
+        contains('p_minute_limit integer default 280'),
       );
       expect(apiSync, contains('reserveApiFootballRequest(options)'));
       expect(apiSync, contains('API-Football quota guard blocked'));

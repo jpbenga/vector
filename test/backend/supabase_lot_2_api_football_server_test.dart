@@ -134,7 +134,7 @@ void main() {
         contains('/rest/v1/rpc/reserve_api_football_request'),
       );
       expect(functionSource, contains('apiFootballDailyRequestLimit = 75000'));
-      expect(functionSource, contains('apiFootballMinuteRequestLimit = 450'));
+      expect(functionSource, contains('apiFootballMinuteRequestLimit = 280'));
     });
 
     test('collects factual recent form and historical fixture statistics', () {

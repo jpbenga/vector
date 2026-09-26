@@ -84,8 +84,9 @@ auditable est conservee dans les payloads/provenances via `season_by_league`.
 ## Architecture
 
 ```text
-Supabase Cron
-  -> daily-football-sync par ligue
+ Supabase Cron / lancement manuel
+  -> file `api_football_sync_queue_jobs`
+  -> worker unique `daily-football-sync`
   -> api-football-sync
   -> api_football_cached_responses
   -> sync-match-results (J-7 a J-1, scores finaux)
@@ -157,18 +158,18 @@ plus prudente.
 Valeur par defaut :
 
 ```text
-API_FOOTBALL_REQUEST_DELAY_MS=750
+API_FOOTBALL_REQUEST_DELAY_MS=220
 ```
 
-Soit environ 80 requetes/minute maximum en pratique, avant meme de compter le
-temps reseau et Supabase.
+Soit jusqu a environ 280 requetes/minute en pratique, avec une marge de
+20 requetes sous le plafond du plan Pro.
 
 La migration
 `supabase/migrations/20260916170000_backend_api_football_quota_guard.sql`
 ajoute en plus une reservation atomique avant chaque appel fournisseur :
 
-- plafond global Ultra de 75 000 requetes par jour UTC ;
-- plafond global de 450 requetes sur toute fenetre glissante de 60 secondes ;
+- plafond global Pro de 75 000 requetes par jour UTC ;
+- plafond global de 280 requetes sur toute fenetre glissante de 60 secondes ;
 - compteur partage entre les crons et les lancements manuels ;
 - refus de l'appel avant de contacter API-Football si un plafond est atteint.
 
@@ -176,8 +177,8 @@ Le compteur du jour d'installation est initialise depuis
 `api_football_sync_runs.response_summary.cachedResponses`, afin qu'un
 deploiement en cours de journee ne remette jamais le budget a zero.
 
-La cadence sequentielle de `750 ms` reste volontairement bien plus basse que
-le plafond Ultra : environ 80 requetes/minute par collecteur.
+La cadence sequentielle de `220 ms` vise 280 requetes/minute au maximum
+tout en laissant une marge de 20 requetes sous le plafond Pro.
 
 ### Confrontations directes
 
@@ -203,9 +204,16 @@ des gros snapshots immuables, sans modifier le delai des roles clients.
 
 La collecte reste sequentielle :
 
-- pas de fan-out agressif ;
+- tout cron et tout lancement manuel passent par la meme file durable ;
+- un seul worker peut detenir une lease a la fois ;
+- un lancement manuel annule les travaux en attente et demande l'arret du
+  travail actif avant son prochain appel fournisseur ;
+- les appels resultats, statistiques et evenements utilisent le meme garde de
+  quota que les appels de collecte ;
+- plafond global de 280 requetes sur toute fenetre glissante de 60 secondes,
+  adapte au plan API-Football Pro (300/minute) ;
 - pas d'appel API-Football depuis le front ;
-- retries/backoff avances a ajouter plus tard si necessaire ;
+- reprise differee apres un `429` ou une erreur reseau transitoire ;
 - logs par run dans `api_football_sync_runs` et `daily_football_sync_runs`.
 
 ## Monitoring stockage
@@ -240,7 +248,7 @@ A configurer dans Supabase Edge Functions :
 ```text
 API_FOOTBALL_KEY
 API_FOOTBALL_SYNC_SECRET
-API_FOOTBALL_REQUEST_DELAY_MS=750
+API_FOOTBALL_REQUEST_DELAY_MS=220
 SUPABASE_SERVICE_ROLE_KEY
 SUPABASE_URL
 ```
@@ -253,7 +261,7 @@ Detail :
   aleatoire. Il sert a autoriser l'execution des fonctions de synchronisation.
   La meme valeur doit etre mise dans Supabase et Vercel.
 - `API_FOOTBALL_REQUEST_DELAY_MS` : delai volontaire entre deux appels
-  API-Football. `750` garde environ 80 requetes/minute maximum.
+  API-Football. `220` permet une cadence maximale proche de 280 requetes/minute.
 - `SUPABASE_SERVICE_ROLE_KEY` : cle Supabase `service_role`. Elle se trouve
   dans Settings -> API Keys -> Legacy anon, service_role API keys. Elle permet
   aux fonctions serveur d'ecrire dans les tables protegees par RLS.
@@ -273,7 +281,7 @@ API_FOOTBALL_TIMEZONE=Europe/Paris
 API_FOOTBALL_LEAGUE_IDS=2,3,848,39,61,140,78,135,94,95,88,144,179,203,197,119,207,218,40,62,136,79,141,106,210,209,283,253,71,128,262,307,98,188,103,113,164,169,244,292,531,45,48,528,66,526,81,529,96,550,143,556,137,547,90,543,147,519,181,185,551,1,32,4,5,9,6,7,22,536,64,525,1191,8
 API_FOOTBALL_RESULTS_DAYS_BACK=2
 API_FOOTBALL_FUTURE_DAYS=3
-API_FOOTBALL_REQUEST_DELAY_MS=750
+API_FOOTBALL_REQUEST_DELAY_MS=220
 SUPABASE_DATABASE_SIZE_LIMIT_BYTES=524288000
 ```
 
@@ -326,7 +334,7 @@ présentés dans l’application que lorsqu’un marché de cote est effectiveme
 `00:00 UTC` correspond a environ `02:00` en France en aout.
 
 L'espacement de 4 minutes entre chaque ligue evite le fan-out agressif et garde
-la consommation API tres largement sous la limite Ultra de 450 requetes/minute.
+la consommation API sous le plafond Pro de 280 requetes/minute applique par le garde partage.
 
 Un second job `api-football-enrichment-<id>` existe pour chaque ligue. Il ne
 tourne qu'une fois par semaine avec `include_player_statistics: true`. Les 40
@@ -348,7 +356,7 @@ Body commun aux runs orchestres :
   "league_ids": [61],
   "results_days_back": 7,
   "future_days": 3,
-  "api_request_delay_ms": 750,
+  "api_request_delay_ms": 220,
   "include_team_statistics": true,
   "include_recent_form": true,
   "include_expected_goals": true,
@@ -411,7 +419,7 @@ curl -X POST \
     "league_ids": [61, 62],
     "results_days_back": 7,
     "future_days": 3,
-    "api_request_delay_ms": 750
+    "api_request_delay_ms": 220
   }'
 ```
 

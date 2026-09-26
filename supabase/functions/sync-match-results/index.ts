@@ -6,6 +6,10 @@ const corsHeaders = {
   "access-control-allow-methods": "POST, OPTIONS",
 };
 const finalStatuses = new Set(["FT", "AET", "PEN"]);
+const apiFootballDailyRequestLimit = 75000;
+// The provider may allow more, but this ceiling is intentionally shared by
+// every collector and remains below the lowest paid API-Football plan.
+const apiFootballMinuteRequestLimit = 280;
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return respond({ ok: true });
@@ -32,10 +36,15 @@ Deno.serve(async (request) => {
     const apiKey = requiredEnv("API_FOOTBALL_KEY");
     const supabaseUrl = requiredEnv("SUPABASE_URL");
     const serviceKey = requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
+    const syncRunId = string(payload.api_football_sync_run_id);
+    if (syncRunId === null) {
+      throw new Error("Missing api_football_sync_run_id for quota reservation");
+    }
+    const queueJobId = string(payload.queue_job_id);
     const apiBase = Deno.env.get("API_FOOTBALL_BASE_URL") ??
       "https://v3.football.api-sports.io";
     const delayMs = Math.max(0, Math.min(5000,
-      Number(payload.api_request_delay_ms ?? 750)));
+      Number(payload.api_request_delay_ms ?? 220)));
     const summary = {
       providerRequests: 0,
       completedFixtures: 0,
@@ -55,8 +64,14 @@ Deno.serve(async (request) => {
         url.searchParams.set("season", String(season));
         url.searchParams.set("date", date);
         url.searchParams.set("timezone", timezone);
-        const response = await fetch(url, {
-          headers: { "x-apisports-key": apiKey },
+        const response = await providerFetch({
+          url,
+          apiKey,
+          supabaseUrl,
+          serviceKey,
+          syncRunId,
+          delayMs,
+          queueJobId,
         });
         summary.providerRequests += 1;
         if (!response.ok) {
@@ -102,7 +117,16 @@ Deno.serve(async (request) => {
           }
           summary.completedFixtures += 1;
           const enrichment = announcedFixtureIds.has(fixtureId)
-            ? await completedFixtureEnrichment({ apiBase, apiKey, fixtureId })
+            ? await completedFixtureEnrichment({
+              apiBase,
+              apiKey,
+              fixtureId,
+              supabaseUrl,
+              serviceKey,
+              syncRunId,
+              delayMs,
+              queueJobId,
+            })
             : { statistics: [] as JsonObject[], events: [] as JsonObject[], providerRequests: 0 };
           summary.providerRequests += enrichment.providerRequests;
           if (enrichment.providerRequests > 0) summary.enrichedFixtures += 1;
@@ -169,7 +193,6 @@ Deno.serve(async (request) => {
           const inserted = await stored.json();
           summary.insertedSnapshots += Array.isArray(inserted) ? inserted.length : 0;
         }
-        if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
     }
     return respond({ ok: true, summary });
@@ -182,10 +205,20 @@ async function completedFixtureEnrichment({
   apiBase,
   apiKey,
   fixtureId,
+  supabaseUrl,
+  serviceKey,
+  syncRunId,
+  delayMs,
+  queueJobId,
 }: {
   apiBase: string;
   apiKey: string;
   fixtureId: number;
+  supabaseUrl: string;
+  serviceKey: string;
+  syncRunId: string;
+  delayMs: number;
+  queueJobId: string | null;
 }): Promise<{ statistics: JsonObject[]; events: JsonObject[]; providerRequests: number }> {
   // The provider exposes these final resources per fixture. They are fetched
   // only after FT and retained once in the immutable result snapshot; the app
@@ -193,7 +226,15 @@ async function completedFixtureEnrichment({
   const load = async (path: string): Promise<JsonObject[]> => {
     const url = new URL(path, apiBase);
     url.searchParams.set("fixture", String(fixtureId));
-    const response = await fetch(url, { headers: { "x-apisports-key": apiKey } });
+    const response = await providerFetch({
+      url,
+      apiKey,
+      supabaseUrl,
+      serviceKey,
+      syncRunId,
+      delayMs,
+      queueJobId,
+    });
     if (!response.ok) throw new Error(`API-Football ${path} ${fixtureId}: ${response.status}`);
     const body = object(await response.json()) ?? {};
     const errors = body.errors;
@@ -205,11 +246,85 @@ async function completedFixtureEnrichment({
       ? body.response.map(object).filter((value): value is JsonObject => value !== null)
       : [];
   };
-  const [statistics, events] = await Promise.all([
-    load("/fixtures/statistics"),
-    load("/fixtures/events"),
-  ]);
+  // These calls are deliberately serial. Parallel event/statistic lookups
+  // were bypassing the shared provider cadence and triggered 429 responses.
+  const statistics = await load("/fixtures/statistics");
+  const events = await load("/fixtures/events");
   return { statistics, events, providerRequests: 2 };
+}
+
+async function providerFetch({
+  url,
+  apiKey,
+  supabaseUrl,
+  serviceKey,
+  syncRunId,
+  delayMs,
+  queueJobId,
+}: {
+  url: URL;
+  apiKey: string;
+  supabaseUrl: string;
+  serviceKey: string;
+  syncRunId: string;
+  delayMs: number;
+  queueJobId: string | null;
+}): Promise<Response> {
+  if (queueJobId !== null && await queueCancellationRequested({
+    supabaseUrl,
+    serviceKey,
+    queueJobId,
+  })) {
+    throw new Error("Queue job cancelled before provider request.");
+  }
+  const reservation = await fetch(
+    `${supabaseUrl}/rest/v1/rpc/reserve_api_football_request`,
+    {
+      method: "POST",
+      headers: {
+        apikey: serviceKey,
+        authorization: `Bearer ${serviceKey}`,
+        "content-type": "application/json",
+        prefer: "return=representation",
+      },
+      body: JSON.stringify({
+        p_sync_run_id: syncRunId,
+        p_daily_limit: apiFootballDailyRequestLimit,
+        p_minute_limit: apiFootballMinuteRequestLimit,
+      }),
+    },
+  );
+  if (!reservation.ok) {
+    throw new Error(`Reserve API-Football request: ${reservation.status}`);
+  }
+  const rows = await reservation.json();
+  const budget = object(Array.isArray(rows) ? rows[0] : rows) ?? {};
+  if (budget.allowed !== true) {
+    throw new Error(`API-Football quota guard blocked request: ${string(budget.reason) ?? "unknown"}`);
+  }
+  const response = await fetch(url, { headers: { "x-apisports-key": apiKey } });
+  if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
+  return response;
+}
+
+async function queueCancellationRequested({
+  supabaseUrl,
+  serviceKey,
+  queueJobId,
+}: {
+  supabaseUrl: string;
+  serviceKey: string;
+  queueJobId: string;
+}): Promise<boolean> {
+  const response = await fetch(
+    `${supabaseUrl}/rest/v1/api_football_sync_queue_jobs?id=eq.${encodeURIComponent(queueJobId)}` +
+      "&select=status,cancel_requested_at&limit=1",
+    { headers: { apikey: serviceKey, authorization: `Bearer ${serviceKey}` } },
+  );
+  if (!response.ok) throw new Error(`Read queue cancellation: ${response.status}`);
+  const rows = await response.json();
+  const job = object(Array.isArray(rows) ? rows[0] : null) ?? {};
+  return string(job.cancel_requested_at) !== null || string(job.status) === "cancelled";
 }
 
 async function announcedFixtureIdsFor({

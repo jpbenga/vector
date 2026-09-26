@@ -16,10 +16,10 @@ const defaultRecentFormDaysBack = 180;
 // Keep enough completed fixtures to establish a decisive run beyond the
 // three-match Radar window. Existing football readings still use their own
 // explicit five/three-match windows.
-const defaultRecentFormMatches = 10;
-const defaultApiRequestDelayMs = 750;
+const defaultRecentFormMatches = 5;
+const defaultApiRequestDelayMs = 220;
 const apiFootballDailyRequestLimit = 75000;
-const apiFootballMinuteRequestLimit = 450;
+const apiFootballMinuteRequestLimit = 280;
 
 const corsHeaders = {
   "access-control-allow-origin": "*",
@@ -77,9 +77,12 @@ Deno.serve(async (request) => {
     providerRequests: 0,
     leagueSeasons: {},
   };
-  const fetchAndAccount = (options: FetchAndCacheOptions) =>
+  const fetchAndAccount = (
+    requestOptions: Omit<FetchAndCacheOptions, "queueJobId" | "onProviderRequest">,
+  ) =>
     fetchAndCache({
-      ...options,
+      ...requestOptions,
+      queueJobId: options.queueJobId,
       onProviderRequest: () => {
         summary.providerRequests += 1;
       },
@@ -401,17 +404,10 @@ Deno.serve(async (request) => {
       summary.cachedResponses += 1;
     }
 
-    if (
-      injuryFixtureIds.size > maxInjuryRequests ||
-      fixtureStatisticsIds.size > maxFixtureStatisticsRequests ||
-      fixturePlayerStatisticsIds.size > maxFixturePlayerStatisticsRequests ||
-      playerStatisticsTeams.size > maxPlayerStatisticsTeams
-    ) {
-      throw new Error(
-        "Enrichment scope exceeds one sync run; split the request by league.",
-      );
-    }
-    for (const fixtureId of injuryFixtureIds) {
+    // A large league must never make the complete cycle fail. The collection
+    // is bounded to a safe unit of work; cached responses make the remaining
+    // items candidates for the next queued cycle.
+    for (const fixtureId of [...injuryFixtureIds].slice(0, maxInjuryRequests)) {
       await fetchAndAccount({
         apiBaseUrl,
         apiKey,
@@ -427,7 +423,10 @@ Deno.serve(async (request) => {
       summary.cachedResponses += 1;
     }
 
-    for (const context of playerStatisticsTeams.values()) {
+    for (const context of [...playerStatisticsTeams.values()].slice(
+      0,
+      maxPlayerStatisticsTeams,
+    )) {
       const firstPage = await fetchAndAccount({
         apiBaseUrl,
         apiKey,
@@ -473,7 +472,10 @@ Deno.serve(async (request) => {
     }
 
     if (options.includeExpectedGoals) {
-      for (const fixtureId of [...fixtureStatisticsIds]) {
+      for (const fixtureId of [...fixtureStatisticsIds].slice(
+        0,
+        maxFixtureStatisticsRequests,
+      )) {
         await fetchAndAccount({
           apiBaseUrl,
           apiKey,
@@ -505,7 +507,10 @@ Deno.serve(async (request) => {
       }
     }
 
-    for (const fixtureId of fixturePlayerStatisticsIds) {
+    for (const fixtureId of [...fixturePlayerStatisticsIds].slice(
+      0,
+      maxFixturePlayerStatisticsRequests,
+    )) {
       await fetchAndAccount({
         apiBaseUrl,
         apiKey,
@@ -570,6 +575,7 @@ type SyncOptions = {
   skipEmptyFeed: boolean;
   recentFormDaysBack: number;
   recentFormMatches: number;
+  queueJobId: string | null;
 };
 
 type SyncSummary = {
@@ -610,6 +616,7 @@ type FetchAndCacheOptions = {
   query: Record<string, string>;
   ttlSeconds: number;
   requestDelayMs: number;
+  queueJobId: string | null;
   onProviderRequest?: () => void;
 };
 
@@ -669,6 +676,7 @@ function syncOptionsFromPayload(payload: JsonObject): SyncOptions {
     defaultRecentFormDaysBack;
   const recentFormMatches = numberValue(payload.recent_form_matches) ??
     defaultRecentFormMatches;
+  const queueJobId = stringValue(payload.queue_job_id);
 
   if (leagueIds.length === 0) {
     throw new Error(
@@ -709,6 +717,7 @@ function syncOptionsFromPayload(payload: JsonObject): SyncOptions {
     skipEmptyFeed,
     recentFormDaysBack,
     recentFormMatches,
+    queueJobId,
   };
 }
 
@@ -834,6 +843,10 @@ async function fetchAndCache(
     return { body: cachedBody, fetchedAt: cachedAt, fromCache: true };
   }
 
+  if (options.queueJobId !== null && await queueCancellationRequested(options)) {
+    throw new Error("Queue job cancelled before provider request.");
+  }
+
   const reservation = await reserveApiFootballRequest(options);
   if (!reservation.allowed) {
     throw new Error(
@@ -936,6 +949,21 @@ async function reserveApiFootballRequest(
     dailyRemaining: numberValue(payload.daily_remaining) ?? 0,
     minuteRemaining: numberValue(payload.minute_remaining) ?? 0,
   };
+}
+
+async function queueCancellationRequested(
+  options: FetchAndCacheOptions,
+): Promise<boolean> {
+  const rows = await supabaseFetch({
+    supabaseUrl: options.supabaseUrl,
+    serviceRoleKey: options.serviceRoleKey,
+    path: `/rest/v1/api_football_sync_queue_jobs?id=eq.${encodeURIComponent(options.queueJobId ?? "")}` +
+      "&select=cancel_requested_at,status&limit=1",
+    method: "GET",
+  });
+  const job = objectValue(rows[0]);
+  return stringValue(job?.cancel_requested_at) !== null ||
+    stringValue(job?.status) === "cancelled";
 }
 
 function apiFootballErrorMessages(payload: JsonObject): string[] {

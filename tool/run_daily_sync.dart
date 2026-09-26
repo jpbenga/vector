@@ -32,7 +32,7 @@ Future<void> main(List<String> arguments) async {
           'league_ids': [leagueId],
           'results_days_back': 7,
           'future_days': 3,
-          'api_request_delay_ms': 750,
+          'api_request_delay_ms': 220,
           'include_team_statistics': true,
           'include_recent_form': true,
           'include_expected_goals': true,

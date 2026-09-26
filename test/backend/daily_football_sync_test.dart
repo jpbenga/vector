@@ -113,11 +113,30 @@ void main() {
         'supabase/functions/api-football-sync/index.ts',
       ).readAsStringSync();
 
-      expect(apiFunction, contains('defaultApiRequestDelayMs = 750'));
+      expect(apiFunction, contains('defaultApiRequestDelayMs = 220'));
       expect(apiFunction, contains('API_FOOTBALL_REQUEST_DELAY_MS'));
       expect(apiFunction, contains('requestDelayMs: apiRequestDelayMs'));
       expect(apiFunction, contains('await delay(options.requestDelayMs)'));
     });
+
+    test(
+      'routes scheduled, manual, and result collection through one queue and quota guard',
+      () {
+        final resultsFunction = File(
+          'supabase/functions/sync-match-results/index.ts',
+        ).readAsStringSync();
+        final generator = File(
+          'tool/generate_supabase_cron_sql.dart',
+        ).readAsStringSync();
+
+        expect(supabaseFunction, contains('enqueueDailySync'));
+        expect(supabaseFunction, contains('processQueuedJob'));
+        expect(supabaseFunction, contains('prepare_manual_api_football_cycle'));
+        expect(generator, contains("'api-football-queue-worker'"));
+        expect(resultsFunction, contains('reserve_api_football_request'));
+        expect(resultsFunction, isNot(contains('Promise.all([')));
+      },
+    );
 
     test(
       'collects absence reports only in the final 24 hours before kickoff',
@@ -267,14 +286,14 @@ void main() {
       ).readAsStringSync();
 
       expect(generator, contains('api-football-league-\$leagueId'));
-      expect(generator, contains('api-football-run-now-league-\$leagueId'));
+      expect(generator, contains('api-football-run-now-full-cycle'));
       expect(
         generator,
         isNot(contains('api-football-league-\$leagueId-snapshot')),
       );
       expect(
         generator,
-        isNot(contains('api-football-run-now-league-\$leagueId-snapshot')),
+        isNot(contains('api-football-run-now-full-cycle-snapshot')),
       );
       expect(generator, contains('daily-football-sync'));
       expect(generator, isNot(contains('api-football-sync')));
@@ -289,11 +308,8 @@ void main() {
         reason: 'rolling daily jobs must not repaginate every player squad',
       );
       expect(generator, contains('api-football-enrichment-\$leagueId'));
-      expect(
-        generator,
-        contains("'include_player_statistics', true"),
-        reason: 'player data must still be refreshed by a dedicated job',
-      );
+      expect(generator, contains("'api-football-queue-worker'"));
+      expect(generator, contains("'manual_override', true"));
       expect(
         generator,
         isNot(contains("'bookmaker_id', 16")),
