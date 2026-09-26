@@ -1242,7 +1242,6 @@ class _LectorQuickContextCard extends StatelessWidget {
       match,
       serverContextReadings,
     );
-    final decisivePlayerGroups = _decisivePlayerGroupsFor(match);
     final vigilanceReadings = _contextVigilanceReadingsFor(match);
     final quickFactCount = keys.length + serverContextReadings.length;
 
@@ -1311,7 +1310,7 @@ class _LectorQuickContextCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          if (quickFactCount == 0 && decisivePlayerGroups.isEmpty)
+          if (quickFactCount == 0)
             const _ContextKeyEmptyState()
           else ...[
             for (var index = 0; index < keys.length; index += 1) ...[
@@ -1321,15 +1320,6 @@ class _LectorQuickContextCard extends StatelessWidget {
             for (final indexed in serverContextGroups.indexed) ...[
               if (keys.isNotEmpty || indexed.$1 > 0) const SizedBox(height: 9),
               _ServerComputedContextTeamCard(group: indexed.$2),
-            ],
-            if (decisivePlayerGroups.isNotEmpty) ...[
-              const SizedBox(height: 18),
-              _DecisivePlayersContextSection(
-                groups: decisivePlayerGroups,
-                startsOnAllSources: _isNationalCompetition(
-                  match.competition.apiFootballLeagueId,
-                ),
-              ),
             ],
             if (vigilanceReadings.isNotEmpty) ...[
               const SizedBox(height: 18),
@@ -1788,90 +1778,6 @@ class _FormSequenceInEvidence {
   }
 }
 
-class _DecisivePlayerGroup {
-  const _DecisivePlayerGroup({required this.team, required this.readings});
-
-  final TeamInfo team;
-  final List<MatchComputedReading> readings;
-}
-
-List<_DecisivePlayerGroup> _decisivePlayerGroupsFor(MatchBoardItem match) {
-  final readingsByTeam = <String, List<MatchComputedReading>>{};
-  for (final reading in match.analysis.computedReadings) {
-    final recent = _computedMap(_computedMap(reading.evidenceValue)['recent']);
-    if (reading.id != 'standout_decisive_player' ||
-        reading.isContradiction ||
-        reading.playerName == null ||
-        (_computedInt(recent['matches_considered']) ?? 0) < 3 ||
-        (_computedInt(recent['minutes']) ?? 0) <= 0) {
-      continue;
-    }
-    readingsByTeam.putIfAbsent(reading.subjectTeamId, () => []).add(reading);
-  }
-
-  final groups = <_DecisivePlayerGroup>[];
-  for (final team in [match.homeTeam, match.awayTeam]) {
-    final readings = readingsByTeam[team.id];
-    if (readings == null || readings.isEmpty) continue;
-    readings.sort(
-      (left, right) => _playerRank(left).compareTo(_playerRank(right)),
-    );
-    groups.add(_DecisivePlayerGroup(team: team, readings: readings));
-  }
-  return List.unmodifiable(groups);
-}
-
-int _playerRank(MatchComputedReading reading) {
-  final recent = _computedMap(_computedMap(reading.evidenceValue)['recent']);
-  return _computedInt(recent['player_rank']) ?? 999;
-}
-
-class _DecisivePlayersContextSection extends StatelessWidget {
-  const _DecisivePlayersContextSection({
-    required this.groups,
-    required this.startsOnAllSources,
-  });
-
-  final List<_DecisivePlayerGroup> groups;
-  final bool startsOnAllSources;
-
-  @override
-  Widget build(BuildContext context) {
-    final count = groups.fold<int>(
-      0,
-      (total, group) => total + group.readings.length,
-    );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Joueurs décisifs à surveiller · $count',
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            color: context.textColors.primary,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Profils calculés sur les trois derniers matchs terminés.',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: context.textColors.secondary,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 10),
-        for (final indexed in groups.indexed) ...[
-          _DecisivePlayerTeamCard(
-            group: indexed.$2,
-            startsOnAllSources: startsOnAllSources,
-          ),
-          if (indexed.$1 < groups.length - 1) const SizedBox(height: 9),
-        ],
-      ],
-    );
-  }
-}
-
 class _ContextVigilanceSection extends StatelessWidget {
   const _ContextVigilanceSection({required this.match, required this.readings});
 
@@ -1963,684 +1869,6 @@ class _ContextVigilanceCard extends StatelessWidget {
     );
   }
 }
-
-class _DecisivePlayerTeamCard extends StatefulWidget {
-  const _DecisivePlayerTeamCard({
-    required this.group,
-    required this.startsOnAllSources,
-  });
-
-  final _DecisivePlayerGroup group;
-  final bool startsOnAllSources;
-
-  @override
-  State<_DecisivePlayerTeamCard> createState() =>
-      _DecisivePlayerTeamCardState();
-}
-
-class _DecisivePlayerTeamCardState extends State<_DecisivePlayerTeamCard> {
-  String? _expandedPlayerKey;
-
-  @override
-  Widget build(BuildContext context) {
-    final group = widget.group;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.surfaces.surface.withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(AppRadius.control),
-        border: Border.all(color: context.surfaces.border),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(11),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                SportsAssetBadge(
-                  size: 31,
-                  imageUrl: group.team.logoUrl,
-                  fallbackLabel: group.team.name,
-                  borderRadius: 16,
-                  backgroundColor: AppColors.transparent,
-                  contrastPlate: true,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    group.team.name,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: context.textColors.primary,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            for (final indexed in group.readings.indexed) ...[
-              _DecisivePlayerRow(
-                reading: indexed.$2,
-                isExpanded:
-                    _expandedPlayerKey == _decisivePlayerKey(indexed.$2),
-                startsOnAllSources: widget.startsOnAllSources,
-                onToggle: () {
-                  final key = _decisivePlayerKey(indexed.$2);
-                  setState(
-                    () => _expandedPlayerKey = _expandedPlayerKey == key
-                        ? null
-                        : key,
-                  );
-                },
-              ),
-              if (indexed.$1 < group.readings.length - 1)
-                Divider(
-                  height: 17,
-                  color: context.surfaces.border.withValues(alpha: 0.72),
-                ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-String _decisivePlayerKey(MatchComputedReading reading) =>
-    '${reading.subjectTeamId}:${reading.playerName ?? reading.playerPhotoUrl ?? reading.evidenceLabel}';
-
-class _DecisivePlayerRow extends StatelessWidget {
-  const _DecisivePlayerRow({
-    required this.reading,
-    required this.isExpanded,
-    required this.startsOnAllSources,
-    required this.onToggle,
-  });
-
-  final MatchComputedReading reading;
-  final bool isExpanded;
-  final bool startsOnAllSources;
-  final VoidCallback onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    final value = _computedMap(reading.evidenceValue);
-    final recent = _computedMap(value['recent']);
-    final activity = _decisivePlayerActivity(value['activity']);
-    final isSuperSub = value['is_super_sub'] == true;
-    final profile = _displayProfile(value['profile_label']);
-    final name = reading.playerName ?? 'Joueur à surveiller';
-    final details = _playerContributionLine(recent, isSuperSub: isSuperSub);
-    final rate = _computedDouble(recent['contributions_per_90']);
-    final canExpand = activity.isNotEmpty;
-    final content = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SportsAssetBadge(
-              size: 40,
-              imageUrl: reading.playerPhotoUrl,
-              fallbackLabel: name,
-              borderRadius: 20,
-              backgroundColor: AppColors.transparent,
-              contrastPlate: true,
-            ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          name,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                color: context.textColors.primary,
-                                fontWeight: FontWeight.w900,
-                              ),
-                        ),
-                      ),
-                      _DecisiveProfileChip(label: profile),
-                    ],
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    details,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: context.textColors.secondary,
-                      fontWeight: FontWeight.w600,
-                      height: 1.22,
-                    ),
-                  ),
-                  if (rate != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      '${rate.toStringAsFixed(2).replaceAll('.', ',')} action${rate == 1 ? '' : 's'} décisive${rate == 1 ? '' : 's'} / 90 min',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: context.brand.accent,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            if (canExpand)
-              Padding(
-                padding: const EdgeInsets.only(left: 4),
-                child: Icon(
-                  isExpanded
-                      ? Icons.keyboard_arrow_up_rounded
-                      : Icons.keyboard_arrow_down_rounded,
-                  color: context.textColors.secondary,
-                ),
-              ),
-          ],
-        ),
-        if (isExpanded) ...[
-          const SizedBox(height: 10),
-          Divider(height: 1, color: context.surfaces.border),
-          const SizedBox(height: 10),
-          _DecisivePlayerActivityTimeline(
-            activity: activity,
-            initialScope: startsOnAllSources
-                ? _PlayerActivityScope.all
-                : _PlayerActivityScope.club,
-          ),
-        ],
-      ],
-    );
-    if (!canExpand) return content;
-    return Semantics(
-      button: true,
-      expanded: isExpanded,
-      label: 'Afficher l’activité de saison de $name',
-      child: InkWell(
-        key: ValueKey('decisive-player-toggle-${_decisivePlayerKey(reading)}'),
-        borderRadius: BorderRadius.circular(AppRadius.control),
-        onTap: onToggle,
-        child: content,
-      ),
-    );
-  }
-}
-
-bool _isNationalCompetition(int? leagueId) {
-  return leagueId != null &&
-      const {1, 4, 5, 6, 7, 8, 9, 22, 32, 536}.contains(leagueId);
-}
-
-enum _PlayerActivityScope { all, club, selection }
-
-class _DecisivePlayerActivity {
-  const _DecisivePlayerActivity({
-    required this.fixtureId,
-    required this.playedAt,
-    required this.source,
-    required this.sourceName,
-    required this.sourceLogoUrl,
-    required this.starter,
-    required this.substitute,
-    required this.appeared,
-    required this.goals,
-    required this.assists,
-  });
-  final String fixtureId;
-  final DateTime playedAt;
-  final String source;
-  final String sourceName;
-  final String? sourceLogoUrl;
-  final bool starter;
-  final bool substitute;
-  final bool appeared;
-  final int goals;
-  final int assists;
-  bool get isClub => source == 'club';
-  bool get isSelection => source == 'selection';
-}
-
-List<_DecisivePlayerActivity> _decisivePlayerActivity(Object? raw) {
-  if (raw is! List) return const [];
-  final values = <_DecisivePlayerActivity>[];
-  for (final item in raw) {
-    final map = _computedMap(item);
-    final date = DateTime.tryParse(map['played_at']?.toString() ?? '');
-    final fixtureId = map['fixture_id']?.toString();
-    final source = map['source']?.toString();
-    if (date == null ||
-        fixtureId == null ||
-        fixtureId.isEmpty ||
-        (source != 'club' && source != 'selection')) {
-      continue;
-    }
-    values.add(
-      _DecisivePlayerActivity(
-        fixtureId: fixtureId,
-        playedAt: date,
-        source: source!,
-        sourceName:
-            map['source_name']?.toString() ??
-            (source == 'club' ? 'Club' : 'Sélection'),
-        sourceLogoUrl: map['source_logo_url']?.toString(),
-        starter: map['starter'] == true,
-        substitute: map['substitute'] == true,
-        appeared: map['appeared'] == true,
-        goals: _computedInt(map['goals']) ?? 0,
-        assists: _computedInt(map['assists']) ?? 0,
-      ),
-    );
-  }
-  values.sort((left, right) => left.playedAt.compareTo(right.playedAt));
-  return List.unmodifiable(values);
-}
-
-class _DecisivePlayerActivityTimeline extends StatefulWidget {
-  const _DecisivePlayerActivityTimeline({
-    required this.activity,
-    required this.initialScope,
-  });
-  final List<_DecisivePlayerActivity> activity;
-  final _PlayerActivityScope initialScope;
-  @override
-  State<_DecisivePlayerActivityTimeline> createState() =>
-      _DecisivePlayerActivityTimelineState();
-}
-
-class _DecisivePlayerActivityTimelineState
-    extends State<_DecisivePlayerActivityTimeline> {
-  late final ScrollController _scrollController;
-  _PlayerActivityScope _scope = _PlayerActivityScope.all;
-  @override
-  void initState() {
-    super.initState();
-    _scrollController = ScrollController();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _scrollController.hasClients) {
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  List<_DecisivePlayerActivity> get _visibleActivity => switch (_scope) {
-    _PlayerActivityScope.all => widget.activity,
-    _PlayerActivityScope.club =>
-      widget.activity.where((item) => item.isClub).toList(),
-    _PlayerActivityScope.selection =>
-      widget.activity.where((item) => item.isSelection).toList(),
-  };
-  @override
-  Widget build(BuildContext context) {
-    final visible = _visibleActivity;
-    return Column(
-      key: const ValueKey('decisive-player-activity'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Activité de saison',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: context.textColors.primary,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 6,
-          children: [
-            _ActivityScopeButton(
-              label: 'Tout',
-              selected: _scope == _PlayerActivityScope.all,
-              onTap: () => setState(() => _scope = _PlayerActivityScope.all),
-            ),
-            _ActivityScopeButton(
-              label: 'Club',
-              selected: _scope == _PlayerActivityScope.club,
-              onTap: () => setState(() => _scope = _PlayerActivityScope.club),
-            ),
-            _ActivityScopeButton(
-              label: 'Sélection',
-              selected: _scope == _PlayerActivityScope.selection,
-              onTap: () =>
-                  setState(() => _scope = _PlayerActivityScope.selection),
-            ),
-          ],
-        ),
-        const SizedBox(height: 9),
-        _ActivityLegend(),
-        const SizedBox(height: 9),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Plus ancien',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: context.textColors.secondary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            Text(
-              'Plus récent',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: context.textColors.secondary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        if (visible.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              'Aucune activité ${_scope == _PlayerActivityScope.club ? 'club' : 'en sélection'} disponible dans ce snapshot.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: context.textColors.secondary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          )
-        else
-          SizedBox(
-            height: 96,
-            child: Scrollbar(
-              controller: _scrollController,
-              thumbVisibility: true,
-              child: ListView.separated(
-                key: ValueKey('decisive-player-activity-${_scope.name}'),
-                controller: _scrollController,
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.only(bottom: 9),
-                itemCount: visible.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 7),
-                itemBuilder: (context, index) =>
-                    _ActivityMatchCell(activity: visible[index]),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _ActivityLegend extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final success = context.semantic.success;
-    final warning = context.semantic.warning;
-    return Wrap(
-      spacing: 9,
-      runSpacing: 5,
-      children: [
-        _ActivityLegendItem(
-          marker: DecoratedBox(
-            decoration: BoxDecoration(
-              color: success,
-              borderRadius: BorderRadius.circular(2),
-            ),
-            child: const SizedBox(width: 12, height: 8),
-          ),
-          label: 'Titulaire',
-        ),
-        _ActivityLegendItem(
-          marker: DecoratedBox(
-            decoration: BoxDecoration(
-              color: warning,
-              borderRadius: BorderRadius.circular(2),
-            ),
-            child: const SizedBox(width: 18, height: 8),
-          ),
-          label: 'Entrée en jeu',
-        ),
-        const _ActivityLegendItem(marker: Text('⚽'), label: 'But'),
-        const _ActivityLegendItem(marker: Text('🥾'), label: 'Passe'),
-      ],
-    );
-  }
-}
-
-class _ActivityLegendItem extends StatelessWidget {
-  const _ActivityLegendItem({required this.marker, required this.label});
-  final Widget marker;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(width: 18, child: Center(child: marker)),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: context.textColors.secondary,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ActivityScopeButton extends StatelessWidget {
-  const _ActivityScopeButton({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  @override
-  Widget build(BuildContext context) {
-    final color = context.brand.accent;
-    return Semantics(
-      selected: selected,
-      button: true,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.chip),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: selected
-                ? color.withValues(alpha: 0.15)
-                : AppColors.transparent,
-            border: Border.all(
-              color: selected ? color : context.surfaces.border,
-            ),
-            borderRadius: BorderRadius.circular(AppRadius.chip),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: selected ? color : context.textColors.secondary,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-String _activityDateLabel(DateTime value) {
-  const months = [
-    'jan',
-    'fév',
-    'mars',
-    'avr',
-    'mai',
-    'juin',
-    'juil',
-    'août',
-    'sept',
-    'oct',
-    'nov',
-    'déc',
-  ];
-  return '${value.day.toString().padLeft(2, '0')} ${months[value.month - 1]}';
-}
-
-class _ActivityMatchCell extends StatelessWidget {
-  const _ActivityMatchCell({required this.activity});
-  final _DecisivePlayerActivity activity;
-  @override
-  Widget build(BuildContext context) {
-    final date = _activityDateLabel(activity.playedAt);
-    final markerColor = activity.starter
-        ? context.semantic.success
-        : context.semantic.warning;
-    final appearance = activity.appeared
-        ? DecoratedBox(
-            decoration: BoxDecoration(
-              color: markerColor,
-              borderRadius: BorderRadius.circular(2),
-            ),
-            child: SizedBox(width: activity.starter ? 14 : 20, height: 9),
-          )
-        : Text(
-            '—',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: context.textColors.secondary,
-              fontWeight: FontWeight.w900,
-            ),
-          );
-    final events = '${'⚽' * activity.goals}${'🥾' * activity.assists}';
-    return Semantics(
-      label:
-          '$date, ${activity.sourceName}, ${activity.appeared ? (activity.starter ? 'titulaire' : 'remplaçant entré en jeu') : 'n’a pas joué'}${activity.goals > 0 ? ', ${activity.goals} but' : ''}${activity.assists > 0 ? ', ${activity.assists} passe décisive' : ''}',
-      child: SizedBox(
-        width: 53,
-        child: Column(
-          children: [
-            Text(
-              date,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: context.textColors.secondary,
-                fontWeight: FontWeight.w800,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            SportsAssetBadge(
-              size: 24,
-              imageUrl: activity.sourceLogoUrl,
-              fallbackLabel: activity.sourceName,
-              borderRadius: 12,
-              backgroundColor: AppColors.transparent,
-              contrastPlate: true,
-            ),
-            const SizedBox(height: 5),
-            appearance,
-            const SizedBox(height: 4),
-            Text(
-              events.isEmpty ? ' ' : events,
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(fontSize: 12),
-              maxLines: 1,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DecisiveProfileChip extends StatelessWidget {
-  const _DecisiveProfileChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = context.brand.accent;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadius.chip),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: color,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-String _displayProfile(Object? value) {
-  final raw = value?.toString().trim().toLowerCase();
-  return switch (raw) {
-    'buteur' => 'Buteur',
-    'passeur' => 'Passeur',
-    'décisif' => 'Décisif',
-    'buteur · super-sub' => 'Buteur · super-sub',
-    'passeur · super-sub' => 'Passeur · super-sub',
-    'décisif · super-sub' => 'Décisif · super-sub',
-    _ => 'Joueur décisif',
-  };
-}
-
-String _playerContributionLine(
-  Map<String, Object?> recent, {
-  required bool isSuperSub,
-}) {
-  final appearances = _computedInt(recent['appearances']) ?? 0;
-  final substitutions = _computedInt(recent['substitute_appearances']) ?? 0;
-  final contributingMatches =
-      _computedInt(recent['matches_with_contribution']) ?? 0;
-  final goals = _computedInt(recent['goals']) ?? 0;
-  final assists = _computedInt(recent['assists']) ?? 0;
-  final minutes = _computedInt(recent['minutes']) ?? 0;
-  final contributionParts = <String>[
-    if (goals > 0) '$goals but${goals == 1 ? '' : 's'}',
-    if (assists > 0) '$assists passe${assists == 1 ? '' : 's'}',
-  ];
-  final contribution = contributionParts.isEmpty
-      ? '$contributingMatches match${contributingMatches == 1 ? '' : 's'} décisif${contributingMatches == 1 ? '' : 's'}'
-      : contributionParts.join(', ');
-  if (isSuperSub) {
-    return '$substitutions entrée${substitutions == 1 ? '' : 's'} en jeu · '
-        'décisif sur $contributingMatches/3 matchs · $contribution · $minutes min';
-  }
-  return '$appearances matchs · $contribution · $minutes min';
-}
-
-Map<String, Object?> _computedMap(Object? value) => value is Map
-    ? {for (final entry in value.entries) entry.key.toString(): entry.value}
-    : const {};
-
-int? _computedInt(Object? value) => switch (value) {
-  int value => value,
-  num value => value.toInt(),
-  String value => int.tryParse(value),
-  _ => null,
-};
-
-double? _computedDouble(Object? value) => switch (value) {
-  num value => value.toDouble(),
-  String value => double.tryParse(value),
-  _ => null,
-};
 
 class _MatchContextKeyCard extends StatelessWidget {
   const _MatchContextKeyCard({required this.match, required this.contextKey});
@@ -7518,10 +6746,7 @@ class _ScenarioIndependentReadingRow extends StatelessWidget {
             ],
             Expanded(
               child: Text(
-                reading.supports.firstOrNull?.playerName != null &&
-                        reading.id == 'standout_decisive_player'
-                    ? '${reading.supports.first.playerName} à surveiller'
-                    : reading.title,
+                reading.title,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: identity.color,
                   fontWeight: FontWeight.w900,
@@ -9514,12 +8739,9 @@ class _ScenarioEvidenceDetail {
       return _ScenarioEvidenceDetail(title: item.label);
     }
     return _ScenarioEvidenceDetail(
-      title:
-          reading.id == 'standout_decisive_player' && reading.playerName != null
-          ? '${reading.playerName} à surveiller'
-          : FootballReadingCopyCatalog.titleFor(
-              reading.toCopilotArgument(subjectName: ''),
-            ),
+      title: FootballReadingCopyCatalog.titleFor(
+        reading.toCopilotArgument(subjectName: ''),
+      ),
       description: _scenarioAssessmentDescription(item),
       strengthLabel: _scenarioReadingStrengthLabel(reading.strength),
       readingId: reading.id,
@@ -9645,6 +8867,7 @@ List<_ScenarioReading> _scenarioReadingsFor(
 bool _isScenarioSignal(MatchSignal signal) => signal.id.startsWith('scenario:');
 
 bool _isDirectReadingSignal(MatchSignal signal) =>
+    signal.id != 'standout_decisive_player' &&
     ReadingPreferenceCatalog.preferenceIdsForReading(signal.id).isNotEmpty;
 
 List<_ScenarioReading> _scenarioReadingsFromComputedSnapshot(
@@ -9653,7 +8876,8 @@ List<_ScenarioReading> _scenarioReadingsFromComputedSnapshot(
   final seen = <String>{};
   final readings = <_ScenarioReading>[];
   for (final reading in match.analysis.computedReadings) {
-    if (ReadingPreferenceCatalog.preferenceIdsForReading(reading.id).isEmpty) {
+    if (reading.id == 'standout_decisive_player' ||
+        ReadingPreferenceCatalog.preferenceIdsForReading(reading.id).isEmpty) {
       continue;
     }
     final key =
@@ -9661,11 +8885,7 @@ List<_ScenarioReading> _scenarioReadingsFromComputedSnapshot(
     if (!seen.add(key)) continue;
 
     final team = _teamForSubject(match, reading.subjectTeamId);
-    final title =
-        reading.id == 'standout_decisive_player' &&
-            reading.playerName?.trim().isNotEmpty == true
-        ? '${reading.playerName} à surveiller'
-        : _quickContextTitle(reading.id, team?.name);
+    final title = _quickContextTitle(reading.id, team?.name);
     final evidence = _ScenarioEvidenceDetail(
       title: title,
       description: reading.evidenceLabel,
@@ -9720,7 +8940,6 @@ String _scenarioCategoryForComputed(String readingId) => switch (readingId) {
   'strong_away_team' ||
   'weak_away_team' ||
   'venue_strength' => 'Lieu',
-  'standout_decisive_player' => 'Joueur décisif',
   _ => 'Lecture',
 };
 
@@ -9866,15 +9085,18 @@ _ScenarioReading _scenarioReadingFromOpportunity(
     summary: thesis.summary,
     supports: [
       for (final reading in opportunity.supportingReadings)
-        _scenarioEvidenceDetailForReading(reading),
+        if (reading.id != 'standout_decisive_player')
+          _scenarioEvidenceDetailForReading(reading),
     ],
     resistances: [
       for (final reading in opportunity.resistanceReadings)
-        _scenarioEvidenceDetailForReading(reading),
+        if (reading.id != 'standout_decisive_player')
+          _scenarioEvidenceDetailForReading(reading),
     ],
     contradictions: [
       for (final reading in opportunity.contradictoryReadings)
-        _scenarioEvidenceDetailForReading(reading),
+        if (reading.id != 'standout_decisive_player')
+          _scenarioEvidenceDetailForReading(reading),
     ],
     limits: thesis.limits,
     subjectTeamId: opportunity.supportingReadings
@@ -9932,15 +9154,18 @@ _ScenarioReading _scenarioReadingFromAssessment(
     supports: assessment.evidence
         .where(
           (item) =>
-              item.relation == ThesisEvidenceRelation.coreSupport ||
-              item.relation == ThesisEvidenceRelation.additionalSupport,
+              (item.relation == ThesisEvidenceRelation.coreSupport ||
+                  item.relation == ThesisEvidenceRelation.additionalSupport) &&
+              item.reading?.id != 'standout_decisive_player',
         )
         .map(_ScenarioEvidenceDetail.fromAssessment)
         .toList(growable: false),
     resistances: assessment.resistances
+        .where((item) => item.reading?.id != 'standout_decisive_player')
         .map(_ScenarioEvidenceDetail.fromAssessment)
         .toList(growable: false),
     contradictions: assessment.contradictions
+        .where((item) => item.reading?.id != 'standout_decisive_player')
         .map(_ScenarioEvidenceDetail.fromAssessment)
         .toList(growable: false),
     limits: assessment.id == match.thesis?.id
