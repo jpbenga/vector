@@ -638,6 +638,14 @@ async function enqueueDailySync({
   }, 202);
 }
 
+const queueWorkerTimeBudgetMs = 4 * 60 * 1000;
+
+type QueueProcessOutcome = {
+  queueJobId: string;
+  status: "succeeded" | "retrying" | "failed";
+  error?: string;
+};
+
 async function processQueuedJob({
   supabaseUrl,
   serviceRoleKey,
@@ -647,6 +655,36 @@ async function processQueuedJob({
   serviceRoleKey: string;
   syncSecret: string;
 }): Promise<Response> {
+  // pg_cron wakes this worker every minute. Consume consecutive jobs during a
+  // bounded invocation instead of idling for a whole minute after a short
+  // collection. The database claim keeps this loop globally serial.
+  const deadline = Date.now() + queueWorkerTimeBudgetMs;
+  const outcomes: QueueProcessOutcome[] = [];
+  while (Date.now() < deadline) {
+    const outcome = await processOneQueuedJob({
+      supabaseUrl,
+      serviceRoleKey,
+      syncSecret,
+    });
+    if (outcome === null) break;
+    outcomes.push(outcome);
+  }
+  return jsonResponse({
+    ok: outcomes.every((outcome) => outcome.status === "succeeded"),
+    status: outcomes.length === 0 ? "idle" : "processed",
+    processed: outcomes,
+  }, 200);
+}
+
+async function processOneQueuedJob({
+  supabaseUrl,
+  serviceRoleKey,
+  syncSecret,
+}: {
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  syncSecret: string;
+}): Promise<QueueProcessOutcome | null> {
   const rows = await supabaseFetch({
     supabaseUrl,
     serviceRoleKey,
@@ -658,9 +696,7 @@ async function processQueuedJob({
   const row = objectValue(rows[0]);
   const id = stringValue(row?.id);
   const payload = objectValue(row?.payload);
-  if (id === null || payload === null) {
-    return jsonResponse({ ok: true, status: "idle" }, 200);
-  }
+  if (id === null || payload === null) return null;
 
   const job: QueueJob = {
     id,
@@ -683,26 +719,22 @@ async function processQueuedJob({
       jobId: job.id,
       status: "succeeded",
     });
-    return jsonResponse({ ok: true, status: "succeeded", queueJobId: job.id }, 200);
+    return { queueJobId: job.id, status: "succeeded" };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const retry = isRetryableQueueError(message) && job.attempts < 3;
+    const status = retry ? "retrying" : "failed";
     await finishQueuedJob({
       supabaseUrl,
       serviceRoleKey,
       jobId: job.id,
-      status: retry ? "retrying" : "failed",
+      status,
       errorMessage: message,
       availableAt: retry
         ? new Date(Date.now() + retryDelayMs(job.attempts)).toISOString()
         : undefined,
     });
-    return jsonResponse({
-      ok: false,
-      status: retry ? "retrying" : "failed",
-      queueJobId: job.id,
-      error: message,
-    }, 200);
+    return { queueJobId: job.id, status, error: message };
   }
 }
 
