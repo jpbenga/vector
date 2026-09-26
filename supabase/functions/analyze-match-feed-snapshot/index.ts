@@ -85,6 +85,9 @@ Deno.serve(async (request) => {
     const presentationHeadToHead = compactHeadToHead(
       objectList(raw.head_to_head),
     );
+    const presentationPlayerFormRadar = compactPlayerFormRadar(
+      objectList(raw.player_form_radar),
+    );
     // Tier assignments are calculated here, from the same standings snapshot
     // that powers the mobile table. The app only renders this compact result.
     const tiersByLeagueId = buildTierSnapshots({
@@ -174,6 +177,7 @@ Deno.serve(async (request) => {
         standings: presentationStandings,
         recent_league_matches: presentationRecentMatches,
         head_to_head: presentationHeadToHead,
+        player_form_radar: presentationPlayerFormRadar,
       },
       computed: {
         engine_version: "server_computed_feed_v1",
@@ -207,6 +211,7 @@ Deno.serve(async (request) => {
           scenario_count: announced.filter((value) =>
             stringValue(objectValue(value)?.announcement_kind) === "scenario"
           ).length,
+          form_radar_player_count: presentationPlayerFormRadar.length,
           publication: publication.summary ?? {},
         },
       }],
@@ -552,7 +557,12 @@ function compactRecentMatches(rows: JsonObject[]): JsonObject[] {
         const opponent = objectValue(value.opponent) ?? {};
         const goals = objectValue(value.goals) ?? {};
         return {
-          fixture: { date: stringValue(fixture.date) },
+          fixture: {
+            id: numberValue(fixture.id),
+            date: stringValue(fixture.date),
+          },
+          competition_name: stringValue(value.competition_name),
+          team_logo: stringValue(value.team_logo),
           opponent: {
             id: numberValue(opponent.id),
             name: stringValue(opponent.name),
@@ -564,9 +574,94 @@ function compactRecentMatches(rows: JsonObject[]): JsonObject[] {
             for: numberValue(goals.for),
             against: numberValue(goals.against),
           },
+          statistics: {
+            shots_for: numberValue(objectValue(value.statistics)?.shots_for),
+            shots_against: numberValue(objectValue(value.statistics)?.shots_against),
+            shots_on_target_for: numberValue(objectValue(value.statistics)?.shots_on_target_for),
+            shots_on_target_against: numberValue(objectValue(value.statistics)?.shots_on_target_against),
+            expected_goals_for: numberValue(objectValue(value.statistics)?.expected_goals_for),
+            expected_goals_against: numberValue(objectValue(value.statistics)?.expected_goals_against),
+            possession_for: numberValue(objectValue(value.statistics)?.possession_for),
+            possession_against: numberValue(objectValue(value.statistics)?.possession_against),
+          },
+          events: objectList(value.events).flatMap((event) => {
+            const minute = numberValue(event.minute);
+            if (minute === null) return [];
+            return [{
+              minute,
+              team_id: numberValue(event.team_id),
+              team_name: stringValue(event.team_name),
+              player_name: stringValue(event.player_name),
+            }];
+          }),
         };
       }),
     };
+  });
+}
+
+// Form Radar exposes only the match-by-match fields needed to explain a
+// player's current decisive run. The compact action list makes each matrix
+// cell readable without exposing provider line-ups or full player pages.
+function compactPlayerFormRadar(rows: JsonObject[]): JsonObject[] {
+  return rows.flatMap((row) => {
+    const league = objectValue(row.league) ?? {};
+    const team = objectValue(row.team) ?? {};
+    const player = objectValue(row.player) ?? {};
+    const leagueId = numberValue(league.id);
+    const teamId = numberValue(team.id);
+    const playerId = numberValue(player.id);
+    const playerName = stringValue(player.name);
+    if (
+      leagueId === null || teamId === null || playerId === null ||
+      playerName === null || playerName.trim() === ""
+    ) return [];
+    const activity = objectList(row.activity).flatMap((value) => {
+      const fixtureId = numberValue(value.fixture_id);
+      const playedAt = stringValue(value.played_at);
+      if (fixtureId === null || playedAt === null) return [];
+      return [{
+        fixture_id: fixtureId,
+        played_at: playedAt,
+        appeared: booleanValue(value.appeared) === true,
+        starter: booleanValue(value.starter) === true,
+        substitute: booleanValue(value.substitute) === true,
+        minutes: numberValue(value.minutes) ?? 0,
+        goals: numberValue(value.goals) ?? 0,
+        assists: numberValue(value.assists) ?? 0,
+        competition_name: stringValue(value.competition_name),
+        round: stringValue(value.round),
+        home_team_name: stringValue(value.home_team_name),
+        home_team_logo: stringValue(value.home_team_logo),
+        home_goals: numberValue(value.home_goals),
+        away_team_name: stringValue(value.away_team_name),
+        away_team_logo: stringValue(value.away_team_logo),
+        away_goals: numberValue(value.away_goals),
+        actions: objectList(value.actions).flatMap((action) => {
+          const minute = numberValue(action.minute);
+          const kind = stringValue(action.kind);
+          if (minute === null || (kind !== "goal" && kind !== "assist")) {
+            return [];
+          }
+          return [{ minute, kind }];
+        }),
+      }];
+    });
+    if (activity.length === 0) return [];
+    return [{
+      league: { id: leagueId },
+      team: {
+        id: teamId,
+        name: stringValue(team.name),
+        logo: stringValue(team.logo),
+      },
+      player: {
+        id: playerId,
+        name: playerName,
+        photo: stringValue(player.photo),
+      },
+      activity,
+    }];
   });
 }
 

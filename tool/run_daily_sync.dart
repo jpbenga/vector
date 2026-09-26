@@ -39,7 +39,7 @@ Future<void> main(List<String> arguments) async {
           'include_player_statistics': true,
           'include_recent_player_performances': true,
           'recent_form_days_back': 180,
-          'recent_form_matches': 5,
+          'recent_form_matches': 10,
         }),
       );
       final response = await request.close();

@@ -38,6 +38,40 @@ void main() {
       expect(arsenal.signals, isEmpty);
     });
 
+    test('shows international friendlies only when a market is available', () {
+      final noOdds = _internationalFriendlySnapshot();
+      final withOdds = _internationalFriendlySnapshot(
+        odds: [
+          {
+            'fixture': {'id': 10},
+            'bookmakers': [
+              {
+                'id': 16,
+                'name': 'Unibet',
+                'bets': [
+                  {
+                    'id': 1,
+                    'name': 'Match Winner',
+                    'values': [
+                      {'value': 'Home', 'odd': '1.90'},
+                      {'value': 'Draw', 'odd': '3.20'},
+                      {'value': 'Away', 'odd': '4.10'},
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      );
+
+      expect(const ApiFootballMatchAdapter().fromSnapshot(noOdds), isEmpty);
+      final matches = const ApiFootballMatchAdapter().fromSnapshot(withOdds);
+      expect(matches, hasLength(1));
+      expect(matches.single.competition.apiFootballLeagueId, 10);
+      expect(matches.single.hasMatchResultMarket, isTrue);
+    });
+
     test('keeps the provider round on the normalized fixture', () {
       final snapshot = {
         'raw': {
@@ -71,6 +105,90 @@ void main() {
 
       expect(match.fixture.round, 'Regular Season - 27');
     });
+
+    test(
+      'maps compact player Form Radar activity with match context and events',
+      () {
+        final snapshot = {
+          'raw': {
+            'fixtures': [
+              {
+                'fixture': {
+                  'id': 91,
+                  'date': '2026-09-25T20:45:00+02:00',
+                  'status': {'short': 'NS'},
+                },
+                'league': {
+                  'id': 39,
+                  'name': 'Premier League',
+                  'country': 'England',
+                  'season': 2026,
+                },
+                'teams': {
+                  'home': {'id': 42, 'name': 'Arsenal'},
+                  'away': {'id': 43, 'name': 'Everton'},
+                },
+              },
+            ],
+            'odds': <Object?>[],
+            'player_form_radar': [
+              {
+                'league': {'id': 39},
+                'team': {
+                  'id': 42,
+                  'name': 'Arsenal',
+                  'logo': 'https://example.test/arsenal.png',
+                },
+                'player': {
+                  'id': 9,
+                  'name': 'Joueur Radar',
+                  'photo': 'https://example.test/player.png',
+                },
+                'activity': [
+                  {
+                    'fixture_id': 81,
+                    'played_at': '2026-09-10T20:00:00+02:00',
+                    'appeared': true,
+                    'starter': false,
+                    'substitute': true,
+                    'minutes': 26,
+                    'goals': 1,
+                    'assists': 0,
+                    'competition_name': 'Premier League',
+                    'round': 'Regular Season - 5',
+                    'home_team_name': 'Arsenal',
+                    'home_goals': 2,
+                    'away_team_name': 'Everton',
+                    'away_goals': 1,
+                    'actions': [
+                      {'minute': 61, 'kind': 'goal'},
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        };
+
+        final profile = const ApiFootballMatchAdapter()
+            .fromSnapshot(snapshot)
+            .single
+            .analysis
+            .playerFormRadarProfiles
+            .single;
+
+        expect(profile.playerName, 'Joueur Radar');
+        expect(profile.activity.single.substitute, isTrue);
+        expect(profile.activity.single.minutes, 26);
+        expect(profile.activity.single.contributions, 1);
+        expect(profile.activity.single.competitionName, 'Premier League');
+        expect(profile.activity.single.homeTeamName, 'Arsenal');
+        expect(profile.activity.single.homeGoals, 2);
+        expect(profile.activity.single.actions.single.minute, 61);
+        expect(profile.activity.single.actions.single.kind.name, 'goal');
+        expect(profile.teamLogoUrl, 'https://example.test/arsenal.png');
+      },
+    );
 
     test('snapshot repository does not recommend matches without a thesis', () {
       final repository = const MatchFeedRepositoryFactory().create(
@@ -903,6 +1021,33 @@ void main() {
     });
   });
 }
+
+Map<String, Object?> _internationalFriendlySnapshot({
+  List<Object?> odds = const [],
+}) => {
+  'raw': {
+    'fixtures': [
+      {
+        'fixture': {
+          'id': 10,
+          'date': '2026-10-10T20:45:00+02:00',
+          'status': {'short': 'NS'},
+        },
+        'league': {
+          'id': 10,
+          'name': 'Friendlies',
+          'country': 'World',
+          'season': 2026,
+        },
+        'teams': {
+          'home': {'id': 1, 'name': 'France'},
+          'away': {'id': 2, 'name': 'Brésil'},
+        },
+      },
+    ],
+    'odds': odds,
+  },
+};
 
 Map<String, Object?> _loadSnapshot() {
   final file = File('assets/snapshots/api_football_match_feed_v1.json');

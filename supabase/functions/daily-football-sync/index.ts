@@ -6,7 +6,7 @@ const defaultFutureDays = 3;
 const defaultDatabaseSizeLimitBytes = 500 * 1024 * 1024;
 const defaultApiRequestDelayMs = 750;
 const defaultRecentFormDaysBack = 180;
-const defaultRecentFormMatches = 5;
+const defaultRecentFormMatches = 10;
 
 const corsHeaders = {
   "access-control-allow-origin": "*",

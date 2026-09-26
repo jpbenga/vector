@@ -522,6 +522,11 @@ class CompetitionCatalog {
       name: 'UEFA Nations League',
       apiFootballLeagueId: 5,
     ),
+    DecisionCompetitionDefinition(name: 'Euro U21', apiFootballLeagueId: 38),
+    DecisionCompetitionDefinition(
+      name: 'Matchs amicaux internationaux',
+      apiFootballLeagueId: 10,
+    ),
     DecisionCompetitionDefinition(name: 'Copa America', apiFootballLeagueId: 9),
     DecisionCompetitionDefinition(
       name: 'Coupe d’Afrique des Nations',
@@ -648,6 +653,8 @@ class RuntimeCompetitionCatalog {
     32,
     4,
     5,
+    38,
+    10,
     9,
     6,
     7,

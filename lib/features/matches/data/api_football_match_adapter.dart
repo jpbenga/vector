@@ -146,6 +146,9 @@ class ApiFootballMatchAdapter {
     final playerStatisticsByLeagueTeamId = _playerStatisticsByLeagueTeamId(
       _list(raw['player_statistics']),
     );
+    final playerFormRadarProfiles = _playerFormRadarProfiles(
+      _list(raw['player_form_radar']),
+    );
     final injuriesByFixtureId = _injuriesByFixtureId(_list(raw['injuries']));
     final performanceStatisticsByLeagueTeamId =
         _performanceStatisticsByLeagueTeamId(
@@ -173,6 +176,7 @@ class ApiFootballMatchAdapter {
         headToHeadByFixtureId,
         expectedGoalsByLeagueTeamId,
         playerStatisticsByLeagueTeamId,
+        playerFormRadarProfiles,
         injuriesByFixtureId,
         performanceStatisticsByLeagueTeamId,
         goalProfilesByLeagueTeamId,
@@ -202,6 +206,7 @@ class ApiFootballMatchAdapter {
     Map<String, TeamExpectedGoalsSnapshot> expectedGoalsByLeagueTeamId,
     Map<String, List<PlayerSeasonStatisticsSnapshot>>
     playerStatisticsByLeagueTeamId,
+    List<PlayerFormRadarProfile> playerFormRadarProfiles,
     Map<int, List<PlayerUnavailableSnapshot>> injuriesByFixtureId,
     Map<String, TeamPerformanceStatisticsSnapshot>
     performanceStatisticsByLeagueTeamId,
@@ -231,6 +236,12 @@ class ApiFootballMatchAdapter {
         : 'api-fixture-$apiFixtureId';
     final kickoff = _dateTimeValue(fixture['date']);
     final odds = apiFixtureId == null ? null : oddsByFixtureId[apiFixtureId];
+    // International friendlies are useful only when a concrete market is
+    // available. Keep all other supported competitions visible even when the
+    // provider has not published odds yet.
+    if (leagueId == 10 && (odds == null || odds.availableMarkets.isEmpty)) {
+      return null;
+    }
 
     return MatchBoardItem(
       fixture: NormalizedFixture(
@@ -402,6 +413,7 @@ class ApiFootballMatchAdapter {
                     .where((entry) => entry.key.startsWith('$leagueId:'))
                     .expand((entry) => entry.value),
               ),
+        playerFormRadarProfiles: playerFormRadarProfiles,
         unavailablePlayers: apiFixtureId == null
             ? const []
             : injuriesByFixtureId[apiFixtureId] ?? const [],
@@ -691,6 +703,89 @@ class ApiFootballMatchAdapter {
       for (final entry in grouped.entries)
         entry.key: List.unmodifiable(entry.value),
     };
+  }
+
+  List<PlayerFormRadarProfile> _playerFormRadarProfiles(List<Object?> rows) {
+    final profiles = <PlayerFormRadarProfile>[];
+    final seen = <String>{};
+    for (final row in rows) {
+      final root = _map(row);
+      final league = _map(root['league']);
+      final team = _map(root['team']);
+      final player = _map(root['player']);
+      final leagueId = _intValue(league['id']);
+      final teamId = _intValue(team['id']);
+      final teamName = _stringValue(team['name']);
+      final playerId = _intValue(player['id']);
+      final playerName = _stringValue(player['name']);
+      if (leagueId == null ||
+          teamId == null ||
+          teamName == null ||
+          playerId == null ||
+          playerName == null ||
+          playerName.isEmpty ||
+          !seen.add('$leagueId:$teamId:$playerId')) {
+        continue;
+      }
+      final activity = <PlayerFormRadarMatchSnapshot>[];
+      for (final rawActivity in _list(root['activity'])) {
+        final value = _map(rawActivity);
+        final fixtureId = _intValue(value['fixture_id']);
+        final playedAt = _dateTimeValue(value['played_at']);
+        if (fixtureId == null || playedAt == null) continue;
+        activity.add(
+          PlayerFormRadarMatchSnapshot(
+            fixtureId: fixtureId,
+            playedAt: playedAt,
+            appeared: value['appeared'] == true,
+            starter: value['starter'] == true,
+            substitute: value['substitute'] == true,
+            minutes: _intValue(value['minutes']) ?? 0,
+            goals: _intValue(value['goals']) ?? 0,
+            assists: _intValue(value['assists']) ?? 0,
+            competitionName: _stringValue(value['competition_name']),
+            round: _stringValue(value['round']),
+            homeTeamName: _stringValue(value['home_team_name']),
+            homeTeamLogoUrl: _stringValue(value['home_team_logo']),
+            homeGoals: _intValue(value['home_goals']),
+            awayTeamName: _stringValue(value['away_team_name']),
+            awayTeamLogoUrl: _stringValue(value['away_team_logo']),
+            awayGoals: _intValue(value['away_goals']),
+            actions: _list(value['actions'])
+                .map(_playerFormRadarAction)
+                .whereType<PlayerFormRadarActionSnapshot>()
+                .toList(growable: false),
+          ),
+        );
+      }
+      activity.sort((left, right) => left.playedAt.compareTo(right.playedAt));
+      if (activity.isEmpty) continue;
+      profiles.add(
+        PlayerFormRadarProfile(
+          playerId: playerId,
+          playerName: playerName,
+          teamId: teamId,
+          teamName: teamName,
+          leagueId: leagueId,
+          photoUrl: _stringValue(player['photo']),
+          teamLogoUrl: _stringValue(team['logo']),
+          activity: List.unmodifiable(activity),
+        ),
+      );
+    }
+    return List.unmodifiable(profiles);
+  }
+
+  PlayerFormRadarActionSnapshot? _playerFormRadarAction(Object? raw) {
+    final value = _map(raw);
+    final minute = _intValue(value['minute']);
+    final kind = switch (_stringValue(value['kind'])) {
+      'goal' => PlayerFormRadarActionKind.goal,
+      'assist' => PlayerFormRadarActionKind.assist,
+      _ => null,
+    };
+    if (minute == null || kind == null) return null;
+    return PlayerFormRadarActionSnapshot(minute: minute, kind: kind);
   }
 
   Map<String, TeamPerformanceStatisticsSnapshot>
@@ -1339,7 +1434,9 @@ class ApiFootballMatchAdapter {
 
     final fixture = _map(root['fixture']);
     final goals = _map(root['goals']);
+    final statistics = _recentMatchStatistics(root['statistics']);
     return TeamRecentMatchSnapshot(
+      fixtureId: _intValue(fixture['id'] ?? root['fixtureId']),
       playedAt: _dateTimeValue(fixture['date'] ?? root['date']),
       opponentTeamId:
           _intValue(opponent['id']) ?? _intValue(root['opponentId']),
@@ -1351,6 +1448,43 @@ class ApiFootballMatchAdapter {
       goalsFor: _intValue(goals['for']) ?? _intValue(root['goalsFor']),
       goalsAgainst:
           _intValue(goals['against']) ?? _intValue(root['goalsAgainst']),
+      competitionName:
+          _stringValue(root['competition_name']) ??
+          _stringValue(root['competitionName']),
+      teamLogoUrl:
+          _stringValue(root['team_logo']) ?? _stringValue(root['teamLogo']),
+      statistics: statistics,
+      events: _list(root['events'])
+          .map(_recentMatchEvent)
+          .whereType<TeamRecentMatchEventSnapshot>()
+          .toList(growable: false),
+    );
+  }
+
+  TeamRecentMatchStatisticsSnapshot? _recentMatchStatistics(Object? raw) {
+    final value = _map(raw);
+    if (value.isEmpty) return null;
+    return TeamRecentMatchStatisticsSnapshot(
+      shotsFor: _doubleValue(value['shots_for']),
+      shotsAgainst: _doubleValue(value['shots_against']),
+      shotsOnTargetFor: _doubleValue(value['shots_on_target_for']),
+      shotsOnTargetAgainst: _doubleValue(value['shots_on_target_against']),
+      expectedGoalsFor: _doubleValue(value['expected_goals_for']),
+      expectedGoalsAgainst: _doubleValue(value['expected_goals_against']),
+      possessionFor: _doubleValue(value['possession_for']),
+      possessionAgainst: _doubleValue(value['possession_against']),
+    );
+  }
+
+  TeamRecentMatchEventSnapshot? _recentMatchEvent(Object? raw) {
+    final value = _map(raw);
+    final minute = _intValue(value['minute']);
+    if (minute == null) return null;
+    return TeamRecentMatchEventSnapshot(
+      minute: minute,
+      teamId: _intValue(value['team_id']),
+      teamName: _stringValue(value['team_name']),
+      playerName: _stringValue(value['player_name']),
     );
   }
 

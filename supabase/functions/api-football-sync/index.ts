@@ -13,7 +13,10 @@ const maxPlayerStatisticsTeams = 160;
 const maxInjuryRequests = 120;
 const injuryCollectionWindowMs = 24 * 60 * 60 * 1000;
 const defaultRecentFormDaysBack = 180;
-const defaultRecentFormMatches = 5;
+// Keep enough completed fixtures to establish a decisive run beyond the
+// three-match Radar window. Existing football readings still use their own
+// explicit five/three-match windows.
+const defaultRecentFormMatches = 10;
 const defaultApiRequestDelayMs = 750;
 const apiFootballDailyRequestLimit = 75000;
 const apiFootballMinuteRequestLimit = 450;
@@ -198,7 +201,7 @@ Deno.serve(async (request) => {
             const fixtureId of recentFixtureIdsForTeam(
               leagueFixtures.body,
               teamId,
-              3,
+              options.recentFormMatches,
             )
           ) {
             fixturePlayerStatisticsIds.add(fixtureId);
@@ -656,9 +659,9 @@ function syncOptionsFromPayload(payload: JsonObject): SyncOptions {
   // every squad. The scheduled enrichment job enables them explicitly.
   const includePlayerStatistics =
     booleanValue(payload.include_player_statistics) ?? false;
-  // This is deliberately separate from season player pages. One completed
-  // fixture supplies every player's actual minutes, goals and assists, which
-  // is enough to calculate the recent three-match decisive-player window.
+  // This is deliberately separate from season player pages. Completed fixture
+  // line-ups supply each player's minutes, goals and assists for the full
+  // Radar history, while the ranking still evaluates its last three matches.
   const includeRecentPlayerPerformances =
     booleanValue(payload.include_recent_player_performances) ?? true;
   const skipEmptyFeed = payload.purpose === "daily_football_sync";
@@ -1349,7 +1352,9 @@ function upcomingHeadToHeadPairs(
     const teams = objectValue(root.teams) ?? {};
     const homeTeamId = numberValue((objectValue(teams.home) ?? {}).id);
     const awayTeamId = numberValue((objectValue(teams.away) ?? {}).id);
-    if (homeTeamId === null || awayTeamId === null || homeTeamId === awayTeamId) {
+    if (
+      homeTeamId === null || awayTeamId === null || homeTeamId === awayTeamId
+    ) {
       continue;
     }
     pairs.add(headToHeadPair(homeTeamId, awayTeamId));
