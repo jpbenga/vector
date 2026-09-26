@@ -319,7 +319,7 @@ class _RadarModeToggle extends StatelessWidget {
                       'Joueurs',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: selected == _RadarContentMode.players
-                            ? Colors.white
+                            ? context.brand.onAccent
                             : context.textColors.secondary,
                         fontWeight: FontWeight.w900,
                       ),
@@ -347,7 +347,7 @@ class _RadarModeToggle extends StatelessWidget {
                       'Équipes',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: selected == _RadarContentMode.teams
-                            ? Colors.white
+                            ? context.brand.onAccent
                             : context.textColors.secondary,
                         fontWeight: FontWeight.w900,
                       ),

@@ -76,7 +76,7 @@ class _PlayerFormRadarMatchDetailSheetState
                   height: 4,
                   decoration: BoxDecoration(
                     color: context.surfaces.border,
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(AppRadius.indicator),
                   ),
                 ),
               ),
@@ -231,7 +231,7 @@ class _ActivityTile extends StatelessWidget {
     label: 'Match du ${_dateLabel(match.playedAt)}',
     child: InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(AppRadius.tight),
       child: Container(
         width: 30,
         height: 30,
@@ -242,7 +242,7 @@ class _ActivityTile extends StatelessWidget {
             color: selected ? context.brand.accent : AppColors.transparent,
             width: selected ? 2 : 0,
           ),
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(AppRadius.tight),
         ),
         child: match.substitute
             ? Container(height: 4, color: context.semantic.warning)

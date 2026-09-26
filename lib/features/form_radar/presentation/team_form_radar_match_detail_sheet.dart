@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../matches/domain/match_board_item.dart';
@@ -72,7 +73,7 @@ class _TeamRadarMatchSheetState extends State<_TeamRadarMatchSheet> {
                   height: 4,
                   decoration: BoxDecoration(
                     color: context.surfaces.border,
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(AppRadius.indicator),
                   ),
                 ),
               ),
@@ -238,7 +239,7 @@ class _TeamCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) => InkWell(
     onTap: onTap,
-    borderRadius: BorderRadius.circular(6),
+    borderRadius: BorderRadius.circular(AppRadius.tight),
     child: Container(
       width: 30,
       height: 30,
@@ -249,10 +250,10 @@ class _TeamCell extends StatelessWidget {
             ? context.textColors.secondary.withValues(alpha: .25)
             : context.semantic.error,
         border: Border.all(
-          color: selected ? context.brand.accent : Colors.transparent,
+          color: selected ? context.brand.accent : AppColors.transparent,
           width: selected ? 2 : 0,
         ),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppRadius.tight),
       ),
     ),
   );
