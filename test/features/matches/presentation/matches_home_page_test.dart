@@ -217,40 +217,38 @@ void main() {
       expect(find.textContaining('Journée'), findsNothing);
     });
 
-    testWidgets(
-      'renders only an established opportunity pick without truncation',
-      (tester) async {
-        const homeName = 'Association Sportive de la Métropole Universitaire';
-        final market = _doubleChanceMarket();
-        final recommendedMarket = RecommendedMarket(
-          market: market,
-          selection: market.selections.first,
-        );
+    testWidgets('does not infer a context market from a generic opportunity', (
+      tester,
+    ) async {
+      const homeName = 'Association Sportive de la Métropole Universitaire';
+      final market = _doubleChanceMarket();
+      final recommendedMarket = RecommendedMarket(
+        market: market,
+        selection: market.selections.first,
+      );
 
-        await _pumpMatchDetail(
-          tester,
+      await _pumpMatchDetail(
+        tester,
+        match: _match(homeName: homeName),
+        opportunity: _opportunity(
           match: _match(homeName: homeName),
-          opportunity: _opportunity(
-            match: _match(homeName: homeName),
-            retainedTheses: [
-              _thesis(
-                id: 'solid_favorite',
-                title: 'Avantage domicile',
-                status: MatchThesisStatus.recommended,
-                recommendedMarket: recommendedMarket,
-              ),
-            ],
-            recommendedMarket: recommendedMarket,
-          ),
-        );
+          retainedTheses: [
+            _thesis(
+              id: 'solid_favorite',
+              title: 'Avantage domicile',
+              status: MatchThesisStatus.recommended,
+              recommendedMarket: recommendedMarket,
+            ),
+          ],
+          recommendedMarket: recommendedMarket,
+        ),
+      );
 
-        final pick = find.text('$homeName ou nul');
-        expect(pick, findsOneWidget);
-        expect(tester.widget<Text>(pick).maxLines, 2);
-        expect(tester.widget<Text>(pick).overflow, TextOverflow.clip);
-        expect(find.text('1.42'), findsOneWidget);
-      },
-    );
+      expect(find.text('MATCH À SUIVRE'), findsOneWidget);
+      expect(find.text('MARCHÉS ASSOCIÉS'), findsNothing);
+      expect(find.text('$homeName ou nul'), findsNothing);
+      expect(find.text('1.42'), findsNothing);
+    });
 
     testWidgets('hides the pick for an early or marketless opportunity', (
       tester,
@@ -305,7 +303,7 @@ void main() {
       expect(find.text('Pari recommandé'), findsNothing);
     });
 
-    testWidgets('keeps the selected opportunity pick when several exist', (
+    testWidgets('does not expose a generic opportunity pick as personalized', (
       tester,
     ) async {
       final market = _doubleChanceMarket();
@@ -352,7 +350,9 @@ void main() {
       await tester.tap(find.text('Second Club').first);
       await tester.pumpAndSettle();
 
-      expect(find.text('Second Club ou nul'), findsOneWidget);
+      expect(find.text('MATCH À SUIVRE'), findsOneWidget);
+      expect(find.text('MARCHÉS ASSOCIÉS'), findsNothing);
+      expect(find.text('Second Club ou nul'), findsNothing);
       expect(find.text('Premier Club ou nul'), findsNothing);
     });
 
@@ -1109,23 +1109,9 @@ void main() {
       await tester.tap(find.text('Signal-only FC').first);
       await tester.pumpAndSettle();
 
-      expect(find.text('Voir le détail'), findsOneWidget);
-
-      await tester.tap(find.text('Voir le détail'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Pourquoi ce match est proposé'), findsOneWidget);
-      expect(find.text('Autres lectures du match'), findsOneWidget);
-      expect(find.text('Signal-only FC'), findsWidgets);
-      expect(find.text('Écart de niveau pour Signal-only FC'), findsOneWidget);
-      expect(
-        find.text('Attaque productive pour Signal-only FC'),
-        findsOneWidget,
-      );
-      expect(find.text('Projection de cartons : 3,4 au total.'), findsNothing);
-      expect(find.text('1 N 2'), findsNothing);
-      expect(find.byTooltip('Lecture suivante'), findsNothing);
-      expect(find.byTooltip('Lecture précédente'), findsNothing);
+      expect(find.text('MATCH À SUIVRE'), findsOneWidget);
+      expect(find.text('Voir le détail'), findsNothing);
+      expect(find.text('CHOIX LECTOR'), findsNothing);
     });
 
     testWidgets(
@@ -1141,6 +1127,89 @@ void main() {
               awayName: 'Breidablik',
               kickoff: _relativeKickoff(0, hour: 21),
             ).copyWith(
+              analysis: const MatchAnalysisData(
+                homeStanding: TeamStandingSnapshot(
+                  teamId: 1,
+                  teamName: 'Fram Reykjavik',
+                  rank: 6,
+                  points: 32,
+                ),
+                awayStanding: TeamStandingSnapshot(
+                  teamId: 2,
+                  teamName: 'Breidablik',
+                  rank: 10,
+                  points: 24,
+                ),
+                homeRecentLeagueMatches: [
+                  TeamRecentMatchSnapshot(
+                    opponentName: 'KR Reykjavik',
+                    venue: RecentMatchVenue.home,
+                    result: 'W',
+                  ),
+                  TeamRecentMatchSnapshot(
+                    opponentName: 'Valur',
+                    venue: RecentMatchVenue.away,
+                    result: 'D',
+                  ),
+                ],
+                awayRecentLeagueMatches: [
+                  TeamRecentMatchSnapshot(
+                    opponentName: 'Vikingur',
+                    venue: RecentMatchVenue.home,
+                    result: 'L',
+                  ),
+                  TeamRecentMatchSnapshot(
+                    opponentName: 'Stjarnan',
+                    venue: RecentMatchVenue.away,
+                    result: 'D',
+                  ),
+                ],
+                homeStatistics: TeamStatisticsSnapshot(
+                  teamId: 1,
+                  teamName: 'Fram Reykjavik',
+                  playedHome: 10,
+                  winsHome: 6,
+                  drawsHome: 2,
+                  lossesHome: 2,
+                ),
+                awayStatistics: TeamStatisticsSnapshot(
+                  teamId: 2,
+                  teamName: 'Breidablik',
+                  playedAway: 10,
+                  winsAway: 2,
+                  drawsAway: 2,
+                  lossesAway: 6,
+                ),
+                computedReadings: [
+                  MatchComputedReading(
+                    id: 'structural_level_gap',
+                    subjectTeamId: 'unpriced-recommendation-home',
+                    side: 'home',
+                    strength: 'strong',
+                    isContradiction: false,
+                    evidenceLabel:
+                        'Fram Reykjavik possède un écart structurel favorable.',
+                  ),
+                  MatchComputedReading(
+                    id: 'form_advantage',
+                    subjectTeamId: 'unpriced-recommendation-home',
+                    side: 'home',
+                    strength: 'moderate',
+                    isContradiction: false,
+                    evidenceLabel:
+                        'Fram Reykjavik présente une meilleure forme récente.',
+                  ),
+                  MatchComputedReading(
+                    id: 'weak_away_team',
+                    subjectTeamId: 'unpriced-recommendation-away',
+                    side: 'away',
+                    strength: 'moderate',
+                    isContradiction: false,
+                    evidenceLabel:
+                        'Breidablik rencontre des difficultés à l’extérieur.',
+                  ),
+                ],
+              ),
               betRecommendations: const [
                 BetRecommendation(
                   matchId: 'unpriced-recommendation',
@@ -1150,7 +1219,7 @@ void main() {
                   selectionLabel: 'Victoire de Fram Reykjavik',
                   supportingReadingIds: [
                     'structural_level_gap',
-                    'strong_home_team',
+                    'form_advantage',
                     'weak_away_team',
                   ],
                   supportingScenarioIds: ['ranking_gap'],
@@ -1162,23 +1231,38 @@ void main() {
 
         await _pumpMatchDetail(tester, match: match);
 
-        expect(find.text('Victoire de Fram Reykjavik'), findsOneWidget);
-        expect(find.text('CHOIX LECTOR'), findsOneWidget);
-        expect(find.text('Cote indisponible'), findsOneWidget);
-        expect(
-          find.text('Paris liés à vos lectures et scénarios'),
-          findsNothing,
-        );
+        expect(find.text('MARCHÉS ASSOCIÉS'), findsOneWidget);
+        expect(find.text('Résultat du match'), findsOneWidget);
+        expect(find.text('Fram Reykjavik gagne'), findsOneWidget);
+        expect(find.text('3 lectures'), findsOneWidget);
+        expect(find.text('Voir le détail'), findsOneWidget);
+        expect(find.text('CHOIX LECTOR'), findsNothing);
+        expect(find.text('Cote indisponible'), findsNothing);
         expect(find.text('Contexte').hitTestable(), findsOneWidget);
+        await tester.tap(find.text('Voir le détail'));
+        await tester.pumpAndSettle();
+        expect(find.text('Détail du marché'), findsOneWidget);
+        expect(find.text('Lectures associées à ce marché'), findsOneWidget);
+        expect(find.text('Données d’appui'), findsOneWidget);
+        expect(find.text('Forme'), findsWidgets);
+        expect(find.text('Classement'), findsWidgets);
+        expect(find.text('Domicile/Ext.'), findsOneWidget);
+        await tester.scrollUntilVisible(
+          find.text('Interprétation de Lector'),
+          220,
+          scrollable: find.byType(Scrollable).last,
+        );
+        expect(find.text('Interprétation de Lector'), findsOneWidget);
+        expect(find.textContaining('Confiance'), findsNothing);
         expect(
-          find.textContaining('ajout au ticket indisponible'),
-          findsOneWidget,
+          find.text('Fram Reykjavik possède un écart structurel favorable.'),
+          findsWidgets,
         );
       },
     );
 
     testWidgets(
-      'does not present opposite generic markets as one Lector choice',
+      'presents opposite market interpretations separately without forcing a choice',
       (tester) async {
         final match =
             _match(
@@ -1216,160 +1300,142 @@ void main() {
         await _pumpMatchDetail(tester, match: match);
 
         expect(find.text('MATCH À SUIVRE'), findsOneWidget);
-        expect(find.text('AS Roma gagne'), findsNothing);
-        expect(find.text('Inter gagne'), findsNothing);
-        expect(find.textContaining('Aucun choix automatique'), findsOneWidget);
+        expect(find.text('MARCHÉS ASSOCIÉS'), findsOneWidget);
+        expect(find.text('AS Roma gagne'), findsOneWidget);
+        expect(find.text('Inter gagne'), findsOneWidget);
+        expect(find.textContaining('Aucun choix automatique'), findsNothing);
         expect(
-          find.textContaining(
-            'ne permettent pas de mettre une équipe en avant',
-          ),
-          findsOneWidget,
+          find.textContaining('sans direction commune nette'),
+          findsNothing,
         );
       },
     );
 
-    testWidgets(
-      'shows engine support, resistance and contradiction in reading sheet',
-      (tester) async {
-        await tester.binding.setSurfaceSize(const Size(390, 844));
-        addTearDown(() => tester.binding.setSurfaceSize(null));
+    testWidgets('does not expose the retired global reading sheet', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
 
-        final match = _match(
-          id: 'assessment-detail',
-          homeName: 'Alpha FC',
-          awayName: 'Beta FC',
-          kickoff: _relativeKickoff(0, hour: 19),
+      final match = _match(
+        id: 'assessment-detail',
+        homeName: 'Alpha FC',
+        awayName: 'Beta FC',
+        kickoff: _relativeKickoff(0, hour: 19),
+      );
+      final now = DateTime(2026, 9, 4, 12);
+      FootballReading reading({
+        required String id,
+        required ReadingStrength strength,
+        required String label,
+      }) {
+        return FootballReading(
+          id: id,
+          subjectTeamId: match.homeTeam.id,
+          subjectSide: ReadingSubjectSide.home,
+          status: ReadingStatus.detected,
+          strength: strength,
+          evidence: [
+            ReadingEvidence(
+              label: label,
+              kind: ReadingEvidenceKind.form,
+              sourcePath: 'test.$id',
+            ),
+          ],
+          warnings: const [],
+          asOf: now,
+          sampleSize: 5,
         );
-        final now = DateTime(2026, 9, 4, 12);
-        FootballReading reading({
-          required String id,
-          required ReadingStrength strength,
-          required String label,
-        }) {
-          return FootballReading(
-            id: id,
-            subjectTeamId: match.homeTeam.id,
-            subjectSide: ReadingSubjectSide.home,
-            status: ReadingStatus.detected,
-            strength: strength,
-            evidence: [
-              ReadingEvidence(
-                label: label,
-                kind: ReadingEvidenceKind.form,
-                sourcePath: 'test.$id',
-              ),
-            ],
-            warnings: const [],
-            asOf: now,
-            sampleSize: 5,
-          );
-        }
+      }
 
-        final supporting = reading(
-          id: 'positive_streak',
-          strength: ReadingStrength.strong,
-          label: 'Alpha FC reste sur une série favorable.',
-        );
-        final resistance = reading(
-          id: 'strong_home_team',
-          strength: ReadingStrength.moderate,
-          label: 'Beta FC conserve un bon rendement à domicile.',
-        );
-        final contradiction = reading(
-          id: 'negative_streak',
-          strength: ReadingStrength.moderate,
-          label: 'Une donnée récente va dans le sens inverse.',
-        );
+      final supporting = reading(
+        id: 'positive_streak',
+        strength: ReadingStrength.strong,
+        label: 'Alpha FC reste sur une série favorable.',
+      );
+      final resistance = reading(
+        id: 'strong_home_team',
+        strength: ReadingStrength.moderate,
+        label: 'Beta FC conserve un bon rendement à domicile.',
+      );
+      final contradiction = reading(
+        id: 'negative_streak',
+        strength: ReadingStrength.moderate,
+        label: 'Une donnée récente va dans le sens inverse.',
+      );
 
-        await _pumpPage(
-          tester,
-          repository: _FakeMatchFeedRepository(
-            opportunities: [
-              _opportunity(
-                match: match,
-                detectedSignals: match.signals,
-                retainedTheses: [
-                  _thesis(
-                    id: 'expected_domination',
-                    title: 'Domination attendue',
-                  ),
-                ],
-                thesisAssessments: [
-                  ThesisAssessment(
-                    id: 'expected_domination',
-                    title: 'Domination attendue',
-                    subjectSide: ReadingSubjectSide.home,
-                    status: ThesisAssessmentStatus.supported,
-                    clarityScore: 74,
-                    evidence: [
-                      ThesisEvidenceAssessment(
-                        relation: ThesisEvidenceRelation.coreSupport,
-                        family: CopilotArgumentFamily.form,
-                        label: 'Série favorable',
-                        reading: supporting,
-                      ),
-                      ThesisEvidenceAssessment(
-                        relation: ThesisEvidenceRelation.resistance,
-                        family: CopilotArgumentFamily.form,
-                        label: 'Rendement adverse',
-                        reading: resistance,
-                      ),
-                      ThesisEvidenceAssessment(
-                        relation: ThesisEvidenceRelation.contradiction,
-                        family: CopilotArgumentFamily.form,
-                        label: 'Signal contraire',
-                        reading: contradiction,
-                      ),
-                    ],
-                  ),
-                  ThesisAssessment(
-                    id: 'convergent_open_match',
-                    title: 'Match ouvert',
-                    subjectSide: ReadingSubjectSide.match,
-                    status: ThesisAssessmentStatus.supported,
-                    clarityScore: 58,
-                    evidence: [
-                      ThesisEvidenceAssessment(
-                        relation: ThesisEvidenceRelation.additionalSupport,
-                        family: CopilotArgumentFamily.rhythm,
-                        label: 'Rythme favorable',
-                        reading: supporting,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
+      await _pumpPage(
+        tester,
+        repository: _FakeMatchFeedRepository(
+          opportunities: [
+            _opportunity(
+              match: match,
+              detectedSignals: match.signals,
+              retainedTheses: [
+                _thesis(
+                  id: 'expected_domination',
+                  title: 'Domination attendue',
+                ),
+              ],
+              thesisAssessments: [
+                ThesisAssessment(
+                  id: 'expected_domination',
+                  title: 'Domination attendue',
+                  subjectSide: ReadingSubjectSide.home,
+                  status: ThesisAssessmentStatus.supported,
+                  clarityScore: 74,
+                  evidence: [
+                    ThesisEvidenceAssessment(
+                      relation: ThesisEvidenceRelation.coreSupport,
+                      family: CopilotArgumentFamily.form,
+                      label: 'Série favorable',
+                      reading: supporting,
+                    ),
+                    ThesisEvidenceAssessment(
+                      relation: ThesisEvidenceRelation.resistance,
+                      family: CopilotArgumentFamily.form,
+                      label: 'Rendement adverse',
+                      reading: resistance,
+                    ),
+                    ThesisEvidenceAssessment(
+                      relation: ThesisEvidenceRelation.contradiction,
+                      family: CopilotArgumentFamily.form,
+                      label: 'Signal contraire',
+                      reading: contradiction,
+                    ),
+                  ],
+                ),
+                ThesisAssessment(
+                  id: 'convergent_open_match',
+                  title: 'Match ouvert',
+                  subjectSide: ReadingSubjectSide.match,
+                  status: ThesisAssessmentStatus.supported,
+                  clarityScore: 58,
+                  evidence: [
+                    ThesisEvidenceAssessment(
+                      relation: ThesisEvidenceRelation.additionalSupport,
+                      family: CopilotArgumentFamily.rhythm,
+                      label: 'Rythme favorable',
+                      reading: supporting,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
 
-        await tester.tap(find.text('Alpha FC').first);
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Voir le détail'));
-        await tester.pumpAndSettle();
+      await tester.tap(find.text('Alpha FC').first);
+      await tester.pumpAndSettle();
 
-        expect(find.text('Scénario retenu'), findsOneWidget);
-        expect(find.textContaining('DOMINATION ATTENDUE'), findsWidgets);
-        expect(
-          find.text('Lectures qui composent ce scénario · 1'),
-          findsOneWidget,
-        );
-        expect(find.text('Points de vigilance'), findsOneWidget);
-        expect(
-          find.text('Alpha FC reste sur une série favorable.'),
-          findsOneWidget,
-        );
-        expect(
-          find.text('Beta FC conserve un bon rendement à domicile.'),
-          findsOneWidget,
-        );
-
-        expect(find.byTooltip('Lecture suivante'), findsNothing);
-      },
-    );
+      expect(find.text('MATCH À SUIVRE'), findsOneWidget);
+      expect(find.text('Voir le détail'), findsNothing);
+      expect(find.text('Scénario retenu'), findsNothing);
+    });
 
     testWidgets(
-      'keeps selected opportunity contradictions when assessments are absent',
+      'keeps generic opportunity evidence out of the context market list',
       (tester) async {
         final sourceMatch = _match(
           id: 'legacy-opportunity-evidence',
@@ -1452,31 +1518,10 @@ void main() {
 
         await tester.tap(find.text('Alpha FC').first);
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Voir le détail'));
-        await tester.pumpAndSettle();
 
-        expect(find.text('Scénario retenu'), findsOneWidget);
-        expect(
-          find.text('Lectures qui composent ce scénario · 1'),
-          findsOneWidget,
-        );
-        expect(find.text('Autres lectures du match'), findsOneWidget);
-        expect(find.text('Alpha FC solide à domicile'), findsOneWidget);
-        expect(find.text('Alpha FC reste en forme.'), findsOneWidget);
-        expect(
-          find.byKey(ValueKey('scenario-independent-${match.awayTeam.id}')),
-          findsNothing,
-        );
-        await tester.scrollUntilVisible(
-          find.byKey(const ValueKey('scenario-vigilance-strong_away_team')),
-          240,
-          scrollable: find.byType(Scrollable).last,
-        );
-        expect(
-          find.byKey(const ValueKey('scenario-vigilance-strong_away_team')),
-          findsOneWidget,
-        );
-        expect(find.text('Aucun signal contraire détecté'), findsNothing);
+        expect(find.text('MATCH À SUIVRE'), findsOneWidget);
+        expect(find.text('MARCHÉS ASSOCIÉS'), findsNothing);
+        expect(find.text('Voir le détail'), findsNothing);
       },
     );
 
@@ -1848,24 +1893,12 @@ void main() {
         );
 
         await _pumpMatchDetail(tester, match: match);
-        await tester.tap(find.text('Voir le détail'));
-        await tester.pumpAndSettle();
 
-        expect(find.text('Pourquoi ce match est proposé'), findsOneWidget);
-        expect(find.text('Autres lectures du match'), findsOneWidget);
-        expect(
-          find.text('Dynamique positive pour Tottenham'),
-          findsNWidgets(2),
-        );
+        expect(find.text('Voir le détail'), findsNothing);
+        expect(find.text('Dynamique positive pour Tottenham'), findsOneWidget);
         expect(
           find.text('Tottenham enchaîne des résultats favorables.'),
-          findsNWidgets(2),
-        );
-        expect(
-          find.text(
-            'Aucune lecture moteur détaillée disponible pour cette rencontre.',
-          ),
-          findsNothing,
+          findsOneWidget,
         );
       },
     );
@@ -1894,20 +1927,9 @@ void main() {
         );
 
         await _pumpMatchDetail(tester, match: match);
-        await tester.tap(find.text('Voir le détail'));
-        await tester.pumpAndSettle();
 
-        expect(find.text('Autres lectures du match'), findsNothing);
-        // The compact context behind the sheet may still expose this raw
-        // support fact. It must not be promoted into the detail sheet as a
-        // selectable user reading.
+        expect(find.text('Voir le détail'), findsNothing);
         expect(find.text('Avantage de forme pour Tottenham'), findsOneWidget);
-        expect(
-          find.text(
-            'Aucune lecture moteur détaillée disponible pour cette rencontre.',
-          ),
-          findsOneWidget,
-        );
       },
     );
 
@@ -2493,18 +2515,10 @@ void main() {
         await tester.tap(find.text('Bodo/Glimt').first);
         await tester.pumpAndSettle();
 
-        expect(
-          find.byWidgetPredicate((widget) {
-            if (widget is! Text) {
-              return false;
-            }
-            return widget.data == 'Bodo/Glimt ou nul' ||
-                widget.textSpan?.toPlainText() ==
-                    'Pronostic envisagé · Bodo/Glimt ou nul';
-          }),
-          findsOneWidget,
-        );
-        expect(find.text('1.42'), findsOneWidget);
+        expect(find.text('MATCH À SUIVRE'), findsOneWidget);
+        expect(find.text('MARCHÉS ASSOCIÉS'), findsNothing);
+        expect(find.text('Bodo/Glimt ou nul'), findsNothing);
+        expect(find.text('1.42'), findsNothing);
 
         await tester.tap(
           find.byKey(const ValueKey('lector-floating-dock-logo')),

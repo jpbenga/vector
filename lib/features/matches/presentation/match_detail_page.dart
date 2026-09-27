@@ -798,26 +798,10 @@ class _LectorSynthesisCard extends StatelessWidget {
     final metaAccent = context.opportunities.levelGap;
     final textColors = context.textColors;
     final surfaces = context.surfaces;
-    final scenarioRecommendedMarket = _scenarioRecommendedMarket(
-      match,
-      opportunity,
-    );
-    final showsScenarioPick = _hasScenarioRecommendedPick(
-      scenarioRecommendedMarket,
-    );
-    final unpricedDirection =
-        !showsScenarioPick && match.betRecommendations.length == 1
-        ? match.betRecommendations.single
-        : null;
-    final hasClearDirection = showsScenarioPick || unpricedDirection != null;
-    // A detail card must never turn several compatible markets into an
-    // arbitrary team choice. When there is no single automatic candidate, it
-    // says so explicitly instead of rendering both teams' generic markets.
-    final title = hasClearDirection ? _scenarioTitle(match) : 'Match à suivre';
-    final summary = hasClearDirection
-        ? _scenarioSummary(match)
-        : 'Les signaux du match ne permettent pas de mettre une équipe en avant.';
-    final count = _scenarioReadingCount(match);
+    final associations = _contextMarketAssociationsFor(match);
+    final readings = _contextDetectedReadingsFor(match);
+    final summary = _contextMatchSummary(match, readings);
+    final count = readings.length;
 
     return _LectorGlassCard(
       padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
@@ -845,7 +829,7 @@ class _LectorSynthesisCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      title.toUpperCase(),
+                      'MATCH À SUIVRE',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.labelLarge?.copyWith(
@@ -855,7 +839,7 @@ class _LectorSynthesisCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '$count lecture${count > 1 ? 's' : ''} convergent',
+                      '$count lecture${count > 1 ? 's' : ''} détectée${count > 1 ? 's' : ''}',
                       style: theme.textTheme.labelMedium?.copyWith(
                         color: metaAccent,
                         fontWeight: FontWeight.w800,
@@ -864,85 +848,261 @@ class _LectorSynthesisCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 6),
-              TextButton.icon(
-                onPressed: () => _showScenarioReadingsSheet(
-                  context,
-                  match,
-                  opportunity: opportunity,
-                ),
-                style: TextButton.styleFrom(
-                  minimumSize: const Size(0, 34),
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  foregroundColor: metaAccent,
-                  side: BorderSide(color: metaAccent.withValues(alpha: 0.54)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.chip),
-                  ),
-                ),
-                label: Text(
-                  'Voir le détail',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: metaAccent,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                icon: const Icon(Icons.chevron_right_rounded, size: 18),
-                iconAlignment: IconAlignment.end,
-              ),
             ],
           ),
-          const SizedBox(height: 9),
-          Text(
-            summary,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: textColors.secondary,
-              height: 1.3,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 9),
-          Divider(height: 1, color: surfaces.border),
-          const SizedBox(height: 8),
-          Text(
-            'CHOIX LECTOR',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: metaAccent,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.4,
-            ),
-          ),
-          const SizedBox(height: 5),
-          if (showsScenarioPick)
-            _LectorCompactOpportunityPickRow(
-              match: match,
-              recommendedMarket: scenarioRecommendedMarket!,
-            )
-          else if (unpricedDirection != null)
-            _LectorCompactUnpricedRecommendationRow(
-              recommendation: unpricedDirection,
-            )
-          else
-            const _LectorNoAutomaticPickRow(),
-          if (unpricedDirection != null) ...[
+          if (summary != null) ...[
             const SizedBox(height: 7),
             Text(
-              'Préconisation visible · ajout au ticket indisponible jusqu’à ce qu’une cote soit disponible.',
-              style: theme.textTheme.labelSmall?.copyWith(
+              summary,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
                 color: textColors.secondary,
                 fontWeight: FontWeight.w600,
                 height: 1.25,
               ),
             ),
           ],
+          if (associations.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Divider(height: 1, color: surfaces.border),
+            const SizedBox(height: 8),
+            _ContextAssociatedMarkets(match: match, associations: associations),
+          ],
         ],
       ),
     );
   }
 }
+
+class _ContextMarketAssociation {
+  const _ContextMarketAssociation({
+    required this.marketId,
+    required this.marketLabel,
+    required this.selectionIntent,
+    required this.selectionLabel,
+    required this.supportingReadingIds,
+    required this.contradictionIds,
+    this.subjectTeamId,
+  });
+
+  final String marketId;
+  final String marketLabel;
+  final MarketSelectionIntent selectionIntent;
+  final String selectionLabel;
+  final List<String> supportingReadingIds;
+  final List<String> contradictionIds;
+  final String? subjectTeamId;
+}
+
+List<_ContextMarketAssociation> _contextMarketAssociationsFor(
+  MatchBoardItem match,
+) {
+  final associations = <String, _ContextMarketAssociation>{};
+  for (final recommendation in match.betRecommendations) {
+    if (recommendation.supportingReadingIds.isEmpty) continue;
+    final key =
+        '${recommendation.marketId}:${recommendation.selectionIntent.name}:${recommendation.selectionLabel}';
+    associations[key] = _ContextMarketAssociation(
+      marketId: recommendation.marketId,
+      marketLabel: recommendation.marketLabel,
+      selectionIntent: recommendation.selectionIntent,
+      selectionLabel: _contextMarketSelectionLabel(match, recommendation),
+      supportingReadingIds: recommendation.supportingReadingIds.toSet().toList(
+        growable: false,
+      ),
+      contradictionIds: recommendation.contradictionIds.toSet().toList(
+        growable: false,
+      ),
+      subjectTeamId: recommendation.subjectTeamId,
+    );
+  }
+  return associations.values.take(5).toList(growable: false);
+}
+
+String _contextMarketSelectionLabel(
+  MatchBoardItem match,
+  BetRecommendation recommendation,
+) => switch (recommendation.selectionIntent) {
+  MarketSelectionIntent.home => '${match.homeTeam.name} gagne',
+  MarketSelectionIntent.draw => 'Match nul',
+  MarketSelectionIntent.away => '${match.awayTeam.name} gagne',
+  MarketSelectionIntent.homeOrDraw => '${match.homeTeam.name} ou nul',
+  MarketSelectionIntent.homeOrAway =>
+    '${match.homeTeam.name} ou ${match.awayTeam.name}',
+  MarketSelectionIntent.drawOrAway => '${match.awayTeam.name} ou nul',
+  _ => recommendation.selectionLabel,
+};
+
+List<MatchComputedReading> _contextDetectedReadingsFor(MatchBoardItem match) =>
+    match.analysis.computedReadings
+        .where(
+          (reading) =>
+              !reading.isContradiction &&
+              reading.playerName == null &&
+              reading.evidenceLabel.trim().isNotEmpty,
+        )
+        .toList(growable: false);
+
+String? _contextMatchSummary(
+  MatchBoardItem match,
+  List<MatchComputedReading> readings,
+) {
+  if (readings.isEmpty) return null;
+  final teams = readings
+      .map((reading) => _teamForSubject(match, reading.subjectTeamId))
+      .whereType<TeamInfo>()
+      .map((team) => team.name)
+      .toSet();
+  if (teams.length == 1) {
+    return 'Plusieurs lectures du match concernent ${teams.single}.';
+  }
+  return 'Les lectures font ressortir plusieurs éléments, sans direction commune nette.';
+}
+
+class _ContextAssociatedMarkets extends StatelessWidget {
+  const _ContextAssociatedMarkets({
+    required this.match,
+    required this.associations,
+  });
+
+  final MatchBoardItem match;
+  final List<_ContextMarketAssociation> associations;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'MARCHÉS ASSOCIÉS',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: context.textColors.primary,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: .25,
+                ),
+              ),
+            ),
+            Text(
+              'Basés sur vos préférences',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: context.textColors.secondary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 7),
+        for (final indexed in associations.indexed) ...[
+          _ContextAssociatedMarketRow(match: match, association: indexed.$2),
+          if (indexed.$1 < associations.length - 1) const SizedBox(height: 6),
+        ],
+      ],
+    );
+  }
+}
+
+class _ContextAssociatedMarketRow extends StatelessWidget {
+  const _ContextAssociatedMarketRow({
+    required this.match,
+    required this.association,
+  });
+
+  final MatchBoardItem match;
+  final _ContextMarketAssociation association;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: AppColors.transparent,
+    child: InkWell(
+      onTap: () => _showContextMarketAssociationSheet(
+        context,
+        match: match,
+        association: association,
+      ),
+      borderRadius: BorderRadius.circular(AppRadius.input),
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        decoration: BoxDecoration(
+          color: context.surfaces.surfaceHover.withValues(alpha: .42),
+          borderRadius: BorderRadius.circular(AppRadius.input),
+          border: Border.all(color: context.surfaces.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  _contextMarketIcon(association.marketId),
+                  size: 21,
+                  color: context.brand.accent,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        association.marketLabel,
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: context.textColors.primary,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        association.selectionLabel,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: context.textColors.secondary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${association.supportingReadingIds.length} lecture${association.supportingReadingIds.length > 1 ? 's' : ''}',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: context.brand.accent,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => _showContextMarketAssociationSheet(
+                  context,
+                  match: match,
+                  association: association,
+                ),
+                icon: const Icon(Icons.chevron_right_rounded, size: 18),
+                iconAlignment: IconAlignment.end,
+                label: const Text('Voir le détail'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+IconData _contextMarketIcon(String marketId) => switch (marketId) {
+  'doubleChance' => Icons.event_available_rounded,
+  'matchResult' => Icons.hexagon_outlined,
+  'bothTeamsScore' => Icons.sports_soccer_rounded,
+  'teamGoals' => Icons.sports_score_rounded,
+  _ => Icons.auto_awesome_rounded,
+};
 
 class _LectorCompactUnpricedRecommendationRow extends StatelessWidget {
   const _LectorCompactUnpricedRecommendationRow({required this.recommendation});
@@ -1245,6 +1405,7 @@ class _LectorQuickContextCard extends StatelessWidget {
     );
     final vigilanceReadings = _contextVigilanceReadingsFor(match);
     final quickFactCount = keys.length + serverContextReadings.length;
+    final takeaway = _contextTakeawayFor(match, serverContextReadings);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(2, 4, 2, 2),
@@ -1330,10 +1491,84 @@ class _LectorQuickContextCard extends StatelessWidget {
               ),
             ],
           ],
+          if (takeaway != null) ...[
+            const SizedBox(height: 16),
+            _ContextTakeawayCard(text: takeaway),
+          ],
         ],
       ),
     );
   }
+}
+
+String? _contextTakeawayFor(
+  MatchBoardItem match,
+  List<MatchComputedReading> readings,
+) {
+  // A single context key already carries its own explanation. The takeaway is
+  // reserved for a concise synthesis of several facts, never a duplicate.
+  if (readings.length < 2) return null;
+  final teams = readings
+      .map((reading) => _teamForSubject(match, reading.subjectTeamId))
+      .whereType<TeamInfo>()
+      .map((team) => team.name)
+      .toSet();
+  final marketCount = _contextMarketAssociationsFor(match).length;
+  final closing = marketCount == 0
+      ? ''
+      : ' Les marchés associés ci-dessus respectent vos préférences actives.';
+  if (teams.length == 1) {
+    return '${teams.single} ressort dans les lectures de cette rencontre.$closing';
+  }
+  return 'Les lectures mettent en évidence des éléments pour les deux équipes, sans convergence nette.$closing';
+}
+
+class _ContextTakeawayCard extends StatelessWidget {
+  const _ContextTakeawayCard({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: context.brand.accent.withValues(alpha: .08),
+      borderRadius: BorderRadius.circular(AppRadius.control),
+      border: Border.all(color: context.brand.accent.withValues(alpha: .22)),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.lightbulb_outline_rounded, color: context.brand.accent),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'À retenir',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: context.textColors.primary,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  text,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.textColors.secondary,
+                    fontWeight: FontWeight.w600,
+                    height: 1.25,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _ContextKeyCount extends StatelessWidget {
@@ -6081,6 +6316,986 @@ void _showScenarioReadingsSheet(
         child: _ScenarioReadingsSheet(match: match, opportunity: opportunity),
       );
     },
+  );
+}
+
+void _showContextMarketAssociationSheet(
+  BuildContext context, {
+  required MatchBoardItem match,
+  required _ContextMarketAssociation association,
+}) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: AppColors.transparent,
+    barrierColor: context.surfaces.scrim.withValues(alpha: .56),
+    builder: (_) =>
+        _ContextMarketAssociationSheet(match: match, association: association),
+  );
+}
+
+class _ContextMarketAssociationSheet extends StatefulWidget {
+  const _ContextMarketAssociationSheet({
+    required this.match,
+    required this.association,
+  });
+
+  final MatchBoardItem match;
+  final _ContextMarketAssociation association;
+
+  @override
+  State<_ContextMarketAssociationSheet> createState() =>
+      _ContextMarketAssociationSheetState();
+}
+
+class _ContextMarketAssociationSheetState
+    extends State<_ContextMarketAssociationSheet> {
+  late final List<MatchComputedReading> _readings;
+  late final List<_ContextSupportDimension> _dimensions;
+  _ContextSupportDimension? _selectedDimension;
+
+  @override
+  void initState() {
+    super.initState();
+    _readings = [
+      for (final reading in widget.match.analysis.computedReadings)
+        if (widget.association.supportingReadingIds.contains(reading.id))
+          reading,
+    ];
+    _dimensions = _contextSupportDimensionsFor(widget.match, _readings);
+    _selectedDimension = _dimensions.firstOrNull;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final match = widget.match;
+    final association = widget.association;
+    final readings = _readings;
+    final scenario = _contextMarketScenarioDescription(match, association);
+    final readingCount = association.supportingReadingIds.length;
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * .92,
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: context.surfaces.surface.withValues(alpha: .98),
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(AppRadius.card),
+          ),
+          border: Border.all(color: context.surfaces.border),
+          boxShadow: [
+            BoxShadow(
+              color: context.surfaces.shadow.withValues(alpha: .34),
+              blurRadius: 24,
+              offset: const Offset(0, -8),
+            ),
+          ],
+        ),
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: context.textColors.secondary.withValues(alpha: .68),
+                  borderRadius: BorderRadius.circular(AppRadius.chip),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: context.brand.accent.withValues(alpha: .12),
+                    borderRadius: BorderRadius.circular(AppRadius.control),
+                  ),
+                  child: SizedBox.square(
+                    dimension: 42,
+                    child: Icon(
+                      _contextMarketIcon(association.marketId),
+                      color: context.brand.accent,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Détail du marché',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: context.textColors.primary,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Analyse Lector',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: context.textColors.secondary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Fermer',
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: Icon(
+                    Icons.close_rounded,
+                    color: context.textColors.primary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _ContextMarketIdentityCard(
+              association: association,
+              readingCount: readingCount,
+              scenario: scenario,
+            ),
+            const SizedBox(height: 14),
+            _ContextSheetSectionHeading(
+              icon: Icons.bar_chart_rounded,
+              title: 'Lectures associées à ce marché',
+              subtitle: 'Les éléments factuels compatibles avec ce scénario.',
+            ),
+            const SizedBox(height: 8),
+            if (readings.isEmpty)
+              _ContextAssociationUnavailable(expectedCount: readingCount)
+            else
+              _ContextAssociationReadingsCard(match: match, readings: readings),
+            if (association.contradictionIds.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: context.semantic.warning.withValues(alpha: .10),
+                  borderRadius: BorderRadius.circular(AppRadius.input),
+                  border: Border.all(
+                    color: context.semantic.warning.withValues(alpha: .35),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(11),
+                  child: Text(
+                    'Des points de vigilance figurent aussi dans les clés du match.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.textColors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+            if (_selectedDimension != null) ...[
+              const SizedBox(height: 18),
+              _ContextSheetSectionHeading(
+                icon: Icons.storage_rounded,
+                title: 'Données d’appui',
+                subtitle:
+                    'Les données brutes simplifiées utilisées par ces lectures.',
+              ),
+              const SizedBox(height: 9),
+              Wrap(
+                spacing: 7,
+                runSpacing: 7,
+                children: [
+                  for (final dimension in _dimensions)
+                    ChoiceChip(
+                      label: Text(dimension.label),
+                      selected: dimension == _selectedDimension,
+                      onSelected: (_) =>
+                          setState(() => _selectedDimension = dimension),
+                      selectedColor: context.brand.accent.withValues(
+                        alpha: .14,
+                      ),
+                      side: BorderSide(
+                        color: dimension == _selectedDimension
+                            ? context.brand.accent
+                            : context.surfaces.border,
+                      ),
+                      labelStyle: Theme.of(context).textTheme.labelMedium
+                          ?.copyWith(
+                            color: dimension == _selectedDimension
+                                ? context.brand.accent
+                                : context.textColors.secondary,
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 9),
+              _ContextSupportDataPanel(
+                match: match,
+                dimension: _selectedDimension!,
+              ),
+            ],
+            const SizedBox(height: 18),
+            _ContextSheetSectionHeading(
+              icon: Icons.lightbulb_outline_rounded,
+              title: 'Interprétation de Lector',
+            ),
+            const SizedBox(height: 8),
+            _ContextMarketInterpretationCard(
+              readingCount: readingCount,
+              scenario: scenario,
+            ),
+            const SizedBox(height: 14),
+            _ContextMarketPreferenceNote(label: association.marketLabel),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ContextMarketIdentityCard extends StatelessWidget {
+  const _ContextMarketIdentityCard({
+    required this.association,
+    required this.readingCount,
+    required this.scenario,
+  });
+
+  final _ContextMarketAssociation association;
+  final int readingCount;
+  final String scenario;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: context.surfaces.surfaceHover.withValues(alpha: .5),
+      borderRadius: BorderRadius.circular(AppRadius.control),
+      border: Border.all(color: context.surfaces.border),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(13),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                _contextMarketIcon(association.marketId),
+                color: context.brand.accent,
+                size: 22,
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  association.marketLabel,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: context.textColors.primary,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            association.selectionLabel,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: context.textColors.secondary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: context.semantic.success.withValues(alpha: .09),
+              borderRadius: BorderRadius.circular(AppRadius.input),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.trending_up_rounded,
+                    color: context.semantic.success,
+                    size: 21,
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Text(
+                      '$readingCount lecture${readingCount > 1 ? 's sont' : ' est'} compatible${readingCount > 1 ? 's' : ''} avec un $scenario.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: context.textColors.primary,
+                        fontWeight: FontWeight.w800,
+                        height: 1.25,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ContextSheetSectionHeading extends StatelessWidget {
+  const _ContextSheetSectionHeading({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(icon, color: context.brand.accent, size: 23),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: context.textColors.primary,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                subtitle!,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.textColors.secondary,
+                  fontWeight: FontWeight.w600,
+                  height: 1.22,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+class _ContextAssociationReadingsCard extends StatelessWidget {
+  const _ContextAssociationReadingsCard({
+    required this.match,
+    required this.readings,
+  });
+
+  final MatchBoardItem match;
+  final List<MatchComputedReading> readings;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: context.surfaces.surfaceHover.withValues(alpha: .32),
+      borderRadius: BorderRadius.circular(AppRadius.control),
+      border: Border.all(color: context.surfaces.border),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      child: Column(
+        children: [
+          for (final indexed in readings.indexed) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: _ContextAssociationReadingRow(
+                match: match,
+                reading: indexed.$2,
+              ),
+            ),
+            if (indexed.$1 < readings.length - 1)
+              Divider(height: 1, color: context.surfaces.border),
+          ],
+        ],
+      ),
+    ),
+  );
+}
+
+enum _ContextSupportDimension { form, standings, venue, headToHead }
+
+extension on _ContextSupportDimension {
+  String get label => switch (this) {
+    _ContextSupportDimension.form => 'Forme',
+    _ContextSupportDimension.standings => 'Classement',
+    _ContextSupportDimension.venue => 'Domicile/Ext.',
+    _ContextSupportDimension.headToHead => 'Confrontations',
+  };
+}
+
+List<_ContextSupportDimension> _contextSupportDimensionsFor(
+  MatchBoardItem match,
+  List<MatchComputedReading> readings,
+) {
+  final ids = readings.map((reading) => reading.id).toSet();
+  final dimensions = <_ContextSupportDimension>[];
+  const formIds = {
+    'positive_streak',
+    'negative_streak',
+    'improving_form',
+    'declining_form',
+    'form_advantage',
+    'form_gap',
+  };
+  const standingsIds = {
+    'ranking_superiority',
+    'ranking_inferiority',
+    'structural_level_gap',
+  };
+  const venueIds = {
+    'strong_home_team',
+    'weak_home_team',
+    'strong_away_team',
+    'weak_away_team',
+    'venue_strength',
+  };
+  if (ids.intersection(formIds).isNotEmpty &&
+      (match.analysis.homeRecentLeagueMatches.isNotEmpty ||
+          match.analysis.awayRecentLeagueMatches.isNotEmpty)) {
+    dimensions.add(_ContextSupportDimension.form);
+  }
+  if (ids.intersection(standingsIds).isNotEmpty &&
+      (match.analysis.homeStanding != null ||
+          match.analysis.awayStanding != null)) {
+    dimensions.add(_ContextSupportDimension.standings);
+  }
+  if (ids.intersection(venueIds).isNotEmpty &&
+      (match.analysis.homeStatistics != null ||
+          match.analysis.awayStatistics != null)) {
+    dimensions.add(_ContextSupportDimension.venue);
+  }
+  if (ids.contains('head_to_head_dominance') &&
+      match.analysis.headToHeadMatches.isNotEmpty) {
+    dimensions.add(_ContextSupportDimension.headToHead);
+  }
+  return List.unmodifiable(dimensions);
+}
+
+class _ContextSupportDataPanel extends StatelessWidget {
+  const _ContextSupportDataPanel({
+    required this.match,
+    required this.dimension,
+  });
+
+  final MatchBoardItem match;
+  final _ContextSupportDimension dimension;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: context.surfaces.surfaceHover.withValues(alpha: .4),
+      borderRadius: BorderRadius.circular(AppRadius.control),
+      border: Border.all(color: context.surfaces.border),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(12),
+      child: switch (dimension) {
+        _ContextSupportDimension.form => _ContextFormSupport(match: match),
+        _ContextSupportDimension.standings => _ContextStandingsSupport(
+          match: match,
+        ),
+        _ContextSupportDimension.venue => _ContextVenueSupport(match: match),
+        _ContextSupportDimension.headToHead => _ContextHeadToHeadSupport(
+          match: match,
+        ),
+      },
+    ),
+  );
+}
+
+class _ContextFormSupport extends StatelessWidget {
+  const _ContextFormSupport({required this.match});
+
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Forme sur les 5 derniers matchs',
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+          color: context.textColors.primary,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      const SizedBox(height: 9),
+      _ContextFormSupportRow(
+        name: match.homeTeam.name,
+        results: _contextRecentResults(match.analysis.homeRecentLeagueMatches),
+      ),
+      const SizedBox(height: 8),
+      _ContextFormSupportRow(
+        name: match.awayTeam.name,
+        results: _contextRecentResults(match.analysis.awayRecentLeagueMatches),
+      ),
+    ],
+  );
+}
+
+class _ContextFormSupportRow extends StatelessWidget {
+  const _ContextFormSupportRow({required this.name, required this.results});
+
+  final String name;
+  final List<String> results;
+
+  @override
+  Widget build(BuildContext context) {
+    final points = results.fold<int>(
+      0,
+      (total, result) =>
+          total +
+          (result == 'V'
+              ? 3
+              : result == 'N'
+              ? 1
+              : 0),
+    );
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: context.textColors.primary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        for (final result in results)
+          Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: _ContextFormToken(result: result),
+          ),
+        const SizedBox(width: 8),
+        Text(
+          '$points/${results.length * 3}',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: context.textColors.secondary,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ContextFormToken extends StatelessWidget {
+  const _ContextFormToken({required this.result});
+
+  final String result;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (result) {
+      'V' => context.semantic.success,
+      'D' => context.semantic.error,
+      _ => context.textColors.secondary,
+    };
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .16),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+      ),
+      child: SizedBox(
+        width: 24,
+        height: 24,
+        child: Center(
+          child: Text(
+            result,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+List<String> _contextRecentResults(List<TeamRecentMatchSnapshot> matches) =>
+    matches
+        .take(5)
+        .map(
+          (match) => switch (match.result.trim().toUpperCase()) {
+            'W' || 'V' => 'V',
+            'D' || 'N' => 'N',
+            _ => 'D',
+          },
+        )
+        .toList(growable: false);
+
+class _ContextStandingsSupport extends StatelessWidget {
+  const _ContextStandingsSupport({required this.match});
+
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Position au classement',
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+          color: context.textColors.primary,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      const SizedBox(height: 8),
+      _ContextStandingSupportRow(
+        name: match.homeTeam.name,
+        standing: match.analysis.homeStanding,
+      ),
+      Divider(height: 16, color: context.surfaces.border),
+      _ContextStandingSupportRow(
+        name: match.awayTeam.name,
+        standing: match.analysis.awayStanding,
+      ),
+    ],
+  );
+}
+
+class _ContextStandingSupportRow extends StatelessWidget {
+  const _ContextStandingSupportRow({
+    required this.name,
+    required this.standing,
+  });
+
+  final String name;
+  final TeamStandingSnapshot? standing;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: Text(
+          name,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: context.textColors.primary,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+      Text(
+        standing?.rank == null ? '—' : '${standing!.rank}e',
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+          color: context.brand.accent,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      const SizedBox(width: 12),
+      Text(
+        standing?.points == null ? '—' : '${standing!.points} pts',
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: context.textColors.secondary,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    ],
+  );
+}
+
+class _ContextVenueSupport extends StatelessWidget {
+  const _ContextVenueSupport({required this.match});
+
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Domicile / extérieur',
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+          color: context.textColors.primary,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      const SizedBox(height: 8),
+      _ContextVenueSupportRow(
+        name: match.homeTeam.name,
+        label: 'à domicile',
+        played: match.analysis.homeStatistics?.playedHome,
+        wins: match.analysis.homeStatistics?.winsHome,
+        draws: match.analysis.homeStatistics?.drawsHome,
+        losses: match.analysis.homeStatistics?.lossesHome,
+      ),
+      Divider(height: 16, color: context.surfaces.border),
+      _ContextVenueSupportRow(
+        name: match.awayTeam.name,
+        label: 'à l’extérieur',
+        played: match.analysis.awayStatistics?.playedAway,
+        wins: match.analysis.awayStatistics?.winsAway,
+        draws: match.analysis.awayStatistics?.drawsAway,
+        losses: match.analysis.awayStatistics?.lossesAway,
+      ),
+    ],
+  );
+}
+
+class _ContextVenueSupportRow extends StatelessWidget {
+  const _ContextVenueSupportRow({
+    required this.name,
+    required this.label,
+    required this.played,
+    required this.wins,
+    required this.draws,
+    required this.losses,
+  });
+
+  final String name;
+  final String label;
+  final int? played;
+  final int? wins;
+  final int? draws;
+  final int? losses;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              name,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: context.textColors.primary,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: context.textColors.secondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+      Text(
+        played == null
+            ? '—'
+            : '${wins ?? 0} V · ${draws ?? 0} N · ${losses ?? 0} D / $played',
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: context.textColors.secondary,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    ],
+  );
+}
+
+class _ContextHeadToHeadSupport extends StatelessWidget {
+  const _ContextHeadToHeadSupport({required this.match});
+
+  final MatchBoardItem match;
+
+  @override
+  Widget build(BuildContext context) {
+    final meetings = match.analysis.headToHeadMatches.take(3).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Confrontations récentes',
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: context.textColors.primary,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 8),
+        for (final indexed in meetings.indexed) ...[
+          Text(
+            '${indexed.$2.homeTeamName} ${indexed.$2.homeGoals} – ${indexed.$2.awayGoals} ${indexed.$2.awayTeamName}',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: context.textColors.primary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (indexed.$1 < meetings.length - 1)
+            Divider(height: 16, color: context.surfaces.border),
+        ],
+      ],
+    );
+  }
+}
+
+class _ContextMarketInterpretationCard extends StatelessWidget {
+  const _ContextMarketInterpretationCard({
+    required this.readingCount,
+    required this.scenario,
+  });
+
+  final int readingCount;
+  final String scenario;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: context.brand.accent.withValues(alpha: .08),
+      borderRadius: BorderRadius.circular(AppRadius.control),
+      border: Border.all(color: context.brand.accent.withValues(alpha: .2)),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(12),
+      child: Text(
+        '${readingCount == 1 ? 'L’élément observé est' : 'Les $readingCount éléments observés sont'} compatibles avec un $scenario. Lector présente cette association pour permettre de vérifier les données qui la composent.',
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: context.textColors.primary,
+          fontWeight: FontWeight.w700,
+          height: 1.3,
+        ),
+      ),
+    ),
+  );
+}
+
+class _ContextMarketPreferenceNote extends StatelessWidget {
+  const _ContextMarketPreferenceNote({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: context.surfaces.surfaceHover.withValues(alpha: .38),
+      borderRadius: BorderRadius.circular(AppRadius.control),
+      border: Border.all(color: context.surfaces.border),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(11),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            color: context.textColors.secondary,
+            size: 22,
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              'Ce marché apparaît parce que « $label » est activé dans vos préférences.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: context.textColors.secondary,
+                fontWeight: FontWeight.w700,
+                height: 1.25,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+String _contextMarketScenarioDescription(
+  MatchBoardItem match,
+  _ContextMarketAssociation association,
+) {
+  final subject = association.subjectTeamId == null
+      ? null
+      : _teamForSubject(match, association.subjectTeamId!);
+  return switch ((association.marketId, association.selectionIntent)) {
+    ('doubleChance', MarketSelectionIntent.homeOrDraw) =>
+      'scénario où ${match.homeTeam.name} évite la défaite',
+    ('doubleChance', MarketSelectionIntent.drawOrAway) =>
+      'scénario où ${match.awayTeam.name} évite la défaite',
+    ('matchResult', MarketSelectionIntent.home) =>
+      'scénario où ${match.homeTeam.name} s’impose',
+    ('matchResult', MarketSelectionIntent.away) =>
+      'scénario où ${match.awayTeam.name} s’impose',
+    ('matchResult', MarketSelectionIntent.draw) => 'scénario de match nul',
+    ('bothTeamsScore', MarketSelectionIntent.yes) =>
+      'scénario où les deux équipes marquent',
+    ('teamGoals', MarketSelectionIntent.over05) =>
+      'scénario où ${subject?.name ?? 'l’équipe concernée'} trouve le chemin des filets',
+    (_, MarketSelectionIntent.over25) => 'scénario avec au moins trois buts',
+    (_, MarketSelectionIntent.under25) => 'scénario avec au plus deux buts',
+    _ => 'scénario décrit par cette sélection',
+  };
+}
+
+class _ContextAssociationReadingRow extends StatelessWidget {
+  const _ContextAssociationReadingRow({
+    required this.match,
+    required this.reading,
+  });
+
+  final MatchBoardItem match;
+  final MatchComputedReading reading;
+
+  @override
+  Widget build(BuildContext context) {
+    final team = _teamForSubject(match, reading.subjectTeamId);
+    final color = _quickContextSignalColor(context, reading.id);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(_quickContextIcon(reading.id), size: 20, color: color),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _quickContextTitle(reading.id, team?.name),
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: context.textColors.primary,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 3),
+              _LocalizedFormEvidenceText(
+                text: reading.evidenceLabel,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.textColors.secondary,
+                  height: 1.25,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ContextAssociationUnavailable extends StatelessWidget {
+  const _ContextAssociationUnavailable({required this.expectedCount});
+
+  final int expectedCount;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    '$expectedCount lecture${expectedCount > 1 ? 's' : ''} associée${expectedCount > 1 ? 's' : ''} à ce marché.',
+    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: context.textColors.secondary,
+      fontWeight: FontWeight.w700,
+    ),
   );
 }
 
