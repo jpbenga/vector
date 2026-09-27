@@ -1291,6 +1291,10 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                                   ? PlayerFormRadarPage(
                                       matches: allMatchesForSelectedDate,
                                       radarSourceMatches: widget.matches,
+                                      personalizedMatches:
+                                          widget.personalizedMatches,
+                                      showProfileReadings:
+                                          widget.identityScope.isAccount,
                                       selectedDate: widget.selectedDate,
                                       onOpenMatch: widget.onOpenMatch,
                                     )

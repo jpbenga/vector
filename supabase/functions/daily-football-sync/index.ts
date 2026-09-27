@@ -7,6 +7,10 @@ const defaultDatabaseSizeLimitBytes = 500 * 1024 * 1024;
 const defaultApiRequestDelayMs = 220;
 const defaultRecentFormDaysBack = 180;
 const defaultRecentFormMatches = 5;
+// A child Edge Function must return to the queue worker. Without a deadline,
+// a stalled gateway call leaves its queue lease open until the database has to
+// recover it, which used to block every subsequent league.
+const childFunctionTimeoutMs = 4 * 60 * 1000;
 
 const corsHeaders = {
   "access-control-allow-origin": "*",
@@ -520,14 +524,25 @@ async function callFunction({
   syncSecret: string;
   payload: JsonObject;
 }): Promise<JsonObject> {
-  const response = await fetch(`${supabaseUrl}/functions/v1/${name}`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${syncSecret}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${supabaseUrl}/functions/v1/${name}`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${syncSecret}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(childFunctionTimeoutMs),
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "TimeoutError") {
+      throw new Error(
+        `${name} timed out after ${childFunctionTimeoutMs / 1000} seconds.`,
+      );
+    }
+    throw error;
+  }
   const body = await response.json().catch(() => ({}));
   if (!isJsonObject(body)) {
     throw new Error(`${name} returned a non-object response.`);

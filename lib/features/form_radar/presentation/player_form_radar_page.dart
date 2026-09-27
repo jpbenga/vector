@@ -16,6 +16,8 @@ class PlayerFormRadarPage extends StatefulWidget {
   const PlayerFormRadarPage({
     required this.matches,
     required this.radarSourceMatches,
+    required this.personalizedMatches,
+    required this.showProfileReadings,
     required this.selectedDate,
     required this.onOpenMatch,
     super.key,
@@ -26,6 +28,12 @@ class PlayerFormRadarPage extends StatefulWidget {
   /// All fixtures loaded from the same snapshot. They carry the global form
   /// profiles; [matches] remains the selected calendar day's fixture list.
   final List<MatchBoardItem> radarSourceMatches;
+
+  /// Matches already filtered by the connected account's decision profile.
+  /// Radar still discovers hot players and teams globally, but these matches
+  /// determine which Lector readings can be surfaced on a Radar card.
+  final List<MatchBoardItem> personalizedMatches;
+  final bool showProfileReadings;
   final DateTime selectedDate;
   final ValueChanged<MatchBoardItem> onOpenMatch;
 
@@ -70,6 +78,9 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
         : cappedTeams.take(10).toList(growable: false);
     final radarMatches = _matchesWithHotPlayers(widget.matches, scoped);
     final teamRadarMatches = _matchesWithTeams(widget.matches, scopedTeams);
+    final personalizedMatchesById = {
+      for (final match in widget.personalizedMatches) match.id: match,
+    };
 
     return Column(
       key: const ValueKey('player-form-radar-page'),
@@ -154,12 +165,16 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
         if (isTeamRadar)
           _TeamRadarMatchesSection(
             matches: teamRadarMatches,
+            personalizedMatchesById: personalizedMatchesById,
+            showProfileReadings: widget.showProfileReadings,
             onOpenMatch: widget.onOpenMatch,
           )
         else
           _RadarMatchesSection(
             matches: radarMatches,
             entries: scoped,
+            personalizedMatchesById: personalizedMatchesById,
+            showProfileReadings: widget.showProfileReadings,
             onOpenMatch: widget.onOpenMatch,
           ),
         const SizedBox(height: AppSpacing.xl),
@@ -1269,10 +1284,14 @@ class _RadarCell extends StatelessWidget {
 class _TeamRadarMatchesSection extends StatelessWidget {
   const _TeamRadarMatchesSection({
     required this.matches,
+    required this.personalizedMatchesById,
+    required this.showProfileReadings,
     required this.onOpenMatch,
   });
 
   final List<MatchBoardItem> matches;
+  final Map<String, MatchBoardItem> personalizedMatchesById;
+  final bool showProfileReadings;
   final ValueChanged<MatchBoardItem> onOpenMatch;
 
   @override
@@ -1309,6 +1328,8 @@ class _TeamRadarMatchesSection extends StatelessWidget {
             _RadarMatchCard(
               match: match,
               entries: const [],
+              profileMatch: personalizedMatchesById[match.id],
+              showProfileReadings: showProfileReadings,
               onOpen: () => onOpenMatch(match),
             ),
             const SizedBox(height: 10),
@@ -1323,10 +1344,14 @@ class _RadarMatchesSection extends StatelessWidget {
   const _RadarMatchesSection({
     required this.matches,
     required this.entries,
+    required this.personalizedMatchesById,
+    required this.showProfileReadings,
     required this.onOpenMatch,
   });
   final List<MatchBoardItem> matches;
   final List<PlayerFormRadarEntry> entries;
+  final Map<String, MatchBoardItem> personalizedMatchesById;
+  final bool showProfileReadings;
   final ValueChanged<MatchBoardItem> onOpenMatch;
 
   @override
@@ -1362,6 +1387,8 @@ class _RadarMatchesSection extends StatelessWidget {
             _RadarMatchCard(
               match: match,
               entries: _entriesForMatch(entries, match),
+              profileMatch: personalizedMatchesById[match.id],
+              showProfileReadings: showProfileReadings,
               onOpen: () => onOpenMatch(match),
             ),
             const SizedBox(height: 10),
@@ -1413,16 +1440,25 @@ class _RadarMatchCard extends StatelessWidget {
   const _RadarMatchCard({
     required this.match,
     required this.entries,
+    required this.profileMatch,
+    required this.showProfileReadings,
     required this.onOpen,
   });
   final MatchBoardItem match;
   final List<PlayerFormRadarEntry> entries;
+  final MatchBoardItem? profileMatch;
+  final bool showProfileReadings;
   final VoidCallback onOpen;
   @override
   Widget build(BuildContext context) {
-    final readingCount = match.analysis.computedReadings
-        .where((reading) => !reading.isContradiction)
-        .length;
+    final profileReadings = showProfileReadings
+        ? _profileReadingSignals(profileMatch)
+        : const <MatchSignal>[];
+    final readingCount = showProfileReadings
+        ? profileReadings.length
+        : match.analysis.computedReadings
+              .where((reading) => !reading.isContradiction)
+              .length;
     return InkWell(
       onTap: onOpen,
       borderRadius: BorderRadius.circular(AppRadius.card),
@@ -1484,12 +1520,95 @@ class _RadarMatchCard extends StatelessWidget {
                 const SizedBox(height: 10),
                 _RadarSignalsPanel(entries: entries),
               ],
+              if (profileReadings.isNotEmpty) ...[
+                const SizedBox(height: 9),
+                _RadarProfileReadingTags(signals: profileReadings),
+              ],
             ],
           ),
         ),
       ),
     );
   }
+}
+
+List<MatchSignal> _profileReadingSignals(MatchBoardItem? match) {
+  if (match == null) return const [];
+  final values = <String, MatchSignal>{};
+  for (final signal in match.signals) {
+    if (signal.id.startsWith('scenario:') ||
+        signal.id.startsWith('market:') ||
+        signal.id.startsWith('standout_decisive_player')) {
+      continue;
+    }
+    values.putIfAbsent(signal.id, () => signal);
+  }
+  return values.values.toList(growable: false);
+}
+
+class _RadarProfileReadingTags extends StatelessWidget {
+  const _RadarProfileReadingTags({required this.signals});
+
+  final List<MatchSignal> signals;
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+    spacing: 6,
+    runSpacing: 5,
+    children: [
+      for (final signal in signals)
+        _RadarProfileReadingPill(
+          label: signal.title,
+          style: context.opportunities.badgeFor(
+            signal.id,
+            variant: AppReadingBadgeVariant.soft,
+          ),
+          icon: context.opportunities.readingIdentityForId(signal.id).icon,
+        ),
+    ],
+  );
+}
+
+class _RadarProfileReadingPill extends StatelessWidget {
+  const _RadarProfileReadingPill({
+    required this.label,
+    required this.style,
+    required this.icon,
+  });
+
+  final String label;
+  final AppReadingBadgeStyle style;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: style.background,
+      borderRadius: BorderRadius.circular(AppRadius.chip),
+      border: Border.all(color: style.border),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: style.iconColor),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: style.foreground,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _TeamStack extends StatelessWidget {
@@ -1783,7 +1902,8 @@ List<TeamFormRadarProfile> _teamProfilesForMatches(
           ordered
               .map((item) => item.teamLogoUrl)
               .whereType<String>()
-              .firstOrNull;
+              .firstOrNull ??
+          _apiFootballTeamLogoUrl(teamId);
       values.putIfAbsent(
         '$leagueId:$teamId',
         () => TeamFormRadarProfile(
@@ -1799,6 +1919,9 @@ List<TeamFormRadarProfile> _teamProfilesForMatches(
   }
   return values.values.toList(growable: false);
 }
+
+String _apiFootballTeamLogoUrl(int teamId) =>
+    'https://media.api-sports.io/football/teams/$teamId.png';
 
 List<TeamFormRadarProfile> _teamProfilesFromPlayerFixture(
   List<PlayerFormRadarProfile> profiles,

@@ -78,7 +78,11 @@ void main() {
           'recent_league_matches': [
             {
               'league': {'id': 140, 'name': 'La Liga'},
-              'team': {'id': 10, 'name': 'Barcelone'},
+              'team': {
+                'id': 10,
+                'name': 'Barcelone',
+                'logo': 'https://media.api-sports.io/football/teams/529.png',
+              },
               'matches': matches,
             },
           ],
@@ -93,6 +97,10 @@ void main() {
 
       expect(history, hasLength(7));
       expect(history.first.teamName, 'Barcelone');
+      expect(
+        history.first.teamLogoUrl,
+        'https://media.api-sports.io/football/teams/529.png',
+      );
     });
 
     test('shows international friendlies only when a market is available', () {

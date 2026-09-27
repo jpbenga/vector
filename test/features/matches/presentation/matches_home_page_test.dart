@@ -1699,19 +1699,11 @@ void main() {
         await tester.tap(find.text('TAT'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Confrontation directe'), findsOneWidget);
-        expect(
-          find.text('Même compétition uniquement · autres contextes exclus.'),
-          findsOneWidget,
-        );
-        expect(find.text('Lecture TAT'), findsOneWidget);
-        expect(find.text('Domination à l’extérieur en TAT'), findsOneWidget);
-        expect(
-          find.textContaining('Lillestrom est invaincu à l’extérieur'),
-          findsOneWidget,
-        );
-        expect(find.textContaining('Viking 2–0 Lillestrom'), findsOneWidget);
-        expect(find.text('10.05.26'), findsOneWidget);
+        expect(find.text('Tête à tête'), findsOneWidget);
+        expect(find.text('Confrontations récentes'), findsOneWidget);
+        expect(find.text('Championnat (1)'), findsOneWidget);
+        expect(find.text('Toutes compétitions (2)'), findsOneWidget);
+        expect(find.text('Déroulé du match'), findsOneWidget);
         expect(find.text('Coupe Lillestrom'), findsNothing);
       },
     );
@@ -1821,40 +1813,10 @@ void main() {
         await _pumpMatchDetail(tester, match: match);
 
         expect(find.text('Solide à domicile pour Monaco'), findsOneWidget);
-        expect(find.text('Joueurs décisifs à surveiller · 2'), findsOneWidget);
-        expect(find.text('Joueur A'), findsOneWidget);
-        expect(find.text('Joueur B'), findsOneWidget);
-        expect(find.text('Buteur'), findsOneWidget);
-        expect(find.text('Décisif · super-sub'), findsOneWidget);
+        expect(find.text('Joueurs décisifs à surveiller · 2'), findsNothing);
+        expect(find.text('Activité de saison'), findsNothing);
         expect(find.text('Points de vigilance'), findsOneWidget);
         expect(find.text('Joueur C absent'), findsOneWidget);
-        expect(
-          find.text(
-            '2 entrées en jeu · décisif sur 2/3 matchs · 2 buts · 74 min',
-          ),
-          findsOneWidget,
-        );
-        expect(find.text('Activité de saison'), findsNothing);
-        final activityToggle = find.byKey(
-          const ValueKey('decisive-player-toggle-player-context-home:Joueur A'),
-        );
-        tester.widget<InkWell>(activityToggle).onTap!.call();
-        await tester.pumpAndSettle();
-        expect(find.text('Activité de saison'), findsOneWidget);
-        expect(find.text('Tout'), findsOneWidget);
-        expect(find.text('Club'), findsOneWidget);
-        expect(find.text('Sélection'), findsOneWidget);
-        expect(find.text('Titulaire'), findsOneWidget);
-        expect(find.text('Entrée en jeu'), findsOneWidget);
-        expect(find.text('But'), findsOneWidget);
-        expect(find.text('Passe'), findsOneWidget);
-        expect(find.text('⚽🥾'), findsOneWidget);
-        final clubButton = find
-            .ancestor(of: find.text('Club'), matching: find.byType(InkWell))
-            .first;
-        tester.widget<InkWell>(clubButton).onTap!.call();
-        await tester.pumpAndSettle();
-        expect(find.text('⚽🥾'), findsNothing);
       },
     );
 

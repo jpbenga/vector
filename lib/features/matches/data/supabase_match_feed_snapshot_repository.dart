@@ -31,10 +31,24 @@ class SupabaseMatchFeedSnapshotRepository
         date,
       ).add(const Duration(days: 1)).toUtc().toIso8601String();
       request = request.lte('as_of', endOfDay);
+      final rows = await request.order('as_of', ascending: false).limit(500);
+      return _loadSelectedPayloads(rows);
     }
-    final rows = await request.order('as_of', ascending: false).limit(500);
 
-    return _loadSelectedPayloads(rows);
+    // A match list legitimately contains only competitions scheduled for the
+    // selected date. Radar is broader: it compares club or national-team form
+    // across every configured competition. Keep the date-covered rows first
+    // for the fixture feed, then add the newest known snapshot of leagues that
+    // have no fixture in this calendar window.
+    final coveredRows = await request
+        .order('as_of', ascending: false)
+        .limit(500);
+    final latestRows = await _client
+        .from('match_feed_analysis_snapshots')
+        .select('id,scope,league_ids')
+        .order('as_of', ascending: false)
+        .limit(500);
+    return _loadSelectedPayloads([...coveredRows, ...latestRows]);
   }
 
   @override

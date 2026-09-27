@@ -515,24 +515,31 @@ class _SelectedMatchDetail extends StatelessWidget {
                 Expanded(
                   child: _TeamName(logoUrl: firstTeamLogoUrl, name: leftName),
                 ),
-                Column(
-                  children: [
-                    Text(
-                      '$leftScore – $rightScore',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            color: context.textColors.primary,
-                            fontWeight: FontWeight.w900,
-                          ),
-                    ),
-                    Text(
-                      '${_fullDate(meeting.playedAt)} · ${meeting.competitionName}',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: context.textColors.secondary,
-                        fontWeight: FontWeight.w700,
+                SizedBox(
+                  width: 118,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '$leftScore – $rightScore',
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              color: context.textColors.primary,
+                              fontWeight: FontWeight.w900,
+                            ),
                       ),
-                    ),
-                  ],
+                      Text(
+                        '${_fullDate(meeting.playedAt)} · ${meeting.competitionName}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: context.textColors.secondary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 Expanded(
                   child: _TeamName(
@@ -579,38 +586,45 @@ class _TeamName extends StatelessWidget {
   final String name;
   final bool end;
   @override
-  Widget build(BuildContext context) => Row(
-    mainAxisAlignment: end ? MainAxisAlignment.end : MainAxisAlignment.start,
-    children: [
-      if (!end)
-        SportsAssetBadge(
-          size: 30,
-          imageUrl: logoUrl,
-          fallbackLabel: name,
-          contrastPlate: true,
-        ),
-      if (!end) const SizedBox(width: 6),
-      Flexible(
-        child: Text(
-          name,
-          textAlign: end ? TextAlign.end : TextAlign.start,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: context.textColors.primary,
-            fontWeight: FontWeight.w900,
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final showBadge = constraints.maxWidth >= 72;
+      return Row(
+        mainAxisAlignment: end
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
+        children: [
+          if (!end && showBadge)
+            SportsAssetBadge(
+              size: 30,
+              imageUrl: logoUrl,
+              fallbackLabel: name,
+              contrastPlate: true,
+            ),
+          if (!end && showBadge) const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              name,
+              textAlign: end ? TextAlign.end : TextAlign.start,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: context.textColors.primary,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
           ),
-        ),
-      ),
-      if (end) const SizedBox(width: 6),
-      if (end)
-        SportsAssetBadge(
-          size: 30,
-          imageUrl: logoUrl,
-          fallbackLabel: name,
-          contrastPlate: true,
-        ),
-    ],
+          if (end && showBadge) const SizedBox(width: 6),
+          if (end && showBadge)
+            SportsAssetBadge(
+              size: 30,
+              imageUrl: logoUrl,
+              fallbackLabel: name,
+              contrastPlate: true,
+            ),
+        ],
+      );
+    },
   );
 }
 

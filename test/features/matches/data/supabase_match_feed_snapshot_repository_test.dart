@@ -49,6 +49,28 @@ void main() {
     expect(ids, ['latest-61', 'global']);
   });
 
+  test('keeps date-covered rows before latest Radar fallback rows', () {
+    final ids = selectMatchFeedSnapshotRowIds([
+      {
+        'id': 'covered-61',
+        'scope': 'league',
+        'league_ids': [61],
+      },
+      {
+        'id': 'latest-62',
+        'scope': 'league',
+        'league_ids': [62],
+      },
+      {
+        'id': 'older-61',
+        'scope': 'league',
+        'league_ids': [61],
+      },
+    ]);
+
+    expect(ids, ['covered-61', 'latest-62']);
+  });
+
   group('mergeMatchFeedSnapshotPayloads', () {
     test('merges league scoped snapshots into one feed payload', () {
       final payload = mergeMatchFeedSnapshotPayloads([

@@ -1347,8 +1347,16 @@ class ApiFootballMatchAdapter {
         continue;
       }
 
+      final teamName = _stringValue(team['name']);
+      final teamLogoUrl = _stringValue(team['logo']);
       final matches = _list(root['matches'])
-          .map(_recentMatchSnapshot)
+          .map(
+            (match) => _recentMatchSnapshot(
+              match,
+              fallbackTeamName: teamName,
+              fallbackTeamLogoUrl: teamLogoUrl,
+            ),
+          )
           .whereType<TeamRecentMatchSnapshot>()
           .toList(growable: false);
       result[_standingKey(leagueId, teamId)] = List.unmodifiable(matches);
@@ -1469,7 +1477,11 @@ class ApiFootballMatchAdapter {
     return null;
   }
 
-  TeamRecentMatchSnapshot? _recentMatchSnapshot(Object? matchJson) {
+  TeamRecentMatchSnapshot? _recentMatchSnapshot(
+    Object? matchJson, {
+    String? fallbackTeamName,
+    String? fallbackTeamLogoUrl,
+  }) {
     final root = _map(matchJson);
     final opponent = _map(root['opponent']);
     final opponentName =
@@ -1486,7 +1498,7 @@ class ApiFootballMatchAdapter {
     return TeamRecentMatchSnapshot(
       fixtureId: _intValue(fixture['id'] ?? root['fixtureId']),
       playedAt: _dateTimeValue(fixture['date'] ?? root['date']),
-      teamName: _stringValue(_map(root['team'])['name']),
+      teamName: _stringValue(_map(root['team'])['name']) ?? fallbackTeamName,
       opponentTeamId:
           _intValue(opponent['id']) ?? _intValue(root['opponentId']),
       opponentName: opponentName,
@@ -1501,7 +1513,9 @@ class ApiFootballMatchAdapter {
           _stringValue(root['competition_name']) ??
           _stringValue(root['competitionName']),
       teamLogoUrl:
-          _stringValue(root['team_logo']) ?? _stringValue(root['teamLogo']),
+          _stringValue(root['team_logo']) ??
+          _stringValue(root['teamLogo']) ??
+          fallbackTeamLogoUrl,
       statistics: statistics,
       events: _list(root['events'])
           .map(_recentMatchEvent)
