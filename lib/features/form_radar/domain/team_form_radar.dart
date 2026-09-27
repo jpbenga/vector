@@ -111,9 +111,7 @@ class TeamFormRadarRanker {
     List<TeamRecentMatchSnapshot> right,
   ) {
     final maxAvailableHistory = math.max(left.length, right.length);
-    for (var offset = window + 1;
-        offset <= maxAvailableHistory;
-        offset += 1) {
+    for (var offset = window + 1; offset <= maxAvailableHistory; offset += 1) {
       final leftValue = _resultValueFromEnd(left, offset);
       final rightValue = _resultValueFromEnd(right, offset);
       if (leftValue == null || rightValue == null || leftValue == rightValue) {
