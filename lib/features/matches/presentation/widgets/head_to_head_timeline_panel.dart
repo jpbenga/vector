@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_components.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../domain/match_board_item.dart';
@@ -423,7 +424,7 @@ class _MeetingCard extends StatelessWidget {
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => Material(
-    color: Colors.transparent,
+    color: AppColors.transparent,
     child: InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadius.input),
@@ -891,7 +892,7 @@ class _StatRow extends StatelessWidget {
                   height: 8,
                   decoration: BoxDecoration(
                     color: context.brand.accent,
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(AppRadius.indicator),
                   ),
                 ),
               ),
@@ -918,7 +919,7 @@ class _StatRow extends StatelessWidget {
                 height: 8,
                 decoration: BoxDecoration(
                   color: context.semantic.error.withValues(alpha: .72),
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(AppRadius.indicator),
                 ),
               ),
             ),
