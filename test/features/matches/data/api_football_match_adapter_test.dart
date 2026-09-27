@@ -38,6 +38,63 @@ void main() {
       expect(arsenal.signals, isEmpty);
     });
 
+    test('keeps all collected team results for Radar tie-breaks', () {
+      final matches = List<Object?>.generate(
+        7,
+        (index) => {
+          'fixture': {
+            'id': 100 + index,
+            'date': '2026-09-${10 + index}T20:00:00Z',
+          },
+          'team': {'name': 'Barcelone'},
+          'opponent': {'id': 30 + index, 'name': 'Adversaire $index'},
+          'venue': 'home',
+          'result': 'W',
+          'goals': {'for': 2, 'against': 0},
+        },
+      );
+      final snapshot = {
+        'raw': {
+          'fixtures': [
+            {
+              'fixture': {
+                'id': 90,
+                'date': '2026-09-25T20:00:00Z',
+                'status': {'short': 'NS'},
+              },
+              'league': {
+                'id': 140,
+                'name': 'La Liga',
+                'country': 'Spain',
+                'season': 2026,
+              },
+              'teams': {
+                'home': {'id': 10, 'name': 'Barcelone'},
+                'away': {'id': 11, 'name': 'Séville'},
+              },
+            },
+          ],
+          'odds': <Object?>[],
+          'recent_league_matches': [
+            {
+              'league': {'id': 140, 'name': 'La Liga'},
+              'team': {'id': 10, 'name': 'Barcelone'},
+              'matches': matches,
+            },
+          ],
+        },
+      };
+
+      final history = const ApiFootballMatchAdapter()
+          .fromSnapshot(snapshot)
+          .single
+          .analysis
+          .leagueRecentLeagueMatches[10]!;
+
+      expect(history, hasLength(7));
+      expect(history.first.teamName, 'Barcelone');
+    });
+
     test('shows international friendlies only when a market is available', () {
       final noOdds = _internationalFriendlySnapshot();
       final withOdds = _internationalFriendlySnapshot(

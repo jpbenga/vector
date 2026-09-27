@@ -17,12 +17,35 @@ void main() {
     expect(ranked.last.recentPoints, 9);
   });
 
-  test('requires three completed matches', () {
+  test('requires five completed matches', () {
     final ranked = TeamFormRadarRanker.rank([
-      _team('Trop tôt', ['W', 'W']),
+      _team('Trop tôt', ['W', 'W', 'W', 'W']),
     ]);
 
     expect(ranked, isEmpty);
+  });
+
+  test('uses the sixth result to resolve a five-match tie', () {
+    final ranked = TeamFormRadarRanker.rank([
+      _team('Eibar', ['L', 'W', 'W', 'W', 'W', 'W']),
+      _team('Barcelone', ['W', 'W', 'W', 'W', 'W', 'W']),
+    ]);
+
+    expect(ranked.map((entry) => entry.profile.teamName), [
+      'Barcelone',
+      'Eibar',
+    ]);
+    expect(ranked.first.points, 15);
+    expect(ranked.last.points, 15);
+  });
+
+  test('continues with the seventh result when the sixth is tied', () {
+    final ranked = TeamFormRadarRanker.rank([
+      _team('Eibar', ['L', 'W', 'W', 'W', 'W', 'W', 'W']),
+      _team('Bayern', ['W', 'W', 'W', 'W', 'W', 'W', 'W']),
+    ]);
+
+    expect(ranked.map((entry) => entry.profile.teamName), ['Bayern', 'Eibar']);
   });
 }
 

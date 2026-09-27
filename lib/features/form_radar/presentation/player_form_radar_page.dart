@@ -15,12 +15,17 @@ import 'team_form_radar_match_detail_sheet.dart';
 class PlayerFormRadarPage extends StatefulWidget {
   const PlayerFormRadarPage({
     required this.matches,
+    required this.radarSourceMatches,
     required this.selectedDate,
     required this.onOpenMatch,
     super.key,
   });
 
   final List<MatchBoardItem> matches;
+
+  /// All fixtures loaded from the same snapshot. They carry the global form
+  /// profiles; [matches] remains the selected calendar day's fixture list.
+  final List<MatchBoardItem> radarSourceMatches;
   final DateTime selectedDate;
   final ValueChanged<MatchBoardItem> onOpenMatch;
 
@@ -29,10 +34,9 @@ class PlayerFormRadarPage extends StatefulWidget {
 }
 
 class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
-  Set<int> _playerSelectedLeagueIds = const {};
-  Set<int> _teamSelectedLeagueIds = const {};
   bool _showAll = false;
   _RadarContentMode _mode = _RadarContentMode.players;
+  _RadarScope _scope = _RadarScope.club;
 
   @override
   Widget build(BuildContext context) {
@@ -40,32 +44,22 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
         ? playerFormRadarFixtureForDate(widget.selectedDate)
         : null;
     final profiles =
-        fixtureSnapshot?.profiles ?? _profilesForMatches(widget.matches);
-    final dataAsOf = fixtureSnapshot?.asOf ?? _latestRadarAsOf(widget.matches);
+        fixtureSnapshot?.profiles ??
+        _profilesForMatches(widget.radarSourceMatches);
+    final dataAsOf =
+        fixtureSnapshot?.asOf ?? _latestRadarAsOf(widget.radarSourceMatches);
     final ranked = PlayerFormRadarRanker.rank(profiles);
     final teamProfiles = formRadarFixtureEnabled
         ? _teamProfilesFromPlayerFixture(profiles, widget.matches)
-        : _teamProfilesForMatches(widget.matches);
+        : _teamProfilesForMatches(widget.radarSourceMatches);
     final rankedTeams = TeamFormRadarRanker.rank(teamProfiles);
     final isTeamRadar = _mode == _RadarContentMode.teams;
-    final leagueOptions = _leagueOptions(widget.matches);
-    final selectedLeagueIds = isTeamRadar
-        ? _teamSelectedLeagueIds
-        : _playerSelectedLeagueIds;
-    final scoped = selectedLeagueIds.isEmpty
-        ? ranked
-        : ranked
-              .where(
-                (entry) => selectedLeagueIds.contains(entry.profile.leagueId),
-              )
-              .toList(growable: false);
-    final scopedTeams = selectedLeagueIds.isEmpty
-        ? rankedTeams
-        : rankedTeams
-              .where(
-                (entry) => selectedLeagueIds.contains(entry.profile.leagueId),
-              )
-              .toList(growable: false);
+    final scoped = ranked
+        .where((entry) => _scope.includesLeague(entry.profile.leagueId))
+        .toList(growable: false);
+    final scopedTeams = rankedTeams
+        .where((entry) => _scope.includesLeague(entry.profile.leagueId))
+        .toList(growable: false);
     final cappedPlayers = scoped.take(20).toList(growable: false);
     final cappedTeams = scopedTeams.take(20).toList(growable: false);
     final visible = _showAll
@@ -95,8 +89,8 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
             const SizedBox(height: 3),
             Text(
               isTeamRadar
-                  ? 'Les équipes les plus en forme des matchs du jour'
-                  : 'Les joueurs chauds des matchs du jour',
+                  ? 'Les équipes les plus en forme ${_scope.label}'
+                  : 'Les joueurs chauds ${_scope.label}',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: context.textColors.secondary,
                 fontWeight: FontWeight.w600,
@@ -124,27 +118,15 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
           ),
           const SizedBox(height: AppSpacing.sm),
         ],
-        _RadarCompetitionFilterControl(
+        _RadarScopeFilterControl(
           totalPlayerCount: isTeamRadar
               ? cappedTeams.length
               : cappedPlayers.length,
-          options: leagueOptions,
-          selectedLeagueIds: selectedLeagueIds,
-          onClear: selectedLeagueIds.isEmpty
-              ? null
-              : () => setState(() {
-                  if (isTeamRadar) {
-                    _teamSelectedLeagueIds = const {};
-                  } else {
-                    _playerSelectedLeagueIds = const {};
-                  }
-                  _showAll = false;
-                }),
-          onOpen: () => _openCompetitionFilter(
-            options: leagueOptions,
-            selectedLeagueIds: selectedLeagueIds,
-            mode: _mode,
-          ),
+          scope: _scope,
+          onChanged: (scope) => setState(() {
+            _scope = scope;
+            _showAll = false;
+          }),
         ),
         const SizedBox(height: AppSpacing.md),
         if (isTeamRadar)
@@ -183,31 +165,6 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
         const SizedBox(height: AppSpacing.xl),
       ],
     );
-  }
-
-  Future<void> _openCompetitionFilter({
-    required Map<int, String> options,
-    required Set<int> selectedLeagueIds,
-    required _RadarContentMode mode,
-  }) async {
-    final selection = await showModalBottomSheet<Set<int>>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) => _RadarCompetitionFilterSheet(
-        options: options,
-        initialSelectedLeagueIds: selectedLeagueIds,
-      ),
-    );
-    if (!mounted || selection == null) return;
-    setState(() {
-      if (mode == _RadarContentMode.teams) {
-        _teamSelectedLeagueIds = Set.unmodifiable(selection);
-      } else {
-        _playerSelectedLeagueIds = Set.unmodifiable(selection);
-      }
-      _showAll = false;
-    });
   }
 }
 
@@ -283,6 +240,38 @@ class _RadarFixtureNotice extends StatelessWidget {
 }
 
 enum _RadarContentMode { players, teams }
+
+enum _RadarScope {
+  club,
+  nationalTeam;
+
+  String get label => switch (this) {
+    _RadarScope.club => 'en club',
+    _RadarScope.nationalTeam => 'en équipe nationale',
+  };
+
+  bool includesLeague(int leagueId) => switch (this) {
+    _RadarScope.club => !_nationalTeamCompetitionLeagueIds.contains(leagueId),
+    _RadarScope.nationalTeam => _nationalTeamCompetitionLeagueIds.contains(
+      leagueId,
+    ),
+  };
+}
+
+const _nationalTeamCompetitionLeagueIds = <int>{
+  1, // Coupe du Monde
+  4, // Euro
+  5, // UEFA Nations League
+  6, // Coupe d’Afrique des Nations
+  7, // Coupe d’Asie
+  8, // Coupe du Monde féminine
+  9, // Copa America
+  10, // Matchs amicaux internationaux
+  22, // CONCACAF Gold Cup
+  32, // Qualifications Coupe du Monde Europe
+  38, // Euro U21
+  536, // CONCACAF Nations League
+};
 
 class _RadarModeToggle extends StatelessWidget {
   const _RadarModeToggle({required this.selected, required this.onChanged});
@@ -363,235 +352,144 @@ class _RadarModeToggle extends StatelessWidget {
   }
 }
 
-class _RadarCompetitionFilterControl extends StatelessWidget {
-  const _RadarCompetitionFilterControl({
+class _RadarScopeFilterControl extends StatelessWidget {
+  const _RadarScopeFilterControl({
     required this.totalPlayerCount,
-    required this.options,
-    required this.selectedLeagueIds,
-    required this.onClear,
-    required this.onOpen,
+    required this.scope,
+    required this.onChanged,
   });
 
   final int totalPlayerCount;
-  final Map<int, String> options;
-  final Set<int> selectedLeagueIds;
-  final VoidCallback? onClear;
-  final VoidCallback onOpen;
+  final _RadarScope scope;
+  final ValueChanged<_RadarScope> onChanged;
 
   @override
-  Widget build(BuildContext context) {
-    final label = selectedLeagueIds.isEmpty
-        ? 'Tous les championnats'
-        : selectedLeagueIds.length == 1
-        ? options[selectedLeagueIds.single] ?? '1 championnat'
-        : '${selectedLeagueIds.length} championnats';
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.surfaces.backgroundSecondary,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: context.surfaces.border),
-      ),
-      child: SizedBox(
-        height: 56,
-        child: Row(
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 10, right: 8),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: context.brand.accent.withValues(alpha: .15),
-                  shape: BoxShape.circle,
-                ),
-                child: SizedBox(
-                  width: 36,
-                  height: 36,
-                  child: Center(
-                    child: Text(
-                      '$totalPlayerCount',
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: context.brand.accent,
-                        fontWeight: FontWeight.w900,
-                      ),
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: context.surfaces.backgroundSecondary,
+      borderRadius: BorderRadius.circular(AppRadius.card),
+      border: Border.all(color: context.surfaces.border),
+    ),
+    child: SizedBox(
+      height: 56,
+      child: Row(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: context.brand.accent.withValues(alpha: .15),
+                shape: BoxShape.circle,
+              ),
+              child: SizedBox(
+                width: 36,
+                height: 36,
+                child: Center(
+                  child: Text(
+                    '$totalPlayerCount',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: context.brand.accent,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                 ),
               ),
             ),
-            Container(width: 1, height: 26, color: context.surfaces.border),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: context.textColors.primary,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                  if (onClear != null)
-                    IconButton(
-                      tooltip: 'Retirer le filtre',
-                      onPressed: onClear,
-                      icon: const Icon(Icons.close_rounded, size: 18),
-                    ),
-                ],
-              ),
+          ),
+          Container(width: 1, height: 26, color: context.surfaces.border),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Row(
+              children: [
+                _ScopeFilterOption(
+                  key: const ValueKey('form-radar-scope-club'),
+                  icon: Icons.shield_outlined,
+                  label: 'Club',
+                  selected: scope == _RadarScope.club,
+                  onTap: () => onChanged(_RadarScope.club),
+                ),
+                const SizedBox(width: 6),
+                _ScopeFilterOption(
+                  key: const ValueKey('form-radar-scope-national-team'),
+                  icon: Icons.public_rounded,
+                  label: 'Équipe nationale',
+                  selected: scope == _RadarScope.nationalTeam,
+                  onTap: () => onChanged(_RadarScope.nationalTeam),
+                ),
+              ],
             ),
-            IconButton(
-              tooltip: 'Filtrer les championnats',
-              onPressed: onOpen,
-              icon: Icon(Icons.tune_rounded, color: context.brand.accent),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
-    );
-  }
+    ),
+  );
 }
 
-class _RadarCompetitionFilterSheet extends StatefulWidget {
-  const _RadarCompetitionFilterSheet({
-    required this.options,
-    required this.initialSelectedLeagueIds,
+class _ScopeFilterOption extends StatelessWidget {
+  const _ScopeFilterOption({
+    required super.key,
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
   });
 
-  final Map<int, String> options;
-  final Set<int> initialSelectedLeagueIds;
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
-  State<_RadarCompetitionFilterSheet> createState() =>
-      _RadarCompetitionFilterSheetState();
-}
-
-class _RadarCompetitionFilterSheetState
-    extends State<_RadarCompetitionFilterSheet> {
-  late Set<int> _selectedLeagueIds = {...widget.initialSelectedLeagueIds};
-  String _query = '';
-
-  @override
-  Widget build(BuildContext context) {
-    final options = widget.options.entries.toList()
-      ..sort((left, right) => left.value.compareTo(right.value));
-    final query = _query.trim().toLowerCase();
-    final visible = options
-        .where(
-          (option) =>
-              query.isEmpty || option.value.toLowerCase().contains(query),
-        )
-        .toList(growable: false);
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          0,
-          20,
-          20 + MediaQuery.viewInsetsOf(context).bottom,
-        ),
-        child: SizedBox(
-          height: MediaQuery.sizeOf(context).height * .70,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Filtrer les championnats',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: context.textColors.primary,
-                        fontWeight: FontWeight.w900,
-                      ),
+  Widget build(BuildContext context) => Expanded(
+    child: Material(
+      color: AppColors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: selected
+                ? context.brand.accent.withValues(alpha: .14)
+                : AppColors.transparent,
+            borderRadius: BorderRadius.circular(AppRadius.chip),
+            border: Border.all(
+              color: selected ? context.brand.accent : AppColors.transparent,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 18,
+                  color: selected
+                      ? context.brand.accent
+                      : context.textColors.secondary,
+                ),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: selected
+                          ? context.brand.accent
+                          : context.textColors.secondary,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
-                  IconButton(
-                    tooltip: 'Fermer',
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close_rounded),
-                  ),
-                ],
-              ),
-              Text(
-                'Le classement Radar reste limité aux championnats choisis.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: context.textColors.secondary,
-                  fontWeight: FontWeight.w600,
                 ),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                onChanged: (value) => setState(() => _query = value),
-                decoration: const InputDecoration(
-                  hintText: 'Rechercher un championnat',
-                  prefixIcon: Icon(Icons.search_rounded),
-                ),
-              ),
-              const SizedBox(height: 12),
-              ChoiceChip(
-                label: const Text('Tous les championnats'),
-                selected: _selectedLeagueIds.isEmpty,
-                onSelected: (_) => setState(() => _selectedLeagueIds = {}),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: ListView(
-                  children: [
-                    for (final option in visible)
-                      CheckboxListTile(
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                        value: _selectedLeagueIds.contains(option.key),
-                        title: Text(
-                          option.value,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                color: context.textColors.primary,
-                                fontWeight: FontWeight.w700,
-                              ),
-                        ),
-                        onChanged: (value) => setState(() {
-                          if (value ?? false) {
-                            _selectedLeagueIds.add(option.key);
-                          } else {
-                            _selectedLeagueIds.remove(option.key);
-                          }
-                        }),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => setState(() => _selectedLeagueIds = {}),
-                      child: const Text('Réinitialiser'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 2,
-                    child: FilledButton.icon(
-                      onPressed: () => Navigator.of(
-                        context,
-                      ).pop(Set<int>.unmodifiable(_selectedLeagueIds)),
-                      icon: const Icon(Icons.check_rounded),
-                      label: const Text('Appliquer'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
 }
 
 class _HotPlayersPanel extends StatelessWidget {
@@ -1842,17 +1740,6 @@ String _radarDateLabel(DateTime value) {
   return '${local.day} ${months[local.month - 1]}';
 }
 
-Map<int, String> _leagueOptions(List<MatchBoardItem> matches) {
-  final names = <int, String>{};
-  for (final match in matches) {
-    final id = match.competition.apiFootballLeagueId;
-    if (id != null) names[id] = match.competition.name;
-  }
-  return Map.fromEntries(
-    names.entries.toList()..sort((a, b) => a.value.compareTo(b.value)),
-  );
-}
-
 List<TeamFormRadarProfile> _teamProfilesForMatches(
   List<MatchBoardItem> matches,
 ) {
@@ -1860,9 +1747,20 @@ List<TeamFormRadarProfile> _teamProfilesForMatches(
   for (final match in matches) {
     final leagueId = match.competition.apiFootballLeagueId;
     if (leagueId == null) continue;
-    void add(TeamInfo team, List<TeamRecentMatchSnapshot> activity) {
-      final teamId = team.apiFootballTeamId;
-      if (teamId == null || activity.isEmpty) return;
+    final knownTeams = <int, TeamInfo>{
+      if (match.homeTeam.apiFootballTeamId != null)
+        match.homeTeam.apiFootballTeamId!: match.homeTeam,
+      if (match.awayTeam.apiFootballTeamId != null)
+        match.awayTeam.apiFootballTeamId!: match.awayTeam,
+    };
+    final standingNames = <int, String>{
+      for (final standing in match.analysis.leagueStandings)
+        standing.teamId: standing.teamName,
+    };
+    for (final entry in match.analysis.leagueRecentLeagueMatches.entries) {
+      final teamId = entry.key;
+      final activity = entry.value;
+      if (activity.isEmpty) continue;
       final ordered = [...activity]
         ..sort((left, right) {
           final leftDate =
@@ -1871,27 +1769,33 @@ List<TeamFormRadarProfile> _teamProfilesForMatches(
               right.playedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
           return leftDate.compareTo(rightDate);
         });
+      final knownTeam = knownTeams[teamId];
+      final name =
+          knownTeam?.name ??
+          standingNames[teamId] ??
+          ordered
+              .map((item) => item.teamName)
+              .whereType<String>()
+              .firstOrNull ??
+          'Équipe';
+      final logoUrl =
+          knownTeam?.logoUrl ??
+          ordered
+              .map((item) => item.teamLogoUrl)
+              .whereType<String>()
+              .firstOrNull;
       values.putIfAbsent(
         '$leagueId:$teamId',
         () => TeamFormRadarProfile(
           teamId: teamId,
-          teamName: team.name,
-          logoUrl: team.logoUrl,
+          teamName: name,
+          logoUrl: logoUrl,
           leagueId: leagueId,
           leagueName: match.competition.name,
-          activity:
-              (ordered.length <= TeamFormRadarRanker.window
-                      ? ordered
-                      : ordered.sublist(
-                          ordered.length - TeamFormRadarRanker.window,
-                        ))
-                  .toList(growable: false),
+          activity: ordered,
         ),
       );
     }
-
-    add(match.homeTeam, match.analysis.homeRecentLeagueMatches);
-    add(match.awayTeam, match.analysis.awayRecentLeagueMatches);
   }
   return values.values.toList(growable: false);
 }

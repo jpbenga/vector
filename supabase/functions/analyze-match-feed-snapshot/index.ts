@@ -549,9 +549,19 @@ function compactRecentMatches(rows: JsonObject[]): JsonObject[] {
     const league = objectValue(row.league) ?? {};
     const team = objectValue(row.team) ?? {};
     return {
-      league: { id: numberValue(league.id) },
-      team: { id: numberValue(team.id), name: stringValue(team.name) },
-      matches: objectList(row.matches).slice(0, 5).map((match) => {
+      league: {
+        id: numberValue(league.id),
+        name: stringValue(league.name),
+      },
+      team: {
+        id: numberValue(team.id),
+        name: stringValue(team.name),
+        logo: stringValue(team.logo),
+      },
+      // Keep the complete collected history. Team Radar evaluates the five
+      // latest results first, then uses the sixth, seventh, and following
+      // results only to break an otherwise equal five-match score.
+      matches: objectList(row.matches).map((match) => {
         const value = objectValue(match) ?? {};
         const fixture = objectValue(value.fixture) ?? {};
         const opponent = objectValue(value.opponent) ?? {};

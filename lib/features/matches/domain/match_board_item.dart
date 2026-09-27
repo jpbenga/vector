@@ -426,6 +426,7 @@ class TeamRecentMatchSnapshot {
     required this.opponentName,
     required this.venue,
     required this.result,
+    this.teamName,
     this.opponentTeamId,
     this.opponentLogoUrl,
     this.goalsFor,
@@ -439,6 +440,7 @@ class TeamRecentMatchSnapshot {
   });
 
   final int? fixtureId;
+  final String? teamName;
   final int? opponentTeamId;
   final String opponentName;
   final String? opponentLogoUrl;

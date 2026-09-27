@@ -1350,7 +1350,6 @@ class ApiFootballMatchAdapter {
       final matches = _list(root['matches'])
           .map(_recentMatchSnapshot)
           .whereType<TeamRecentMatchSnapshot>()
-          .take(5)
           .toList(growable: false);
       result[_standingKey(leagueId, teamId)] = List.unmodifiable(matches);
     }
@@ -1487,6 +1486,7 @@ class ApiFootballMatchAdapter {
     return TeamRecentMatchSnapshot(
       fixtureId: _intValue(fixture['id'] ?? root['fixtureId']),
       playedAt: _dateTimeValue(fixture['date'] ?? root['date']),
+      teamName: _stringValue(_map(root['team'])['name']),
       opponentTeamId:
           _intValue(opponent['id']) ?? _intValue(root['opponentId']),
       opponentName: opponentName,

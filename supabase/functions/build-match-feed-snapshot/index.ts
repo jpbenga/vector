@@ -1331,7 +1331,13 @@ function snapshotOptionsFromPayload(payload: JsonObject): SnapshotOptions {
   const forceRebuild = booleanValue(payload.force_rebuild) ?? false;
   const bookmakerPriority = bookmakerPriorityValue(payload.bookmaker_priority);
   const recentFormDaysBack = numberValue(payload.recent_form_days_back) ?? 180;
-  const recentFormMatches = numberValue(payload.recent_form_matches) ?? 10;
+  // A five-match form score needs additional historical results to break a
+  // tie transparently. Older callers may still send `5`; snapshots always
+  // preserve at least ten completed matches for the Radar.
+  const recentFormMatches = Math.max(
+    10,
+    numberValue(payload.recent_form_matches) ?? 10,
+  );
 
   if (leagueIds.length === 0) {
     throw new Error(

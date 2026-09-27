@@ -17,7 +17,9 @@ const defaultRecentFormDaysBack = 180;
 // Keep enough completed fixtures to establish a decisive run beyond the
 // three-match Radar window. Existing football readings still use their own
 // explicit five/three-match windows.
-const defaultRecentFormMatches = 5;
+// Five matches decide the primary score. Keep ten in the snapshot so that a
+// tied score can be resolved by the sixth, seventh and following results.
+const defaultRecentFormMatches = 10;
 const defaultApiRequestDelayMs = 220;
 const apiFootballDailyRequestLimit = 75000;
 const apiFootballMinuteRequestLimit = 280;
@@ -721,8 +723,10 @@ function syncOptionsFromPayload(payload: JsonObject): SyncOptions {
   const skipEmptyFeed = payload.purpose === "daily_football_sync";
   const recentFormDaysBack = numberValue(payload.recent_form_days_back) ??
     defaultRecentFormDaysBack;
-  const recentFormMatches = numberValue(payload.recent_form_matches) ??
-    defaultRecentFormMatches;
+  const recentFormMatches = Math.max(
+    defaultRecentFormMatches,
+    numberValue(payload.recent_form_matches) ?? defaultRecentFormMatches,
+  );
   const queueJobId = stringValue(payload.queue_job_id);
 
   if (leagueIds.length === 0) {
