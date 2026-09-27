@@ -55,7 +55,7 @@ class ServerComputedMatchAnalysisAdapter {
     required DateTime asOf,
   }) {
     return List.unmodifiable([
-      for (final row in rows)
+      for (final row in rows.where(_isVisibleReading))
         FootballReading(
           id: row['id']?.toString() ?? 'unknown',
           subjectTeamId:
@@ -103,7 +103,7 @@ class ServerComputedMatchAnalysisAdapter {
     required int fixtureId,
   }) {
     return List.unmodifiable([
-      for (final row in rows)
+      for (final row in rows.where(_isVisibleReading))
         MatchComputedReading(
           id: row['id']?.toString() ?? 'unknown',
           subjectTeamId:
@@ -121,6 +121,12 @@ class ServerComputedMatchAnalysisAdapter {
         ),
     ]);
   }
+
+  // Historical meetings now have their dedicated factual timeline. Suppress
+  // the retired dominance reading even in analysis snapshots published before
+  // that component was introduced.
+  bool _isVisibleReading(Map<String, Object?> row) =>
+      row['id']?.toString() != 'head_to_head_dominance';
 
   ChampionshipTierSnapshot? _tierSnapshot(Map<String, Object?> row) {
     if (row.isEmpty) return null;

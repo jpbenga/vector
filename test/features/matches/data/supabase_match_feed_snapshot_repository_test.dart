@@ -100,6 +100,7 @@ void main() {
       expect(raw['standings'], hasLength(2));
       expect(raw['team_statistics'], hasLength(2));
       expect(raw['recent_league_matches'], hasLength(2));
+      expect(raw['head_to_head'], hasLength(2));
     });
 
     test('keeps the newest snapshot for a duplicated league', () {
@@ -250,6 +251,12 @@ Map<String, Object?> _payload({
           'fixtures': const <Object?>[],
         },
       ],
+      'head_to_head': [
+        {
+          'fixture': {'id': fixtureId},
+          'matches': const <Object?>[],
+        },
+      ],
       'expected_goals': [
         {
           'team': {'id': teamId},
@@ -283,6 +290,7 @@ Map<String, Object?> _globalPayload({
       'standings': const <Object?>[],
       'team_statistics': const <Object?>[],
       'recent_league_matches': const <Object?>[],
+      'head_to_head': const <Object?>[],
       'expected_goals': const <Object?>[],
       'predictions': const <Object?>[],
     },

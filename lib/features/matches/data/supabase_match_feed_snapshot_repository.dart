@@ -205,6 +205,7 @@ Map<String, Object?>? mergeMatchFeedSnapshotPayloads(
     'standings',
     'team_statistics',
     'recent_league_matches',
+    'head_to_head',
     'player_form_radar',
     'expected_goals',
     'predictions',
@@ -317,7 +318,7 @@ String _rawEntryKey(String key, Object? entry) {
   final teamId = _nestedNumber(map, const ['team', 'id']);
   final playerId = _nestedNumber(map, const ['player', 'id']);
 
-  if (key == 'fixtures' && fixtureId != null) {
+  if ((key == 'fixtures' || key == 'head_to_head') && fixtureId != null) {
     return '$key:$fixtureId';
   }
   if (key == 'odds' && fixtureId != null) {

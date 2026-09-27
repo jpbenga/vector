@@ -32,6 +32,15 @@ void main() {
                 ],
               },
               {
+                'id': 'head_to_head_dominance',
+                'label': 'Ancienne lecture TAT',
+                'side': 'away',
+                'subject_team_id': 'api-team-8',
+                'evidence': [
+                  {'label': 'Lecture historique à masquer.'},
+                ],
+              },
+              {
                 'id': 'misleading_result',
                 'side': 'home',
                 'subject_team_id': 'api-team-7',
@@ -113,6 +122,10 @@ void main() {
       'positive_streak',
     );
     expect(analysis.displayReadings, hasLength(2));
+    expect(
+      analysis.displayReadings.map((reading) => reading.id),
+      isNot(contains('head_to_head_dominance')),
+    );
     expect(analysis.displayReadings.first.evidenceLabel, 'Série positive.');
     expect(analysis.displayReadings.first.label, 'Dynamique positive');
     expect(

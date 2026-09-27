@@ -115,8 +115,14 @@ Deno.serve(async (request) => {
         })&order=fixture_id,reading_id`,
       method: "GET",
     });
+    // Historical meetings are presented only through the factual TAT
+    // timeline. Suppress legacy dominance announcements, including immutable
+    // rows published before this presentation rule existed.
+    const presentationAnnouncements = announced.filter((value) =>
+      stringValue(objectValue(value)?.reading_id) !== "head_to_head_dominance"
+    );
     const computedByFixture = new Map<number, JsonObject[]>();
-    for (const value of announced) {
+    for (const value of presentationAnnouncements) {
       const row = objectValue(value);
       const fixtureId = row === null ? null : numberValue(row.fixture_id);
       if (fixtureId === null || row === null) continue;
@@ -205,10 +211,10 @@ Deno.serve(async (request) => {
         coverage_summary: {
           source_snapshot_id: snapshotId,
           fixture_count: fixtures.length,
-          reading_count: announced.filter((value) =>
+          reading_count: presentationAnnouncements.filter((value) =>
             stringValue(objectValue(value)?.announcement_kind) !== "scenario"
           ).length,
-          scenario_count: announced.filter((value) =>
+          scenario_count: presentationAnnouncements.filter((value) =>
             stringValue(objectValue(value)?.announcement_kind) === "scenario"
           ).length,
           form_radar_player_count: presentationPlayerFormRadar.length,
@@ -700,14 +706,49 @@ function compactHeadToHead(rows: JsonObject[]): JsonObject[] {
         date === null || leagueId === null || homeId === null || awayId === null ||
         homeGoals === null || awayGoals === null
       ) return [];
+      const timeline = objectValue(match.timeline) ?? {};
+      const timelineEvents = objectList(timeline.events).flatMap((event) => {
+        const minute = numberValue(event.minute);
+        const type = stringValue(event.type);
+        const detail = stringValue(event.detail);
+        if (minute === null || type === null || detail === null) return [];
+        return [{
+          minute,
+          team_id: numberValue(event.team_id),
+          type,
+          detail,
+          player_name: stringValue(event.player_name),
+        }];
+      });
+      const timelineStatistics = objectList(timeline.statistics).flatMap((statistic) => {
+        const teamId = numberValue(statistic.team_id);
+        if (teamId === null) return [];
+        return [{
+          team_id: teamId,
+          total_shots: numberValue(statistic.total_shots),
+          shots_on_goal: numberValue(statistic.shots_on_goal),
+          expected_goals: numberValue(statistic.expected_goals),
+          possession: numberValue(statistic.possession),
+          total_passes: numberValue(statistic.total_passes),
+        }];
+      });
       return [{
-        fixture: { date },
+        fixture: { id: numberValue(matchFixture.id), date },
         league: { id: leagueId, name: stringValue(league.name) },
         teams: {
-          home: { id: homeId, name: stringValue(home.name) },
-          away: { id: awayId, name: stringValue(away.name) },
+          home: {
+            id: homeId,
+            name: stringValue(home.name),
+            logo: stringValue(home.logo),
+          },
+          away: {
+            id: awayId,
+            name: stringValue(away.name),
+            logo: stringValue(away.logo),
+          },
         },
         goals: { home: homeGoals, away: awayGoals },
+        timeline: { events: timelineEvents, statistics: timelineStatistics },
       }];
     });
 

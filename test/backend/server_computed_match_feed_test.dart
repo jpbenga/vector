@@ -176,32 +176,26 @@ void main() {
     expect(migration, isNot(contains('match_result_snapshots')));
   });
 
-  test('locks form-gap and TAT dominance to their server policy modules', () {
-    final publisher = File(
-      'supabase/functions/publish-reading-announcements/index.ts',
-    ).readAsStringSync();
-    final formPolicy = File(
-      'supabase/functions/_shared/form_gap_policy.ts',
-    ).readAsStringSync();
-    final headToHeadPolicy = File(
-      'supabase/functions/_shared/head_to_head_dominance_policy.ts',
-    ).readAsStringSync();
+  test(
+    'publishes form-gap readings but leaves head-to-head to the factual timeline',
+    () {
+      final publisher = File(
+        'supabase/functions/publish-reading-announcements/index.ts',
+      ).readAsStringSync();
+      final formPolicy = File(
+        'supabase/functions/_shared/form_gap_policy.ts',
+      ).readAsStringSync();
 
-    expect(publisher, contains('assessFormGap'));
-    expect(publisher, contains('readingId: "form_gap"'));
-    expect(publisher, contains('formGap.gap'));
-    expect(publisher, contains('headToHeadDominanceAnnouncementRows'));
-    expect(publisher, contains('readingId: "head_to_head_dominance"'));
-    expect(publisher, contains('headToHeadMeetingsByFixtureId'));
-    expect(formPolicy, contains('gap < 9'));
-    expect(formPolicy, contains('homeResults.length !== 5'));
-    expect(headToHeadPolicy, contains('.slice(0, 6)'));
-    expect(headToHeadPolicy, contains('if (scoped.length !== 6) return []'));
-    expect(
-      headToHeadPolicy,
-      contains('meeting.competitionId === competitionId'),
-    );
-  });
+      expect(publisher, contains('assessFormGap'));
+      expect(publisher, contains('readingId: "form_gap"'));
+      expect(publisher, contains('formGap.gap'));
+      expect(publisher, isNot(contains('headToHeadDominanceAnnouncementRows')));
+      expect(publisher, isNot(contains('readingId: "head_to_head_dominance"')));
+      expect(publisher, isNot(contains('headToHeadMeetingsByFixtureId')));
+      expect(formPolicy, contains('gap < 9'));
+      expect(formPolicy, contains('homeResults.length !== 5'));
+    },
+  );
 
   test('normalizes every optional announcement column before bulk insert', () {
     final publisher = File(

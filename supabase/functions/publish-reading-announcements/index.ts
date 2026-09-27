@@ -1,8 +1,4 @@
 import { assessFormGap } from "../_shared/form_gap_policy.ts";
-import {
-  assessHeadToHeadDominance,
-  type HeadToHeadMeeting,
-} from "../_shared/head_to_head_dominance_policy.ts";
 import { assessStructuralGap } from "../_shared/structural_gap_policy.ts";
 
 type JsonObject = Record<string, unknown>;
@@ -172,12 +168,6 @@ Deno.serve(async (request) => {
       venueProfiles,
       standings,
     });
-    const headToHeadAnnouncements = headToHeadDominanceAnnouncementRows({
-      snapshotId,
-      capturedAt,
-      fixtures,
-      headToHead: objectList(raw.head_to_head),
-    });
     const attackDefenseAnnouncements = attackDefenseAnnouncementRows({
       snapshotId,
       capturedAt,
@@ -228,7 +218,6 @@ Deno.serve(async (request) => {
     const baseAnnouncements = [
       ...goalAnnouncements,
       ...levelFormVenueAnnouncements,
-      ...headToHeadAnnouncements,
       ...attackDefenseAnnouncements,
       ...playerAnnouncements,
       ...timingAnnouncements,
@@ -2299,141 +2288,6 @@ function levelFormVenueAnnouncementRows({
     }
   }
   return rows;
-}
-
-function headToHeadDominanceAnnouncementRows({
-  snapshotId,
-  capturedAt,
-  fixtures,
-  headToHead,
-}: {
-  snapshotId: string;
-  capturedAt: Date;
-  fixtures: JsonObject[];
-  headToHead: JsonObject[];
-}): JsonObject[] {
-  const rows: JsonObject[] = [];
-  const seenFixtures = new Set<number>();
-  const meetingsByFixtureId = headToHeadMeetingsByFixtureId(headToHead);
-  for (const row of fixtures) {
-    const fixture = objectValue(row.fixture) ?? {};
-    const league = objectValue(row.league) ?? {};
-    const teams = objectValue(row.teams) ?? {};
-    const fixtureId = numberValue(fixture.id);
-    const kickoffAt = dateValue(fixture.date);
-    const leagueId = numberValue(league.id);
-    const home = objectValue(teams.home) ?? {};
-    const away = objectValue(teams.away) ?? {};
-    const homeId = numberValue(home.id);
-    const awayId = numberValue(away.id);
-    if (
-      fixtureId === null || seenFixtures.has(fixtureId) || kickoffAt === null ||
-      kickoffAt <= capturedAt || leagueId === null || homeId === null ||
-      awayId === null
-    ) continue;
-    seenFixtures.add(fixtureId);
-
-    const assessments = assessHeadToHeadDominance({
-      meetings: meetingsByFixtureId.get(fixtureId) ?? [],
-      competitionId: leagueId,
-      homeTeamId: homeId,
-      awayTeamId: awayId,
-    });
-    for (const assessment of assessments) {
-      const subject = assessment.teamId === homeId
-        ? { side: "home" as const, team: home, teamId: homeId }
-        : { side: "away" as const, team: away, teamId: awayId };
-      const opponent = assessment.teamId === homeId ? away : home;
-      const place = assessment.venue === "home"
-        ? "à domicile"
-        : assessment.venue === "away"
-        ? "à l’extérieur"
-        : null;
-      const label = assessment.variant === "total"
-        ? "Domination totale en TAT"
-        : assessment.variant === "unbeaten"
-        ? "Invaincu en TAT"
-        : assessment.variant === "net"
-        ? "Ascendant net en TAT"
-        : place === "à domicile"
-        ? "Domination à domicile en TAT"
-        : "Domination à l’extérieur en TAT";
-      const record =
-        `${assessment.wins} V · ${assessment.draws} N · ${assessment.losses} D`;
-      const evidence = place === null
-        ? assessment.variant === "total"
-          ? `${
-            teamName(subject.team)
-          } a gagné les six dernières confrontations face à ${
-            teamName(opponent)
-          } dans cette compétition : ${record}.`
-          : assessment.variant === "unbeaten"
-          ? `${teamName(subject.team)} reste invaincu face à ${
-            teamName(opponent)
-          } dans cette compétition : ${record} sur les six dernières confrontations.`
-          : `${teamName(subject.team)} garde un ascendant net face à ${
-            teamName(opponent)
-          } dans cette compétition : ${record} sur les six dernières confrontations.`
-        : `${teamName(subject.team)} est invaincu ${place} face à ${
-          teamName(opponent)
-        } dans cette compétition : ${record} sur ${assessment.meetings} confrontations.`;
-      rows.push(directionAnnouncement({
-        snapshotId,
-        capturedAt,
-        fixtureId,
-        kickoffAt,
-        leagueId,
-        readingId: "head_to_head_dominance",
-        label,
-        subject,
-        sampleSize: assessment.meetings,
-        evidence,
-        outcomeRule: "team_not_lose",
-        announcementVariant: `${assessment.variant}:${
-          assessment.venue ?? "all"
-        }`,
-      }));
-    }
-  }
-  return rows;
-}
-
-function headToHeadMeetingsByFixtureId(
-  rows: JsonObject[],
-): Map<number, HeadToHeadMeeting[]> {
-  const result = new Map<number, HeadToHeadMeeting[]>();
-  for (const row of rows) {
-    const fixtureId = numberValue((objectValue(row.fixture) ?? {}).id);
-    if (fixtureId === null) continue;
-    const meetings = objectList(row.matches).flatMap((match) => {
-      const fixture = objectValue(match.fixture) ?? {};
-      const league = objectValue(match.league) ?? {};
-      const teams = objectValue(match.teams) ?? {};
-      const home = objectValue(teams.home) ?? {};
-      const away = objectValue(teams.away) ?? {};
-      const goals = objectValue(match.goals) ?? {};
-      const playedAt = dateValue(fixture.date);
-      const competitionId = numberValue(league.id);
-      const homeTeamId = numberValue(home.id);
-      const awayTeamId = numberValue(away.id);
-      const homeGoals = numberValue(goals.home);
-      const awayGoals = numberValue(goals.away);
-      if (
-        playedAt === null || competitionId === null || homeTeamId === null ||
-        awayTeamId === null || homeGoals === null || awayGoals === null
-      ) return [];
-      return [{
-        competitionId,
-        playedAt: playedAt.getTime(),
-        homeTeamId,
-        awayTeamId,
-        homeGoals,
-        awayGoals,
-      }];
-    });
-    result.set(fixtureId, meetings);
-  }
-  return result;
 }
 
 function formAnnouncementRows({

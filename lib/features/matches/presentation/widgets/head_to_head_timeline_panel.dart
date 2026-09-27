@@ -648,6 +648,23 @@ class _FactualTimeline extends StatelessWidget {
         ? meeting.awayTeamName
         : meeting.homeTeamName;
     final height = compact ? 46.0 : 182.0;
+    if (events.isEmpty) {
+      return SizedBox(
+        height: height,
+        child: Center(
+          child: Text(
+            compact
+                ? 'Détails indisponibles'
+                : 'Événements indisponibles pour cette confrontation.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: context.textColors.secondary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      );
+    }
     return SizedBox(
       height: height,
       child: LayoutBuilder(
@@ -741,16 +758,6 @@ class _FactualTimeline extends StatelessWidget {
                               ),
                         ),
                     ],
-                  ),
-                ),
-              if (events.isEmpty && !compact)
-                Center(
-                  child: Text(
-                    'Événements indisponibles pour cette confrontation.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: context.textColors.secondary,
-                      fontWeight: FontWeight.w700,
-                    ),
                   ),
                 ),
             ],
