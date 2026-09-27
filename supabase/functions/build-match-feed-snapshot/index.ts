@@ -665,7 +665,15 @@ async function collectSnapshotSources({
   }
 
   const recentFixtureIds = recentFixtureIdsFromRows(rawRecentLeagueMatches);
-  for (const fixtureId of recentFixtureIds) {
+  // The TAT timeline needs the factual events and totals of each displayed
+  // historical meeting. Those immutable responses are still read only from
+  // cache: this builder never calls the provider itself.
+  const headToHeadFixtureIds = headToHeadFixtureIdsFromRows(rawHeadToHead);
+  const detailedFixtureIds = new Set([
+    ...recentFixtureIds,
+    ...headToHeadFixtureIds,
+  ]);
+  for (const fixtureId of detailedFixtureIds) {
     const rows = await cachedResponsesFor({
       supabaseUrl,
       serviceRoleKey,
@@ -694,18 +702,20 @@ async function collectSnapshotSources({
         events: flatResponseItems([row]),
       });
     }
-    const playerRows = await cachedResponsesFor({
-      supabaseUrl,
-      serviceRoleKey,
-      endpoint: "/fixtures/players",
-      filters: { fixture: String(fixtureId) },
-    });
-    addSourceRows(playerRows);
-    for (const row of playerRows) {
-      fixturePlayerRows.push({
-        fixtureId,
-        teams: flatResponseItems([row]),
+    if (recentFixtureIds.includes(fixtureId)) {
+      const playerRows = await cachedResponsesFor({
+        supabaseUrl,
+        serviceRoleKey,
+        endpoint: "/fixtures/players",
+        filters: { fixture: String(fixtureId) },
       });
+      addSourceRows(playerRows);
+      for (const row of playerRows) {
+        fixturePlayerRows.push({
+          fixtureId,
+          teams: flatResponseItems([row]),
+        });
+      }
     }
   }
 
@@ -785,7 +795,11 @@ async function collectSnapshotSources({
     rawStandings,
     rawTeamStatistics,
     rawRecentLeagueMatches: enrichedRecentLeagueMatches,
-    rawHeadToHead,
+    rawHeadToHead: enrichHeadToHeadMatches({
+      headToHead: rawHeadToHead,
+      fixtureStatisticsRows,
+      fixtureEventsRows,
+    }),
     rawExpectedGoals,
     rawPerformanceStatistics,
     rawPlayerStatistics,
@@ -1831,6 +1845,92 @@ function recentFixtureIdsFromRows(rows: JsonObject[]): number[] {
     }
   }
   return [...fixtureIds];
+}
+
+function headToHeadFixtureIdsFromRows(rows: JsonObject[]): number[] {
+  const fixtureIds = new Set<number>();
+  for (const row of rows) {
+    for (const match of arrayValue(row.matches)) {
+      const fixtureId = numberValue(
+        (objectValue(objectValue(match)?.fixture) ?? {}).id,
+      );
+      if (fixtureId !== null) fixtureIds.add(fixtureId);
+    }
+  }
+  return [...fixtureIds];
+}
+
+function enrichHeadToHeadMatches({
+  headToHead,
+  fixtureStatisticsRows,
+  fixtureEventsRows,
+}: {
+  headToHead: JsonObject[];
+  fixtureStatisticsRows: FixtureStatisticsPayload[];
+  fixtureEventsRows: Array<{ fixtureId: number; events: JsonObject[] }>;
+}): JsonObject[] {
+  const statisticsByFixture = new Map<number, JsonObject[]>();
+  for (const row of fixtureStatisticsRows) {
+    statisticsByFixture.set(row.fixtureId, row.statistics);
+  }
+  const eventsByFixture = new Map<number, JsonObject[]>();
+  for (const row of fixtureEventsRows) {
+    eventsByFixture.set(row.fixtureId, row.events);
+  }
+
+  return headToHead.map((row) => ({
+    ...row,
+    matches: arrayValue(row.matches).map((rawMatch) => {
+      const match = objectValue(rawMatch) ?? {};
+      const fixtureId = numberValue((objectValue(match.fixture) ?? {}).id);
+      const statistics = fixtureId === null
+        ? []
+        : (statisticsByFixture.get(fixtureId) ?? []).flatMap((teamRow) => {
+          const team = objectValue(teamRow.team) ?? {};
+          const values: Record<string, number | undefined> = {};
+          for (const rawStatistic of arrayValue(teamRow.statistics)) {
+            const statistic = objectValue(rawStatistic) ?? {};
+            const type = normalizedStatisticType(stringValue(statistic.type));
+            const value = decimalValue(statistic.value);
+            if (type !== null && value !== null) values[type] = value;
+          }
+          const teamId = numberValue(team.id);
+          if (teamId === null) return [];
+          return [{
+            team_id: teamId,
+            total_shots: values.totalShots,
+            shots_on_goal: values.shotsOnGoal,
+            expected_goals: values.expectedGoals,
+            possession: values.ballPossession,
+            total_passes: values.totalPasses,
+          }];
+        });
+      const events = fixtureId === null
+        ? []
+        : (eventsByFixture.get(fixtureId) ?? []).flatMap((rawEvent) => {
+          const event = objectValue(rawEvent) ?? {};
+          const minute = numberValue(
+            (objectValue(event.time) ?? {}).elapsed,
+          );
+          const type = stringValue(event.type);
+          const detail = stringValue(event.detail);
+          if (minute === null || type === null || detail === null) return [];
+          const team = objectValue(event.team) ?? {};
+          const player = objectValue(event.player) ?? {};
+          return [{
+            minute,
+            team_id: numberValue(team.id),
+            type,
+            detail,
+            player_name: stringValue(player.name),
+          }];
+        });
+      return {
+        ...match,
+        timeline: { statistics, events },
+      };
+    }),
+  }));
 }
 
 function expectedGoalsSnapshots({

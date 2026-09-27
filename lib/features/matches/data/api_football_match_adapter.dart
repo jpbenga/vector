@@ -1397,6 +1397,7 @@ class ApiFootballMatchAdapter {
     final awayTeamName = _stringValue(away['name']);
     final homeGoals = _intValue(goals['home']);
     final awayGoals = _intValue(goals['away']);
+    final timeline = _map(root['timeline']);
     if (playedAt == null ||
         competitionId == null ||
         competitionName == null ||
@@ -1418,7 +1419,55 @@ class ApiFootballMatchAdapter {
       awayTeamName: awayTeamName,
       homeGoals: homeGoals,
       awayGoals: awayGoals,
+      fixtureId: _intValue(fixture['id']),
+      homeTeamLogoUrl: _stringValue(home['logo']),
+      awayTeamLogoUrl: _stringValue(away['logo']),
+      events: _list(timeline['events'])
+          .map(_headToHeadMatchEvent)
+          .whereType<HeadToHeadMatchEventSnapshot>()
+          .toList(growable: false),
+      homeStatistics: _headToHeadTeamStatistics(
+        _list(timeline['statistics']),
+        homeTeamId,
+      ),
+      awayStatistics: _headToHeadTeamStatistics(
+        _list(timeline['statistics']),
+        awayTeamId,
+      ),
     );
+  }
+
+  HeadToHeadMatchEventSnapshot? _headToHeadMatchEvent(Object? value) {
+    final root = _map(value);
+    final minute = _intValue(root['minute']);
+    final type = _stringValue(root['type']);
+    final detail = _stringValue(root['detail']);
+    if (minute == null || type == null || detail == null) return null;
+    return HeadToHeadMatchEventSnapshot(
+      minute: minute,
+      teamId: _intValue(root['team_id']),
+      type: type,
+      detail: detail,
+      playerName: _stringValue(root['player_name']),
+    );
+  }
+
+  HeadToHeadTeamStatisticsSnapshot? _headToHeadTeamStatistics(
+    List<Object?> values,
+    int teamId,
+  ) {
+    for (final value in values) {
+      final root = _map(value);
+      if (_intValue(root['team_id']) != teamId) continue;
+      return HeadToHeadTeamStatisticsSnapshot(
+        totalShots: _doubleValue(root['total_shots']),
+        shotsOnGoal: _doubleValue(root['shots_on_goal']),
+        expectedGoals: _doubleValue(root['expected_goals']),
+        possession: _doubleValue(root['possession']),
+        totalPasses: _doubleValue(root['total_passes']),
+      );
+    }
+    return null;
   }
 
   TeamRecentMatchSnapshot? _recentMatchSnapshot(Object? matchJson) {

@@ -8,6 +8,7 @@ const maxLeagues = 40;
 const maxTeamStatisticsRequests = 120;
 const maxRecentFixtureRequests = 160;
 const maxFixtureStatisticsRequests = 240;
+const maxHeadToHeadTimelineFixtures = 72;
 const maxFixturePlayerStatisticsRequests = 120;
 const maxPlayerStatisticsTeams = 160;
 const maxInjuryRequests = 120;
@@ -95,6 +96,7 @@ Deno.serve(async (request) => {
     { leagueId: number; season: number; teamId: number }
   >();
   const headToHeadPairs = new Set<string>();
+  const headToHeadTimelineFixtureIds = new Set<number>();
   let recentFixtureRequests = 0;
 
   try {
@@ -389,7 +391,7 @@ Deno.serve(async (request) => {
     // One cache key per unordered pair across the whole window. H2H history
     // is immutable, so a 30-day TTL avoids paying again for every daily run.
     for (const pair of headToHeadPairs) {
-      await fetchAndAccount({
+      const response = await fetchAndAccount({
         apiBaseUrl,
         apiKey,
         supabaseUrl,
@@ -400,6 +402,15 @@ Deno.serve(async (request) => {
         ttlSeconds: 30 * 24 * 60 * 60,
         requestDelayMs: apiRequestDelayMs,
       });
+      for (const fixtureId of historicalHeadToHeadFixtureIds(response.body)) {
+        // Historical timelines enrich the most relevant upcoming fixtures
+        // first. Keeping this bounded lets the whole league sync complete
+        // within the shared request budget instead of failing late.
+        if (headToHeadTimelineFixtureIds.size >= maxHeadToHeadTimelineFixtures) {
+          break;
+        }
+        headToHeadTimelineFixtureIds.add(fixtureId);
+      }
       summary.headToHead += 1;
       summary.cachedResponses += 1;
     }
@@ -505,6 +516,42 @@ Deno.serve(async (request) => {
         summary.fixtureEvents += 1;
         summary.cachedResponses += 1;
       }
+    }
+
+    // A TAT timeline is factual: it needs the provider's events and team
+    // totals for each historical meeting displayed by the app. Responses are
+    // immutable and cached, so subsequent snapshots reuse them without an API
+    // request.
+    for (const fixtureId of headToHeadTimelineFixtureIds) {
+      if (options.includeExpectedGoals && fixtureStatisticsIds.has(fixtureId)) {
+        continue;
+      }
+      await fetchAndAccount({
+        apiBaseUrl,
+        apiKey,
+        supabaseUrl,
+        serviceRoleKey,
+        runId,
+        endpoint: "/fixtures/statistics",
+        query: { fixture: String(fixtureId) },
+        ttlSeconds: 30 * 24 * 60 * 60,
+        requestDelayMs: apiRequestDelayMs,
+      });
+      summary.fixtureStatistics += 1;
+      summary.cachedResponses += 1;
+      await fetchAndAccount({
+        apiBaseUrl,
+        apiKey,
+        supabaseUrl,
+        serviceRoleKey,
+        runId,
+        endpoint: "/fixtures/events",
+        query: { fixture: String(fixtureId) },
+        ttlSeconds: 30 * 24 * 60 * 60,
+        requestDelayMs: apiRequestDelayMs,
+      });
+      summary.fixtureEvents += 1;
+      summary.cachedResponses += 1;
     }
 
     for (const fixtureId of [...fixturePlayerStatisticsIds].slice(
@@ -1393,6 +1440,23 @@ function upcomingHeadToHeadPairs(
 function headToHeadPair(firstTeamId: number, secondTeamId: number): string {
   const [lowest, highest] = [firstTeamId, secondTeamId].sort((a, b) => a - b);
   return `${lowest}-${highest}`;
+}
+
+function historicalHeadToHeadFixtureIds(payload: JsonObject): number[] {
+  const fixtureIds = new Set<number>();
+  for (const row of responseRows(payload)) {
+    const fixture = objectValue(objectValue(row)?.fixture) ?? {};
+    const status = stringValue(objectValue(fixture.status)?.short);
+    const fixtureId = numberValue(fixture.id);
+    if (
+      fixtureId !== null &&
+      ["FT", "AET", "PEN"].includes(status ?? "")
+    ) {
+      fixtureIds.add(fixtureId);
+    }
+    if (fixtureIds.size >= 6) break;
+  }
+  return [...fixtureIds];
 }
 
 function dateWindow(start: string, end: string): string[] {

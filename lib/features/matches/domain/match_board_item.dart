@@ -506,6 +506,12 @@ class HeadToHeadFixtureSnapshot {
     required this.awayTeamName,
     required this.homeGoals,
     required this.awayGoals,
+    this.fixtureId,
+    this.homeTeamLogoUrl,
+    this.awayTeamLogoUrl,
+    this.events = const [],
+    this.homeStatistics,
+    this.awayStatistics,
   });
 
   final int competitionId;
@@ -517,6 +523,50 @@ class HeadToHeadFixtureSnapshot {
   final String awayTeamName;
   final int homeGoals;
   final int awayGoals;
+  final int? fixtureId;
+  final String? homeTeamLogoUrl;
+  final String? awayTeamLogoUrl;
+  final List<HeadToHeadMatchEventSnapshot> events;
+  final HeadToHeadTeamStatisticsSnapshot? homeStatistics;
+  final HeadToHeadTeamStatisticsSnapshot? awayStatistics;
+}
+
+/// A factual event from one historical direct meeting. The event keeps the
+/// provider classification so presentation never has to infer a red card or a
+/// cancelled VAR decision from the score.
+class HeadToHeadMatchEventSnapshot {
+  const HeadToHeadMatchEventSnapshot({
+    required this.minute,
+    required this.teamId,
+    required this.type,
+    required this.detail,
+    this.playerName,
+  });
+
+  final int minute;
+  final int? teamId;
+  final String type;
+  final String detail;
+  final String? playerName;
+}
+
+/// Match totals for one side of a historical direct meeting. Values stay
+/// nullable because API-Football does not guarantee complete coverage for old
+/// fixtures and competitions.
+class HeadToHeadTeamStatisticsSnapshot {
+  const HeadToHeadTeamStatisticsSnapshot({
+    this.totalShots,
+    this.shotsOnGoal,
+    this.expectedGoals,
+    this.possession,
+    this.totalPasses,
+  });
+
+  final double? totalShots;
+  final double? shotsOnGoal;
+  final double? expectedGoals;
+  final double? possession;
+  final double? totalPasses;
 }
 
 /// Factual season statistics for one player in the competition of this match.

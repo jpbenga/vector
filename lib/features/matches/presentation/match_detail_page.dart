@@ -28,6 +28,7 @@ import '../domain/structural_tiers/tier_models.dart';
 import '../data/match_reading_bilan_repository.dart';
 import 'opportunity_decision_presenter.dart';
 import 'reading_bilan_section.dart';
+import 'widgets/head_to_head_timeline_panel.dart';
 import 'widgets/sports_asset_badge.dart';
 
 const _matchCardStadiumBackgroundAsset =
@@ -5267,6 +5268,9 @@ class _LectorHeadToHeadContextCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (match.analysis.headToHeadMatches.isNotEmpty) {
+      return HeadToHeadTimelinePanel(match: match);
+    }
     final theme = Theme.of(context);
     final textColors = context.textColors;
     final surfaces = context.surfaces;

@@ -567,13 +567,57 @@ void main() {
               'fixture': {'id': 1},
               'matches': [
                 {
-                  'fixture': {'date': '2026-01-12T19:00:00Z'},
+                  'fixture': {'id': 101, 'date': '2026-01-12T19:00:00Z'},
                   'league': {'id': 61, 'name': 'Ligue 1'},
                   'teams': {
-                    'home': {'id': 10, 'name': 'Home'},
-                    'away': {'id': 11, 'name': 'Away'},
+                    'home': {
+                      'id': 10,
+                      'name': 'Home',
+                      'logo': 'https://example.test/home.png',
+                    },
+                    'away': {
+                      'id': 11,
+                      'name': 'Away',
+                      'logo': 'https://example.test/away.png',
+                    },
                   },
                   'goals': {'home': 2, 'away': 1},
+                  'timeline': {
+                    'events': [
+                      {
+                        'minute': 12,
+                        'team_id': 10,
+                        'type': 'Goal',
+                        'detail': 'Normal Goal',
+                        'player_name': 'A. Player',
+                      },
+                      {
+                        'minute': 63,
+                        'team_id': 11,
+                        'type': 'Card',
+                        'detail': 'Red Card',
+                        'player_name': 'B. Player',
+                      },
+                    ],
+                    'statistics': [
+                      {
+                        'team_id': 10,
+                        'total_shots': 18,
+                        'shots_on_goal': 8,
+                        'expected_goals': 1.8,
+                        'possession': 62,
+                        'total_passes': 701,
+                      },
+                      {
+                        'team_id': 11,
+                        'total_shots': 7,
+                        'shots_on_goal': 2,
+                        'expected_goals': 0.4,
+                        'possession': 38,
+                        'total_passes': 388,
+                      },
+                    ],
+                  },
                 },
                 {
                   'fixture': {'date': '2025-12-04T19:00:00Z'},
@@ -650,6 +694,21 @@ void main() {
       expect(match.analysis.headToHeadMatches, hasLength(2));
       expect(match.analysis.headToHeadMatches.first.competitionName, 'Ligue 1');
       expect(match.analysis.headToHeadMatches.first.homeGoals, 2);
+      expect(match.analysis.headToHeadMatches.first.fixtureId, 101);
+      expect(match.analysis.headToHeadMatches.first.events, hasLength(2));
+      expect(match.analysis.headToHeadMatches.first.events.first.minute, 12);
+      expect(
+        match.analysis.headToHeadMatches.first.events.last.detail,
+        'Red Card',
+      );
+      expect(
+        match.analysis.headToHeadMatches.first.homeStatistics?.totalShots,
+        18,
+      );
+      expect(
+        match.analysis.headToHeadMatches.first.awayStatistics?.expectedGoals,
+        0.4,
+      );
     });
 
     test('maps snapshot asOf, home-away splits and expected-goals context', () {
