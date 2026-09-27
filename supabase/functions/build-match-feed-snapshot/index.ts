@@ -1,3 +1,5 @@
+import { eligibleHeadToHeadMeetings } from "../_shared/head_to_head_history.ts";
+
 type JsonObject = Record<string, unknown>;
 
 const source = "api-football";
@@ -629,7 +631,10 @@ async function collectSnapshotSources({
     addSourceRows(rows);
     rawHeadToHead.push({
       fixture: { id: request.fixtureId },
-      matches: flatResponseItems(rows),
+      matches: eligibleHeadToHeadMeetings(
+        flatResponseItems(rows),
+        request.kickoffAt,
+      ),
     });
   }
 
@@ -1678,22 +1683,27 @@ type RecentFixtureRequest = {
 type HeadToHeadRequest = {
   fixtureId: number;
   pair: string;
+  kickoffAt: string;
 };
 
 function headToHeadRequests(fixtures: JsonObject[]): HeadToHeadRequest[] {
   const requests = new Map<string, HeadToHeadRequest>();
   for (const row of fixtures) {
-    const fixtureId = numberValue((objectValue(row.fixture) ?? {}).id);
+    const fixture = objectValue(row.fixture) ?? {};
+    const fixtureId = numberValue(fixture.id);
+    const kickoffAt = stringValue(fixture.date);
     const teams = objectValue(row.teams) ?? {};
     const homeTeamId = numberValue((objectValue(teams.home) ?? {}).id);
     const awayTeamId = numberValue((objectValue(teams.away) ?? {}).id);
     if (
-      fixtureId === null || homeTeamId === null || awayTeamId === null ||
+      fixtureId === null || kickoffAt === null || homeTeamId === null ||
+      awayTeamId === null ||
       homeTeamId === awayTeamId
     ) continue;
     requests.set(String(fixtureId), {
       fixtureId,
       pair: headToHeadPair(homeTeamId, awayTeamId),
+      kickoffAt,
     });
   }
   return [...requests.values()];
@@ -2296,17 +2306,22 @@ function playerFormRadarSnapshots({
       .filter((value): value is JsonObject => value !== null);
     if (matches.length === 0) continue;
 
-    const candidates = new Map<number, { name: string | null; photo: string | null }>();
+    const candidates = new Map<
+      number,
+      { name: string | null; photo: string | null }
+    >();
     for (const match of matches.slice(0, 3)) {
       const fixtureId = numberValue((objectValue(match.fixture) ?? {}).id);
       if (fixtureId === null) continue;
-      const teamPlayers = (playersByFixture.get(fixtureId) ?? []).find((value) =>
-        numberValue((objectValue(value.team) ?? {}).id) === teamId
-      );
+      const teamPlayers = (playersByFixture.get(fixtureId) ?? []).find((
+        value,
+      ) => numberValue((objectValue(value.team) ?? {}).id) === teamId);
       if (teamPlayers === undefined) continue;
-      for (const playerValue of arrayValue(teamPlayers.players)
-        .map(objectValue)
-        .filter((value): value is JsonObject => value !== null)) {
+      for (
+        const playerValue of arrayValue(teamPlayers.players)
+          .map(objectValue)
+          .filter((value): value is JsonObject => value !== null)
+      ) {
         const player = objectValue(playerValue.player) ?? {};
         const playerId = numberValue(player.id);
         const statistics = arrayValue(playerValue.statistics)
@@ -2330,15 +2345,19 @@ function playerFormRadarSnapshots({
         const fixtureId = numberValue(fixture.id);
         const playedAt = stringValue(fixture.date);
         if (fixtureId === null || playedAt === null) continue;
-        const teamPlayers = (playersByFixture.get(fixtureId) ?? []).find((value) =>
-          numberValue((objectValue(value.team) ?? {}).id) === teamId
-        );
-        const playerValue = teamPlayers === undefined ? undefined :
-          arrayValue(teamPlayers.players)
+        const teamPlayers = (playersByFixture.get(fixtureId) ?? []).find((
+          value,
+        ) => numberValue((objectValue(value.team) ?? {}).id) === teamId);
+        const playerValue = teamPlayers === undefined
+          ? undefined
+          : arrayValue(teamPlayers.players)
             .map(objectValue)
-            .find((value) => numberValue((objectValue(value?.player) ?? {}).id) === playerId);
-        const statistics = playerValue === undefined || playerValue === null ? {} :
-          arrayValue(playerValue.statistics)
+            .find((value) =>
+              numberValue((objectValue(value?.player) ?? {}).id) === playerId
+            );
+        const statistics = playerValue === undefined || playerValue === null
+          ? {}
+          : arrayValue(playerValue.statistics)
             .map(objectValue)
             .find((value): value is JsonObject => value !== null) ?? {};
         const games = objectValue(statistics.games) ?? {};
@@ -2358,7 +2377,7 @@ function playerFormRadarSnapshots({
           played_at: playedAt,
           appeared,
           starter: appeared && !substitute,
-        substitute,
+          substitute,
           minutes: numberValue(games.minutes) ?? 0,
           goals: numberValue(goals.total) ?? 0,
           assists: numberValue(goals.assists) ?? 0,
@@ -2419,7 +2438,10 @@ function enrichRecentLeagueMatches({
   fixtureStatisticsRows: FixtureStatisticsPayload[];
   fixtureEventsRows: Array<{ fixtureId: number; events: JsonObject[] }>;
 }): JsonObject[] {
-  const statisticsByFixture = new Map<number, Map<number, Record<string, number>>>();
+  const statisticsByFixture = new Map<
+    number,
+    Map<number, Record<string, number>>
+  >();
   for (const row of fixtureStatisticsRows) {
     const byTeam = new Map<number, Record<string, number>>();
     for (const teamStatistics of row.statistics) {
@@ -2437,7 +2459,9 @@ function enrichRecentLeagueMatches({
     if (byTeam.size > 0) statisticsByFixture.set(row.fixtureId, byTeam);
   }
   const eventsByFixture = new Map<number, JsonObject[]>();
-  for (const row of fixtureEventsRows) eventsByFixture.set(row.fixtureId, row.events);
+  for (const row of fixtureEventsRows) {
+    eventsByFixture.set(row.fixtureId, row.events);
+  }
 
   return recentLeagueMatches.map((row) => {
     const league = objectValue(row.league) ?? {};
@@ -2456,20 +2480,24 @@ function enrichRecentLeagueMatches({
         const opposing = fixtureId === null || opponentId === null
           ? undefined
           : statisticsByFixture.get(fixtureId)?.get(opponentId);
-        const events = fixtureId === null ? [] : (eventsByFixture.get(fixtureId) ?? [])
-          .flatMap((event) => {
-            if (stringValue(event.type)?.toLowerCase() !== "goal") return [];
-            const minute = numberValue((objectValue(event.time) ?? {}).elapsed);
-            if (minute === null) return [];
-            const eventTeam = objectValue(event.team) ?? {};
-            const player = objectValue(event.player) ?? {};
-            return [{
-              minute,
-              team_id: numberValue(eventTeam.id),
-              team_name: stringValue(eventTeam.name),
-              player_name: stringValue(player.name),
-            }];
-          });
+        const events = fixtureId === null
+          ? []
+          : (eventsByFixture.get(fixtureId) ?? [])
+            .flatMap((event) => {
+              if (stringValue(event.type)?.toLowerCase() !== "goal") return [];
+              const minute = numberValue(
+                (objectValue(event.time) ?? {}).elapsed,
+              );
+              if (minute === null) return [];
+              const eventTeam = objectValue(event.team) ?? {};
+              const player = objectValue(event.player) ?? {};
+              return [{
+                minute,
+                team_id: numberValue(eventTeam.id),
+                team_name: stringValue(eventTeam.name),
+                player_name: stringValue(player.name),
+              }];
+            });
         return {
           ...match,
           competition_name: stringValue(league.name),

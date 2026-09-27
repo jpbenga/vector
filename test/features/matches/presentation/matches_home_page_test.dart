@@ -1660,7 +1660,9 @@ void main() {
               HeadToHeadFixtureSnapshot(
                 competitionId: 103,
                 competitionName: 'Eliteserien',
-                playedAt: DateTime.utc(2026, 5, 10),
+                playedAt: DateTime.now().toUtc().subtract(
+                  const Duration(days: 60),
+                ),
                 homeTeamId: 101,
                 homeTeamName: 'Viking',
                 awayTeamId: 202,
@@ -1671,7 +1673,9 @@ void main() {
               HeadToHeadFixtureSnapshot(
                 competitionId: 999,
                 competitionName: 'Coupe de Norvège',
-                playedAt: DateTime.utc(2026, 3, 10),
+                playedAt: DateTime.now().toUtc().subtract(
+                  const Duration(days: 120),
+                ),
                 homeTeamId: 202,
                 homeTeamName: 'Coupe Lillestrom',
                 awayTeamId: 101,
@@ -1703,6 +1707,7 @@ void main() {
         expect(find.text('Confrontations récentes'), findsOneWidget);
         expect(find.text('Championnat (1)'), findsOneWidget);
         expect(find.text('Toutes compétitions (2)'), findsOneWidget);
+        expect(find.textContaining('À domicile'), findsNothing);
         expect(find.text('Déroulé du match'), findsOneWidget);
         expect(find.text('Coupe Lillestrom'), findsNothing);
       },

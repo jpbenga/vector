@@ -1,3 +1,5 @@
+import { eligibleHeadToHeadMeetings } from "../_shared/head_to_head_history.ts";
+
 type JsonObject = Record<string, unknown>;
 
 const source = "api-football";
@@ -8,7 +10,6 @@ const maxLeagues = 40;
 const maxTeamStatisticsRequests = 120;
 const maxRecentFixtureRequests = 160;
 const maxFixtureStatisticsRequests = 240;
-const maxHeadToHeadTimelineFixtures = 72;
 const maxFixturePlayerStatisticsRequests = 120;
 const maxPlayerStatisticsTeams = 160;
 const maxInjuryRequests = 120;
@@ -81,7 +82,10 @@ Deno.serve(async (request) => {
     leagueSeasons: {},
   };
   const fetchAndAccount = (
-    requestOptions: Omit<FetchAndCacheOptions, "queueJobId" | "onProviderRequest">,
+    requestOptions: Omit<
+      FetchAndCacheOptions,
+      "queueJobId" | "onProviderRequest"
+    >,
   ) =>
     fetchAndCache({
       ...requestOptions,
@@ -97,7 +101,7 @@ Deno.serve(async (request) => {
     string,
     { leagueId: number; season: number; teamId: number }
   >();
-  const headToHeadPairs = new Set<string>();
+  const headToHeadPairs = new Map<string, string>();
   const headToHeadTimelineFixtureIds = new Set<number>();
   let recentFixtureRequests = 0;
 
@@ -280,14 +284,14 @@ Deno.serve(async (request) => {
         summary.fixtures += responseRows(fixtures.body).length;
         summary.cachedResponses += 1;
         for (
-          const pair of upcomingHeadToHeadPairs(
+          const candidate of upcomingHeadToHeadPairs(
             fixtures.body,
             options.windowStart,
             options.windowEnd,
             options.timezone,
           )
         ) {
-          headToHeadPairs.add(pair);
+          finaliseHeadToHeadPair(headToHeadPairs, candidate);
         }
         for (const fixture of responseRows(fixtures.body)) {
           const root = objectValue(fixture) ?? {};
@@ -392,7 +396,7 @@ Deno.serve(async (request) => {
 
     // One cache key per unordered pair across the whole window. H2H history
     // is immutable, so a 30-day TTL avoids paying again for every daily run.
-    for (const pair of headToHeadPairs) {
+    for (const [pair, referenceKickoff] of headToHeadPairs) {
       const response = await fetchAndAccount({
         apiBaseUrl,
         apiKey,
@@ -404,13 +408,21 @@ Deno.serve(async (request) => {
         ttlSeconds: 30 * 24 * 60 * 60,
         requestDelayMs: apiRequestDelayMs,
       });
-      for (const fixtureId of historicalHeadToHeadFixtureIds(response.body)) {
-        // Historical timelines enrich the most relevant upcoming fixtures
-        // first. Keeping this bounded lets the whole league sync complete
-        // within the shared request budget instead of failing late.
-        if (headToHeadTimelineFixtureIds.size >= maxHeadToHeadTimelineFixtures) {
-          break;
-        }
+      for (
+        const fixtureId of eligibleHeadToHeadMeetings(
+          responseRows(response.body)
+            .map(objectValue)
+            .filter((meeting): meeting is JsonObject => meeting !== null),
+          referenceKickoff,
+        ).map((meeting) => numberValue((objectValue(meeting.fixture) ?? {}).id))
+          .filter(
+            (fixtureId): fixtureId is number => fixtureId !== null,
+          )
+      ) {
+        // Every displayed historical meeting must receive its factual events
+        // and team totals. The globally serial queue and quota reservation
+        // protect the provider; a per-league cap would make some TAT panels
+        // permanently incomplete on dense match days.
         headToHeadTimelineFixtureIds.add(fixtureId);
       }
       summary.headToHead += 1;
@@ -436,10 +448,12 @@ Deno.serve(async (request) => {
       summary.cachedResponses += 1;
     }
 
-    for (const context of [...playerStatisticsTeams.values()].slice(
-      0,
-      maxPlayerStatisticsTeams,
-    )) {
+    for (
+      const context of [...playerStatisticsTeams.values()].slice(
+        0,
+        maxPlayerStatisticsTeams,
+      )
+    ) {
       const firstPage = await fetchAndAccount({
         apiBaseUrl,
         apiKey,
@@ -485,10 +499,12 @@ Deno.serve(async (request) => {
     }
 
     if (options.includeExpectedGoals) {
-      for (const fixtureId of [...fixtureStatisticsIds].slice(
-        0,
-        maxFixtureStatisticsRequests,
-      )) {
+      for (
+        const fixtureId of [...fixtureStatisticsIds].slice(
+          0,
+          maxFixtureStatisticsRequests,
+        )
+      ) {
         await fetchAndAccount({
           apiBaseUrl,
           apiKey,
@@ -556,10 +572,12 @@ Deno.serve(async (request) => {
       summary.cachedResponses += 1;
     }
 
-    for (const fixtureId of [...fixturePlayerStatisticsIds].slice(
-      0,
-      maxFixturePlayerStatisticsRequests,
-    )) {
+    for (
+      const fixtureId of [...fixturePlayerStatisticsIds].slice(
+        0,
+        maxFixturePlayerStatisticsRequests,
+      )
+    ) {
       await fetchAndAccount({
         apiBaseUrl,
         apiKey,
@@ -894,7 +912,9 @@ async function fetchAndCache(
     return { body: cachedBody, fetchedAt: cachedAt, fromCache: true };
   }
 
-  if (options.queueJobId !== null && await queueCancellationRequested(options)) {
+  if (
+    options.queueJobId !== null && await queueCancellationRequested(options)
+  ) {
     throw new Error("Queue job cancelled before provider request.");
   }
 
@@ -1008,7 +1028,10 @@ async function queueCancellationRequested(
   const rows = await supabaseFetch({
     supabaseUrl: options.supabaseUrl,
     serviceRoleKey: options.serviceRoleKey,
-    path: `/rest/v1/api_football_sync_queue_jobs?id=eq.${encodeURIComponent(options.queueJobId ?? "")}` +
+    path:
+      `/rest/v1/api_football_sync_queue_jobs?id=eq.${
+        encodeURIComponent(options.queueJobId ?? "")
+      }` +
       "&select=cancel_requested_at,status&limit=1",
     method: "GET",
   });
@@ -1400,20 +1423,25 @@ function upcomingTeamIdsInWindow(
   return [...teamIds];
 }
 
+type UpcomingHeadToHeadPair = {
+  pair: string;
+  kickoffAt: string;
+};
+
 function upcomingHeadToHeadPairs(
   payload: JsonObject,
   windowStart: string,
   windowEnd: string,
   timezone: string,
-): string[] {
-  const formatter = new Intl.DateTimeFormat("en-US", {
+): UpcomingHeadToHeadPair[] {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
   });
   const now = Date.now();
-  const pairs = new Set<string>();
+  const pairs = new Map<string, string>();
   for (const row of responseRows(payload)) {
     const root = objectValue(row) ?? {};
     const fixture = objectValue(root.fixture) ?? {};
@@ -1433,34 +1461,27 @@ function upcomingHeadToHeadPairs(
     const awayTeamId = numberValue((objectValue(teams.away) ?? {}).id);
     if (
       homeTeamId === null || awayTeamId === null || homeTeamId === awayTeamId
-    ) {
-      continue;
-    }
-    pairs.add(headToHeadPair(homeTeamId, awayTeamId));
+    ) continue;
+    const pair = headToHeadPair(homeTeamId, awayTeamId);
+    const existing = pairs.get(pair);
+    if (existing === undefined || kickoff > existing) pairs.set(pair, kickoff);
   }
-  return [...pairs];
+  return [...pairs.entries()].map(([pair, kickoffAt]) => ({ pair, kickoffAt }));
+}
+
+function finaliseHeadToHeadPair(
+  pairs: Map<string, string>,
+  candidate: UpcomingHeadToHeadPair,
+): void {
+  const existing = pairs.get(candidate.pair);
+  if (existing === undefined || candidate.kickoffAt > existing) {
+    pairs.set(candidate.pair, candidate.kickoffAt);
+  }
 }
 
 function headToHeadPair(firstTeamId: number, secondTeamId: number): string {
   const [lowest, highest] = [firstTeamId, secondTeamId].sort((a, b) => a - b);
   return `${lowest}-${highest}`;
-}
-
-function historicalHeadToHeadFixtureIds(payload: JsonObject): number[] {
-  const fixtureIds = new Set<number>();
-  for (const row of responseRows(payload)) {
-    const fixture = objectValue(objectValue(row)?.fixture) ?? {};
-    const status = stringValue(objectValue(fixture.status)?.short);
-    const fixtureId = numberValue(fixture.id);
-    if (
-      fixtureId !== null &&
-      ["FT", "AET", "PEN"].includes(status ?? "")
-    ) {
-      fixtureIds.add(fixtureId);
-    }
-    if (fixtureIds.size >= 6) break;
-  }
-  return [...fixtureIds];
 }
 
 function dateWindow(start: string, end: string): string[] {

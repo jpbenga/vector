@@ -25,23 +25,39 @@ class _HeadToHeadTimelinePanelState extends State<HeadToHeadTimelinePanel> {
   _HeadToHeadScope _scope = _HeadToHeadScope.competition;
   String? _selectedMeetingKey;
 
-  List<HeadToHeadFixtureSnapshot> get _allMeetings =>
-      [...widget.match.analysis.headToHeadMatches]
-        ..sort((left, right) => left.playedAt.compareTo(right.playedAt));
+  List<HeadToHeadFixtureSnapshot> get _allMeetings {
+    final reference = widget.match.fixture.kickoff;
+    if (reference == null) return const [];
+    final lowerBound = DateTime.utc(
+      reference.toUtc().year - 3,
+      reference.toUtc().month,
+      reference.toUtc().day,
+    );
+    final recentMeetings =
+        widget.match.analysis.headToHeadMatches
+            .where(
+              (meeting) =>
+                  !meeting.playedAt.isBefore(lowerBound) &&
+                  meeting.playedAt.isBefore(reference) &&
+                  !_isFriendlyCompetition(meeting.competitionName),
+            )
+            .toList(growable: false)
+          ..sort((left, right) => right.playedAt.compareTo(left.playedAt));
+    // Keep the six newest eligible meetings, then restore chronological order
+    // for the left-to-right visual timeline.
+    final meetings = recentMeetings.take(6).toList(growable: false)
+      ..sort((left, right) => left.playedAt.compareTo(right.playedAt));
+    return List.unmodifiable(meetings);
+  }
 
   List<HeadToHeadFixtureSnapshot> get _meetings {
     final competitionId = widget.match.fixture.competition.apiFootballLeagueId;
-    final homeTeamId = widget.match.fixture.homeTeam.apiFootballTeamId;
     return switch (_scope) {
       _HeadToHeadScope.competition =>
         _allMeetings
             .where((meeting) => meeting.competitionId == competitionId)
             .toList(growable: false),
       _HeadToHeadScope.all => _allMeetings,
-      _HeadToHeadScope.home =>
-        _allMeetings
-            .where((meeting) => meeting.homeTeamId == homeTeamId)
-            .toList(growable: false),
     };
   }
 
@@ -96,13 +112,6 @@ class _HeadToHeadTimelinePanelState extends State<HeadToHeadTimelinePanel> {
                 )
                 .length,
             allCount: _allMeetings.length,
-            homeCount: _allMeetings
-                .where(
-                  (meeting) =>
-                      meeting.homeTeamId ==
-                      widget.match.fixture.homeTeam.apiFootballTeamId,
-                )
-                .length,
             onChanged: (value) => setState(() {
               _scope = value;
               _selectedMeetingKey = null;
@@ -198,21 +207,24 @@ class _HeadToHeadTimelinePanelState extends State<HeadToHeadTimelinePanel> {
       '${meeting.playedAt.toIso8601String()}-${meeting.homeTeamId}-${meeting.awayTeamId}';
 }
 
-enum _HeadToHeadScope { competition, all, home }
+bool _isFriendlyCompetition(String competitionName) {
+  final normalized = competitionName.toLowerCase();
+  return normalized.contains('friendl') || normalized.contains('amical');
+}
+
+enum _HeadToHeadScope { competition, all }
 
 class _ScopeSelector extends StatelessWidget {
   const _ScopeSelector({
     required this.scope,
     required this.competitionCount,
     required this.allCount,
-    required this.homeCount,
     required this.onChanged,
   });
 
   final _HeadToHeadScope scope;
   final int competitionCount;
   final int allCount;
-  final int homeCount;
   final ValueChanged<_HeadToHeadScope> onChanged;
 
   @override
@@ -227,8 +239,6 @@ class _ScopeSelector extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         _chip(context, _HeadToHeadScope.all, 'Toutes compétitions ($allCount)'),
-        const SizedBox(width: 8),
-        _chip(context, _HeadToHeadScope.home, 'À domicile ($homeCount)'),
       ],
     ),
   );
@@ -303,29 +313,35 @@ class _DuelSummary extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                _SummarySide(
-                  logoUrl: match.fixture.homeTeam.logoUrl,
-                  name: match.fixture.homeTeam.name,
-                  value: '$firstWins V',
-                  goals: '$firstGoals buts',
-                  color: firstWins > secondWins
-                      ? context.semantic.success
-                      : context.textColors.primary,
-                  start: true,
+                Expanded(
+                  child: _SummarySide(
+                    logoUrl: match.fixture.homeTeam.logoUrl,
+                    name: match.fixture.homeTeam.name,
+                    value: '$firstWins V',
+                    goals: '$firstGoals buts',
+                    color: firstWins > 0
+                        ? context.semantic.success
+                        : context.textColors.primary,
+                  ),
                 ),
-                _SummaryMiddle(
-                  draws: draws,
-                  goalsPerMatch: (firstGoals + secondGoals) / meetings.length,
+                _SummaryDivider(),
+                Expanded(
+                  child: _SummaryMiddle(
+                    draws: draws,
+                    goalsPerMatch: (firstGoals + secondGoals) / meetings.length,
+                  ),
                 ),
-                _SummarySide(
-                  logoUrl: match.fixture.awayTeam.logoUrl,
-                  name: match.fixture.awayTeam.name,
-                  value: '$secondWins V',
-                  goals: '$secondGoals buts',
-                  color: secondWins > firstWins
-                      ? context.semantic.success
-                      : context.semantic.error,
-                  start: false,
+                _SummaryDivider(),
+                Expanded(
+                  child: _SummarySide(
+                    logoUrl: match.fixture.awayTeam.logoUrl,
+                    name: match.fixture.awayTeam.name,
+                    value: '$secondWins V',
+                    goals: '$secondGoals buts',
+                    color: secondWins > 0
+                        ? context.semantic.success
+                        : context.textColors.primary,
+                  ),
                 ),
               ],
             ),
@@ -343,44 +359,46 @@ class _SummarySide extends StatelessWidget {
     required this.value,
     required this.goals,
     required this.color,
-    required this.start,
   });
   final String? logoUrl;
   final String name;
   final String value;
   final String goals;
   final Color color;
-  final bool start;
   @override
-  Widget build(BuildContext context) => Expanded(
-    child: Column(
-      crossAxisAlignment: start
-          ? CrossAxisAlignment.start
-          : CrossAxisAlignment.end,
-      children: [
-        SportsAssetBadge(
-          size: 34,
-          imageUrl: logoUrl,
-          fallbackLabel: name,
-          contrastPlate: true,
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      SportsAssetBadge(
+        size: 34,
+        imageUrl: logoUrl,
+        fallbackLabel: name,
+        contrastPlate: true,
+      ),
+      const SizedBox(height: 4),
+      Text(
+        value,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w900,
         ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: color,
-            fontWeight: FontWeight.w900,
-          ),
+      ),
+      Text(
+        goals,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: context.textColors.secondary,
+          fontWeight: FontWeight.w700,
         ),
-        Text(
-          goals,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: context.textColors.secondary,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    ),
+      ),
+    ],
+  );
+}
+
+class _SummaryDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 62,
+    child: VerticalDivider(color: context.surfaces.border),
   );
 }
 
@@ -389,25 +407,24 @@ class _SummaryMiddle extends StatelessWidget {
   final int draws;
   final double goalsPerMatch;
   @override
-  Widget build(BuildContext context) => Expanded(
-    child: Column(
-      children: [
-        Text(
-          '$draws N',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: context.textColors.primary,
-            fontWeight: FontWeight.w900,
-          ),
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      Text(
+        '$draws N',
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          color: context.textColors.primary,
+          fontWeight: FontWeight.w900,
         ),
-        Text(
-          '${goalsPerMatch.toStringAsFixed(1).replaceAll('.', ',')} buts/match',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: context.textColors.secondary,
-            fontWeight: FontWeight.w700,
-          ),
+      ),
+      Text(
+        '${goalsPerMatch.toStringAsFixed(1).replaceAll('.', ',')} buts/match',
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: context.textColors.secondary,
+          fontWeight: FontWeight.w700,
         ),
-      ],
-    ),
+      ),
+    ],
   );
 }
 
@@ -796,9 +813,10 @@ class _EventOnLane extends StatelessWidget {
         : event.type.toLowerCase() == 'var'
         ? Icons.videocam_rounded
         : Icons.sports_soccer_rounded;
+    final eventLabel = _eventLabel(event);
     final label = event.playerName == null
-        ? "${event.minute}'"
-        : "${event.playerName} · ${event.minute}'";
+        ? "$eventLabel · ${event.minute}'"
+        : "${event.playerName} · $eventLabel · ${event.minute}'";
     return Positioned(
       left: math.max(0, left - (compact ? 5 : 30)),
       top: isFirst
@@ -826,6 +844,25 @@ class _EventOnLane extends StatelessWidget {
       ),
     );
   }
+}
+
+String _eventLabel(HeadToHeadMatchEventSnapshot event) {
+  final type = event.type.toLowerCase();
+  final detail = event.detail.toLowerCase();
+  if (type == 'var') {
+    if (detail.contains('cancel')) return 'But refusé par la VAR';
+    if (detail.contains('penalty')) return 'Décision VAR · penalty';
+    return 'Décision VAR';
+  }
+  if (type == 'card') {
+    return detail.contains('yellow red')
+        ? 'Second jaune · rouge'
+        : 'Carton rouge';
+  }
+  if (detail.contains('missed penalty')) return 'Penalty manqué';
+  if (detail.contains('penalty')) return 'Penalty';
+  if (detail.contains('own goal')) return 'But contre son camp';
+  return 'But';
 }
 
 class _CollectiveStats extends StatelessWidget {
