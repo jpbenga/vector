@@ -64,7 +64,7 @@ class _HeadToHeadTimelinePanelState extends State<HeadToHeadTimelinePanel> {
   @override
   Widget build(BuildContext context) {
     final meetings = _meetings;
-    final selected = _selected(meetings);
+    final selected = meetings.isEmpty ? null : _selected(meetings);
     final theme = Theme.of(context);
     return _PanelCard(
       child: Column(
@@ -170,7 +170,7 @@ class _HeadToHeadTimelinePanelState extends State<HeadToHeadTimelinePanel> {
                     meeting: meeting,
                     firstTeamId:
                         widget.match.fixture.homeTeam.apiFootballTeamId,
-                    selected: _meetingKey(meeting) == _meetingKey(selected),
+                    selected: _meetingKey(meeting) == _meetingKey(selected!),
                     onTap: () => setState(
                       () => _selectedMeetingKey = _meetingKey(meeting),
                     ),
@@ -180,7 +180,7 @@ class _HeadToHeadTimelinePanelState extends State<HeadToHeadTimelinePanel> {
             ),
             const SizedBox(height: 16),
             _SelectedMatchDetail(
-              meeting: selected,
+              meeting: selected!,
               firstTeamId: widget.match.fixture.homeTeam.apiFootballTeamId,
               firstTeamName: widget.match.fixture.homeTeam.name,
               secondTeamName: widget.match.fixture.awayTeam.name,
