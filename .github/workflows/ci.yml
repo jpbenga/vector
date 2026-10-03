@@ -46,4 +46,7 @@ jobs:
           deno-version: v2.x
 
       - name: Test Supabase reading policies
-        run: deno test supabase/functions/_shared
+        run: >-
+          deno test
+          --allow-env=SUPABASE_SERVICE_ROLE_KEY,SUPABASE_URL,API_FOOTBALL_KEY,API_FOOTBALL_SYNC_SECRET
+          supabase/functions/_shared
