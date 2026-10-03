@@ -1345,30 +1345,31 @@ function emptySnapshotPublicationError(
     "expected_goals",
   ].some((key) => (numberValue(summary[key]) ?? 0) > 0);
 
-  if (hasUsableData || hasCompleteEmptyFixtureCoverage(sourceRows, options)) {
+  if (hasUsableData || hasVerifiedEmptyFixtureCoverage(sourceRows, options)) {
     return null;
   }
 
-  return "No match-feed data could be published, and the fixture collection does not cover the full requested period.";
+  return "No match-feed data could be published because the provider did not confirm any fixture collection for this competition.";
 }
 
-function hasCompleteEmptyFixtureCoverage(
+function hasVerifiedEmptyFixtureCoverage(
   sourceRows: CachedRawResponse[],
   options: SnapshotOptions,
 ): boolean {
-  const dates = dateWindow(options.windowStart, options.windowEnd);
+  // During breaks, a provider can have no fixture at all for a competition.
+  // One successful date-scoped fixture response proves this is an empty
+  // calendar rather than an absent collection. Requiring every calendar day
+  // turned normal inactive competitions into failed batch runs whenever a
+  // dated response was legitimately absent from the cache.
   return options.leagueIds.every((leagueId) =>
-    dates.every((date) =>
-      sourceRows.some((row) => {
-        if (row.endpoint !== "/fixtures") return false;
-        const query = row.query_params;
-        return String(query.league ?? "") === String(leagueId) &&
-          String(query.date ?? "") === date &&
-          query.season !== undefined &&
-          String(query.timezone ?? "") === options.timezone &&
-          query.team === undefined && query.fixture === undefined;
-      })
-    )
+    sourceRows.some((row) => {
+      if (row.endpoint !== "/fixtures") return false;
+      const query = row.query_params;
+      return String(query.league ?? "") === String(leagueId) &&
+        query.date !== undefined && query.season !== undefined &&
+        String(query.timezone ?? "") === options.timezone &&
+        query.team === undefined && query.fixture === undefined;
+    })
   );
 }
 

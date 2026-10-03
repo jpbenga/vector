@@ -665,7 +665,7 @@ void main() {
       },
     );
 
-    test('rejects a remote response whose window is stale', () async {
+    test('keeps the app usable when the remote window is stale', () async {
       final remote = _FakeRemoteSnapshotDataSource(
         latestForDate: _snapshot(
           capturedAt: '2026-08-08T12:10:12Z',
@@ -679,14 +679,14 @@ void main() {
         remoteDataSource: remote,
       );
 
-      await expectLater(
-        loader.load(now: DateTime(2026, 8, 12)),
-        throwsA(isA<StateError>()),
-      );
+      final repository = await loader.load(now: DateTime(2026, 8, 12));
+
+      expect(repository, isA<EmptyMatchFeedRepository>());
+      expect(repository.allMatches(), isEmpty);
       expect(remote.latestForDateCalls, 1);
     });
 
-    test('rejects a covered window captured on an earlier day', () async {
+    test('keeps the app usable when a covered window is obsolete', () async {
       final remote = _FakeRemoteSnapshotDataSource(
         latestForDate: _snapshot(
           capturedAt: '2026-08-08T12:10:12Z',
@@ -701,14 +701,14 @@ void main() {
         remoteDataSource: remote,
       );
 
-      await expectLater(
-        loader.load(now: DateTime(2026, 8, 12)),
-        throwsA(isA<StateError>()),
-      );
+      final repository = await loader.load(now: DateTime(2026, 8, 12));
+
+      expect(repository, isA<EmptyMatchFeedRepository>());
+      expect(repository.allMatches(), isEmpty);
       expect(remote.latestForDateCalls, 1);
     });
 
-    test('surfaces remote failures without loading a local fixture', () async {
+    test('keeps the app usable when the remote request fails', () async {
       final remote = _FakeRemoteSnapshotDataSource(throwsOnLatestForDate: true);
       final loader = _loader(
         source: 'auto',
@@ -716,10 +716,10 @@ void main() {
         remoteDataSource: remote,
       );
 
-      await expectLater(
-        loader.load(now: DateTime(2026, 8, 12)),
-        throwsA(isA<StateError>()),
-      );
+      final repository = await loader.load(now: DateTime(2026, 8, 12));
+
+      expect(repository, isA<EmptyMatchFeedRepository>());
+      expect(repository.allMatches(), isEmpty);
       expect(remote.latestForDateCalls, 1);
     });
 

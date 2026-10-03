@@ -235,7 +235,7 @@ void main() {
         expect(apiSync, contains('payload.errors'));
         expect(snapshotBuilder, contains('Cached API-Football response for'));
         expect(snapshotBuilder, contains('emptySnapshotPublicationError'));
-        expect(snapshotBuilder, contains('hasCompleteEmptyFixtureCoverage'));
+        expect(snapshotBuilder, contains('hasVerifiedEmptyFixtureCoverage'));
         expect(observabilityMigration, contains('empty_snapshot'));
       },
     );

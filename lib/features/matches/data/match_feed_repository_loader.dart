@@ -61,17 +61,22 @@ class MatchFeedRepositoryLoader {
         // evaluated against the real current day, never against the selected
         // future day.
         if (metadata?.covers(now) != true || metadata!.isObsolete(clock())) {
-          throw StateError(
-            'Le snapshot Supabase reçu est absent, trop ancien ou ne couvre '
-            'pas le ${_dateKey(now)}. Aucune donnée ancienne ne sera affichée '
-            'à sa place.',
+          return EmptyMatchFeedRepository(
+            date: now,
+            reason:
+                'Le snapshot Supabase reçu est absent, trop ancien ou ne couvre '
+                'pas le ${_dateKey(now)}. Aucune donnée ancienne ne sera affichée '
+                'à sa place.',
           );
         }
         return repository;
       }
     } on Object catch (error) {
       debugPrint('Remote match feed snapshot unavailable: $error');
-      rethrow;
+      return EmptyMatchFeedRepository(
+        date: now,
+        reason: 'Le flux Supabase est momentanément indisponible.',
+      );
     }
 
     return EmptyMatchFeedRepository(

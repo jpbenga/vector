@@ -785,7 +785,7 @@ async function finishQueuedJob({
 }
 
 function isRetryableQueueError(message: string): boolean {
-  return /\b429\b|rate.?limit|timeout|network|temporar/i.test(message);
+  return /\b(?:429|5\d\d)\b|rate.?limit|timeout|network|temporar/i.test(message);
 }
 
 function retryDelayMs(attempt: number): number {
