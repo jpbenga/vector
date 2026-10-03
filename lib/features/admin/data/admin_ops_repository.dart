@@ -11,9 +11,7 @@ class AdminOpsRepository {
     String action, [
     Map<String, Object?> payload = const {},
   ]) async {
-    final response = await _invoke(
-      body: {'action': action, ...payload},
-    );
+    final response = await _invoke(body: {'action': action, ...payload});
     final data = _objectMap(response.data);
     if (response.status >= 400 || data == null || data['ok'] != true) {
       throw AdminOpsException(_errorMessage(data, response.status));
