@@ -18,6 +18,7 @@ import 'package:copilot/features/matches/presentation/lector_space_page.dart';
 import 'package:copilot/features/matches/presentation/lector_strategies_page.dart';
 import 'package:copilot/features/matches/presentation/matches_home_page.dart';
 import 'package:copilot/features/matches/presentation/match_detail_page.dart';
+import 'package:copilot/features/matches/presentation/widgets/match_feed_card.dart';
 import 'package:copilot/features/onboarding/domain/decision_profile.dart';
 import 'package:copilot/features/onboarding/domain/decision_profile_catalogs.dart';
 import 'package:copilot/features/onboarding/domain/onboarding_answer.dart';
@@ -451,7 +452,7 @@ void main() {
     });
 
     testWidgets(
-      'shows a compact reading badge when the server snapshot has readings',
+      'uses the shared card in Tous without exposing personal readings to a guest',
       (tester) async {
         await _pumpPage(
           tester,
@@ -490,13 +491,63 @@ void main() {
 
         expect(find.text('Cardiff'), findsOneWidget);
         expect(find.text('Charlton'), findsOneWidget);
-        expect(find.byTooltip('Lecture disponible'), findsOneWidget);
+        expect(find.byTooltip('Lecture disponible'), findsNothing);
+        expect(find.byType(MatchFeedCard), findsOneWidget);
         expect(
           find.byKey(
-            const ValueKey('dense-match-result-odds-match_result_home'),
+            const ValueKey('story-match-result-odds-server-computed-reading'),
           ),
           findsOneWidget,
         );
+      },
+    );
+
+    testWidgets(
+      'Tous uses the shared card with readings from the connected profile',
+      (tester) async {
+        final match =
+            _match(
+              id: 'account-match',
+              homeName: 'Club connecté',
+              awayName: 'Adversaire',
+              competitionName: 'Championship',
+              kickoff: _relativeKickoff(0, hour: 13),
+              markets: [_matchResultMarket()],
+            ).copyWith(
+              signals: const [
+                MatchSignal(
+                  id: 'account_reading',
+                  title: 'Lecture du profil connecté',
+                  summary: '',
+                  proofs: [],
+                ),
+                MatchSignal(
+                  id: 'scenario:account_scenario',
+                  title: 'Scénario du profil connecté',
+                  summary: '',
+                  proofs: [],
+                ),
+              ],
+            );
+        await _pumpPage(
+          tester,
+          identityScope: const IdentityScope.account('test-account'),
+          repository: _FakeMatchFeedRepository(
+            opportunities: const [],
+            matches: [match],
+            personalizedMatches: [match],
+          ),
+        );
+        expect(find.byType(MatchFeedCard), findsOneWidget);
+        expect(find.text('Lecture du profil connecté'), findsOneWidget);
+        await tester.tap(find.text('Tous'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Championship'));
+        await tester.pumpAndSettle();
+        expect(find.byType(MatchFeedCard), findsOneWidget);
+        expect(find.text('Lecture du profil connecté'), findsOneWidget);
+        expect(find.text('Scénario du profil connecté'), findsOneWidget);
+        expect(tester.takeException(), isNull);
       },
     );
 
@@ -3016,6 +3067,7 @@ void main() {
 Future<void> _pumpPage(
   WidgetTester tester, {
   DecisionProfile? profile,
+  IdentityScope identityScope = const IdentityScope.guest('test-guest'),
   MatchFeedRepository? repository,
   Future<MatchFeedRepository> Function(DateTime date)? repositoryForDateLoader,
   List<TicketStrategy> strategies = const [],
@@ -3041,7 +3093,7 @@ Future<void> _pumpPage(
       theme: CopilotTheme.dark.copyWith(splashFactory: NoSplash.splashFactory),
       home: MatchesHomePage(
         profile: profile ?? _completedProfile(),
-        identityScope: const IdentityScope.guest('test-guest'),
+        identityScope: identityScope,
         ticketStrategies: strategies,
         repositoryOverride: repository,
         repositoryForDateLoader: repositoryForDateLoader,

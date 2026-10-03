@@ -6,6 +6,8 @@ import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../matches/domain/match_board_item.dart';
 import '../../matches/presentation/widgets/sports_asset_badge.dart';
+import '../../matches/presentation/widgets/match_feed_card.dart';
+import 'form_radar_signal_panel.dart';
 import '../data/player_form_radar_fixture.dart';
 import '../domain/player_form_radar.dart';
 import '../domain/team_form_radar.dart';
@@ -33,9 +35,9 @@ class PlayerFormRadarPage extends StatefulWidget {
   /// profiles; [matches] remains the selected calendar day's fixture list.
   final List<MatchBoardItem> radarSourceMatches;
 
-  /// Matches already filtered by the connected account's decision profile.
-  /// Radar still discovers hot players and teams globally, but these matches
-  /// determine which Lector readings can be surfaced on a Radar card.
+  /// Matches analyzed with the account's enabled readings and scenarios across
+  /// all loaded competitions, including competitions the account does not
+  /// follow. These determine which Lector readings appear on a Radar card.
   final List<MatchBoardItem> personalizedMatches;
   final bool showProfileReadings;
   final DateTime selectedDate;
@@ -589,7 +591,7 @@ class _HotPlayersPanel extends StatelessWidget {
                     children: [
                       const Expanded(child: _RadarLegend()),
                       const SizedBox(width: 12),
-                      _RadarPeriodLabel(columnCount: matrixColumns),
+                      FormRadarPeriodLabel(columnCount: matrixColumns),
                     ],
                   ),
                   Divider(height: 18, color: context.surfaces.border),
@@ -1029,49 +1031,6 @@ class _LegendItem extends StatelessWidget {
   );
 }
 
-class _RadarPeriodLabel extends StatelessWidget {
-  const _RadarPeriodLabel({required this.columnCount});
-  final int columnCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final historyColumns = _historyColumns(columnCount);
-    return SizedBox(
-      width: _matrixWidth(columnCount),
-      child: Row(
-        children: [
-          SizedBox(
-            width: _cellsWidth(historyColumns),
-            child: Text(
-              'Historique',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: context.textColors.secondary,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          _MatrixDivider(color: context.brand.accent),
-          SizedBox(
-            width: _cellsWidth(PlayerFormRadarRanker.recentWindow),
-            child: Semantics(
-              label: 'Trois derniers matchs',
-              child: Text(
-                '3 récents',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: context.brand.accent,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _HotPlayerRow extends StatelessWidget {
   const _HotPlayerRow({
     required this.rank,
@@ -1231,14 +1190,16 @@ class _PlayerActivityMatrix extends StatelessWidget {
       width: _matrixWidth(columnCount),
       child: Row(
         children: [
-          SizedBox(
-            width: _cellsWidth(historyColumns),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: _RadarCellStrip(matches: prior, onMatchTap: onMatchTap),
+          if (historyColumns > 0) ...[
+            SizedBox(
+              width: _cellsWidth(historyColumns),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: _RadarCellStrip(matches: prior, onMatchTap: onMatchTap),
+              ),
             ),
-          ),
-          _MatrixDivider(color: context.brand.accent),
+            _MatrixDivider(color: context.brand.accent),
+          ],
           SizedBox(
             width: _cellsWidth(PlayerFormRadarRanker.recentWindow),
             child: _RadarCellStrip(matches: recent, onMatchTap: onMatchTap),
@@ -1298,11 +1259,7 @@ int _historyColumns(int columnCount) =>
 double _cellsWidth(int count) =>
     count == 0 ? 0 : count * _radarCellSize + (count - 1) * _radarCellSpacing;
 
-double _matrixWidth(int columnCount) =>
-    _cellsWidth(_historyColumns(columnCount)) +
-    _cellsWidth(PlayerFormRadarRanker.recentWindow) +
-    2 +
-    _radarDividerGap * 2;
+double _matrixWidth(int columnCount) => formRadarMatrixWidth(columnCount);
 
 String? _teamLogoForMatch(MatchBoardItem? match, int teamId) {
   if (match == null) return null;
@@ -1433,12 +1390,19 @@ class _TeamRadarMatchesSection extends StatelessWidget {
           _RadarCompetitionHeader(matches: group),
           const SizedBox(height: 7),
           for (final match in group) ...[
-            _RadarMatchCard(
+            MatchFeedCard(
               match: match,
-              entries: const [],
-              profileMatch: personalizedMatchesById[match.id],
-              showProfileReadings: showProfileReadings,
-              onOpen: () => onOpenMatch(match),
+              showCompetitionHeader: false,
+              radarEntries: const [],
+              readingMatch: personalizedMatchesById[match.id],
+              showReadings:
+                  showProfileReadings &&
+                  personalizedMatchesById.containsKey(match.id),
+              onTap: () => onOpenMatch(
+                showProfileReadings
+                    ? personalizedMatchesById[match.id] ?? match
+                    : match,
+              ),
             ),
             const SizedBox(height: 10),
           ],
@@ -1492,12 +1456,19 @@ class _RadarMatchesSection extends StatelessWidget {
           _RadarCompetitionHeader(matches: group),
           const SizedBox(height: 7),
           for (final match in group) ...[
-            _RadarMatchCard(
+            MatchFeedCard(
               match: match,
-              entries: _entriesForMatch(entries, match),
-              profileMatch: personalizedMatchesById[match.id],
-              showProfileReadings: showProfileReadings,
-              onOpen: () => onOpenMatch(match),
+              showCompetitionHeader: false,
+              radarEntries: _entriesForMatch(entries, match),
+              readingMatch: personalizedMatchesById[match.id],
+              showReadings:
+                  showProfileReadings &&
+                  personalizedMatchesById.containsKey(match.id),
+              onTap: () => onOpenMatch(
+                showProfileReadings
+                    ? personalizedMatchesById[match.id] ?? match
+                    : match,
+              ),
             ),
             const SizedBox(height: 10),
           ],
@@ -1542,378 +1513,6 @@ class _RadarCompetitionHeader extends StatelessWidget {
       ],
     );
   }
-}
-
-class _RadarMatchCard extends StatelessWidget {
-  const _RadarMatchCard({
-    required this.match,
-    required this.entries,
-    required this.profileMatch,
-    required this.showProfileReadings,
-    required this.onOpen,
-  });
-  final MatchBoardItem match;
-  final List<PlayerFormRadarEntry> entries;
-  final MatchBoardItem? profileMatch;
-  final bool showProfileReadings;
-  final VoidCallback onOpen;
-  @override
-  Widget build(BuildContext context) {
-    final profileReadings = showProfileReadings
-        ? _profileReadingSignals(profileMatch)
-        : const <MatchSignal>[];
-    final readingCount = showProfileReadings
-        ? profileReadings.length
-        : match.analysis.computedReadings
-              .where((reading) => !reading.isContradiction)
-              .length;
-    return InkWell(
-      onTap: onOpen,
-      borderRadius: BorderRadius.circular(AppRadius.card),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: context.surfaces.backgroundSecondary,
-          border: Border.all(color: context.surfaces.border),
-          borderRadius: BorderRadius.circular(AppRadius.card),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.schedule_rounded,
-                    color: context.brand.accent,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 7),
-                  Text(
-                    match.fixture.kickoffLabel,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: context.textColors.primary,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (readingCount > 0) ...[
-                    Icon(
-                      Icons.radar_rounded,
-                      color: context.brand.accent,
-                      size: 19,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      '$readingCount lecture${readingCount > 1 ? 's' : ''}',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: context.textColors.primary,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              Divider(height: 18, color: context.surfaces.border),
-              Row(
-                children: [
-                  Expanded(child: _TeamStack(match: match)),
-                  _RadarMatchResultOdds(match: match),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    color: context.textColors.secondary,
-                  ),
-                ],
-              ),
-              if (entries.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                _RadarSignalsPanel(entries: entries),
-              ],
-              if (profileReadings.isNotEmpty) ...[
-                const SizedBox(height: 9),
-                _RadarProfileReadingTags(signals: profileReadings),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-List<MatchSignal> _profileReadingSignals(MatchBoardItem? match) {
-  if (match == null) return const [];
-  final values = <String, MatchSignal>{};
-  for (final signal in match.signals) {
-    if (signal.id.startsWith('scenario:') ||
-        signal.id.startsWith('market:') ||
-        signal.id.startsWith('standout_decisive_player')) {
-      continue;
-    }
-    values.putIfAbsent(signal.id, () => signal);
-  }
-  return values.values.toList(growable: false);
-}
-
-class _RadarProfileReadingTags extends StatelessWidget {
-  const _RadarProfileReadingTags({required this.signals});
-
-  final List<MatchSignal> signals;
-
-  @override
-  Widget build(BuildContext context) => Wrap(
-    spacing: 6,
-    runSpacing: 5,
-    children: [
-      for (final signal in signals)
-        _RadarProfileReadingPill(
-          label: signal.title,
-          style: context.opportunities.badgeFor(
-            signal.id,
-            variant: AppReadingBadgeVariant.soft,
-          ),
-          icon: context.opportunities.readingIdentityForId(signal.id).icon,
-        ),
-    ],
-  );
-}
-
-class _RadarProfileReadingPill extends StatelessWidget {
-  const _RadarProfileReadingPill({
-    required this.label,
-    required this.style,
-    required this.icon,
-  });
-
-  final String label;
-  final AppReadingBadgeStyle style;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      color: style.background,
-      borderRadius: BorderRadius.circular(AppRadius.chip),
-      border: Border.all(color: style.border),
-    ),
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: style.iconColor),
-          const SizedBox(width: 5),
-          Flexible(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: style.foreground,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-class _TeamStack extends StatelessWidget {
-  const _TeamStack({required this.match});
-  final MatchBoardItem match;
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      _TeamLine(team: match.homeTeam),
-      const SizedBox(height: 5),
-      _TeamLine(team: match.awayTeam),
-    ],
-  );
-}
-
-class _TeamLine extends StatelessWidget {
-  const _TeamLine({required this.team});
-  final TeamInfo team;
-  @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      SportsAssetBadge(
-        size: 24,
-        imageUrl: team.logoUrl,
-        fallbackLabel: team.name,
-        borderRadius: 12,
-        contrastPlate: true,
-      ),
-      const SizedBox(width: 7),
-      Expanded(
-        child: Text(
-          team.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: context.textColors.primary,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ),
-    ],
-  );
-}
-
-class _RadarMatchResultOdds extends StatelessWidget {
-  const _RadarMatchResultOdds({required this.match});
-  final MatchBoardItem match;
-
-  @override
-  Widget build(BuildContext context) {
-    final selections =
-        match.defaultMarket?.selections.take(3).toList() ??
-        const <MarketOdds>[];
-    if (selections.length != 3) return const SizedBox(width: 47);
-    return SizedBox(
-      width: 47,
-      height: 66,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          for (final indexed in selections.indexed)
-            RichText(
-              text: TextSpan(
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: context.textColors.secondary,
-                  fontWeight: FontWeight.w800,
-                ),
-                children: [
-                  TextSpan(text: '${const ['1', 'N', '2'][indexed.$1]} '),
-                  TextSpan(
-                    text: indexed.$2.odds.toStringAsFixed(2),
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: context.textColors.primary,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RadarSignalsPanel extends StatelessWidget {
-  const _RadarSignalsPanel({required this.entries});
-  final List<PlayerFormRadarEntry> entries;
-  @override
-  Widget build(BuildContext context) {
-    final matrixColumns = entries.fold<int>(
-      PlayerFormRadarRanker.recentWindow,
-      (current, entry) => entry.profile.activity.length > current
-          ? entry.profile.activity.length
-          : current,
-    );
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.surfaces.background.withValues(alpha: .45),
-        border: Border.all(color: context.surfaces.border),
-        borderRadius: BorderRadius.circular(AppRadius.control),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(9),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.bar_chart_rounded,
-                  color: context.brand.accent,
-                  size: 19,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Signaux Form Radar',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: context.textColors.primary,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '${entries.length} signal${entries.length > 1 ? 's' : ''}',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: context.textColors.secondary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 7),
-            Align(
-              alignment: Alignment.centerRight,
-              child: _RadarPeriodLabel(columnCount: matrixColumns),
-            ),
-            const SizedBox(height: 4),
-            for (final indexed in entries.indexed) ...[
-              if (indexed.$1 > 0)
-                Divider(height: 12, color: context.surfaces.border),
-              _RadarSignalRow(entry: indexed.$2, matrixColumns: matrixColumns),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RadarSignalRow extends StatelessWidget {
-  const _RadarSignalRow({required this.entry, required this.matrixColumns});
-  final PlayerFormRadarEntry entry;
-  final int matrixColumns;
-  @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      SportsAssetBadge(
-        size: 30,
-        imageUrl: entry.profile.photoUrl,
-        fallbackLabel: entry.profile.playerName,
-        borderRadius: 15,
-        contrastPlate: true,
-      ),
-      const SizedBox(width: 7),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              entry.profile.playerName,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: context.textColors.primary,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            Text(
-              '${entry.recentDecisiveMatches}/3 décisif · série ${entry.decisiveStreak}',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: context.textColors.secondary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-      SizedBox(
-        width: _matrixWidth(matrixColumns),
-        child: _PlayerActivityMatrix(
-          activity: entry.profile.activity,
-          columnCount: matrixColumns,
-        ),
-      ),
-    ],
-  );
 }
 
 List<PlayerFormRadarProfile> _profilesForMatches(List<MatchBoardItem> matches) {

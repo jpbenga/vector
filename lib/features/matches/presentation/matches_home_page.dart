@@ -23,10 +23,7 @@ import '../../onboarding/domain/decision_profile.dart';
 import '../../onboarding/domain/decision_profile_catalogs.dart';
 import '../../onboarding/domain/profile_compiler.dart';
 import '../../opportunities/domain/opportunity.dart';
-import '../../form_radar/data/player_form_radar_fixture.dart';
-import '../../form_radar/domain/player_form_radar.dart';
 import '../../form_radar/domain/team_form_radar.dart';
-import '../../form_radar/presentation/form_radar_signal_panel.dart';
 import '../../tickets/data/saved_ticket_store.dart';
 import '../../tickets/domain/saved_ticket.dart';
 import '../../tickets/domain/ticket_settlement_engine.dart';
@@ -48,6 +45,7 @@ import 'opportunity_decision_presenter.dart';
 import 'reading_bilan_section.dart';
 import '../../form_radar/presentation/player_form_radar_page.dart';
 import 'widgets/copilot_calendar.dart';
+import 'widgets/match_feed_card.dart';
 import 'widgets/sports_asset_badge.dart';
 
 class MatchesHomePage extends StatefulWidget {
@@ -182,6 +180,23 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             for (final match in allMatches)
               repository.analyzeFor(effectiveProfile, match),
           ];
+          // Radar explores every loaded competition while keeping the account's
+          // reading, scenario and market choices. This temporary profile is
+          // never persisted and does not change the selection in "Pour moi".
+          final radarProfile = baseProfile.withOptionIds('competitions', [
+            ...{
+              ...baseProfile.optionIdsFor('competitions'),
+              for (final match in allMatches) match.competition.id,
+            },
+          ]);
+          final radarReadingMatches =
+              widget.identityScope.isAccount &&
+                  _scoresMode == _ScoresRedesignMode.radar
+              ? [
+                  for (final match in allMatches)
+                    repository.analyzeFor(radarProfile, match),
+                ]
+              : const <MatchBoardItem>[];
           final ticketGenerationResult = const TicketGenerator().generate(
             matches: generatorMatches,
             strategies: widget.ticketStrategies,
@@ -241,11 +256,33 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             );
           }
 
+          void openRadarMatch(MatchBoardItem match) {
+            if (!widget.identityScope.isAccount) {
+              openAnalyzedMatch(match);
+              return;
+            }
+            final analyzed = repository.analyzeFor(radarProfile, match);
+            final opportunity = repository
+                .opportunitiesFor(radarProfile)
+                .where((item) => item.matchId == match.id)
+                .firstOrNull;
+            if (opportunity != null) {
+              _openOpportunityDetails(
+                opportunity,
+                match: analyzed,
+                selectionProfile: radarProfile,
+              );
+            } else {
+              _openMatchDetails(analyzed, selectionProfile: radarProfile);
+            }
+          }
+
           return _ScoresRedesignHome(
             profile: effectiveProfile,
             identityScope: widget.identityScope,
             matches: analyzedAllMatches,
             personalizedMatches: personalizedMatches,
+            radarReadingMatches: radarReadingMatches,
             opportunities: opportunities,
             teamFormRadarProfiles: teamFormRadarProfiles,
             selectedDate: effectiveSelectedDate,
@@ -260,6 +297,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             },
             onChooseDate: _chooseScoresDate,
             onOpenMatch: openAnalyzedMatch,
+            onOpenRadarMatch: openRadarMatch,
             onOpenOpportunity: _openOpportunityDetails,
             onOpenProfile: () => _showAccountSheet(context),
             onOpenTheme: _openLectorSpace,
@@ -1051,6 +1089,7 @@ class _ScoresRedesignHome extends StatefulWidget {
     required this.identityScope,
     required this.matches,
     required this.personalizedMatches,
+    required this.radarReadingMatches,
     required this.opportunities,
     required this.teamFormRadarProfiles,
     required this.selectedDate,
@@ -1059,6 +1098,7 @@ class _ScoresRedesignHome extends StatefulWidget {
     required this.onDateSelected,
     required this.onChooseDate,
     required this.onOpenMatch,
+    required this.onOpenRadarMatch,
     required this.onOpenOpportunity,
     required this.onOpenProfile,
     required this.onOpenTheme,
@@ -1081,6 +1121,7 @@ class _ScoresRedesignHome extends StatefulWidget {
   final IdentityScope identityScope;
   final List<MatchBoardItem> matches;
   final List<MatchBoardItem> personalizedMatches;
+  final List<MatchBoardItem> radarReadingMatches;
   final List<Opportunity> opportunities;
   final List<TeamFormRadarProfile> teamFormRadarProfiles;
   final DateTime selectedDate;
@@ -1089,6 +1130,7 @@ class _ScoresRedesignHome extends StatefulWidget {
   final ValueChanged<DateTime> onDateSelected;
   final VoidCallback onChooseDate;
   final ValueChanged<MatchBoardItem> onOpenMatch;
+  final ValueChanged<MatchBoardItem> onOpenRadarMatch;
   final ValueChanged<Opportunity> onOpenOpportunity;
   final VoidCallback onOpenProfile;
   final VoidCallback onOpenTheme;
@@ -1300,13 +1342,13 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                                       matches: allMatchesForSelectedDate,
                                       radarSourceMatches: widget.matches,
                                       personalizedMatches:
-                                          widget.personalizedMatches,
+                                          widget.radarReadingMatches,
                                       showProfileReadings:
                                           widget.identityScope.isAccount,
                                       teamProfiles:
                                           widget.teamFormRadarProfiles,
                                       selectedDate: widget.selectedDate,
-                                      onOpenMatch: widget.onOpenMatch,
+                                      onOpenMatch: widget.onOpenRadarMatch,
                                     )
                                   : showsGenerator
                                   ? SizedBox(
@@ -1384,6 +1426,8 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                                       ],
                                     )
                                   : _AllMatchesCountrySection(
+                                      showReadings:
+                                          widget.identityScope.isAccount,
                                       title: listTitle,
                                       emptySubtitle: listSubtitle,
                                       groups: allCompetitionGroups,
@@ -1561,10 +1605,10 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
     return filters;
   }
 
-  List<_ForMeReading> _profileReadings(MatchBoardItem match) {
+  List<MatchCardReading> _profileReadings(MatchBoardItem match) {
     final selectedReadingIds = _selectedReadingIds;
     final selectedScenarioIds = _selectedScenarioIds;
-    final readingsById = <String, _ForMeReading>{};
+    final readingsById = <String, MatchCardReading>{};
 
     void add(String runtimeId, {required bool isScenario}) {
       final category = _ForMeReadingCategory.fromRuntimeId(
@@ -1576,7 +1620,7 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
       if (category == null || readingsById.containsKey(category.id)) {
         return;
       }
-      readingsById[category.id] = _ForMeReading(
+      readingsById[category.id] = MatchCardReading(
         id: category.id,
         label: category.label,
       );
@@ -1757,20 +1801,6 @@ class _RuntimePersonalizationDiagnosticButton extends StatelessWidget {
       ),
     );
   }
-}
-
-class _ForMeReading {
-  const _ForMeReading({required this.id, required this.label});
-
-  final String id;
-  final String label;
-}
-
-class _ForMeScenario {
-  const _ForMeScenario({required this.label, required this.summary});
-
-  final String label;
-  final String summary;
 }
 
 class _ForMeReadingFilter {
@@ -1956,59 +1986,6 @@ class _ForMeReadingCategory {
     'corners': _ForMeReadingCategory(id: 'corners', label: 'Corners'),
     'cards': _ForMeReadingCategory(id: 'cards', label: 'Cartons'),
     'context': _ForMeReadingCategory(id: 'context', label: 'Contexte'),
-  };
-}
-
-String _readingLabelForId(String id, {required String fallback}) {
-  return switch (id) {
-    'ranking_gap' || 'structural_level_gap' => 'Avantage classement',
-    'ranking_superiority' => 'Écart au classement',
-    'balanced_hierarchy' => 'Hiérarchie équilibrée',
-    'positive_streak' ||
-    'improving_form' ||
-    'form_advantage' ||
-    'form_gap' => 'Forme',
-    'negative_streak' || 'declining_form' => 'Dynamique négative',
-    'head_to_head_dominance' => 'Domination TAT',
-    'frequent_first_half_scoring' => 'Marque en première mi-temps',
-    'frequent_first_half_conceding' => 'Encaisse en première mi-temps',
-    'frequent_second_half_scoring' => 'Marque en seconde mi-temps',
-    'frequent_second_half_conceding' => 'Encaisse en seconde mi-temps',
-    'match_shot_profile' => 'Rythme de tirs attendu',
-    'match_corner_profile' => 'Potentiel corners',
-    'match_card_profile' => 'Intensité des cartons',
-    'high_shot_volume' => 'Volume de tirs élevé',
-    'low_shot_volume' => 'Faible volume de tirs',
-    'high_shots_on_target' => 'Nombreux tirs cadrés',
-    'low_shot_accuracy' => 'Difficulté à cadrer',
-    'high_shots_conceded' => 'Concède beaucoup de tirs',
-    'high_shots_on_target_conceded' => 'Concède des tirs cadrés',
-    'high_corner_creation' => 'Obtient beaucoup de corners',
-    'high_corners_conceded' => 'Concède beaucoup de corners',
-    'high_total_corners_profile' => 'Match riche en corners',
-    'low_total_corners_profile' => 'Match pauvre en corners',
-    'high_card_rate' => 'Beaucoup de cartons',
-    'low_card_rate' => 'Équipe disciplinée',
-    'high_total_cards_profile' => 'Match riche en cartons',
-    'fragile_defense' ||
-    'high_xg_conceded' ||
-    'defensive_underperformance' => 'Défense fragile',
-    'prolific_attack' ||
-    'high_xg_creation' ||
-    'attack_in_form' => 'Attaque efficace',
-    'open_match' ||
-    'open_match_profile' ||
-    'frequent_over_25' ||
-    'frequent_btts' => 'Match ouvert',
-    'closed_match' ||
-    'closed_match_profile' ||
-    'frequent_under_25' => 'Match fermé',
-    'expected_domination' ||
-    'solid_favorite' ||
-    'controlled_favorite' => 'Domination attendue',
-    'credible_outsider' => 'Outsider crédible',
-    'contradiction' || 'conflicting_signals' => 'Contexte',
-    _ => fallback,
   };
 }
 
@@ -3918,7 +3895,7 @@ class _ForMeCompetitionStoriesSectionState
       children: [
         _ForMeCompetitionHeader(
           competition: group.competition,
-          firstKickoff: _fixtureTime(firstMatch.fixture),
+          firstKickoff: matchFixtureTime(firstMatch.fixture),
           matchCount: matchCount,
           isExpanded: _isExpanded,
           onToggle: hasMore
@@ -3926,7 +3903,7 @@ class _ForMeCompetitionStoriesSectionState
               : null,
         ),
         const SizedBox(height: AppSpacing.xs),
-        _TodayStoryCard(
+        MatchFeedCard(
           match: firstMatch,
           onTap: () => widget.onOpenMatch(firstMatch),
           showCompetitionHeader: false,
@@ -3934,7 +3911,7 @@ class _ForMeCompetitionStoriesSectionState
         if (_isExpanded)
           for (final match in group.matches.skip(1)) ...[
             const SizedBox(height: AppSpacing.sm),
-            _TodayStoryCard(
+            MatchFeedCard(
               match: match,
               onTap: () => widget.onOpenMatch(match),
               showCompetitionHeader: false,
@@ -4078,655 +4055,9 @@ String _todayStorySectionTitle(DateTime date) {
   return 'À suivre $day';
 }
 
-class _TodayStoryCard extends StatelessWidget {
-  const _TodayStoryCard({
-    required this.match,
-    required this.onTap,
-    this.showCompetitionHeader = true,
-  });
-
-  final MatchBoardItem match;
-  final VoidCallback onTap;
-  final bool showCompetitionHeader;
-
-  @override
-  Widget build(BuildContext context) {
-    final readings = _representativeReadingTags(match);
-    final scenarios = _representativeScenarios(match);
-    final storedRadarEntries = _formRadarEntriesForMatch(match);
-    final usesLocalRadarPreview =
-        storedRadarEntries.isEmpty && formRadarFixtureEnabled;
-    final radarEntries = usesLocalRadarPreview
-        ? playerFormRadarFixtureEntriesForMatch(match)
-        : storedRadarEntries;
-    final readingCount = _storyReadingCount(match, readings);
-    final actionColor = scenarios.isNotEmpty
-        ? context.strategies.violetStyle.color
-        : readings.isNotEmpty
-        ? context.opportunities.readingIdentityForId(readings.first.id).color
-        : context.brand.accent;
-
-    return Material(
-      color: context.surfaces.surface.withValues(alpha: 0.72),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        side: BorderSide(color: context.surfaces.border),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 11, 12, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (showCompetitionHeader)
-                _StoryCompetitionHeader(
-                  match: match,
-                  readingCount: readingCount,
-                )
-              else
-                _StoryMatchTimeHeader(match: match, readingCount: readingCount),
-              const SizedBox(height: 9),
-              Divider(height: 1, color: context.surfaces.border),
-              const SizedBox(height: 10),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final compact = constraints.maxWidth < 680;
-                  final insights = _StoryInsights(
-                    scenarios: scenarios,
-                    readings: readings,
-                    fallbackSummary: _storySummary(match),
-                  );
-                  final action = IconButton.outlined(
-                    onPressed: onTap,
-                    tooltip: 'Voir l’analyse',
-                    icon: Icon(Icons.chevron_right_rounded, color: actionColor),
-                    style: IconButton.styleFrom(
-                      side: BorderSide(color: context.surfaces.border),
-                      backgroundColor: context.surfaces.surfaceHover.withValues(
-                        alpha: 0.4,
-                      ),
-                    ),
-                  );
-
-                  if (compact) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(child: _StoryTeams(match: match)),
-                            const SizedBox(width: 8),
-                            action,
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        insights,
-                      ],
-                    );
-                  }
-
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      SizedBox(width: 260, child: _StoryTeams(match: match)),
-                      Container(
-                        width: 1,
-                        height: 84,
-                        margin: const EdgeInsets.symmetric(horizontal: 14),
-                        color: context.surfaces.border,
-                      ),
-                      Expanded(child: insights),
-                      const SizedBox(width: 10),
-                      action,
-                    ],
-                  );
-                },
-              ),
-              if (radarEntries.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Divider(height: 1, color: context.surfaces.border),
-                const SizedBox(height: 10),
-                FormRadarSignalPanel(
-                  entries: radarEntries,
-                  isLocalPreview: usesLocalRadarPreview,
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-List<PlayerFormRadarEntry> _formRadarEntriesForMatch(MatchBoardItem match) {
-  final hotPlayers = PlayerFormRadarRanker.rank(
-    match.analysis.playerFormRadarProfiles,
-  );
-  return hotPlayers
-      .where(
-        (entry) =>
-            entry.profile.teamId == match.homeTeam.apiFootballTeamId ||
-            entry.profile.teamId == match.awayTeam.apiFootballTeamId,
-      )
-      .toList(growable: false);
-}
-
-class _StoryCompetitionHeader extends StatelessWidget {
-  const _StoryCompetitionHeader({
-    required this.match,
-    required this.readingCount,
-  });
-
-  final MatchBoardItem match;
-  final int readingCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final countryFlag = Semantics(
-      label: 'Pays : ${match.competition.country.name}',
-      image: true,
-      child: SportsAssetBadge(
-        key: ValueKey('story-country-flag-${match.id}'),
-        size: 20,
-        imageUrl: match.competition.country.flagUrl,
-        fallbackLabel: match.competition.country.code,
-        borderRadius: 3,
-        padding: 0,
-      ),
-    );
-    final logo = SportsAssetBadge(
-      size: 24,
-      imageUrl: match.competition.logoUrl,
-      fallbackLabel: match.competition.name,
-      contrastPlate: true,
-    );
-    final competitionName = Text(
-      match.competition.name,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: theme.textTheme.labelLarge?.copyWith(
-        color: context.textColors.primary,
-        fontWeight: FontWeight.w900,
-      ),
-    );
-    final kickoff = Text(
-      _fixtureTime(match.fixture),
-      style: theme.textTheme.labelMedium?.copyWith(
-        color: context.textColors.secondary,
-        fontWeight: FontWeight.w700,
-      ),
-    );
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < 480) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  countryFlag,
-                  const SizedBox(width: 6),
-                  logo,
-                  const SizedBox(width: 8),
-                  Expanded(child: competitionName),
-                  if (readingCount > 0) ...[
-                    const SizedBox(width: 8),
-                    _StoryRelevanceLabel(readingCount: readingCount),
-                  ],
-                ],
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: 58, top: 2),
-                child: kickoff,
-              ),
-            ],
-          );
-        }
-
-        return Row(
-          children: [
-            countryFlag,
-            const SizedBox(width: 6),
-            logo,
-            const SizedBox(width: 8),
-            Flexible(child: competitionName),
-            const SizedBox(width: 7),
-            Text(
-              '·',
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: context.textColors.secondary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(width: 7),
-            kickoff,
-            const Spacer(),
-            if (readingCount > 0) ...[
-              const SizedBox(width: 10),
-              _StoryRelevanceLabel(readingCount: readingCount),
-            ],
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _StoryMatchTimeHeader extends StatelessWidget {
-  const _StoryMatchTimeHeader({
-    required this.match,
-    required this.readingCount,
-  });
-
-  final MatchBoardItem match;
-  final int readingCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(Icons.schedule_rounded, size: 17, color: context.brand.accent),
-        const SizedBox(width: 6),
-        Text(
-          _fixtureTime(match.fixture),
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: context.textColors.primary,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const Spacer(),
-        if (readingCount > 0) _StoryRelevanceLabel(readingCount: readingCount),
-      ],
-    );
-  }
-}
-
-class _StoryInsights extends StatelessWidget {
-  const _StoryInsights({
-    required this.scenarios,
-    required this.readings,
-    required this.fallbackSummary,
-  });
-
-  final List<_ForMeScenario> scenarios;
-  final List<_ForMeReading> readings;
-  final String fallbackSummary;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final scenario in scenarios) ...[
-          _StoryScenarioPanel(scenario: scenario),
-          const SizedBox(height: 7),
-        ],
-        _StoryReadingTags(tags: readings),
-        if (scenarios.isEmpty && fallbackSummary.isNotEmpty) ...[
-          const SizedBox(height: 6),
-          Text(
-            fallbackSummary,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: context.textColors.secondary,
-              height: 1.2,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _StoryScenarioPanel extends StatelessWidget {
-  const _StoryScenarioPanel({required this.scenario});
-
-  final _ForMeScenario scenario;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = context.strategies.violetStyle.color;
-    final theme = Theme.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(AppRadius.control),
-        border: Border.all(color: color.withValues(alpha: 0.68)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.track_changes_rounded, color: color, size: 23),
-            const SizedBox(width: 9),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'SCÉNARIO',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.7,
-                    ),
-                  ),
-                  Text(
-                    scenario.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  if (scenario.summary.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      scenario.summary,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: context.textColors.secondary,
-                        height: 1.18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StoryRelevanceLabel extends StatelessWidget {
-  const _StoryRelevanceLabel({required this.readingCount});
-
-  final int readingCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final label = readingCount == 1 ? '1 lecture' : '$readingCount lectures';
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.bar_chart_rounded, color: context.brand.accent, size: 16),
-        const SizedBox(width: 5),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: context.textColors.primary,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StoryReadingTags extends StatelessWidget {
-  const _StoryReadingTags({required this.tags});
-
-  final List<_ForMeReading> tags;
-
-  @override
-  Widget build(BuildContext context) {
-    if (tags.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Wrap(
-      spacing: 6,
-      runSpacing: 5,
-      children: [
-        for (final tag in tags)
-          _StoryReadingPill(
-            label: tag.label,
-            style: context.opportunities.badgeFor(
-              tag.id,
-              variant: AppReadingBadgeVariant.soft,
-            ),
-            icon: context.opportunities.readingIdentityForId(tag.id).icon,
-          ),
-      ],
-    );
-  }
-}
-
-List<_ForMeReading> _representativeReadingTags(MatchBoardItem match) {
-  final readingsById = <String, _ForMeReading>{};
-  void add(String id, String label) {
-    if (id.isNotEmpty && !readingsById.containsKey(id)) {
-      readingsById[id] = _ForMeReading(id: id, label: label);
-    }
-  }
-
-  for (final signal in match.signals) {
-    if (signal.id.startsWith('scenario:') || signal.id.startsWith('market:')) {
-      continue;
-    }
-    if (signal.id.startsWith('standout_decisive_player')) {
-      continue;
-    }
-    add(signal.id, _readingLabelForId(signal.id, fallback: signal.title));
-  }
-  final thesis = match.thesis;
-  if (thesis != null) {
-    for (final argument in thesis.arguments) {
-      final id = FootballReadingCopyCatalog.readingIdFor(argument);
-      if (id == 'standout_decisive_player') {
-        continue;
-      }
-      add(id, FootballReadingCopyCatalog.titleFor(argument));
-    }
-    // Some legacy/demo opportunities only expose their retained thesis and do
-    // not carry the underlying reading signals. Keep that thesis visible as a
-    // presentation fallback without mixing it with explicit scenario signals.
-    if (thesis.arguments.isEmpty && thesis.id != 'standout_decisive_player') {
-      add(thesis.id, _readingLabelForId(thesis.id, fallback: thesis.title));
-    }
-  }
-  return readingsById.values.toList(growable: false);
-}
-
-int _storyReadingCount(
-  MatchBoardItem match,
-  List<_ForMeReading> displayedReadings,
-) {
-  final thesis = match.thesis;
-  if (thesis != null) {
-    final supportingArguments = thesis.arguments.where((argument) {
-      final readingId = FootballReadingCopyCatalog.readingIdFor(argument);
-      return readingId != 'standout_decisive_player' &&
-          argument.family != CopilotArgumentFamily.market &&
-          argument.family != CopilotArgumentFamily.contradiction;
-    }).length;
-    if (supportingArguments > 0) {
-      return supportingArguments;
-    }
-    if (thesis.arguments.isNotEmpty ||
-        thesis.id == 'standout_decisive_player') {
-      return 0;
-    }
-    if (thesis.supportingEvidence.isNotEmpty) {
-      return thesis.supportingEvidence.length;
-    }
-  }
-
-  final hasOnlyPlayerReading =
-      displayedReadings.isEmpty &&
-      match.signals.any(
-        (signal) => signal.id.startsWith('standout_decisive_player'),
-      );
-  if (hasOnlyPlayerReading) return 0;
-
-  if (match.profileRelevance.readingMatches > 0) {
-    return match.profileRelevance.readingMatches;
-  }
-  return displayedReadings.length;
-}
-
-List<_ForMeScenario> _representativeScenarios(MatchBoardItem match) {
-  final scenariosByRuntimeId = <String, _ForMeScenario>{};
-  for (final signal in match.signals) {
-    if (!signal.id.startsWith('scenario:')) {
-      continue;
-    }
-    final parts = signal.id.split(':');
-    if (parts.length < 2 || parts[1].isEmpty) {
-      continue;
-    }
-    final scenarioId = parts[1];
-    final catalogLabel = OpportunityProfileCatalog.byId(
-      scenarioId,
-    )?.displayLabel;
-    final signalLabel = signal.title.trim();
-    scenariosByRuntimeId[signal.id] = _ForMeScenario(
-      label: signalLabel.isNotEmpty
-          ? signalLabel
-          : catalogLabel ?? 'Scénario détecté',
-      summary: signal.summary.trim(),
-    );
-  }
-  return scenariosByRuntimeId.values.toList(growable: false);
-}
-
-String _storySummary(MatchBoardItem match) {
-  final thesisSummary = match.thesis?.summary.trim();
-  if (thesisSummary != null && thesisSummary.isNotEmpty) {
-    return thesisSummary;
-  }
-  for (final signal in match.signals) {
-    final summary = signal.summary.trim();
-    if (summary.isNotEmpty) {
-      return summary;
-    }
-  }
-  return '';
-}
-
-class _StoryTeams extends StatelessWidget {
-  const _StoryTeams({required this.match});
-
-  final MatchBoardItem match;
-
-  @override
-  Widget build(BuildContext context) {
-    final resultOdds = _matchResultOddsFor(match);
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _StoryTeamLine(team: match.homeTeam),
-              const SizedBox(height: 10),
-              _StoryTeamLine(team: match.awayTeam),
-            ],
-          ),
-        ),
-        if (resultOdds.length == 3) ...[
-          const SizedBox(width: 10),
-          _StoryMatchResultOdds(matchId: match.id, resultOdds: resultOdds),
-        ],
-      ],
-    );
-  }
-}
-
-class _StoryTeamLine extends StatelessWidget {
-  const _StoryTeamLine({required this.team});
-
-  final TeamInfo team;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SportsAssetBadge(
-          size: 28,
-          imageUrl: team.logoUrl,
-          fallbackLabel: team.name,
-          borderRadius: AppRadius.chip,
-          padding: 1,
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        Expanded(
-          child: Text(
-            team.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(
-              context,
-            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StoryReadingPill extends StatelessWidget {
-  const _StoryReadingPill({
-    required this.label,
-    required this.style,
-    required this.icon,
-  });
-
-  final String label;
-  final AppReadingBadgeStyle style;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: style.background,
-        borderRadius: BorderRadius.circular(AppRadius.chip),
-        border: Border.all(color: style.border),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 15, color: style.iconColor),
-            const SizedBox(width: 5),
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: style.foreground,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _AllMatchesCountrySection extends StatelessWidget {
   const _AllMatchesCountrySection({
+    required this.showReadings,
     required this.title,
     required this.emptySubtitle,
     required this.groups,
@@ -4737,6 +4068,7 @@ class _AllMatchesCountrySection extends StatelessWidget {
   final String emptySubtitle;
   final List<_ScoresCompetitionGroup> groups;
   final ValueChanged<MatchBoardItem> onOpenMatch;
+  final bool showReadings;
 
   @override
   Widget build(BuildContext context) {
@@ -4788,7 +4120,11 @@ class _AllMatchesCountrySection extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xs),
             for (final group in topFive) ...[
-              _AllMatchesCountryGroup(group: group, onOpenMatch: onOpenMatch),
+              _AllMatchesCountryGroup(
+                group: group,
+                onOpenMatch: onOpenMatch,
+                showReadings: showReadings,
+              ),
               const SizedBox(height: AppSpacing.sm),
             ],
             const SizedBox(height: AppSpacing.md),
@@ -4799,7 +4135,11 @@ class _AllMatchesCountrySection extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           for (final group in otherCountries) ...[
-            _AllMatchesCountryGroup(group: group, onOpenMatch: onOpenMatch),
+            _AllMatchesCountryGroup(
+              group: group,
+              onOpenMatch: onOpenMatch,
+              showReadings: showReadings,
+            ),
             const SizedBox(height: AppSpacing.sm),
           ],
         ],
@@ -4847,12 +4187,14 @@ class _AllMatchesCountrySectionLabel extends StatelessWidget {
 
 class _AllMatchesCountryGroup extends StatefulWidget {
   const _AllMatchesCountryGroup({
+    required this.showReadings,
     required this.group,
     required this.onOpenMatch,
   });
 
   final _ScoresCountryGroup group;
   final ValueChanged<MatchBoardItem> onOpenMatch;
+  final bool showReadings;
 
   @override
   State<_AllMatchesCountryGroup> createState() =>
@@ -4936,6 +4278,7 @@ class _AllMatchesCountryGroupState extends State<_AllMatchesCountryGroup> {
                 children: [
                   for (final competition in group.competitions) ...[
                     _DenseCompetitionSection(
+                      showReadings: widget.showReadings,
                       group: competition,
                       initiallyExpanded: false,
                       onOpenMatch: widget.onOpenMatch,
@@ -4959,6 +4302,7 @@ class _AllMatchesCountryGroupState extends State<_AllMatchesCountryGroup> {
 
 class _DenseCompetitionSection extends StatefulWidget {
   const _DenseCompetitionSection({
+    required this.showReadings,
     required this.group,
     required this.initiallyExpanded,
     required this.onOpenMatch,
@@ -4967,6 +4311,7 @@ class _DenseCompetitionSection extends StatefulWidget {
   final _ScoresCompetitionGroup group;
   final bool initiallyExpanded;
   final ValueChanged<MatchBoardItem> onOpenMatch;
+  final bool showReadings;
 
   @override
   State<_DenseCompetitionSection> createState() =>
@@ -5052,10 +4397,15 @@ class _DenseCompetitionSectionState extends State<_DenseCompetitionSection> {
                   index++
                 ) ...[
                   Divider(height: 1, color: context.surfaces.border),
-                  _DenseMatchRow(
-                    match: widget.group.matches[index],
-                    onTap: () =>
-                        widget.onOpenMatch(widget.group.matches[index]),
+                  Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: MatchFeedCard(
+                      showCompetitionHeader: false,
+                      showReadings: widget.showReadings,
+                      match: widget.group.matches[index],
+                      onTap: () =>
+                          widget.onOpenMatch(widget.group.matches[index]),
+                    ),
                   ),
                 ],
               ],
@@ -5066,257 +4416,6 @@ class _DenseCompetitionSectionState extends State<_DenseCompetitionSection> {
             duration: const Duration(milliseconds: 180),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _DenseMatchRow extends StatelessWidget {
-  const _DenseMatchRow({required this.match, required this.onTap});
-
-  final MatchBoardItem match;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final reading = _compactReadingLabel(match);
-    final resultOdds = _matchResultOddsFor(match);
-
-    return Material(
-      color: AppColors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 46,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _fixtureTime(match.fixture),
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        color: context.brand.accent,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    Text(
-                      _statusLabel(match.fixture.status),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: context.textColors.secondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(width: 1, height: 40, color: context.surfaces.border),
-              const SizedBox(width: 10),
-              Expanded(
-                child: SizedBox(
-                  height: 48,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _DenseTeamLine(team: match.homeTeam),
-                      _DenseTeamLine(team: match.awayTeam),
-                    ],
-                  ),
-                ),
-              ),
-              if (reading != null) ...[
-                const SizedBox(width: 6),
-                _CompactReadingBadge(label: reading),
-              ],
-              if (resultOdds.length == 3) ...[
-                const SizedBox(width: 7),
-                _DenseMatchResultOdds(resultOdds: resultOdds),
-              ],
-              const SizedBox(width: 4),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: context.textColors.secondary,
-                size: 22,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DenseTeamLine extends StatelessWidget {
-  const _DenseTeamLine({required this.team});
-
-  final TeamInfo team;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SportsAssetBadge(
-          size: 20,
-          imageUrl: team.logoUrl,
-          fallbackLabel: team.name,
-          borderRadius: AppRadius.chip,
-          padding: 1,
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            team.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(
-              context,
-            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _CompactReadingBadge extends StatelessWidget {
-  const _CompactReadingBadge({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: 'Lecture disponible : $label',
-      child: Tooltip(
-        message: 'Lecture disponible',
-        child: SizedBox(
-          width: 20,
-          height: 28,
-          child: Center(
-            child: Icon(
-              Icons.radar_rounded,
-              size: 17,
-              color: context.brand.accent,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StoryMatchResultOdds extends StatelessWidget {
-  const _StoryMatchResultOdds({
-    required this.matchId,
-    required this.resultOdds,
-  });
-
-  final String matchId;
-  final List<_MatchResultOdd> resultOdds;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: 'Cotes 1 N 2',
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            key: ValueKey('story-match-result-odds-$matchId'),
-            width: 47,
-            height: 66,
-            child: Column(
-              children: [
-                _StoryResultOddLine(odd: resultOdds[0]),
-                const SizedBox(height: 10),
-                _StoryResultOddLine(odd: resultOdds[1]),
-                const SizedBox(height: 10),
-                _StoryResultOddLine(odd: resultOdds[2]),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StoryResultOddLine extends StatelessWidget {
-  const _StoryResultOddLine({required this.odd});
-
-  final _MatchResultOdd odd;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SizedBox(
-      height: (66 - 20) / 3,
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: RichText(
-          text: TextSpan(
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: context.textColors.secondary,
-              fontWeight: FontWeight.w800,
-            ),
-            children: [
-              TextSpan(text: '${odd.label} '),
-              TextSpan(
-                text: odd.value.odds.toStringAsFixed(2),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: context.textColors.primary,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DenseMatchResultOdds extends StatelessWidget {
-  const _DenseMatchResultOdds({required this.resultOdds});
-
-  final List<_MatchResultOdd> resultOdds;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Semantics(
-      label: 'Cotes 1 N 2',
-      child: SizedBox(
-        key: ValueKey('dense-match-result-odds-${resultOdds.first.value.id}'),
-        width: 47,
-        height: 48,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            for (final odd in resultOdds)
-              RichText(
-                text: TextSpan(
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: context.textColors.secondary,
-                    fontWeight: FontWeight.w800,
-                  ),
-                  children: [
-                    TextSpan(text: '${odd.label} '),
-                    TextSpan(
-                      text: odd.value.odds.toStringAsFixed(2),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: context.textColors.primary,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
       ),
     );
   }
@@ -5433,113 +4532,6 @@ List<_ScoresCountryGroup> _scoresCountryGroups(
     (left, right) => left.country.name.compareTo(right.country.name),
   );
   return countries;
-}
-
-String _readingTitle(MatchBoardItem match) {
-  final title = match.thesis?.title.trim();
-  if (title != null && title.isNotEmpty) {
-    return _freeReadingCopy(title);
-  }
-  final signal = match.signals.isEmpty ? null : match.signals.first.title;
-  if (signal != null && signal.trim().isNotEmpty) {
-    return _freeReadingCopy(signal);
-  }
-  return 'Match à suivre';
-}
-
-String? _compactReadingLabel(MatchBoardItem match) {
-  if (match.thesis == null && match.signals.isEmpty) {
-    // The compact feed is a direct reflection of the server-computed
-    // readings. A client-side profile interpretation may legitimately have
-    // no thesis or signal, but that must not hide a reading already published
-    // for this fixture.
-    return match.analysis.computedReadings.isNotEmpty ? 'Lecture' : null;
-  }
-  final title = _readingTitle(match).toLowerCase();
-  if (title.contains('ouvert')) {
-    return 'Ouvert';
-  }
-  if (title.contains('domination') || title.contains('favori')) {
-    return 'Domination';
-  }
-  if (title.contains('contrôle') || title.contains('controle')) {
-    return 'Contrôle';
-  }
-  if (title.contains('fermé') || title.contains('ferme')) {
-    return 'Fermé';
-  }
-  return 'Lecture';
-}
-
-class _MatchResultOdd {
-  const _MatchResultOdd({required this.label, required this.value});
-
-  final String label;
-  final MarketOdds value;
-}
-
-/// Returns the canonical 1/N/2 market in its visual order.  Home cards only
-/// expose the basic result market; they never substitute an unrelated market
-/// merely to fill the available space.
-List<_MatchResultOdd> _matchResultOddsFor(MatchBoardItem match) {
-  MatchMarket? market;
-  for (final candidate in match.availableMarkets) {
-    if (candidate.id == 'matchResult') {
-      market = candidate;
-      break;
-    }
-  }
-  if (market == null) return const [];
-
-  MarketOdds? selectionFor(String expectedValue) {
-    for (final selection in market!.selections) {
-      final apiValue = selection.apiFootballValue?.toLowerCase();
-      final label = selection.label.trim().toLowerCase();
-      if (apiValue == expectedValue || label == expectedValue) {
-        return selection;
-      }
-    }
-    return null;
-  }
-
-  final home = selectionFor('home');
-  final draw = selectionFor('draw');
-  final away = selectionFor('away');
-  if (home == null || draw == null || away == null) return const [];
-  if (!home.odds.isFinite || !draw.odds.isFinite || !away.odds.isFinite) {
-    return const [];
-  }
-  return [
-    _MatchResultOdd(label: '1', value: home),
-    _MatchResultOdd(label: 'N', value: draw),
-    _MatchResultOdd(label: '2', value: away),
-  ];
-}
-
-String _freeReadingCopy(String value) {
-  return value
-      .replaceAll('Marché recommandé', 'Lecture recommandée')
-      .replaceAll('marché recommandé', 'lecture recommandée')
-      .replaceAll('Cote', 'Signal')
-      .replaceAll('cote', 'signal');
-}
-
-String _fixtureTime(NormalizedFixture fixture) {
-  final kickoff = fixture.kickoff?.toLocal();
-  if (kickoff != null) {
-    return '${kickoff.hour.toString().padLeft(2, '0')}:${kickoff.minute.toString().padLeft(2, '0')}';
-  }
-  return fixture.kickoffLabel;
-}
-
-String _statusLabel(FixtureStatus status) {
-  return switch (status) {
-    FixtureStatus.scheduled => 'À venir',
-    FixtureStatus.live => 'En cours',
-    FixtureStatus.finished => 'Terminé',
-    FixtureStatus.postponed => 'Reporté',
-    FixtureStatus.cancelled => 'Annulé',
-  };
 }
 
 class _RepositoryLoadError extends StatelessWidget {

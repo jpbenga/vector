@@ -79,7 +79,7 @@ class FormRadarSignalPanel extends StatelessWidget {
             const SizedBox(height: 7),
             Align(
               alignment: Alignment.centerRight,
-              child: _FormRadarPeriodMarker(columnCount: matrixColumns),
+              child: FormRadarPeriodLabel(columnCount: matrixColumns),
             ),
             const SizedBox(height: 4),
             for (final indexed in entries.indexed) ...[
@@ -170,39 +170,44 @@ class _FormRadarSignalRow extends StatelessWidget {
   );
 }
 
-class _FormRadarPeriodMarker extends StatelessWidget {
-  const _FormRadarPeriodMarker({required this.columnCount});
+class FormRadarPeriodLabel extends StatelessWidget {
+  const FormRadarPeriodLabel({required this.columnCount, super.key});
   final int columnCount;
 
   @override
   Widget build(BuildContext context) {
     final historyColumns = _historyColumns(columnCount);
     return SizedBox(
-      width: _matrixWidth(columnCount),
+      width: formRadarMatrixWidth(columnCount),
       child: Row(
         children: [
-          SizedBox(
-            width: _cellsWidth(historyColumns),
-            child: Text(
-              'Avant',
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.clip,
-              textAlign: TextAlign.center,
-              semanticsLabel: 'Matchs précédents',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: context.textColors.secondary,
-                fontWeight: FontWeight.w800,
+          if (historyColumns > 0) ...[
+            SizedBox(
+              width: _cellsWidth(historyColumns),
+              child: Text(
+                'Avant',
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.clip,
+                textAlign: TextAlign.center,
+                semanticsLabel: 'Matchs précédents',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: context.textColors.secondary,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
-          ),
-          _FormRadarDivider(color: context.brand.accent),
+            _FormRadarDivider(color: context.brand.accent),
+          ],
           SizedBox(
             width: _cellsWidth(PlayerFormRadarRanker.recentWindow),
             child: Semantics(
               label: 'Trois derniers matchs',
               child: Text(
                 '3 récents',
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.clip,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: context.brand.accent,
@@ -244,17 +249,19 @@ class _FormRadarActivityMatrix extends StatelessWidget {
             activity.length - PlayerFormRadarRanker.recentWindow,
           );
     return SizedBox(
-      width: _matrixWidth(columnCount),
+      width: formRadarMatrixWidth(columnCount),
       child: Row(
         children: [
-          SizedBox(
-            width: _cellsWidth(historyColumns),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: _FormRadarCellStrip(matches: prior),
+          if (historyColumns > 0) ...[
+            SizedBox(
+              width: _cellsWidth(historyColumns),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: _FormRadarCellStrip(matches: prior),
+              ),
             ),
-          ),
-          _FormRadarDivider(color: context.brand.accent),
+            _FormRadarDivider(color: context.brand.accent),
+          ],
           SizedBox(
             width: _cellsWidth(PlayerFormRadarRanker.recentWindow),
             child: _FormRadarCellStrip(matches: recent),
@@ -362,8 +369,9 @@ int _historyColumns(int columnCount) =>
 double _cellsWidth(int count) =>
     count == 0 ? 0 : count * _cellSize + (count - 1) * _cellSpacing;
 
-double _matrixWidth(int columnCount) =>
-    _cellsWidth(_historyColumns(columnCount)) +
-    _cellsWidth(PlayerFormRadarRanker.recentWindow) +
-    2 +
-    _dividerGap * 2;
+double formRadarMatrixWidth(int columnCount) {
+  final historyColumns = _historyColumns(columnCount);
+  return _cellsWidth(historyColumns) +
+      (historyColumns > 0 ? 2 + _dividerGap * 2 : 0) +
+      _cellsWidth(PlayerFormRadarRanker.recentWindow);
+}
