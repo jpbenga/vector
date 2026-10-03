@@ -21,7 +21,7 @@ Constats principaux :
 
 Pipeline actuel côté application :
 
-1. `MatchFeedRepositoryLoader.load` choisit la source : demo, snapshot local, snapshot Supabase ou fallback local (`lib/features/matches/data/match_feed_repository_loader.dart:30`).
+1. `MatchFeedRepositoryLoader.load` choisit les données de démonstration ou exige un snapshot Supabase couvrant la date demandée (`lib/features/matches/data/match_feed_repository_loader.dart:20`). Il ne charge plus de snapshot local de secours.
 2. `ApiFootballMatchAdapter.fromSnapshot` normalise fixtures, cotes, standings, team statistics, recent matches, expected goals et predictions dans `MatchBoardItem.analysis` (`lib/features/matches/data/api_football_match_adapter.dart:20`).
 3. `SnapshotMatchFeedRepository` et `DemoMatchFeedRepository` construisent la
    `MatchIntelligence` avec `OpportunityEngineV2`.

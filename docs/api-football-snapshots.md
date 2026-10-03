@@ -6,9 +6,9 @@ Les snapshots permettent de tester l'application avec des réponses API-Football
 sauvegardées, sans dépendre du réseau, des quotas ou de la disponibilité des
 championnats.
 
-Flutter ne doit pas appeler API-Football directement avec une clé embarquée. Le
-mode `snapshot` charge uniquement des JSON locaux ou des données déjà stockées
-par le backend.
+Flutter ne doit pas appeler API-Football directement avec une clé embarquée.
+Les exports JSON servent aux outils de recette ; l'application charge les
+données du jour depuis Supabase et n'embarque aucun snapshot local de secours.
 
 Le contrat serveur correspondant est defini dans :
 
@@ -114,7 +114,7 @@ dart run tool/build_match_feed_snapshot.dart \
   --exploration-dir var/api_football_exploration/focus_2026_08_08 \
   --from 2026-08-08 \
   --until 2026-08-09 \
-  --output assets/snapshots/focused_match_feed_latest.json
+  --output output/focused_match_feed_snapshot.json
 ```
 
 Pour une recette locale plus longue :
@@ -123,13 +123,17 @@ Pour une recette locale plus longue :
 dart run tool/build_match_feed_snapshot.dart --from 2026-08-08 --days 7
 ```
 
-Le front reste volontairement offline en mode `snapshot`. Il n'appelle pas
-API-Football directement et ne remplace pas une cote ou une rencontre absente
-par une donnée issue d'un autre snapshot.
+Cet export sert uniquement aux audits et à la recette manuelle. L'application
+ne le charge pas comme solution de secours : elle n'affiche que les snapshots
+Supabase couvrant la date demandée, ou les données `demo` explicitement
+sélectionnées.
 
-## Fichier de démonstration
+## Fixtures de référence pour la recette manuelle
 
-Le snapshot local actuel est :
+Les fichiers de cette section restent des exemples historiques pour les tests
+et audits exécutés avec un chemin explicite. L'application ne les charge pas.
+
+Un ancien export API-Football est :
 
 ```text
 assets/snapshots/api_football_match_feed_v1.json
@@ -162,21 +166,13 @@ Il couvre la période `2026-07-30` -> `2026-08-03` et sert à valider :
 - les états de cotes indisponibles lorsque l'API ne fournit pas de ligne odds
   pour une fixture.
 
-En développement, l'application utilise désormais `MATCH_FEED_SOURCE=auto` par
-défaut. Ce mode charge le dernier snapshot Supabase couvrant le jour courant
-quand Supabase est configuré, puis revient au snapshot local si la donnée
-distante est indisponible. La source `demo` ne doit être utilisée qu'en la
-demandant explicitement avec `--dart-define=MATCH_FEED_SOURCE=demo`.
+En développement, l'application utilise `MATCH_FEED_SOURCE=auto` par défaut.
+Ce mode exige Supabase et un snapshot qui couvre le jour courant. Si le flux
+actuel est absent, l'application affiche une erreur de chargement au lieu de
+présenter un export périmé. La source `demo` reste disponible si elle est
+demandée explicitement avec `--dart-define=MATCH_FEED_SOURCE=demo`.
 
-Pour lancer explicitement l'application sur ce snapshot :
-
-```sh
-flutter run \
-  --dart-define=APP_ENV=development \
-  --dart-define=MATCH_FEED_SOURCE=snapshot
-```
-
-Pour lancer le comportement cible du Lot 4 :
+Pour lancer le comportement connecté :
 
 ```sh
 flutter run \

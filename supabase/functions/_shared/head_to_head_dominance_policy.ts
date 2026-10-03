@@ -24,24 +24,57 @@ export type HeadToHeadDominanceAssessment = {
   meetings: number;
 };
 
+/** Senior national-team competitions treated as official by Lector. */
+export const officialInternationalCompetitionIds = new Set([
+  1, // World Cup
+  4, // Euro Championship
+  5, // UEFA Nations League
+  6, // African Nations Championship
+  7, // AFC Asian Cup
+  8, // World Cup qualifiers
+  9, // Copa America
+  22, // Confederations Cup
+  32, // CONCACAF Gold Cup
+  536, // Olympic Games
+]);
+
+export function isOfficialInternationalCompetition(
+  competitionId: number,
+): boolean {
+  return officialInternationalCompetitionIds.has(competitionId);
+}
+
 /**
  * Finds dominance from exactly the six latest completed meetings between the
- * two teams in the current competition. Other competitions never contribute.
+ * two teams. Club competitions retain their exact-competition scope. National
+ * teams use official international matches from the three years before the
+ * fixture, excluding friendlies while allowing World Cup, Euro and Nations
+ * League meetings to be compared together.
  */
 export function assessHeadToHeadDominance({
   meetings,
   competitionId,
   homeTeamId,
   awayTeamId,
+  fixtureKickoff,
+  officialInternationalScope = false,
 }: {
   meetings: readonly HeadToHeadMeeting[];
   competitionId: number;
   homeTeamId: number;
   awayTeamId: number;
+  fixtureKickoff?: number;
+  officialInternationalScope?: boolean;
 }): HeadToHeadDominanceAssessment[] {
+  const threeYearsBefore = fixtureKickoff === undefined
+    ? Number.NEGATIVE_INFINITY
+    : fixtureKickoff - 3 * 365 * 24 * 60 * 60 * 1000;
   const scoped = meetings
     .filter((meeting) =>
-      meeting.competitionId === competitionId &&
+      (officialInternationalScope
+        ? isOfficialInternationalCompetition(meeting.competitionId) &&
+          meeting.playedAt >= threeYearsBefore
+        : meeting.competitionId === competitionId) &&
       ((meeting.homeTeamId === homeTeamId &&
         meeting.awayTeamId === awayTeamId) ||
         (meeting.homeTeamId === awayTeamId &&

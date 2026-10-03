@@ -1,7 +1,7 @@
 import 'package:go_router/go_router.dart';
 
 import '../../core/config/app_config.dart';
-import '../../features/admin/presentation/admin_cockpit_page.dart';
+import '../../features/admin/presentation/operations_page.dart';
 import '../view/copilot_flow_page.dart';
 
 GoRouter createAppRouter(AppConfig config) {
@@ -19,7 +19,7 @@ GoRouter createAppRouter(AppConfig config) {
         path: '/admin',
         name: AppRoute.admin.name,
         builder: (context, state) {
-          return const AdminCockpitPage();
+          return const OperationsPage();
         },
       ),
     ],

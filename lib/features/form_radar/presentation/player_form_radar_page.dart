@@ -12,14 +12,18 @@ import '../domain/team_form_radar.dart';
 import 'player_form_radar_match_detail_sheet.dart';
 import 'team_form_radar_match_detail_sheet.dart';
 
+const _radarPageSize = 10;
+const _radarTopLimit = 50;
+
 class PlayerFormRadarPage extends StatefulWidget {
   const PlayerFormRadarPage({
     required this.matches,
-    required this.radarSourceMatches,
-    required this.personalizedMatches,
-    required this.showProfileReadings,
     required this.selectedDate,
     required this.onOpenMatch,
+    this.radarSourceMatches = const [],
+    this.personalizedMatches = const [],
+    this.showProfileReadings = false,
+    this.teamProfiles = const [],
     super.key,
   });
 
@@ -36,13 +40,15 @@ class PlayerFormRadarPage extends StatefulWidget {
   final bool showProfileReadings;
   final DateTime selectedDate;
   final ValueChanged<MatchBoardItem> onOpenMatch;
+  final List<TeamFormRadarProfile> teamProfiles;
 
   @override
   State<PlayerFormRadarPage> createState() => _PlayerFormRadarPageState();
 }
 
 class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
-  bool _showAll = false;
+  int _playerPage = 0;
+  int _teamPage = 0;
   _RadarContentMode _mode = _RadarContentMode.players;
   _RadarScope _scope = _RadarScope.club;
 
@@ -59,6 +65,8 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
     final ranked = PlayerFormRadarRanker.rank(profiles);
     final teamProfiles = formRadarFixtureEnabled
         ? _teamProfilesFromPlayerFixture(profiles, widget.matches)
+        : widget.teamProfiles.isNotEmpty
+        ? widget.teamProfiles
         : _teamProfilesForMatches(widget.radarSourceMatches);
     final rankedTeams = TeamFormRadarRanker.rank(teamProfiles);
     final isTeamRadar = _mode == _RadarContentMode.teams;
@@ -68,14 +76,18 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
     final scopedTeams = rankedTeams
         .where((entry) => _scope.includesLeague(entry.profile.leagueId))
         .toList(growable: false);
-    final cappedPlayers = scoped.take(20).toList(growable: false);
-    final cappedTeams = scopedTeams.take(20).toList(growable: false);
-    final visible = _showAll
-        ? cappedPlayers
-        : cappedPlayers.take(10).toList(growable: false);
-    final visibleTeams = _showAll
-        ? cappedTeams
-        : cappedTeams.take(10).toList(growable: false);
+    final cappedPlayers = scoped.take(_radarTopLimit).toList(growable: false);
+    final cappedTeams = scopedTeams
+        .take(_radarTopLimit)
+        .toList(growable: false);
+    final playerPage = _playerPage
+        .clamp(0, _lastPage(cappedPlayers.length, _radarPageSize))
+        .toInt();
+    final teamPage = _teamPage
+        .clamp(0, _lastPage(cappedTeams.length, _radarPageSize))
+        .toInt();
+    final visible = _pageSlice(cappedPlayers, playerPage, _radarPageSize);
+    final visibleTeams = _pageSlice(cappedTeams, teamPage, _radarPageSize);
     final radarMatches = _matchesWithHotPlayers(widget.matches, scoped);
     final teamRadarMatches = _matchesWithTeams(widget.matches, scopedTeams);
     final personalizedMatchesById = {
@@ -114,7 +126,8 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
           selected: _mode,
           onChanged: (mode) => setState(() {
             _mode = mode;
-            _showAll = false;
+            _playerPage = 0;
+            _teamPage = 0;
           }),
         ),
         if (formRadarFixtureEnabled) ...[
@@ -136,7 +149,8 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
           scope: _scope,
           onChanged: (scope) => setState(() {
             _scope = scope;
-            _showAll = false;
+            _playerPage = 0;
+            _teamPage = 0;
           }),
         ),
         const SizedBox(height: AppSpacing.md),
@@ -144,20 +158,16 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
           _HotTeamsPanel(
             entries: visibleTeams,
             totalCount: cappedTeams.length,
-            showAll: _showAll,
-            onShowAll: cappedTeams.length > 10
-                ? () => setState(() => _showAll = !_showAll)
-                : null,
+            page: teamPage,
+            onPageChanged: (page) => setState(() => _teamPage = page),
           )
         else
           _HotPlayersPanel(
             entries: visible,
             totalCount: cappedPlayers.length,
             hasRadarData: profiles.isNotEmpty,
-            showAll: _showAll,
-            onShowAll: cappedPlayers.length > 10
-                ? () => setState(() => _showAll = !_showAll)
-                : null,
+            page: playerPage,
+            onPageChanged: (page) => setState(() => _playerPage = page),
             matches: widget.matches,
             onOpenMatch: widget.onOpenMatch,
           ),
@@ -512,16 +522,16 @@ class _HotPlayersPanel extends StatelessWidget {
     required this.entries,
     required this.totalCount,
     required this.hasRadarData,
-    required this.showAll,
-    required this.onShowAll,
+    required this.page,
+    required this.onPageChanged,
     required this.matches,
     required this.onOpenMatch,
   });
   final List<PlayerFormRadarEntry> entries;
   final int totalCount;
   final bool hasRadarData;
-  final bool showAll;
-  final VoidCallback? onShowAll;
+  final int page;
+  final ValueChanged<int> onPageChanged;
   final List<MatchBoardItem> matches;
   final ValueChanged<MatchBoardItem> onOpenMatch;
 
@@ -564,7 +574,7 @@ class _HotPlayersPanel extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        showAll ? '$totalCount joueurs' : 'Top 10',
+                        'Top $totalCount',
                         style: Theme.of(context).textTheme.labelMedium
                             ?.copyWith(
                               color: context.textColors.secondary,
@@ -584,35 +594,27 @@ class _HotPlayersPanel extends StatelessWidget {
                   ),
                   Divider(height: 18, color: context.surfaces.border),
                   for (final indexed in entries.indexed) ...[
-                    _HotPlayerRow(
-                      rank: indexed.$1 + 1,
-                      entry: indexed.$2,
-                      match: _matchForTeam(matches, indexed.$2.profile.teamId),
-                      onOpenMatch: onOpenMatch,
-                      matrixColumns: matrixColumns,
-                    ),
-                    if (indexed.$1 != entries.length - 1)
-                      Divider(height: 18, color: context.surfaces.border),
-                  ],
-                  if (onShowAll != null) ...[
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: onShowAll,
-                        icon: Icon(
-                          showAll
-                              ? Icons.expand_less_rounded
-                              : Icons.arrow_forward_rounded,
+                    _PremiumRadarEntryCard(
+                      child: _HotPlayerRow(
+                        rank: page * _radarPageSize + indexed.$1 + 1,
+                        entry: indexed.$2,
+                        match: _matchForTeam(
+                          matches,
+                          indexed.$2.profile.teamId,
                         ),
-                        label: Text(
-                          showAll
-                              ? 'Réduire la liste'
-                              : 'Voir les $totalCount joueurs chauds',
-                        ),
+                        onOpenMatch: onOpenMatch,
+                        matrixColumns: matrixColumns,
                       ),
                     ),
                   ],
+                  if (totalCount > _radarPageSize)
+                    _RadarPagination(
+                      keyPrefix: 'player',
+                      itemCount: totalCount,
+                      page: page,
+                      pageSize: _radarPageSize,
+                      onPageChanged: onPageChanged,
+                    ),
                 ],
               ),
       ),
@@ -624,14 +626,14 @@ class _HotTeamsPanel extends StatelessWidget {
   const _HotTeamsPanel({
     required this.entries,
     required this.totalCount,
-    required this.showAll,
-    required this.onShowAll,
+    required this.page,
+    required this.onPageChanged,
   });
 
   final List<TeamFormRadarEntry> entries;
   final int totalCount;
-  final bool showAll;
-  final VoidCallback? onShowAll;
+  final int page;
+  final ValueChanged<int> onPageChanged;
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
@@ -662,7 +664,7 @@ class _HotTeamsPanel extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      showAll ? '$totalCount équipes' : 'Top 10',
+                      'Top $totalCount',
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         color: context.textColors.secondary,
                         fontWeight: FontWeight.w800,
@@ -672,34 +674,140 @@ class _HotTeamsPanel extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 for (final indexed in entries.indexed) ...[
-                  _HotTeamRow(rank: indexed.$1 + 1, entry: indexed.$2),
-                  if (indexed.$1 != entries.length - 1)
-                    Divider(height: 16, color: context.surfaces.border),
-                ],
-                if (onShowAll != null) ...[
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: onShowAll,
-                      icon: Icon(
-                        showAll
-                            ? Icons.expand_less_rounded
-                            : Icons.arrow_forward_rounded,
-                      ),
-                      label: Text(
-                        showAll
-                            ? 'Réduire la liste'
-                            : 'Voir les ${totalCount.clamp(0, 20)} équipes',
-                      ),
+                  _PremiumRadarEntryCard(
+                    child: _HotTeamRow(
+                      rank: page * _radarPageSize + indexed.$1 + 1,
+                      entry: indexed.$2,
                     ),
                   ),
                 ],
+                if (totalCount > _radarPageSize)
+                  _RadarPagination(
+                    keyPrefix: 'team',
+                    itemCount: totalCount,
+                    page: page,
+                    pageSize: _radarPageSize,
+                    onPageChanged: onPageChanged,
+                  ),
               ],
             ),
     ),
   );
 }
+
+class _PremiumRadarEntryCard extends StatelessWidget {
+  const _PremiumRadarEntryCard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(AppRadius.control);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Material(
+        color: context.surfaces.surface,
+        elevation: 2,
+        shadowColor: context.surfaces.shadow.withValues(alpha: .16),
+        borderRadius: radius,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            border: Border.all(
+              color: context.surfaces.border.withValues(alpha: .8),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 9),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RadarPagination extends StatelessWidget {
+  const _RadarPagination({
+    required this.keyPrefix,
+    required this.itemCount,
+    required this.page,
+    required this.pageSize,
+    required this.onPageChanged,
+  });
+
+  final String keyPrefix;
+  final int itemCount;
+  final int page;
+  final int pageSize;
+  final ValueChanged<int> onPageChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final pageCount = _lastPage(itemCount, pageSize) + 1;
+    final first = itemCount == 0 ? 0 : page * pageSize + 1;
+    final last = ((page + 1) * pageSize).clamp(0, itemCount);
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: context.surfaces.backgroundSecondary,
+          borderRadius: BorderRadius.circular(AppRadius.control),
+          border: Border.all(color: context.surfaces.border),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          child: Row(
+            children: [
+              IconButton(
+                key: ValueKey('$keyPrefix-previous'),
+                tooltip: 'Page précédente',
+                onPressed: page > 0 ? () => onPageChanged(page - 1) : null,
+                icon: const Icon(Icons.chevron_left_rounded),
+              ),
+              Expanded(
+                child: Column(
+                  children: [
+                    Text(
+                      '$first–$last sur $itemCount',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: context.textColors.primary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Text(
+                      'Page ${page + 1} sur $pageCount',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: context.textColors.secondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                key: ValueKey('$keyPrefix-next'),
+                tooltip: 'Page suivante',
+                onPressed: page + 1 < pageCount
+                    ? () => onPageChanged(page + 1)
+                    : null,
+                icon: const Icon(Icons.chevron_right_rounded),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+int _lastPage(int itemCount, int pageSize) =>
+    itemCount == 0 ? 0 : (itemCount - 1) ~/ pageSize;
+
+List<T> _pageSlice<T>(List<T> entries, int page, int pageSize) =>
+    entries.skip(page * pageSize).take(pageSize).toList(growable: false);
 
 class _TeamRadarEmptyState extends StatelessWidget {
   const _TeamRadarEmptyState();

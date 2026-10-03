@@ -5,7 +5,7 @@ const _snapshotSchemaVersion = 1;
 const _source = 'api-football';
 const _timezone = 'Europe/Paris';
 const _defaultExplorationDir = 'var/api_football_exploration/latest';
-const _defaultOutputPath = 'assets/snapshots/focused_match_feed_latest.json';
+const _defaultOutputPath = 'output/focused_match_feed_snapshot.json';
 const _leagueIds = [
   2,
   3,

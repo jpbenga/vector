@@ -1,3 +1,4 @@
+import { OpsReporter } from "../_shared/ops_runtime.ts";
 type JsonObject = Record<string, unknown>;
 
 const corsHeaders = {
@@ -22,6 +23,8 @@ Deno.serve(async (request) => {
 
   try {
     const payload = objectValue(await request.json()) ?? {};
+    const reporter = new OpsReporter(payload);
+    await reporter.checkpoint({}, {}, true);
     const snapshotId = stringValue(payload.snapshot_id);
     if (snapshotId === null) {
       return respond({ error: "snapshot_id is required." }, 400);
@@ -53,7 +56,7 @@ Deno.serve(async (request) => {
       supabaseUrl,
       name: "publish-reading-announcements",
       secret,
-      payload: { snapshot_id: snapshotId },
+      payload: { snapshot_id: snapshotId, ops_task_id: payload.ops_task_id, ops_token: payload.ops_token },
     });
     if (booleanValue(publication.ok) !== true) {
       throw new Error(
@@ -190,6 +193,7 @@ Deno.serve(async (request) => {
         fixtures: computedFixtures,
       },
     };
+    await reporter.checkpoint({publishedFixtures: fixtures.length, publishedReadings: announced.length}, {}, true);
     const stored = await supabaseFetch({
       supabaseUrl,
       serviceRoleKey,

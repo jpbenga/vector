@@ -95,16 +95,15 @@ Deno.serve(async (request) => {
       },
     });
 
-    snapshotResponse = numberValue(
-        objectValue(syncResponse.summary)?.upcomingFixtures,
-      ) === 0
-      ? { ok: true, skipped: "no_upcoming_fixtures" }
-      : await callFunction({
-        supabaseUrl,
-        name: "build-match-feed-snapshot",
-        syncSecret,
-        payload: snapshotPayload(options, syncResponse),
-      });
+    // A valid snapshot remains valuable during an international break: it
+    // carries global Radar form and an intentionally empty fixture calendar.
+    // Publishing it keeps the application usable without reviving stale data.
+    snapshotResponse = await callFunction({
+      supabaseUrl,
+      name: "build-match-feed-snapshot",
+      syncSecret,
+      payload: snapshotPayload(options, syncResponse),
+    });
 
     const publishedSnapshotId = stringValue(snapshotResponse.snapshotId);
     analysisResponse = publishedSnapshotId === null

@@ -1,7 +1,4 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/supabase/supabase_initializer.dart';
@@ -14,18 +11,15 @@ class MatchFeedRepositoryLoader {
     required this.config,
     required this.supabaseInitializer,
     this.remoteDataSource,
-    this.assetBundle,
     this.factory = const MatchFeedRepositoryFactory(),
+    this.clock = DateTime.now,
   });
-
-  static const localSnapshotAsset =
-      'assets/snapshots/focused_match_feed_latest.json';
 
   final AppConfig config;
   final SupabaseInitializer supabaseInitializer;
   final MatchFeedSnapshotRemoteDataSource? remoteDataSource;
-  final AssetBundle? assetBundle;
   final MatchFeedRepositoryFactory factory;
+  final DateTime Function() clock;
 
   Future<MatchFeedRepository> load({DateTime? now}) async {
     final source = config.matchFeedSource.trim().toLowerCase();
@@ -33,68 +27,79 @@ class MatchFeedRepositoryLoader {
 
     return switch (source) {
       'demo' => factory.create(MatchDataSourceMode.demo),
-      'snapshot' || 'local' || 'local_snapshot' => _loadLocalSnapshot(),
-      'supabase' ||
-      'remote' ||
-      'api' => _loadRemoteWithLocalFallback(effectiveNow),
+      'supabase' || 'remote' || 'api' => _loadRemoteSnapshot(effectiveNow),
       'auto' || '' => _loadAuto(effectiveNow),
       _ => throw StateError(
         'Unknown MATCH_FEED_SOURCE "$source". '
-        'Use "auto", "supabase", "snapshot" or "demo".',
+        'Use "auto", "supabase" or "demo".',
       ),
     };
   }
 
   Future<MatchFeedRepository> _loadAuto(DateTime now) async {
     if (!config.isSupabaseConfigured) {
-      return _loadLocalSnapshot();
+      throw StateError(
+        'Supabase n’est pas configuré. Aucun snapshot local de secours '
+        'n’est chargé.',
+      );
     }
 
-    return _loadRemoteWithLocalFallback(now);
+    return _loadRemoteSnapshot(now);
   }
 
-  Future<MatchFeedRepository> _loadRemoteWithLocalFallback(DateTime now) async {
+  Future<MatchFeedRepository> _loadRemoteSnapshot(DateTime now) async {
     try {
-      final remoteSnapshot = await _loadRemoteSnapshot(now);
+      final remoteSnapshot = await _loadCurrentRemoteSnapshot(now);
       if (remoteSnapshot != null) {
-        return factory.create(
+        final repository = factory.create(
           MatchDataSourceMode.snapshot,
           snapshot: remoteSnapshot,
         );
+        final metadata = repository.snapshotMetadata;
+        // The selected date can be in the J+1 to J+3 forecast window. Its
+        // snapshot is legitimately captured today, so freshness must be
+        // evaluated against the real current day, never against the selected
+        // future day.
+        if (metadata?.covers(now) != true || metadata!.isObsolete(clock())) {
+          throw StateError(
+            'Le snapshot Supabase reçu est absent, trop ancien ou ne couvre '
+            'pas le ${_dateKey(now)}. Aucune donnée ancienne ne sera affichée '
+            'à sa place.',
+          );
+        }
+        return repository;
       }
     } on Object catch (error) {
       debugPrint('Remote match feed snapshot unavailable: $error');
+      rethrow;
     }
 
-    return _loadLocalSnapshot();
+    return EmptyMatchFeedRepository(
+      date: now,
+      reason:
+          'Supabase n’a publié aucun snapshot couvrant le ${_dateKey(now)}.',
+    );
   }
 
-  Future<Map<String, Object?>?> _loadRemoteSnapshot(DateTime now) async {
+  Future<Map<String, Object?>?> _loadCurrentRemoteSnapshot(
+    DateTime date,
+  ) async {
     final injectedDataSource = remoteDataSource;
     if (injectedDataSource != null) {
-      return await injectedDataSource.loadLatestForDate(now) ??
-          await injectedDataSource.loadLatest();
+      return injectedDataSource.loadLatestForDate(date);
     }
 
     final client = supabaseInitializer.client;
     if (client == null) {
-      return null;
+      throw StateError('Le client Supabase n’est pas initialisé.');
     }
 
     final repository = SupabaseMatchFeedSnapshotRepository(client);
-    return await repository.loadLatestForDate(now) ??
-        await repository.loadLatest();
-  }
-
-  Future<MatchFeedRepository> _loadLocalSnapshot() async {
-    final snapshotText = await (assetBundle ?? rootBundle).loadString(
-      localSnapshotAsset,
-    );
-    final snapshotJson = jsonDecode(snapshotText) as Map<String, dynamic>;
-
-    return factory.create(
-      MatchDataSourceMode.snapshot,
-      snapshot: Map<String, Object?>.from(snapshotJson),
-    );
+    return repository.loadLatestForDate(date);
   }
 }
+
+String _dateKey(DateTime date) =>
+    '${date.year.toString().padLeft(4, '0')}-'
+    '${date.month.toString().padLeft(2, '0')}-'
+    '${date.day.toString().padLeft(2, '0')}';

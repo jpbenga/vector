@@ -7,12 +7,22 @@ class AdminOpsRepository {
 
   final SupabaseClient _client;
 
-  Future<AdminOpsOverview> loadOverview() async {
-    final response = await _client.functions.invoke(
-      'admin-ops',
-      method: HttpMethod.get,
-      headers: _authHeaders(),
+  Future<Map<String, dynamic>> operations(
+    String action, [
+    Map<String, Object?> payload = const {},
+  ]) async {
+    final response = await _invoke(
+      body: {'action': action, ...payload},
     );
+    final data = _objectMap(response.data);
+    if (response.status >= 400 || data == null || data['ok'] != true) {
+      throw AdminOpsException(_errorMessage(data, response.status));
+    }
+    return Map<String, dynamic>.from(data);
+  }
+
+  Future<AdminOpsOverview> loadOverview() async {
+    final response = await _invoke(method: HttpMethod.get);
     final data = _objectMap(response.data);
     if (response.status >= 400 || data == null || data['ok'] != true) {
       throw AdminOpsException(_errorMessage(data, response.status));
@@ -21,9 +31,7 @@ class AdminOpsRepository {
   }
 
   Future<AdminOperationResult> rerunLeague(int leagueId) async {
-    final response = await _client.functions.invoke(
-      'admin-ops',
-      headers: _authHeaders(),
+    final response = await _invoke(
       body: {
         'action': 'rerun_league',
         'league_id': leagueId,
@@ -42,9 +50,7 @@ class AdminOpsRepository {
     int durationMinutes = 60,
     String? label,
   }) async {
-    final response = await _client.functions.invoke(
-      'admin-ops',
-      headers: _authHeaders(),
+    final response = await _invoke(
       body: {
         'action': 'create_test_link',
         'base_url': baseUrl.toString(),
@@ -59,12 +65,49 @@ class AdminOpsRepository {
     return AdminTestLinkResult.fromJson(data);
   }
 
-  Map<String, String> _authHeaders() {
-    final accessToken = _client.auth.currentSession?.accessToken;
-    if (accessToken == null || accessToken.isEmpty) {
-      return const {};
+  Future<FunctionResponse> _invoke({
+    HttpMethod method = HttpMethod.post,
+    Map<String, Object?>? body,
+  }) async {
+    Future<FunctionResponse> send() => _client.functions.invoke(
+      'admin-ops',
+      method: method,
+      body: method == HttpMethod.get ? null : body,
+    );
+
+    try {
+      return await send();
+    } on FunctionException catch (error) {
+      if (error.status != 401 || _client.auth.currentSession == null) {
+        rethrow;
+      }
     }
-    return {'Authorization': 'Bearer $accessToken'};
+
+    // Let Supabase's authenticated HTTP client provide Authorization so it can
+    // refresh an expired session. If the function still rejects a valid-looking
+    // session, refresh once explicitly and retry with the newly issued token.
+    try {
+      await _client.auth.refreshSession();
+    } on Object {
+      await _client.auth.signOut();
+      rethrow;
+    }
+
+    if (_client.auth.currentSession == null) {
+      await _client.auth.signOut();
+      throw const AdminOpsException(
+        'La session a expiré. Reconnectez-vous pour ouvrir le pilotage.',
+      );
+    }
+
+    try {
+      return await send();
+    } on FunctionException catch (error) {
+      if (error.status == 401) {
+        await _client.auth.signOut();
+      }
+      rethrow;
+    }
   }
 }
 

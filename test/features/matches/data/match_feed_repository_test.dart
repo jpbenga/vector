@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:copilot/core/config/app_config.dart';
 import 'package:copilot/core/config/app_environment.dart';
 import 'package:copilot/core/supabase/supabase_initializer.dart';
@@ -16,7 +14,6 @@ import 'package:copilot/features/matches/domain/structural_tiers/tier_models.dar
 import 'package:copilot/features/onboarding/domain/decision_profile.dart';
 import 'package:copilot/features/onboarding/domain/decision_profile_catalogs.dart';
 import 'package:copilot/features/onboarding/domain/onboarding_answer.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -596,7 +593,7 @@ void main() {
   });
 
   group('MatchFeedRepositoryLoader', () {
-    test('loads the remote Supabase snapshot first in auto mode', () async {
+    test('loads the current remote snapshot in auto mode', () async {
       final remote = _FakeRemoteSnapshotDataSource(
         latestForDate: _snapshot(
           capturedAt: '2026-08-12T08:00:00Z',
@@ -609,11 +606,6 @@ void main() {
         source: 'auto',
         configuredSupabase: true,
         remoteDataSource: remote,
-        localSnapshot: _snapshot(
-          capturedAt: '2026-07-30T08:00:00Z',
-          windowStart: '2026-07-30',
-          windowEnd: '2026-07-30',
-        ),
       );
 
       final repository = await loader.load(now: DateTime(2026, 8, 12));
@@ -624,80 +616,143 @@ void main() {
     });
 
     test(
-      'falls back to the local snapshot when remote loading fails',
+      'accepts a snapshot captured today for a covered future day',
       () async {
         final remote = _FakeRemoteSnapshotDataSource(
-          throwsOnLatestForDate: true,
+          latestForDate: _snapshot(
+            capturedAt: '2026-08-12T08:00:00Z',
+            windowStart: '2026-08-12',
+            windowEnd: '2026-08-15',
+            fixtureDate: '2026-08-13T17:00:00+02:00',
+          ),
         );
         final loader = _loader(
           source: 'auto',
           configuredSupabase: true,
           remoteDataSource: remote,
-          localSnapshot: _snapshot(
-            capturedAt: '2026-07-30T08:00:00Z',
-            windowStart: '2026-07-30',
-            windowEnd: '2026-07-30',
-          ),
+          currentDay: DateTime(2026, 8, 12),
         );
 
-        final repository = await loader.load(now: DateTime(2026, 8, 12));
+        final repository = await loader.load(now: DateTime(2026, 8, 13));
 
-        expect(remote.latestForDateCalls, 1);
-        expect(repository.snapshotMetadata?.windowStart, DateTime(2026, 7, 30));
+        expect(repository.allMatches(), isNotEmpty);
+        expect(
+          repository.snapshotMetadata?.covers(DateTime(2026, 8, 13)),
+          isTrue,
+        );
       },
     );
 
-    test('uses the latest remote snapshot when today is not covered', () async {
+    test(
+      'keeps the app usable with an empty day when no snapshot is published',
+      () async {
+        final remote = _FakeRemoteSnapshotDataSource();
+        final loader = _loader(
+          source: 'auto',
+          configuredSupabase: true,
+          remoteDataSource: remote,
+        );
+
+        final repository = await loader.load(now: DateTime(2026, 8, 20));
+
+        expect(remote.latestForDateCalls, 1);
+        expect(repository, isA<EmptyMatchFeedRepository>());
+        expect(repository.allMatches(), isEmpty);
+        expect(
+          repository.snapshotMetadata?.covers(DateTime(2026, 8, 20)),
+          isTrue,
+        );
+      },
+    );
+
+    test('rejects a remote response whose window is stale', () async {
       final remote = _FakeRemoteSnapshotDataSource(
-        latest: _snapshot(
-          capturedAt: '2026-08-11T22:21:50Z',
-          windowStart: '2026-08-11',
-          windowEnd: '2026-08-16',
+        latestForDate: _snapshot(
+          capturedAt: '2026-08-08T12:10:12Z',
+          windowStart: '2026-08-08',
+          windowEnd: '2026-08-09',
         ),
       );
       final loader = _loader(
         source: 'auto',
         configuredSupabase: true,
         remoteDataSource: remote,
-        localSnapshot: _snapshot(
-          capturedAt: '2026-07-30T08:00:00Z',
-          windowStart: '2026-07-30',
-          windowEnd: '2026-07-30',
-        ),
       );
 
-      final repository = await loader.load(now: DateTime(2026, 8, 20));
-
+      await expectLater(
+        loader.load(now: DateTime(2026, 8, 12)),
+        throwsA(isA<StateError>()),
+      );
       expect(remote.latestForDateCalls, 1);
-      expect(remote.latestCalls, 1);
-      expect(repository.snapshotMetadata?.windowStart, DateTime(2026, 8, 11));
-      expect(repository.snapshotMetadata?.windowEnd, DateTime(2026, 8, 16));
     });
 
-    test('keeps snapshot mode fully local for offline debugging', () async {
+    test('rejects a covered window captured on an earlier day', () async {
       final remote = _FakeRemoteSnapshotDataSource(
         latestForDate: _snapshot(
-          capturedAt: '2026-08-12T08:00:00Z',
-          windowStart: '2026-08-11',
+          capturedAt: '2026-08-08T12:10:12Z',
+          windowStart: '2026-08-08',
           windowEnd: '2026-08-16',
+          fixtureDate: '2026-08-12T17:00:00+02:00',
         ),
       );
       final loader = _loader(
-        source: 'snapshot',
+        source: 'auto',
         configuredSupabase: true,
         remoteDataSource: remote,
-        localSnapshot: _snapshot(
-          capturedAt: '2026-07-30T08:00:00Z',
-          windowStart: '2026-07-30',
-          windowEnd: '2026-07-30',
-        ),
       );
 
-      final repository = await loader.load(now: DateTime(2026, 8, 12));
-
-      expect(remote.latestForDateCalls, 0);
-      expect(repository.snapshotMetadata?.windowStart, DateTime(2026, 7, 30));
+      await expectLater(
+        loader.load(now: DateTime(2026, 8, 12)),
+        throwsA(isA<StateError>()),
+      );
+      expect(remote.latestForDateCalls, 1);
     });
+
+    test('surfaces remote failures without loading a local fixture', () async {
+      final remote = _FakeRemoteSnapshotDataSource(throwsOnLatestForDate: true);
+      final loader = _loader(
+        source: 'auto',
+        configuredSupabase: true,
+        remoteDataSource: remote,
+      );
+
+      await expectLater(
+        loader.load(now: DateTime(2026, 8, 12)),
+        throwsA(isA<StateError>()),
+      );
+      expect(remote.latestForDateCalls, 1);
+    });
+
+    test('rejects the deleted local snapshot source', () async {
+      final loader = _loader(
+        source: 'snapshot',
+        configuredSupabase: false,
+        remoteDataSource: _FakeRemoteSnapshotDataSource(),
+      );
+
+      await expectLater(
+        loader.load(now: DateTime(2026, 8, 12)),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test(
+      'does not load the deleted local fixture when Supabase is absent',
+      () async {
+        final remote = _FakeRemoteSnapshotDataSource();
+        final loader = _loader(
+          source: 'auto',
+          configuredSupabase: false,
+          remoteDataSource: remote,
+        );
+
+        await expectLater(
+          loader.load(now: DateTime(2026, 8, 12)),
+          throwsA(isA<StateError>()),
+        );
+        expect(remote.latestForDateCalls, 0);
+      },
+    );
   });
 }
 
@@ -1000,7 +1055,7 @@ MatchFeedRepositoryLoader _loader({
   required String source,
   required bool configuredSupabase,
   required MatchFeedSnapshotRemoteDataSource remoteDataSource,
-  required Map<String, Object?> localSnapshot,
+  DateTime? currentDay,
 }) {
   final config = AppConfig(
     environment: AppEnvironment.development,
@@ -1013,7 +1068,7 @@ MatchFeedRepositoryLoader _loader({
     config: config,
     supabaseInitializer: SupabaseInitializer(config),
     remoteDataSource: remoteDataSource,
-    assetBundle: _FakeAssetBundle(jsonEncode(localSnapshot)),
+    clock: () => currentDay ?? DateTime(2026, 8, 12),
   );
 }
 
@@ -1064,15 +1119,12 @@ class _FakeRemoteSnapshotDataSource
     implements MatchFeedSnapshotRemoteDataSource {
   _FakeRemoteSnapshotDataSource({
     this.latestForDate,
-    this.latest,
     this.throwsOnLatestForDate = false,
   });
 
   final Map<String, Object?>? latestForDate;
-  final Map<String, Object?>? latest;
   final bool throwsOnLatestForDate;
   int latestForDateCalls = 0;
-  int latestCalls = 0;
 
   @override
   Future<Map<String, Object?>?> loadLatestForDate(DateTime date) async {
@@ -1081,23 +1133,5 @@ class _FakeRemoteSnapshotDataSource
       throw StateError('remote unavailable');
     }
     return latestForDate;
-  }
-
-  @override
-  Future<Map<String, Object?>?> loadLatest() async {
-    latestCalls += 1;
-    return latest;
-  }
-}
-
-class _FakeAssetBundle extends CachingAssetBundle {
-  _FakeAssetBundle(this._content);
-
-  final String _content;
-
-  @override
-  Future<ByteData> load(String key) async {
-    final bytes = utf8.encode(_content);
-    return ByteData.sublistView(Uint8List.fromList(bytes));
   }
 }

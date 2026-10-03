@@ -79,6 +79,12 @@ void main() {
     test('orchestrates collection then snapshot build server-side', () {
       expect(supabaseFunction, contains('name: "api-football-sync"'));
       expect(supabaseFunction, contains('name: "sync-match-results"'));
+      expect(
+        supabaseFunction,
+        contains('api_football_sync_run_id: stringValue(syncResponse.runId)'),
+        reason:
+            'result collection must reserve provider quota against the parent sync run',
+      );
       expect(supabaseFunction, contains('name: "build-match-feed-snapshot"'));
       expect(supabaseFunction, contains('API_FOOTBALL_SYNC_SECRET'));
       expect(
@@ -94,6 +100,12 @@ void main() {
       expect(supabaseFunction, contains('defaultResultsDaysBack = 7'));
       expect(supabaseFunction, contains('defaultFutureDays = 3'));
       expect(supabaseFunction, contains('markStaleDailyRuns'));
+      expect(
+        supabaseFunction,
+        isNot(contains('skipped: "no_upcoming_fixtures"')),
+        reason:
+            'recent team form must still be published during an international break',
+      );
       expect(
         supabaseFunction,
         contains('season: number | null'),

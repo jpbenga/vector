@@ -25,6 +25,7 @@ import '../../onboarding/domain/profile_compiler.dart';
 import '../../opportunities/domain/opportunity.dart';
 import '../../form_radar/data/player_form_radar_fixture.dart';
 import '../../form_radar/domain/player_form_radar.dart';
+import '../../form_radar/domain/team_form_radar.dart';
 import '../../form_radar/presentation/form_radar_signal_panel.dart';
 import '../../tickets/data/saved_ticket_store.dart';
 import '../../tickets/domain/saved_ticket.dart';
@@ -172,6 +173,10 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
               ? opportunities
               : repository.opportunitiesFor(baseProfile);
           final allMatches = repository.allMatches();
+          final teamFormRadarProfiles =
+              repository is SnapshotMatchFeedRepository
+              ? repository.teamFormRadarProfiles
+              : const <TeamFormRadarProfile>[];
           final snapshotMetadata = repository.snapshotMetadata;
           final analyzedAllMatches = [
             for (final match in allMatches)
@@ -242,6 +247,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             matches: analyzedAllMatches,
             personalizedMatches: personalizedMatches,
             opportunities: opportunities,
+            teamFormRadarProfiles: teamFormRadarProfiles,
             selectedDate: effectiveSelectedDate,
             mode: _scoresMode,
             onModeChanged: (mode) {
@@ -1046,6 +1052,7 @@ class _ScoresRedesignHome extends StatefulWidget {
     required this.matches,
     required this.personalizedMatches,
     required this.opportunities,
+    required this.teamFormRadarProfiles,
     required this.selectedDate,
     required this.mode,
     required this.onModeChanged,
@@ -1075,6 +1082,7 @@ class _ScoresRedesignHome extends StatefulWidget {
   final List<MatchBoardItem> matches;
   final List<MatchBoardItem> personalizedMatches;
   final List<Opportunity> opportunities;
+  final List<TeamFormRadarProfile> teamFormRadarProfiles;
   final DateTime selectedDate;
   final _ScoresRedesignMode mode;
   final ValueChanged<_ScoresRedesignMode> onModeChanged;
@@ -1295,6 +1303,8 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                                           widget.personalizedMatches,
                                       showProfileReadings:
                                           widget.identityScope.isAccount,
+                                      teamProfiles:
+                                          widget.teamFormRadarProfiles,
                                       selectedDate: widget.selectedDate,
                                       onOpenMatch: widget.onOpenMatch,
                                     )

@@ -1,5 +1,5 @@
 import { eligibleHeadToHeadMeetings } from "../_shared/head_to_head_history.ts";
-
+import { OpsReporter } from "../_shared/ops_runtime.ts";
 type JsonObject = Record<string, unknown>;
 
 const source = "api-football";
@@ -50,8 +50,10 @@ Deno.serve(async (request) => {
   const serviceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
   const payload = await readJson(request);
   const options = snapshotOptionsFromPayload(payload);
+  const reporter = new OpsReporter(payload);
 
   try {
+    await reporter.checkpoint({}, {}, true);
     const build = await collectSnapshotSources({
       supabaseUrl,
       serviceRoleKey,
@@ -120,11 +122,16 @@ Deno.serve(async (request) => {
       rawPerformanceStatistics: build.rawPerformanceStatistics,
       rawPlayerStatistics: build.rawPlayerStatistics,
       rawPlayerRecentPerformances: build.rawPlayerRecentPerformances,
+      rawPlayerActivity: build.rawPlayerActivity,
       rawDomesticTeamContexts: build.rawDomesticTeamContexts,
       fixtureIndex,
       sourceRows: build.sourceRows,
     });
-    const emptySnapshotError = emptySnapshotPublicationError(summary);
+    const emptySnapshotError = emptySnapshotPublicationError(
+      summary,
+      build.sourceRows,
+      options,
+    );
     if (emptySnapshotError !== null) {
       return jsonResponse(
         {
@@ -168,6 +175,9 @@ Deno.serve(async (request) => {
         // completed matches. This is the source of truth for the recent
         // decisive-player signal, including super-subs.
         player_recent_performances: build.rawPlayerRecentPerformances,
+        // Factual per-fixture player activity. Entries are only emitted from
+        // cached /fixtures/players payloads; missing data is never inferred.
+        player_activity: build.rawPlayerActivity,
         // Derived from already collected fixture events. The app receives the
         // compact player activity, never the provider event stream itself.
         player_recent_contributions: build.rawPlayerRecentContributions,
@@ -181,6 +191,7 @@ Deno.serve(async (request) => {
       },
     };
 
+    await reporter.checkpoint({ snapshotCoverage: summary }, {}, true);
     const snapshotRows = await supabaseFetch({
       supabaseUrl,
       serviceRoleKey,
@@ -307,6 +318,7 @@ type SourceBuild = {
   rawPerformanceStatistics: JsonObject[];
   rawPlayerStatistics: JsonObject[];
   rawPlayerRecentPerformances: JsonObject[];
+  rawPlayerActivity: JsonObject[];
   rawPlayerRecentContributions: JsonObject[];
   rawPlayerFormRadar: JsonObject[];
   rawInjuries: JsonObject[];
@@ -597,14 +609,23 @@ async function collectSnapshotSources({
       supabaseUrl,
       serviceRoleKey,
       endpoint: "/fixtures",
-      filters: {
-        league: String(request.leagueId),
-        season: String(request.season),
-        team: String(request.teamId),
-        from: request.from,
-        to: request.to,
-        timezone: options.timezone,
-      },
+      filters: request.isNational
+        ? {
+          team: String(request.teamId),
+          season: String(request.season),
+          from: request.from,
+          to: request.to,
+          timezone: options.timezone,
+        }
+        : {
+          league: String(request.leagueId),
+          season: String(request.season),
+          team: String(request.teamId),
+          from: request.from,
+          to: request.to,
+          timezone: options.timezone,
+        },
+      exactQuery: true,
     });
     addSourceRows(rows);
     const recentMatches = normalizeRecentFixturesForTeam({
@@ -612,6 +633,7 @@ async function collectSnapshotSources({
       teamId: request.teamId,
       fixtures: flatResponseItems(rows),
       maxMatches: options.recentFormMatches,
+      officialInternationalOnly: request.isNational,
     });
     if (recentMatches !== null) {
       rawRecentLeagueMatches.push(recentMatches);
@@ -724,6 +746,31 @@ async function collectSnapshotSources({
     }
   }
 
+  // The sync worker can cache a full seasonal activity set for a targeted
+  // competition. Consume every cached sheet for the two teams in the feed;
+  // this is cache-only and therefore cannot increase provider usage here.
+  const playerFixtureIds = playerActivityFixtureIds({
+    historicalFixtures: rawLeagueFixtures,
+    upcomingFixtures: rawFixtures,
+  });
+  const existingPlayerFixtureIds = new Set(
+    fixturePlayerRows.map((row) => row.fixtureId),
+  );
+  for (const fixtureId of playerFixtureIds) {
+    if (existingPlayerFixtureIds.has(fixtureId)) continue;
+    const rows = await cachedResponsesFor({
+      supabaseUrl,
+      serviceRoleKey,
+      endpoint: "/fixtures/players",
+      filters: { fixture: String(fixtureId) },
+      exactQuery: true,
+    });
+    addSourceRows(rows);
+    for (const row of rows) {
+      fixturePlayerRows.push({ fixtureId, teams: flatResponseItems([row]) });
+    }
+  }
+
   const now = Date.now();
   const upcomingFixtureIds = new Set(
     rawFixtures
@@ -791,6 +838,42 @@ async function collectSnapshotSources({
     fixtureStatisticsRows,
     fixtureEventsRows,
   });
+  const clubActivity = await clubActivityFixturesForSelectionProfiles({
+    supabaseUrl,
+    serviceRoleKey,
+    options,
+    playerRecentPerformances: rawPlayerRecentPerformances,
+  });
+  addSourceRows(clubActivity.sourceRows);
+  const activityFixtures = [...rawLeagueFixtures, ...clubActivity.fixtures];
+  const activityFixtureIds = new Set(
+    clubActivity.fixtures
+      .map((fixture) => numberValue((objectValue(fixture.fixture) ?? {}).id))
+      .filter((fixtureId): fixtureId is number => fixtureId !== null),
+  );
+  const knownActivitySheets = new Set(
+    fixturePlayerRows.map((row) => row.fixtureId),
+  );
+  for (const fixtureId of activityFixtureIds) {
+    if (knownActivitySheets.has(fixtureId)) continue;
+    const rows = await cachedResponsesFor({
+      supabaseUrl,
+      serviceRoleKey,
+      endpoint: "/fixtures/players",
+      filters: { fixture: String(fixtureId) },
+      exactQuery: true,
+    });
+    addSourceRows(rows);
+    for (const row of rows) {
+      fixturePlayerRows.push({ fixtureId, teams: flatResponseItems([row]) });
+    }
+  }
+  const rawPlayerActivity = playerActivitySnapshots({
+    fixtures: activityFixtures,
+    recentLeagueMatches: rawRecentLeagueMatches,
+    fixturePlayerRows,
+    asOf: sourceAsOf,
+  });
 
   return {
     sourceRows: [...sourceRowsByKey.values()],
@@ -809,6 +892,7 @@ async function collectSnapshotSources({
     rawPerformanceStatistics,
     rawPlayerStatistics,
     rawPlayerRecentPerformances,
+    rawPlayerActivity,
     rawPlayerRecentContributions,
     rawPlayerFormRadar,
     rawInjuries,
@@ -1199,6 +1283,7 @@ function coverageSummary({
   rawPerformanceStatistics,
   rawPlayerStatistics,
   rawPlayerRecentPerformances,
+  rawPlayerActivity,
   rawDomesticTeamContexts,
   fixtureIndex,
   sourceRows,
@@ -1213,6 +1298,7 @@ function coverageSummary({
   rawPerformanceStatistics: JsonObject[];
   rawPlayerStatistics: JsonObject[];
   rawPlayerRecentPerformances: JsonObject[];
+  rawPlayerActivity: JsonObject[];
   rawDomesticTeamContexts: JsonObject[];
   fixtureIndex: FixtureIndexRow[];
   sourceRows: CachedRawResponse[];
@@ -1228,6 +1314,7 @@ function coverageSummary({
     performance_statistics: rawPerformanceStatistics.length,
     player_statistics: rawPlayerStatistics.length,
     player_recent_performances: rawPlayerRecentPerformances.length,
+    player_activity: rawPlayerActivity.length,
     domestic_team_contexts: rawDomesticTeamContexts.length,
     predictions: 0,
     fixture_index_rows: fixtureIndex.length,
@@ -1244,7 +1331,11 @@ function coverageSummary({
   };
 }
 
-function emptySnapshotPublicationError(summary: JsonObject): string | null {
+function emptySnapshotPublicationError(
+  summary: JsonObject,
+  sourceRows: CachedRawResponse[],
+  options: SnapshotOptions,
+): string | null {
   const hasUsableData = [
     "fixtures",
     "odds",
@@ -1254,9 +1345,31 @@ function emptySnapshotPublicationError(summary: JsonObject): string | null {
     "expected_goals",
   ].some((key) => (numberValue(summary[key]) ?? 0) > 0);
 
-  return hasUsableData
-    ? null
-    : "Refusing to publish an empty match feed snapshot.";
+  if (hasUsableData || hasCompleteEmptyFixtureCoverage(sourceRows, options)) {
+    return null;
+  }
+
+  return "No match-feed data could be published, and the fixture collection does not cover the full requested period.";
+}
+
+function hasCompleteEmptyFixtureCoverage(
+  sourceRows: CachedRawResponse[],
+  options: SnapshotOptions,
+): boolean {
+  const dates = dateWindow(options.windowStart, options.windowEnd);
+  return options.leagueIds.every((leagueId) =>
+    dates.every((date) =>
+      sourceRows.some((row) => {
+        if (row.endpoint !== "/fixtures") return false;
+        const query = row.query_params;
+        return String(query.league ?? "") === String(leagueId) &&
+          String(query.date ?? "") === date &&
+          query.season !== undefined &&
+          String(query.timezone ?? "") === options.timezone &&
+          query.team === undefined && query.fixture === undefined;
+      })
+    )
+  );
 }
 
 function provenanceSummary({
@@ -1676,6 +1789,7 @@ type RecentFixtureRequest = {
   leagueId: number;
   teamId: number;
   season: number;
+  isNational: boolean;
   from: string;
   to: string;
 };
@@ -1749,6 +1863,7 @@ function recentFixtureRequests(
           leagueId,
           teamId,
           season,
+          isNational: isNationalCompetitionId(leagueId),
           from,
           to,
         });
@@ -1758,16 +1873,27 @@ function recentFixtureRequests(
   return [...requests.values()];
 }
 
+function isNationalCompetitionId(leagueId: number): boolean {
+  return new Set([1, 4, 5, 6, 7, 8, 9, 22, 32, 536]).has(leagueId);
+}
+
+function isOfficialInternationalFixture(row: JsonObject): boolean {
+  const league = objectValue(row.league) ?? {};
+  return isNationalCompetitionId(numberValue(league.id) ?? -1);
+}
+
 function normalizeRecentFixturesForTeam({
   leagueId,
   teamId,
   fixtures,
   maxMatches,
+  officialInternationalOnly = false,
 }: {
   leagueId: number;
   teamId: number;
   fixtures: JsonObject[];
   maxMatches: number;
+  officialInternationalOnly?: boolean;
 }): JsonObject | null {
   const matches: JsonObject[] = [];
   let teamName: string | null = null;
@@ -1776,6 +1902,9 @@ function normalizeRecentFixturesForTeam({
   for (
     const row of [...fixtures]
       .filter(isCompletedFixture)
+      .filter((fixture) =>
+        !officialInternationalOnly || isOfficialInternationalFixture(fixture)
+      )
       .filter((fixture) => fixtureContainsTeam(fixture, teamId))
       .sort((a, b) => fixtureTimestamp(b) - fixtureTimestamp(a))
   ) {
@@ -1814,6 +1943,11 @@ function normalizeRecentFixturesForTeam({
       },
       competition_name: stringValue(league.name),
       team_logo: stringValue(own.logo),
+      team: {
+        id: numberValue(own.id),
+        name: stringValue(own.name),
+        logo: stringValue(own.logo),
+      },
       opponent: {
         id: numberValue(opponent.id),
         name: stringValue(opponent.name),
@@ -2151,6 +2285,290 @@ function playerRecentContributionSnapshots({
     });
   }
   return snapshots;
+}
+
+/**
+ * Materializes factual seasonal activity from cached fixture player sheets.
+ * A missing player row does not become an absence: the timeline only records
+ * information the provider has explicitly returned.
+ */
+function playerActivityFixtureIds({
+  historicalFixtures,
+  upcomingFixtures,
+}: {
+  historicalFixtures: JsonObject[];
+  upcomingFixtures: JsonObject[];
+}): number[] {
+  const teamIds = new Set<number>();
+  for (const fixture of upcomingFixtures) {
+    const teams = objectValue(fixture.teams) ?? {};
+    for (const side of ["home", "away"]) {
+      const teamId = numberValue((objectValue(teams[side]) ?? {}).id);
+      if (teamId !== null) teamIds.add(teamId);
+    }
+  }
+  return [
+    ...new Set(
+      historicalFixtures
+        .filter(isCompletedFixture)
+        .filter((fixture) => {
+          const teams = objectValue(fixture.teams) ?? {};
+          return ["home", "away"].some((side) => {
+            const teamId = numberValue((objectValue(teams[side]) ?? {}).id);
+            return teamId !== null && teamIds.has(teamId);
+          });
+        })
+        .map((fixture) => numberValue((objectValue(fixture.fixture) ?? {}).id))
+        .filter((fixtureId): fixtureId is number => fixtureId !== null),
+    ),
+  ];
+}
+
+function playerActivitySnapshots({
+  fixtures,
+  recentLeagueMatches,
+  fixturePlayerRows,
+  asOf,
+}: {
+  fixtures: JsonObject[];
+  recentLeagueMatches: JsonObject[];
+  fixturePlayerRows: Array<{ fixtureId: number; teams: JsonObject[] }>;
+  asOf: string;
+}): JsonObject[] {
+  const fixturesById = new Map<number, JsonObject>();
+  for (const row of fixtures) {
+    const fixtureId = numberValue((objectValue(row.fixture) ?? {}).id);
+    if (fixtureId !== null && isCompletedFixture(row)) {
+      fixturesById.set(fixtureId, row);
+    }
+  }
+  // National-team form can span several official competitions. The compact
+  // recent-form record retains the player-sheet fixture id and date, which is
+  // enough to preserve this factual selection activity in the chronology.
+  for (const recent of recentLeagueMatches) {
+    const league = objectValue(recent.league) ?? {};
+    const team = objectValue(recent.team) ?? {};
+    const teamId = numberValue(team.id);
+    for (const matchValue of arrayValue(recent.matches)) {
+      const match = objectValue(matchValue) ?? {};
+      const fixture = objectValue(match.fixture) ?? {};
+      const fixtureId = numberValue(fixture.id);
+      const playedAt = stringValue(fixture.date);
+      if (
+        fixtureId === null || playedAt === null || teamId === null ||
+        fixturesById.has(fixtureId)
+      ) continue;
+      fixturesById.set(fixtureId, {
+        fixture: { id: fixtureId, date: playedAt, status: { short: "FT" } },
+        league,
+        teams: { home: team, away: {} },
+      });
+    }
+  }
+  const records = new Map<
+    string,
+    {
+      league: JsonObject;
+      team: JsonObject;
+      player: JsonObject;
+      matches: JsonObject[];
+    }
+  >();
+  for (const row of fixturePlayerRows) {
+    const fixture = fixturesById.get(row.fixtureId);
+    if (fixture === undefined) continue;
+    const fixtureMeta = objectValue(fixture.fixture) ?? {};
+    const league = objectValue(fixture.league) ?? {};
+    const playedAt = stringValue(fixtureMeta.date);
+    const leagueId = numberValue(league.id);
+    if (playedAt === null || leagueId === null) continue;
+    const source = isNationalCompetitionId(leagueId) ? "selection" : "club";
+    for (const teamPayload of row.teams) {
+      const team = objectValue(teamPayload.team) ?? {};
+      const teamId = numberValue(team.id);
+      if (teamId === null) continue;
+      for (const playerValue of arrayValue(teamPayload.players)) {
+        const playerRow = objectValue(playerValue) ?? {};
+        const player = objectValue(playerRow.player) ?? {};
+        const playerId = numberValue(player.id);
+        const statistics =
+          arrayValue(playerRow.statistics).map(objectValue).find((
+            value,
+          ): value is JsonObject => value !== null) ?? {};
+        const games = objectValue(statistics.games) ?? {};
+        const goals = objectValue(statistics.goals) ?? {};
+        const minutes = numberValue(games.minutes) ?? 0;
+        if (playerId === null || minutes <= 0) continue;
+        const key = `${leagueId}:${teamId}:${playerId}`;
+        const entry = records.get(key) ??
+          { league: { id: leagueId }, team, player, matches: [] };
+        entry.matches.push({
+          fixture_id: row.fixtureId,
+          played_at: playedAt,
+          source,
+          source_name: stringValue(team.name) ??
+            (source === "club" ? "Club" : "Sélection"),
+          source_logo_url: stringValue(team.logo),
+          appeared: true,
+          starter: booleanValue(games.substitute) !== true,
+          substitute: booleanValue(games.substitute) === true,
+          minutes,
+          goals: numberValue(goals.total) ?? 0,
+          assists: numberValue(goals.assists) ?? 0,
+        });
+        records.set(key, entry);
+      }
+    }
+  }
+  return [...records.values()].map((entry) => ({
+    league: entry.league,
+    team: entry.team,
+    player: entry.player,
+    as_of: asOf,
+    matches: entry.matches.sort((left, right) =>
+      String(left.played_at).localeCompare(String(right.played_at))
+    ),
+  }));
+}
+
+/**
+ * Finds club fixture metadata for international decisive-player profiles.
+ * The sync worker has already cached the relevant player and fixture calls;
+ * this builder remains read-only and never calls API-Football itself.
+ */
+async function clubActivityFixturesForSelectionProfiles({
+  supabaseUrl,
+  serviceRoleKey,
+  options,
+  playerRecentPerformances,
+}: {
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  options: SnapshotOptions;
+  playerRecentPerformances: JsonObject[];
+}): Promise<{ fixtures: JsonObject[]; sourceRows: CachedRawResponse[] }> {
+  const sources = new Map<string, CachedRawResponse>();
+  const fixturesById = new Map<number, JsonObject>();
+  for (
+    const candidate of decisiveSelectionPlayerCandidatesFromSnapshots(
+      playerRecentPerformances,
+      options,
+    )
+  ) {
+    const statisticsRows = await cachedResponsesFor({
+      supabaseUrl,
+      serviceRoleKey,
+      endpoint: "/players",
+      filters: {
+        id: String(candidate.playerId),
+        season: String(candidate.season),
+      },
+      exactQuery: true,
+    });
+    for (const row of statisticsRows) {
+      sources.set(`${row.endpoint}:${row.query_hash}`, row);
+    }
+    for (
+      const context of clubContextsFromPlayerStatisticsRows(
+        flatResponseItems(statisticsRows),
+        candidate.selectionTeamId,
+        candidate.season,
+      )
+    ) {
+      const fixtureRows = await cachedResponsesFor({
+        supabaseUrl,
+        serviceRoleKey,
+        endpoint: "/fixtures",
+        filters: {
+          team: String(context.teamId),
+          season: String(context.season),
+        },
+      });
+      for (const row of fixtureRows) {
+        sources.set(`${row.endpoint}:${row.query_hash}`, row);
+      }
+      for (const fixture of flatResponseItems(fixtureRows)) {
+        const fixtureId = numberValue((objectValue(fixture.fixture) ?? {}).id);
+        if (
+          fixtureId === null || !isCompletedFixture(fixture) ||
+          isOfficialInternationalFixture(fixture) ||
+          !fixtureContainsTeam(fixture, context.teamId)
+        ) continue;
+        fixturesById.set(fixtureId, fixture);
+      }
+    }
+  }
+  return {
+    fixtures: [...fixturesById.values()],
+    sourceRows: [...sources.values()],
+  };
+}
+
+function decisiveSelectionPlayerCandidatesFromSnapshots(
+  snapshots: JsonObject[],
+  options: SnapshotOptions,
+): Array<{ playerId: number; selectionTeamId: number; season: number }> {
+  const candidates = new Map<
+    string,
+    { playerId: number; selectionTeamId: number; season: number }
+  >();
+  for (const snapshot of snapshots) {
+    const leagueId = numberValue((objectValue(snapshot.league) ?? {}).id);
+    const selectionTeamId = numberValue((objectValue(snapshot.team) ?? {}).id);
+    const matches = numberValue(snapshot.matches_considered) ?? 0;
+    const sheets = numberValue(snapshot.fixtures_with_player_statistics) ?? 0;
+    if (
+      leagueId === null || selectionTeamId === null ||
+      !isNationalCompetitionId(leagueId) || matches < 3 || sheets < matches
+    ) continue;
+    for (
+      const playerValue of arrayValue(snapshot.players)
+        .map(objectValue)
+        .filter((value): value is JsonObject => value !== null)
+    ) {
+      const playerId = numberValue((objectValue(playerValue.player) ?? {}).id);
+      const appearances = numberValue(playerValue.appearances) ?? 0;
+      const minutes = numberValue(playerValue.minutes) ?? 0;
+      const contributions = numberValue(playerValue.contributions) ?? 0;
+      const matchesWithContribution =
+        numberValue(playerValue.matches_with_contribution) ?? 0;
+      if (
+        playerId === null || appearances < 2 || minutes <= 0 ||
+        contributions <= 0 || matchesWithContribution < 2 ||
+        contributions * 90 / minutes < 0.8
+      ) continue;
+      const season = seasonForLeague(options, leagueId);
+      candidates.set(`${leagueId}:${selectionTeamId}:${playerId}`, {
+        playerId,
+        selectionTeamId,
+        season,
+      });
+    }
+  }
+  return [...candidates.values()];
+}
+
+function clubContextsFromPlayerStatisticsRows(
+  rows: JsonObject[],
+  selectionTeamId: number,
+  fallbackSeason: number,
+): Array<{ teamId: number; season: number }> {
+  const contexts = new Map<string, { teamId: number; season: number }>();
+  for (const row of rows) {
+    for (const statisticValue of arrayValue(row.statistics)) {
+      const statistic = objectValue(statisticValue) ?? {};
+      const teamId = numberValue((objectValue(statistic.team) ?? {}).id);
+      const league = objectValue(statistic.league) ?? {};
+      const leagueId = numberValue(league.id);
+      if (
+        teamId === null || leagueId === null || teamId === selectionTeamId ||
+        isNationalCompetitionId(leagueId)
+      ) continue;
+      const season = numberValue(league.season) ?? fallbackSeason;
+      contexts.set(`${teamId}:${season}`, { teamId, season });
+    }
+  }
+  return [...contexts.values()];
 }
 
 /**

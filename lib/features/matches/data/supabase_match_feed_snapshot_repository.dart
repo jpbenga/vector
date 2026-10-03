@@ -4,8 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 abstract interface class MatchFeedSnapshotRemoteDataSource {
   Future<Map<String, Object?>?> loadLatestForDate(DateTime date);
-
-  Future<Map<String, Object?>?> loadLatest();
 }
 
 class SupabaseMatchFeedSnapshotRepository
@@ -16,6 +14,10 @@ class SupabaseMatchFeedSnapshotRepository
 
   @override
   Future<Map<String, Object?>?> loadLatestForDate(DateTime date) async {
+    return _withSessionRecovery(() => _loadLatestForDate(date));
+  }
+
+  Future<Map<String, Object?>?> _loadLatestForDate(DateTime date) async {
     final day = _dateOnly(date).toIso8601String().split('T').first;
     var request = _client
         .from('match_feed_analysis_snapshots')
@@ -51,16 +53,40 @@ class SupabaseMatchFeedSnapshotRepository
     return _loadSelectedPayloads([...coveredRows, ...latestRows]);
   }
 
-  @override
-  Future<Map<String, Object?>?> loadLatest() async {
-    final rows = await _client
-        .from('match_feed_analysis_snapshots')
-        .select('id,scope,league_ids')
-        .order('as_of', ascending: false)
-        .limit(500);
+  Future<T> _withSessionRecovery<T>(Future<T> Function() request) async {
+    if (_client.auth.currentSession?.isExpired == true) {
+      await _refreshOrClearSession();
+    }
 
-    return _loadSelectedPayloads(rows);
+    try {
+      return await request();
+    } on PostgrestException catch (error) {
+      if (!_isExpiredJwt(error)) {
+        rethrow;
+      }
+      await _refreshOrClearSession();
+      return request();
+    }
   }
+
+  Future<void> _refreshOrClearSession() async {
+    if (_client.auth.currentSession == null) {
+      return;
+    }
+
+    try {
+      await _client.auth.refreshSession();
+    } on Object {
+      // Snapshot reads are also available to anonymous users. A session that
+      // cannot be refreshed must not prevent the application from reading the
+      // current public feed with the anonymous key.
+      await _client.auth.signOut();
+    }
+  }
+
+  bool _isExpiredJwt(PostgrestException error) =>
+      error.code == 'PGRST303' ||
+      error.message.toLowerCase().contains('jwt expired');
 
   Future<Map<String, Object?>?> _loadSelectedPayloads(
     Iterable<Object?> metadataRows,

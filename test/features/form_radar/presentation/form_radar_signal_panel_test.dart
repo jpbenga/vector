@@ -24,7 +24,7 @@ void main() {
     );
 
     expect(find.text('Signaux Form Radar'), findsOneWidget);
-    expect(find.text('Historique'), findsOneWidget);
+    expect(find.text('Avant'), findsOneWidget);
     expect(find.text('3 récents'), findsOneWidget);
     expect(find.text('K. Mbappé'), findsOneWidget);
     expect(tester.takeException(), isNull);

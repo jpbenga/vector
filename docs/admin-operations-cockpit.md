@@ -1,4 +1,6 @@
-# Cockpit admin operations
+# Cockpit admin operations (ancien écran)
+
+Le nouveau poste de pilotage `/admin` et ses commandes de mise en service sont décrits dans [admin-operations-control.md](admin-operations-control.md). Ce document décrit l’ancien écran, conservé pour les accès testeurs et les diagnostics.
 
 Le cockpit admin fournit une premiere interface d'exploitation pour le pipeline
 API-Football.

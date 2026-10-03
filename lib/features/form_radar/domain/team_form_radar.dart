@@ -13,6 +13,7 @@ class TeamFormRadarProfile {
     required this.leagueName,
     required this.activity,
     this.logoUrl,
+    this.competitionNames = const {},
   });
 
   final int teamId;
@@ -20,7 +21,12 @@ class TeamFormRadarProfile {
   final String? logoUrl;
   final int leagueId;
   final String leagueName;
+  final Map<int, String> competitionNames;
   final List<TeamRecentMatchSnapshot> activity;
+
+  bool belongsToCompetition(int competitionId) => competitionNames.isEmpty
+      ? leagueId == competitionId
+      : competitionNames.containsKey(competitionId);
 }
 
 class TeamFormRadarEntry {

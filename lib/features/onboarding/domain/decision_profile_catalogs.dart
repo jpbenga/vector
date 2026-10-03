@@ -924,7 +924,7 @@ class ReadingPreferenceCatalog {
       id: 'head_to_head_dominance',
       label: 'Domination en tête-à-tête',
       description:
-          'Une équipe domine les six dernières confrontations dans la même compétition.',
+          'Une équipe domine les six dernières confrontations : même compétition en club, compétitions internationales officielles sur trois ans pour les sélections.',
     ),
     ReadingPreferenceDefinition(
       id: 'frequent_first_half_scoring',

@@ -9,9 +9,14 @@ import 'package:copilot/features/onboarding/domain/onboarding_answer.dart';
 import 'package:copilot/features/opportunities/domain/opportunity.dart';
 
 Future<void> main(List<String> args) async {
-  final snapshotPath = args.isEmpty
-      ? 'assets/snapshots/focused_match_feed_latest.json'
-      : args.first;
+  if (args.isEmpty) {
+    stderr.writeln(
+      'Usage: dart run tool/audit_for_me_stories.dart <snapshot.json> [date]',
+    );
+    exitCode = 64;
+    return;
+  }
+  final snapshotPath = args.first;
   final selectedDay = args.length < 2
       ? DateTime(2026, 8, 30)
       : DateTime.parse(args[1]);

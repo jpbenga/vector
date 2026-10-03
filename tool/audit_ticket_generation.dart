@@ -12,9 +12,14 @@ import 'package:copilot/features/tickets/domain/ticket_generator.dart';
 import 'package:copilot/features/tickets/domain/ticket_strategy.dart';
 
 Future<void> main(List<String> args) async {
-  final snapshotPath = args.isEmpty
-      ? 'assets/snapshots/focused_match_feed_latest.json'
-      : args.first;
+  if (args.isEmpty) {
+    stderr.writeln(
+      'Usage: dart run tool/audit_ticket_generation.dart <snapshot.json>',
+    );
+    exitCode = 64;
+    return;
+  }
+  final snapshotPath = args.first;
   final snapshot = jsonDecode(await File(snapshotPath).readAsString()) as Map;
   final repository = MatchFeedRepositoryFactory().create(
     MatchDataSourceMode.snapshot,

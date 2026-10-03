@@ -1,3 +1,5 @@
+import { handleOperations, safeError } from "../_shared/ops_admin.ts";
+
 type JsonObject = Record<string, unknown>;
 
 const corsHeaders = {
@@ -54,15 +56,32 @@ Deno.serve(async (request) => {
       return jsonResponse({ error: "Admin identity is required." }, 401);
     }
 
+    if (action?.startsWith("ops_")) {
+      try {
+        return jsonResponse(
+          await handleOperations(payload, identity.email),
+          200,
+        );
+      } catch (error) {
+        return jsonResponse({ ok: false, error: safeError(error) }, 400);
+      }
+    }
+
     if (action === "rerun_league") {
-      const result = await rerunLeague({
-        supabaseUrl,
-        serviceRoleKey,
-        environment,
-        admin: identity,
-        payload,
-      });
-      return jsonResponse(result, result.ok === true ? 200 : 400);
+      try {
+        const result = await handleOperations({
+          action: "ops_start",
+          league_ids: [payload.league_id],
+        }, identity.email);
+        return jsonResponse({
+          ...result,
+          operation_id: result.cycle_id,
+          status: "pending",
+          league_id: payload.league_id,
+        }, 200);
+      } catch (error) {
+        return jsonResponse({ ok: false, error: safeError(error) }, 400);
+      }
     }
 
     if (action === "create_test_link") {
@@ -313,8 +332,7 @@ function enrichPipelineHealth({
       snapshot_created_at: snapshot?.snapshot_created_at ?? null,
       snapshot_standings: snapshot?.standings ?? 0,
       snapshot_team_statistics: snapshot?.team_statistics ?? 0,
-      snapshot_recent_league_matches:
-        snapshot?.recent_league_matches ?? 0,
+      snapshot_recent_league_matches: snapshot?.recent_league_matches ?? 0,
       snapshot_expected_goals: snapshot?.expected_goals ?? 0,
       snapshot_player_statistics: coverage.player_statistics ?? 0,
       missing_team_statistics: snapshot?.missing_team_statistics ?? 0,
@@ -503,11 +521,26 @@ async function rerunLeague({
     if (bookmakerId !== undefined) {
       syncPayload.bookmaker_id = bookmakerId;
     }
-    const sync = await invokeInternalFunction({
-      supabaseUrl,
-      name: "api-football-sync",
-      payload: syncPayload,
-    });
+    const syncParts: JsonObject[] = [];
+    let batchCursor: JsonObject | null = null;
+    do {
+      const part = await invokeInternalFunction({
+        supabaseUrl,
+        name: "api-football-sync",
+        payload: {
+          ...syncPayload,
+          ...(batchCursor === null ? {} : { ops_batch_cursor: batchCursor }),
+        },
+      });
+      syncParts.push(part);
+      batchCursor = booleanValue(part.continue) === true
+        ? objectValue(part.batch_cursor)
+        : null;
+      if (booleanValue(part.continue) === true && batchCursor === null) {
+        throw new Error("api-football-sync returned an invalid batch cursor.");
+      }
+    } while (batchCursor !== null);
+    const sync = mergeSyncBatchResults(syncParts);
 
     let snapshot: JsonObject | null = null;
     if (includeSnapshot) {
@@ -518,9 +551,7 @@ async function rerunLeague({
           league_ids: [leagueId],
           window_start: today,
           window_end: feedEnd,
-          ...(bookmakerId === undefined
-            ? {}
-            : { bookmaker_id: bookmakerId }),
+          ...(bookmakerId === undefined ? {} : { bookmaker_id: bookmakerId }),
         },
       });
     }
@@ -659,6 +690,31 @@ async function invokeInternalFunction({
     throw new Error(`${name} failed: ${JSON.stringify(body)}`);
   }
   return body;
+}
+
+function mergeSyncBatchResults(parts: JsonObject[]): JsonObject {
+  const latest = parts[parts.length - 1] ?? {};
+  const summaries = parts.map((part) => objectValue(part.summary) ?? {});
+  const summary: JsonObject = { ...summaries[summaries.length - 1] };
+  for (
+    const key of [
+      "injuries",
+      "fixtureStatistics",
+      "fixtureEvents",
+      "fixturePlayerStatistics",
+      "playerStatisticsRequests",
+      "playerStatisticsPages",
+      "playerStatisticsPlayers",
+      "cachedResponses",
+      "providerRequests",
+    ]
+  ) {
+    summary[key] = summaries.reduce(
+      (total, item) => total + (numberValue(item[key]) ?? 0),
+      0,
+    );
+  }
+  return { ...latest, continue: false, summary };
 }
 
 async function restSelect({

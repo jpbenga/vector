@@ -184,8 +184,12 @@ class _FormRadarPeriodMarker extends StatelessWidget {
           SizedBox(
             width: _cellsWidth(historyColumns),
             child: Text(
-              'Historique',
+              'Avant',
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.clip,
               textAlign: TextAlign.center,
+              semanticsLabel: 'Matchs précédents',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: context.textColors.secondary,
                 fontWeight: FontWeight.w800,

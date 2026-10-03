@@ -166,6 +166,15 @@ class _AdminCockpitPageState extends State<AdminCockpitPage> {
 
     try {
       await repository.rerunLeague(leagueId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Batch mis en file. Son avancement est disponible dans le nouveau pilotage.',
+            ),
+          ),
+        );
+      }
       await _load();
     } on Object catch (error) {
       if (!mounted) {

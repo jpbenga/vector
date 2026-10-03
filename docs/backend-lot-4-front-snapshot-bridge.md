@@ -24,9 +24,8 @@ Supabase match_feed_snapshots.payload
   -> Football Analyzer / lectures / tickets
 ```
 
-Le point important est que les ecrans ne savent pas si le snapshot vient de
-Supabase ou d'un fichier local. Ils continuent de consommer
-`MatchFeedRepository`.
+Les ecrans consomment `MatchFeedRepository`. En mode connecté, le loader ne
+consulte plus de fichier local et n'accepte que la période demandée.
 
 ## Fichiers
 
@@ -42,11 +41,11 @@ lib/core/config/app_config.dart
 
 `MATCH_FEED_SOURCE` accepte :
 
-- `auto` : mode par defaut. Charge Supabase si la configuration existe, sinon
-  le snapshot local.
-- `supabase`, `remote` ou `api` : tente Supabase, puis fallback local en cas
-  d'echec.
-- `snapshot`, `local` ou `local_snapshot` : force le snapshot local.
+- `auto` : mode par défaut. Charge uniquement un snapshot Supabase qui couvre
+  le jour demandé. Si Supabase est absent ou qu'aucun snapshot ne couvre ce
+  jour, le chargement affiche une erreur au lieu de servir des données datées.
+- `supabase`, `remote` ou `api` : même règle, sans repli vers des données
+  locales ou vers un snapshot hors période.
 - `demo` : force les donnees de demonstration.
 
 ## Selection du snapshot distant
@@ -60,26 +59,10 @@ order by as_of desc
 limit 1
 ```
 
-Si aucun snapshot ne couvre le jour courant, il charge le dernier snapshot
-disponible. L'interface conserve alors ses controles de fraicheur : le
-calendrier reste positionne sur le jour J et les etats de snapshot hors fenetre
-ou obsolete restent visibles.
-
-## Fallback local
-
-Le fallback local est obligatoire pour :
-
-- developper sans reseau ;
-- travailler sans Supabase configure ;
-- conserver une experience exploitable si Supabase est temporairement
-  indisponible ;
-- eviter une page blanche.
-
-Snapshot local utilise :
-
-```text
-assets/snapshots/focused_match_feed_latest.json
-```
+Si aucun snapshot ne couvre le jour courant, le chargement échoue avec un
+message explicite. Aucun instantané ancien n'est présenté comme donnée du jour.
+Les exports manuels de recette sont écrits dans `output/` et ne sont pas
+embarqués ni utilisés par l'application.
 
 ## Securite
 
@@ -97,4 +80,3 @@ Le Lot 4 ne fait pas encore :
 - de selection avancee de snapshot par utilisateur ;
 - de job planifie ;
 - de prechargement offline persistant du dernier snapshot distant.
-

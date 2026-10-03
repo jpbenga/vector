@@ -115,15 +115,9 @@ void main() {
     test('edge function protects quotas and writes cache idempotently', () {
       expect(functionSource, contains('const maxDays = 7;'));
       expect(functionSource, contains('const maxLeagues = 40;'));
-      expect(
-        functionSource,
-        contains('const maxTeamStatisticsRequests = 120;'),
-      );
-      expect(functionSource, contains('const maxRecentFixtureRequests = 160;'));
-      expect(
-        functionSource,
-        contains('const maxFixtureStatisticsRequests = 240;'),
-      );
+      expect(functionSource, contains('const enrichmentBatchSize = 40;'));
+      expect(functionSource, contains('ops_batch_cursor'));
+      expect(functionSource, contains('enrichmentBatchProcessed'));
       expect(functionSource, contains('prefer: "resolution=merge-duplicates'));
       expect(functionSource, contains('sha256Hex'));
       expect(functionSource, contains('sortedObject(options.query)'));

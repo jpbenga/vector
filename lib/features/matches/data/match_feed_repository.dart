@@ -1,4 +1,6 @@
 import 'api_football_match_adapter.dart';
+import '../../form_radar/data/team_form_radar_snapshot_adapter.dart';
+import '../../form_radar/domain/team_form_radar.dart';
 import 'championship_tier_temporal_state_store.dart';
 import 'server_computed_match_analysis_adapter.dart';
 import 'championship_tier_snapshot_engine.dart';
@@ -150,6 +152,8 @@ class SnapshotMatchFeedRepository implements MatchFeedRepository {
         const StaticCompetitionStructuralMetadataRepository(),
     ChampionshipTierSnapshotEngine? tierSnapshotEngine,
     OpportunityEngineV2 opportunityEngine = const OpportunityEngineV2(),
+    TeamFormRadarSnapshotAdapter teamFormRadarAdapter =
+        const TeamFormRadarSnapshotAdapter(),
   }) {
     final matches = adapter.fromSnapshot(snapshot);
     final computedByFixture = computedAnalysisAdapter.fromSnapshot(snapshot);
@@ -186,6 +190,7 @@ class SnapshotMatchFeedRepository implements MatchFeedRepository {
             opportunityEngine,
           ),
       },
+      teamFormRadarProfiles: teamFormRadarAdapter.fromSnapshot(snapshot),
     );
   }
 
@@ -194,11 +199,13 @@ class SnapshotMatchFeedRepository implements MatchFeedRepository {
     required this.snapshotMetadata,
     required this._opportunityEngine,
     required this._intelligencesByFixtureId,
+    required this.teamFormRadarProfiles,
   });
 
   final List<MatchBoardItem> _matches;
   final OpportunityEngineV2 _opportunityEngine;
   final Map<String, MatchIntelligence> _intelligencesByFixtureId;
+  final List<TeamFormRadarProfile> teamFormRadarProfiles;
 
   @override
   MatchDataSourceMode get mode => MatchDataSourceMode.snapshot;
@@ -522,6 +529,44 @@ class UnavailableMatchFeedRepository implements MatchFeedRepository {
   MatchBoardItem analyzeFor(DecisionProfile profile, MatchBoardItem match) {
     throw StateError(reason);
   }
+}
+
+/// A valid, deliberately empty day in the remote feed.
+///
+/// This is distinct from [UnavailableMatchFeedRepository]: it lets the app
+/// remain usable when no snapshot has been published for the chosen day while
+/// ensuring that an older snapshot is never substituted for it.
+class EmptyMatchFeedRepository implements MatchFeedRepository {
+  EmptyMatchFeedRepository({required DateTime date, required this.reason})
+    : snapshotMetadata = MatchFeedSnapshotMetadata(
+        source: 'supabase-empty-day',
+        capturedAt: null,
+        timezone: 'Europe/Paris',
+        matchCount: 0,
+        windowStart: _dateOnly(date),
+        windowEnd: _dateOnly(date),
+      );
+
+  @override
+  MatchDataSourceMode get mode => MatchDataSourceMode.snapshot;
+
+  @override
+  final MatchFeedSnapshotMetadata snapshotMetadata;
+
+  final String reason;
+
+  @override
+  List<MatchBoardItem> allMatches() => const [];
+
+  @override
+  List<Opportunity> opportunitiesFor(DecisionProfile profile) => const [];
+
+  @override
+  List<MatchBoardItem> personalizedFor(DecisionProfile profile) => const [];
+
+  @override
+  MatchBoardItem analyzeFor(DecisionProfile profile, MatchBoardItem match) =>
+      match;
 }
 
 class DemoMatchFeedRepository implements MatchFeedRepository {

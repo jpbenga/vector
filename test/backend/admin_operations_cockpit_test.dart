@@ -111,15 +111,19 @@ void main() {
       },
     );
 
-    test('front calls admin-ops with the current user token only', () {
-      expect(
-        repository,
-        contains("_client.functions.invoke(\n      'admin-ops'"),
-      );
-      expect(repository, contains('_client.auth.currentSession?.accessToken'));
-      expect(repository, contains("'action': 'create_test_link'"));
-      expect(repository, isNot(contains('SUPABASE_SERVICE_ROLE_KEY')));
-      expect(repository, isNot(contains('API_FOOTBALL_SYNC_SECRET')));
-    });
+    test(
+      'front lets the Supabase client refresh an authenticated admin session',
+      () {
+        expect(
+          repository,
+          contains("_client.functions.invoke(\n      'admin-ops'"),
+        );
+        expect(repository, contains('await _client.auth.refreshSession()'));
+        expect(repository, isNot(contains('currentSession?.accessToken')));
+        expect(repository, contains("'action': 'create_test_link'"));
+        expect(repository, isNot(contains('SUPABASE_SERVICE_ROLE_KEY')));
+        expect(repository, isNot(contains('API_FOOTBALL_SYNC_SECRET')));
+      },
+    );
   });
 }

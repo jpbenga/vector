@@ -1,13 +1,19 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:copilot/features/onboarding/domain/decision_profile_catalogs.dart';
+
 const _projectUrl = 'https://ednvvxxvlawaagjyshkj.supabase.co';
 
 Future<void> main(List<String> arguments) async {
-  final leagueIds = arguments.map(int.tryParse).whereType<int>().toList();
-  if (leagueIds.isEmpty || leagueIds.length != arguments.length) {
+  final runAll = arguments.length == 1 && arguments.single == '--all';
+  final leagueIds = runAll
+      ? RuntimeCompetitionCatalog.apiFootballLeagueIds
+      : arguments.map(int.tryParse).whereType<int>().toList();
+  if (leagueIds.isEmpty || (!runAll && leagueIds.length != arguments.length)) {
     stderr.writeln(
-      'Usage: dart tool/run_daily_sync.dart <league-id> [<league-id> ...]',
+      'Usage: dart run tool/run_daily_sync.dart --all\n'
+      '   or: dart run tool/run_daily_sync.dart <league-id> [<league-id> ...]',
     );
     exitCode = 64;
     return;
@@ -36,8 +42,11 @@ Future<void> main(List<String> arguments) async {
           'include_team_statistics': true,
           'include_recent_form': true,
           'include_expected_goals': true,
-          'include_player_statistics': true,
-          'include_recent_player_performances': true,
+          // A complete rolling cycle must stay within one league run's
+          // enrichment limits. Deep player enrichment remains available when
+          // explicit league ids are requested.
+          'include_player_statistics': !runAll,
+          'include_recent_player_performances': !runAll,
           'recent_form_days_back': 180,
           'recent_form_matches': 10,
         }),

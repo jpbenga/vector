@@ -227,18 +227,18 @@ void main() {
       expect(docs, contains('force_rebuild: true'));
     });
 
-    test('rejects API-Football error payloads and empty publications', () {
-      expect(apiSync, contains('apiFootballErrorMessages'));
-      expect(apiSync, contains('API-Football error for'));
-      expect(apiSync, contains('payload.errors'));
-      expect(snapshotBuilder, contains('Cached API-Football response for'));
-      expect(snapshotBuilder, contains('emptySnapshotPublicationError'));
-      expect(
-        snapshotBuilder,
-        contains('Refusing to publish an empty match feed snapshot.'),
-      );
-      expect(observabilityMigration, contains('empty_snapshot'));
-    });
+    test(
+      'rejects API-Football errors while allowing verified empty publications',
+      () {
+        expect(apiSync, contains('apiFootballErrorMessages'));
+        expect(apiSync, contains('API-Football error for'));
+        expect(apiSync, contains('payload.errors'));
+        expect(snapshotBuilder, contains('Cached API-Football response for'));
+        expect(snapshotBuilder, contains('emptySnapshotPublicationError'));
+        expect(snapshotBuilder, contains('hasCompleteEmptyFixtureCoverage'));
+        expect(observabilityMigration, contains('empty_snapshot'));
+      },
+    );
 
     test('enforces provider quotas across concurrent sync runs', () {
       expect(

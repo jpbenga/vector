@@ -242,6 +242,16 @@ class ApiFootballMatchAdapter {
     if (leagueId == 10 && (odds == null || odds.availableMarkets.isEmpty)) {
       return null;
     }
+    final fixtureStandingTables = _standingTablesForFixture(
+      leagueId: leagueId,
+      homeTeamId: homeTeamId,
+      awayTeamId: awayTeamId,
+      tables: leagueId == null
+          ? const {}
+          : standingTablesByLeagueId[leagueId] ?? const {},
+    );
+    final fixtureStandings =
+        fixtureStandingTables[ChampionshipStandingView.general] ?? const [];
 
     return MatchBoardItem(
       fixture: NormalizedFixture(
@@ -294,22 +304,10 @@ class ApiFootballMatchAdapter {
       availableMarkets: odds?.availableMarkets ?? const [],
       analysis: MatchAnalysisData(
         asOf: capturedAt,
-        homeStanding: _standingFor(
-          standingsByLeagueTeamId,
-          leagueId,
-          homeTeamId,
-        ),
-        awayStanding: _standingFor(
-          standingsByLeagueTeamId,
-          leagueId,
-          awayTeamId,
-        ),
-        leagueStandings: leagueId == null
-            ? const []
-            : standingsByLeagueId[leagueId] ?? const [],
-        standingTables: leagueId == null
-            ? const {}
-            : standingTablesByLeagueId[leagueId] ?? const {},
+        homeStanding: _standingForRows(fixtureStandings, homeTeamId),
+        awayStanding: _standingForRows(fixtureStandings, awayTeamId),
+        leagueStandings: fixtureStandings,
+        standingTables: fixtureStandingTables,
         homeStatistics: _statisticsFor(
           statisticsByLeagueTeamId,
           leagueId,
@@ -577,18 +575,6 @@ class ApiFootballMatchAdapter {
       expectedGoals: expectedGoalsByLeagueTeamId[key],
       playerStatistics: playerStatisticsByLeagueTeamId[key] ?? const [],
     );
-  }
-
-  TeamStandingSnapshot? _standingFor(
-    Map<String, TeamStandingSnapshot> standings,
-    int? leagueId,
-    int? teamId,
-  ) {
-    if (leagueId == null || teamId == null) {
-      return null;
-    }
-
-    return standings[_standingKey(leagueId, teamId)];
   }
 
   TeamStatisticsSnapshot? _statisticsFor(
@@ -916,6 +902,53 @@ class ApiFootballMatchAdapter {
     }
 
     return result;
+  }
+
+  Map<ChampionshipStandingView, List<TeamStandingSnapshot>>
+  _standingTablesForFixture({
+    required int? leagueId,
+    required int? homeTeamId,
+    required int? awayTeamId,
+    required Map<ChampionshipStandingView, List<TeamStandingSnapshot>> tables,
+  }) {
+    if (leagueId == null || homeTeamId == null || awayTeamId == null) {
+      return const {};
+    }
+    final general = tables[ChampionshipStandingView.general] ?? const [];
+    final home = _standingForRows(general, homeTeamId);
+    final away = _standingForRows(general, awayTeamId);
+    final group = home?.group;
+
+    // A tournament can contain several groups whose ranks each start at one.
+    // Never flatten those groups into a fictitious single championship table.
+    if (group == null || group.isEmpty || away?.group != group) {
+      return tables;
+    }
+
+    final scoped = <ChampionshipStandingView, List<TeamStandingSnapshot>>{};
+    for (final entry in tables.entries) {
+      final rows = entry.value
+          .where((standing) => standing.group == group)
+          .toList(growable: false);
+      if (rows.isEmpty) continue;
+      scoped[entry.key] = entry.key == ChampionshipStandingView.general
+          ? (List<TeamStandingSnapshot>.of(rows)..sort(
+              (left, right) => (left.rank ?? 999).compareTo(right.rank ?? 999),
+            ))
+          : _rankByPoints(rows);
+    }
+    return Map.unmodifiable(scoped);
+  }
+
+  TeamStandingSnapshot? _standingForRows(
+    Iterable<TeamStandingSnapshot> standings,
+    int? teamId,
+  ) {
+    if (teamId == null) return null;
+    for (final standing in standings) {
+      if (standing.teamId == teamId) return standing;
+    }
+    return null;
   }
 
   Map<int, Map<ChampionshipStandingView, List<TeamStandingSnapshot>>>

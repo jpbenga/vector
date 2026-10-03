@@ -116,3 +116,56 @@ Deno.test("reports an away-only dominance and never leaks another competition", 
     );
   }
 });
+
+Deno.test("uses three years of official international meetings for national teams", () => {
+  const fixtureKickoff = Date.UTC(2026, 8, 24);
+  const withinThreeYears = Array.from({ length: 5 }, (_, index) =>
+    meeting({
+      index: fixtureKickoff - (index + 1) * 30 * 24 * 60 * 60 * 1000,
+      competitionId: index % 2 === 0 ? 4 : 5,
+    }));
+  const assessments = assessHeadToHeadDominance({
+    meetings: [
+      ...withinThreeYears,
+      meeting({
+        index: fixtureKickoff - 45 * 24 * 60 * 60 * 1000,
+        competitionId: 10,
+      }),
+      meeting({
+        index: fixtureKickoff - 4 * 365 * 24 * 60 * 60 * 1000,
+        competitionId: 1,
+      }),
+    ],
+    competitionId: 5,
+    homeTeamId: home,
+    awayTeamId: away,
+    fixtureKickoff,
+    officialInternationalScope: true,
+  });
+
+  if (assessments.length !== 0) {
+    throw new Error(
+      "Friendlies and matches older than three years must not complete a national TAT sample.",
+    );
+  }
+
+  const complete = assessHeadToHeadDominance({
+    meetings: [
+      ...withinThreeYears,
+      meeting({
+        index: fixtureKickoff - 180 * 24 * 60 * 60 * 1000,
+        competitionId: 1,
+      }),
+    ],
+    competitionId: 5,
+    homeTeamId: home,
+    awayTeamId: away,
+    fixtureKickoff,
+    officialInternationalScope: true,
+  });
+  if (complete.length !== 1 || complete[0].variant !== "total") {
+    throw new Error(
+      "Official World Cup, Euro and Nations League meetings must form one national TAT sample.",
+    );
+  }
+});
