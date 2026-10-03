@@ -6261,8 +6261,8 @@ class _LectorGlassCard extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      AppColors.shadow.withValues(alpha: 0.64),
-                      AppColors.shadow.withValues(alpha: 0.76),
+                      surfaces.shadow.withValues(alpha: 0.64),
+                      surfaces.shadow.withValues(alpha: 0.76),
                     ],
                   ),
                 ),

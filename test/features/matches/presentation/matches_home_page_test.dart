@@ -1235,11 +1235,11 @@ void main() {
         expect(find.text('Résultat du match'), findsOneWidget);
         expect(find.text('Fram Reykjavik gagne'), findsOneWidget);
         expect(find.text('3 lectures'), findsOneWidget);
-        expect(find.text('Voir le détail'), findsOneWidget);
+        expect(find.text('Cote —'), findsOneWidget);
         expect(find.text('CHOIX LECTOR'), findsNothing);
         expect(find.text('Cote indisponible'), findsNothing);
         expect(find.text('Contexte').hitTestable(), findsOneWidget);
-        await tester.tap(find.text('Voir le détail'));
+        await tester.tap(find.text('Fram Reykjavik gagne'));
         await tester.pumpAndSettle();
         expect(find.text('Détail du marché'), findsOneWidget);
         expect(find.text('Lectures associées à ce marché'), findsOneWidget);
