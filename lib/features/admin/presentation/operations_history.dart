@@ -50,8 +50,9 @@ class _OperationsHistoryState extends State<OperationsHistory> {
     }
     if (_source == 'runs') {
       if (['failed', 'partial'].contains(row['status']) ||
-          '${row['error_message'] ?? ''}'.isNotEmpty)
+          '${row['error_message'] ?? ''}'.isNotEmpty) {
         return 'failed';
+      }
       return row['status'] == 'succeeded' ? 'succeeded' : 'other';
     }
     return ['dispatch_error', 'failed', 'timeout'].contains(row['kind'])

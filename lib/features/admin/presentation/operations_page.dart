@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import '../../../core/auth/supabase_auth_controller.dart';
 import '../../../core/di/service_locator.dart';
 import '../../../core/supabase/supabase_initializer.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/theme/app_radius.dart';
 import '../data/admin_ops_repository.dart';
