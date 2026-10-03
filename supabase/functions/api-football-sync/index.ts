@@ -1,3 +1,6 @@
+import {
+  eligibleHeadToHeadFixtureIds,
+} from "../_shared/head_to_head_history.ts";
 import { fixtureSample, OpsReporter } from "../_shared/ops_runtime.ts";
 
 type JsonObject = Record<string, unknown>;
@@ -120,6 +123,8 @@ Deno.serve(async (request) => {
     { leagueId: number; season: number; teamId: number }
   >();
   const headToHeadPairs = new Set<string>();
+  const headToHeadReferences = new Map<string, string>();
+  const headToHeadFixtureIds = new Set<number>();
 
   try {
     await markStaleSyncRuns({
@@ -372,6 +377,28 @@ Deno.serve(async (request) => {
               }
             }
           }
+          const teams = objectValue(root.teams) ?? {};
+          const homeTeamId = numberValue(
+            (objectValue(teams.home) ?? {}).id,
+          );
+          const awayTeamId = numberValue(
+            (objectValue(teams.away) ?? {}).id,
+          );
+          if (
+            kickoff !== null &&
+            homeTeamId !== null &&
+            awayTeamId !== null &&
+            homeTeamId !== awayTeamId &&
+            ["NS", "TBD"].includes(status ?? "")
+          ) {
+            const pair = headToHeadPair(homeTeamId, awayTeamId);
+            if (headToHeadPairs.has(pair)) {
+              const existing = headToHeadReferences.get(pair);
+              if (existing === undefined || kickoff < existing) {
+                headToHeadReferences.set(pair, kickoff);
+              }
+            }
+          }
         }
 
         const oddsQuery: Record<string, string> = {
@@ -486,7 +513,7 @@ Deno.serve(async (request) => {
     // One cache key per unordered pair across the whole window. H2H history
     // is immutable, so a 30-day TTL avoids paying again for every daily run.
     for (const pair of headToHeadPairs) {
-      await fetchAndAccount({
+      const response = await fetchAndAccount({
         apiBaseUrl,
         apiKey,
         supabaseUrl,
@@ -499,9 +526,23 @@ Deno.serve(async (request) => {
       });
       summary.headToHead += 1;
       summary.cachedResponses += 1;
+      const referenceKickoff = headToHeadReferences.get(pair);
+      if (referenceKickoff !== undefined) {
+        for (
+          const fixtureId of eligibleHeadToHeadFixtureIds(
+            responseRows(response.body)
+              .map((value) => objectValue(value))
+              .filter((value): value is JsonObject => value !== null),
+            referenceKickoff,
+          )
+        ) {
+          headToHeadFixtureIds.add(fixtureId);
+        }
+      }
     }
 
     const phases = [
+      "head_to_head_timeline",
       "bulk",
       "player_pages",
       "activity_players",
@@ -600,6 +641,25 @@ Deno.serve(async (request) => {
           });
         }
         return tasks;
+      }
+
+      if (phase === "head_to_head_timeline") {
+        return [...headToHeadFixtureIds]
+          .sort((left, right) => left - right)
+          .flatMap((fixtureId) => [
+            {
+              endpoint: "/fixtures/events",
+              query: { fixture: String(fixtureId) },
+              ttlSeconds: 30 * 86400,
+              kind: "fixture_events" as const,
+            },
+            {
+              endpoint: "/fixtures/statistics",
+              query: { fixture: String(fixtureId) },
+              ttlSeconds: 30 * 86400,
+              kind: "fixture_statistics" as const,
+            },
+          ]);
       }
 
       if (phase === "player_pages") {

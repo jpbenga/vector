@@ -1012,13 +1012,39 @@ class _EmptyTimeline extends StatelessWidget {
       border: Border.all(color: context.surfaces.border),
     ),
     child: Padding(
-      padding: const EdgeInsets.all(12),
-      child: Text(
-        'Aucune confrontation n’est disponible dans le snapshot actuel.',
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: context.textColors.secondary,
-          fontWeight: FontWeight.w700,
-        ),
+      padding: const EdgeInsets.all(18),
+      child: Row(
+        children: [
+          Icon(
+            Icons.history_toggle_off_rounded,
+            color: context.textColors.secondary,
+            size: 28,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Aucune confrontation à afficher',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: context.textColors.primary,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Ces équipes ne se sont pas encore rencontrées dans les trois dernières saisons officielles.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.textColors.secondary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     ),
   );

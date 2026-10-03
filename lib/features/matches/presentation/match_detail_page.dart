@@ -372,8 +372,8 @@ class _LectorMatchBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final brand = context.brand;
     final surfaces = context.surfaces;
+    final brand = context.brand;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -479,8 +479,8 @@ class _LectorMatchTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final brand = context.brand;
     final textColors = context.textColors;
+    final brand = context.brand;
 
     return Row(
       children: [
@@ -573,7 +573,6 @@ class _LectorMatchHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final brand = context.brand;
     final venueLabel = _venueValue(match.fixture.venue);
     final roundLabel = _fixtureRoundLabel(match.fixture.round);
 
@@ -609,7 +608,7 @@ class _LectorMatchHero extends StatelessWidget {
                       Text(
                         roundLabel,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: brand.accent,
+                          color: context.textColors.onImageMuted,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -620,7 +619,7 @@ class _LectorMatchHero extends StatelessWidget {
                 _matchDateTimeLabel(match),
                 textAlign: TextAlign.right,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: brand.accent,
+                  color: context.textColors.onImage,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -648,7 +647,7 @@ class _LectorMatchHero extends StatelessWidget {
               children: [
                 Icon(
                   Icons.stadium_outlined,
-                  color: context.textColors.onImage.withValues(alpha: 0.72),
+                  color: context.textColors.onImageMuted,
                   size: 18,
                 ),
                 const SizedBox(width: 8),
@@ -658,7 +657,7 @@ class _LectorMatchHero extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: context.textColors.onImage.withValues(alpha: 0.72),
+                      color: context.textColors.onImageMuted,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -719,7 +718,6 @@ class _HeroStatusBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final brand = context.brand;
     final score = match.fixture.score;
     final isLive = match.fixture.status == FixtureStatus.live;
     final isFinished = match.fixture.status == FixtureStatus.finished;
@@ -735,7 +733,7 @@ class _HeroStatusBlock extends StatelessWidget {
                 ? 'TERMINÉ'
                 : 'Avant-match',
             style: theme.textTheme.labelMedium?.copyWith(
-              color: brand.accent,
+              color: context.textColors.onImage,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -762,7 +760,7 @@ class _HeroStatusBlock extends StatelessWidget {
             const SizedBox(height: 6),
             DecoratedBox(
               decoration: BoxDecoration(
-                color: brand.accent.withValues(alpha: 0.18),
+                color: context.textColors.onImage.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(AppRadius.chip),
               ),
               child: Padding(
@@ -773,7 +771,7 @@ class _HeroStatusBlock extends StatelessWidget {
                 child: Text(
                   'Avant-match',
                   style: theme.textTheme.labelMedium?.copyWith(
-                    color: brand.accent,
+                    color: context.textColors.onImage,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -883,6 +881,7 @@ class _ContextMarketAssociation {
     required this.selectionLabel,
     required this.supportingReadingIds,
     required this.contradictionIds,
+    this.odds,
     this.subjectTeamId,
   });
 
@@ -892,6 +891,7 @@ class _ContextMarketAssociation {
   final String selectionLabel;
   final List<String> supportingReadingIds;
   final List<String> contradictionIds;
+  final double? odds;
   final String? subjectTeamId;
 }
 
@@ -914,6 +914,7 @@ List<_ContextMarketAssociation> _contextMarketAssociationsFor(
       contradictionIds: recommendation.contradictionIds.toSet().toList(
         growable: false,
       ),
+      odds: recommendation.pricedCandidate?.odds,
       subjectTeamId: recommendation.subjectTeamId,
     );
   }
@@ -1026,69 +1027,73 @@ class _ContextAssociatedMarketRow extends StatelessWidget {
       ),
       borderRadius: BorderRadius.circular(AppRadius.input),
       child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: context.surfaces.surfaceHover.withValues(alpha: .42),
           borderRadius: BorderRadius.circular(AppRadius.input),
           border: Border.all(color: context.surfaces.border),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Row(
+            Icon(
+              _contextMarketIcon(association.marketId),
+              size: 20,
+              color: context.brand.accent,
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    association.marketLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: context.textColors.primary,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Text(
+                    association.selectionLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.textColors.secondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  _contextMarketIcon(association.marketId),
-                  size: 21,
-                  color: context.brand.accent,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        association.marketLabel,
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: context.textColors.primary,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 1),
-                      Text(
-                        association.selectionLabel,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: context.textColors.secondary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+                Text(
+                  association.odds == null
+                      ? 'Cote —'
+                      : 'Cote ${association.odds!.toStringAsFixed(2).replaceAll('.', ',')}',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: association.odds == null
+                        ? context.textColors.secondary
+                        : context.brand.accent,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
-                const SizedBox(width: 8),
                 Text(
                   '${association.supportingReadingIds.length} lecture${association.supportingReadingIds.length > 1 ? 's' : ''}',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: context.brand.accent,
-                    fontWeight: FontWeight.w900,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: context.textColors.secondary,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 4),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () => _showContextMarketAssociationSheet(
-                  context,
-                  match: match,
-                  association: association,
-                ),
-                icon: const Icon(Icons.chevron_right_rounded, size: 18),
-                iconAlignment: IconAlignment.end,
-                label: const Text('Voir le détail'),
-              ),
-            ),
+            const SizedBox(width: 2),
+            Icon(Icons.chevron_right_rounded, color: context.brand.accent),
           ],
         ),
       ),
@@ -4565,8 +4570,6 @@ class _StandingFormDots extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final values = results.isEmpty ? const ['-', '-', '-', '-', '-'] : results;
-    final textColors = context.textColors;
-
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -4582,7 +4585,7 @@ class _StandingFormDots extends StatelessWidget {
             child: Text(
               _standingFormDotLabel(result),
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: textColors.primary,
+                color: _formDotForeground(context, result),
                 fontSize: 10,
                 fontWeight: FontWeight.w900,
                 height: 1,
@@ -5077,7 +5080,7 @@ class _LectorFormDotsRow extends StatelessWidget {
             child: Text(
               _lectorFormResultLabel(result),
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: context.textColors.primary,
+                color: _formDotForeground(context, result),
                 fontSize: 10,
                 fontWeight: FontWeight.w900,
               ),
@@ -5429,7 +5432,7 @@ class _LectorTinyResultBadge extends StatelessWidget {
       child: Text(
         _lectorFormResultLabel(result),
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: context.textColors.primary,
+          color: _formDotForeground(context, result),
           fontSize: 9,
           fontWeight: FontWeight.w900,
         ),
@@ -5962,8 +5965,6 @@ class _FormDots extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final values = results.isEmpty ? const ['-', '-', '-', '-', '-'] : results;
-    final textColors = context.textColors;
-
     return Wrap(
       alignment: WrapAlignment.end,
       spacing: 5,
@@ -5981,7 +5982,7 @@ class _FormDots extends StatelessWidget {
             child: Text(
               _formDotLabel(result),
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: textColors.primary,
+                color: _formDotForeground(context, result),
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -6260,8 +6261,8 @@ class _LectorGlassCard extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      surfaces.shadow.withValues(alpha: 0.18),
-                      surfaces.shadow.withValues(alpha: 0.52),
+                      AppColors.shadow.withValues(alpha: 0.64),
+                      AppColors.shadow.withValues(alpha: 0.76),
                     ],
                   ),
                 ),
@@ -9087,7 +9088,7 @@ class _ScenarioFormDots extends StatelessWidget {
             child: Text(
               _lectorFormResultLabel(result),
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: context.textColors.primary,
+                color: _formDotForeground(context, result),
                 fontSize: 9,
                 fontWeight: FontWeight.w900,
               ),
@@ -10987,6 +10988,14 @@ Color _formDotColor(BuildContext context, String result) {
     return context.semantic.error;
   }
   return context.surfaces.border;
+}
+
+Color _formDotForeground(BuildContext context, String result) {
+  final value = result.toUpperCase();
+  if (value == 'W' || value == 'V') return context.semantic.onSuccess;
+  if (value == 'D' || value == 'N') return context.semantic.onNeutral;
+  if (value == 'L' || value == 'P') return context.semantic.onError;
+  return context.textColors.primary;
 }
 
 Color _formPerformanceColor(BuildContext context, List<String> results) {

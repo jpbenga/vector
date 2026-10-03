@@ -17,6 +17,7 @@ class AppColors {
   static const textSecondary = Color(0xFFB8C3CC);
   static const textWeak = Color(0xFF7D8C99);
   static const textDisabled = Color(0xFF5B6873);
+  static const imageTextMuted = Color(0xFFE0EAF0);
 
   static const success = Color(0xFF38D97A);
   static const successHover = Color(0xFF4CE38A);
@@ -74,9 +75,10 @@ class AppLightColors {
   static const textSecondary = Color(0xFF44535E);
   static const textWeak = Color(0xFF6E7D87);
   static const textDisabled = Color(0xFF9AA8B2);
+  static const imageTextMuted = AppColors.imageTextMuted;
 
-  static const success = Color(0xFF138A4A);
-  static const successHover = Color(0xFF1FA75D);
+  static const success = Color(0xFF087A3E);
+  static const successHover = Color(0xFF149451);
   static const warning = Color(0xFFB7791F);
   static const error = Color(0xFFC73545);
   static const live = Color(0xFFD93A2F);
@@ -131,6 +133,7 @@ class AppGoldColors {
   static const textSecondary = Color(0xFFC9CED4);
   static const textWeak = Color(0xFF91A0AD);
   static const textDisabled = Color(0xFF657584);
+  static const imageTextMuted = AppColors.imageTextMuted;
 
   static const success = Color(0xFF58D385);
   static const successHover = Color(0xFF73E39B);
@@ -188,6 +191,7 @@ class AppAuroraColors {
   static const textSecondary = Color(0xFFD1C4EC);
   static const textWeak = Color(0xFF9888C1);
   static const textDisabled = Color(0xFF70618F);
+  static const imageTextMuted = AppColors.imageTextMuted;
 
   static const success = Color(0xFF61DB8A);
   static const successHover = Color(0xFF7CEC9F);

@@ -36,6 +36,21 @@ export function eligibleHeadToHeadMeetings(
     .slice(0, maxHeadToHeadMeetings);
 }
 
+/// Returns the provider fixture ids whose immutable event timeline must be
+/// collected for the meetings displayed by the application.
+export function eligibleHeadToHeadFixtureIds(
+  values: readonly HeadToHeadJson[],
+  referenceKickoff: string | Date,
+): number[] {
+  const ids = new Set<number>();
+  for (const meeting of eligibleHeadToHeadMeetings(values, referenceKickoff)) {
+    const fixture = objectValue(meeting.fixture) ?? {};
+    const id = numberValue(fixture.id);
+    if (id !== null) ids.add(id);
+  }
+  return [...ids];
+}
+
 function isFriendlyCompetition(league: HeadToHeadJson): boolean {
   const label = [league.name, league.type, league.country]
     .map(stringValue)
@@ -53,6 +68,15 @@ function objectValue(value: unknown): HeadToHeadJson | null {
 
 function stringValue(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function numberValue(value: unknown): number | null {
+  const parsed = typeof value === "number"
+    ? value
+    : typeof value === "string"
+    ? Number(value)
+    : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function dateValue(value: unknown): Date | null {

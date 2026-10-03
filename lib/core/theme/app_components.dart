@@ -188,6 +188,7 @@ class AppTextPalette extends ThemeExtension<AppTextPalette> {
     required this.weak,
     required this.disabled,
     required this.onImage,
+    required this.onImageMuted,
   });
 
   final Color primary;
@@ -195,6 +196,7 @@ class AppTextPalette extends ThemeExtension<AppTextPalette> {
   final Color weak;
   final Color disabled;
   final Color onImage;
+  final Color onImageMuted;
 
   static const vectorDark = AppTextPalette(
     primary: AppColors.textPrimary,
@@ -202,6 +204,7 @@ class AppTextPalette extends ThemeExtension<AppTextPalette> {
     weak: AppColors.textWeak,
     disabled: AppColors.textDisabled,
     onImage: AppColors.textPrimary,
+    onImageMuted: AppColors.imageTextMuted,
   );
 
   static const vectorLight = AppTextPalette(
@@ -210,6 +213,7 @@ class AppTextPalette extends ThemeExtension<AppTextPalette> {
     weak: AppLightColors.textWeak,
     disabled: AppLightColors.textDisabled,
     onImage: AppColors.textPrimary,
+    onImageMuted: AppLightColors.imageTextMuted,
   );
 
   static const gold = AppTextPalette(
@@ -218,6 +222,7 @@ class AppTextPalette extends ThemeExtension<AppTextPalette> {
     weak: AppGoldColors.textWeak,
     disabled: AppGoldColors.textDisabled,
     onImage: AppColors.textPrimary,
+    onImageMuted: AppGoldColors.imageTextMuted,
   );
 
   static const aurora = AppTextPalette(
@@ -226,6 +231,7 @@ class AppTextPalette extends ThemeExtension<AppTextPalette> {
     weak: AppAuroraColors.textWeak,
     disabled: AppAuroraColors.textDisabled,
     onImage: AppColors.textPrimary,
+    onImageMuted: AppAuroraColors.imageTextMuted,
   );
 
   @override
@@ -235,6 +241,7 @@ class AppTextPalette extends ThemeExtension<AppTextPalette> {
     Color? weak,
     Color? disabled,
     Color? onImage,
+    Color? onImageMuted,
   }) {
     return AppTextPalette(
       primary: primary ?? this.primary,
@@ -242,6 +249,7 @@ class AppTextPalette extends ThemeExtension<AppTextPalette> {
       weak: weak ?? this.weak,
       disabled: disabled ?? this.disabled,
       onImage: onImage ?? this.onImage,
+      onImageMuted: onImageMuted ?? this.onImageMuted,
     );
   }
 
@@ -254,6 +262,7 @@ class AppTextPalette extends ThemeExtension<AppTextPalette> {
       weak: Color.lerp(weak, other.weak, t)!,
       disabled: Color.lerp(disabled, other.disabled, t)!,
       onImage: Color.lerp(onImage, other.onImage, t)!,
+      onImageMuted: Color.lerp(onImageMuted, other.onImageMuted, t)!,
     );
   }
 }
@@ -267,6 +276,9 @@ class AppSemanticPalette extends ThemeExtension<AppSemanticPalette> {
     required this.error,
     required this.live,
     required this.info,
+    required this.onSuccess,
+    required this.onError,
+    required this.onNeutral,
   });
 
   final Color success;
@@ -275,6 +287,9 @@ class AppSemanticPalette extends ThemeExtension<AppSemanticPalette> {
   final Color error;
   final Color live;
   final Color info;
+  final Color onSuccess;
+  final Color onError;
+  final Color onNeutral;
 
   static const vectorDark = AppSemanticPalette(
     success: AppColors.success,
@@ -283,6 +298,9 @@ class AppSemanticPalette extends ThemeExtension<AppSemanticPalette> {
     error: AppColors.error,
     live: AppColors.live,
     info: AppColors.info,
+    onSuccess: AppColors.background,
+    onError: AppColors.background,
+    onNeutral: AppColors.background,
   );
 
   static const vectorLight = AppSemanticPalette(
@@ -292,6 +310,9 @@ class AppSemanticPalette extends ThemeExtension<AppSemanticPalette> {
     error: AppLightColors.error,
     live: AppLightColors.live,
     info: AppLightColors.info,
+    onSuccess: AppLightColors.surface,
+    onError: AppLightColors.surface,
+    onNeutral: AppLightColors.surface,
   );
 
   static const gold = AppSemanticPalette(
@@ -301,6 +322,9 @@ class AppSemanticPalette extends ThemeExtension<AppSemanticPalette> {
     error: AppGoldColors.error,
     live: AppGoldColors.live,
     info: AppGoldColors.info,
+    onSuccess: AppGoldColors.background,
+    onError: AppGoldColors.background,
+    onNeutral: AppGoldColors.background,
   );
 
   static const aurora = AppSemanticPalette(
@@ -310,6 +334,9 @@ class AppSemanticPalette extends ThemeExtension<AppSemanticPalette> {
     error: AppAuroraColors.error,
     live: AppAuroraColors.live,
     info: AppAuroraColors.info,
+    onSuccess: AppAuroraColors.background,
+    onError: AppAuroraColors.background,
+    onNeutral: AppAuroraColors.background,
   );
 
   @override
@@ -320,6 +347,9 @@ class AppSemanticPalette extends ThemeExtension<AppSemanticPalette> {
     Color? error,
     Color? live,
     Color? info,
+    Color? onSuccess,
+    Color? onError,
+    Color? onNeutral,
   }) {
     return AppSemanticPalette(
       success: success ?? this.success,
@@ -328,6 +358,9 @@ class AppSemanticPalette extends ThemeExtension<AppSemanticPalette> {
       error: error ?? this.error,
       live: live ?? this.live,
       info: info ?? this.info,
+      onSuccess: onSuccess ?? this.onSuccess,
+      onError: onError ?? this.onError,
+      onNeutral: onNeutral ?? this.onNeutral,
     );
   }
 
@@ -341,6 +374,9 @@ class AppSemanticPalette extends ThemeExtension<AppSemanticPalette> {
       error: Color.lerp(error, other.error, t)!,
       live: Color.lerp(live, other.live, t)!,
       info: Color.lerp(info, other.info, t)!,
+      onSuccess: Color.lerp(onSuccess, other.onSuccess, t)!,
+      onError: Color.lerp(onError, other.onError, t)!,
+      onNeutral: Color.lerp(onNeutral, other.onNeutral, t)!,
     );
   }
 }

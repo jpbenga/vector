@@ -115,7 +115,10 @@ class VectorThemeTokens {
       secondary: colors.textSecondary,
       weak: colors.textWeak,
       disabled: colors.textDisabled,
-      onImage: colors.textPrimary,
+      // Image cards receive a dark scrim. These tokens therefore stay light
+      // even in a light application theme, instead of inheriting page text.
+      onImage: AppColors.textPrimary,
+      onImageMuted: AppColors.imageTextMuted,
     );
     final semantic = AppSemanticPalette(
       success: colors.success,
@@ -124,6 +127,27 @@ class VectorThemeTokens {
       error: colors.error,
       live: colors.live,
       info: colors.info,
+      onSuccess: _mostContrasting(colors.success, [
+        AppColors.shadow,
+        AppColors.textPrimary,
+        colors.background,
+        colors.surface,
+        colors.textPrimary,
+      ]),
+      onError: _mostContrasting(colors.error, [
+        AppColors.shadow,
+        AppColors.textPrimary,
+        colors.background,
+        colors.surface,
+        colors.textPrimary,
+      ]),
+      onNeutral: _mostContrasting(colors.textSecondary, [
+        AppColors.shadow,
+        AppColors.textPrimary,
+        colors.background,
+        colors.surface,
+        colors.textPrimary,
+      ]),
     );
 
     Color blend(Color foreground, double opacity, Color background) {
@@ -180,6 +204,27 @@ class VectorThemeTokens {
       ),
     );
   }
+}
+
+Color _mostContrasting(Color background, List<Color> candidates) {
+  return candidates.reduce(
+    (best, candidate) =>
+        _contrastRatio(candidate, background) > _contrastRatio(best, background)
+        ? candidate
+        : best,
+  );
+}
+
+double _contrastRatio(Color first, Color second) {
+  final firstLuminance = first.computeLuminance();
+  final secondLuminance = second.computeLuminance();
+  final lighter = firstLuminance > secondLuminance
+      ? firstLuminance
+      : secondLuminance;
+  final darker = firstLuminance > secondLuminance
+      ? secondLuminance
+      : firstLuminance;
+  return (lighter + 0.05) / (darker + 0.05);
 }
 
 class CopilotTheme {

@@ -1,4 +1,5 @@
 import {
+  eligibleHeadToHeadFixtureIds,
   eligibleHeadToHeadMeetings,
   maxHeadToHeadMeetings,
 } from "./head_to_head_history.ts";
@@ -26,7 +27,11 @@ Deno.test("keeps only official completed meetings inside the previous three year
   const result = eligibleHeadToHeadMeetings([
     meeting({ id: 1, date: "2023-09-26T19:00:00Z" }),
     meeting({ id: 2, date: "2023-09-28T19:00:00Z" }),
-    meeting({ id: 3, date: "2025-03-01T19:00:00Z", leagueName: "International Friendlies" }),
+    meeting({
+      id: 3,
+      date: "2025-03-01T19:00:00Z",
+      leagueName: "International Friendlies",
+    }),
     meeting({ id: 4, date: "2026-09-26T19:00:00Z", status: "NS" }),
     meeting({ id: 5, date: "2026-09-28T19:00:00Z" }),
     meeting({ id: 6, date: "2026-05-01T19:00:00Z" }),
@@ -43,11 +48,31 @@ Deno.test("limits the history to the six most recent eligible meetings", () => {
     meeting({
       id: index + 1,
       date: `2026-0${index + 1}-01T19:00:00Z`,
-    })
-  );
+    }));
   const result = eligibleHeadToHeadMeetings(values, reference);
   const ids = result.map((value) => (value.fixture as { id: number }).id);
-  if (result.length !== maxHeadToHeadMeetings || ids.join(",") !== "8,7,6,5,4,3") {
-    throw new Error(`Expected the six newest meetings, received ${ids.join(", ")}`);
+  if (
+    result.length !== maxHeadToHeadMeetings || ids.join(",") !== "8,7,6,5,4,3"
+  ) {
+    throw new Error(
+      `Expected the six newest meetings, received ${ids.join(", ")}`,
+    );
+  }
+});
+
+Deno.test("selects only eligible historical fixture ids for timeline enrichment", () => {
+  const ids = eligibleHeadToHeadFixtureIds([
+    meeting({ id: 1, date: "2026-09-26T19:00:00Z" }),
+    meeting({ id: 2, date: "2026-09-25T19:00:00Z", status: "NS" }),
+    meeting({
+      id: 3,
+      date: "2026-09-24T19:00:00Z",
+      leagueName: "International Friendlies",
+    }),
+    meeting({ id: 4, date: "2022-09-24T19:00:00Z" }),
+  ], reference);
+
+  if (ids.join(",") !== "1") {
+    throw new Error(`Unexpected timeline fixtures: ${ids.join(", ")}`);
   }
 });
