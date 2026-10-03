@@ -4,9 +4,11 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/lector_responsive_layout.dart';
 import '../../onboarding/domain/decision_profile.dart';
 import '../../onboarding/domain/decision_profile_catalogs.dart';
 import '../../tickets/domain/ticket_strategy.dart';
+import 'lector_guide_page.dart';
 import 'widgets/sports_asset_badge.dart';
 
 typedef ProfilePreferenceSaver = Future<void> Function(DecisionProfile profile);
@@ -1026,6 +1028,15 @@ class _ReadingChoiceRow extends StatelessWidget {
                       color: context.textColors.secondary,
                       height: 1.28,
                     ),
+                  ),
+                  TextButton(
+                    key: ValueKey('reading-guide-${reading.id}'),
+                    onPressed: () => openReadingGuide(
+                      context,
+                      reading.id,
+                      isFollowed: isSelected,
+                    ),
+                    child: const Text('Comprendre cette lecture'),
                   ),
                 ],
               ),
@@ -2469,74 +2480,75 @@ class _PreferenceEditorScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: FractionallySizedBox(
-        heightFactor: _PreferenceScale.editorHeightFactor,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            _PreferenceScale.sheetHorizontalPadding,
-            0,
-            _PreferenceScale.sheetHorizontalPadding,
-            _PreferenceScale.sheetBottomPadding,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+      child: LectorContent(
+        child: FractionallySizedBox(
+          heightFactor: _PreferenceScale.editorHeightFactor,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              _PreferenceScale.sheetHorizontalPadding,
+              0,
+              _PreferenceScale.sheetHorizontalPadding,
+              _PreferenceScale.sheetBottomPadding,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                    Text(
+                      '$selectedCount',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: context.brand.accent,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.textColors.secondary,
                   ),
-                  Text(
-                    '$selectedCount',
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: context.brand.accent,
-                      fontWeight: FontWeight.w900,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                if (onClear != null)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: onClear,
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      icon: const Icon(Icons.close_rounded),
+                      label: const Text('Réinitialiser'),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                subtitle,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: context.textColors.secondary,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              if (onClear != null)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: onClear,
-                    style: TextButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    icon: const Icon(Icons.close_rounded),
-                    label: const Text('Réinitialiser'),
+                const SizedBox(height: AppSpacing.xxs),
+                Expanded(child: child),
+                const SizedBox(height: AppSpacing.xs),
+                SizedBox(
+                  height: _PreferenceScale.compactButtonHeight,
+                  child: FilledButton(
+                    onPressed: isSaving ? null : onSave,
+                    child: isSaving
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Enregistrer'),
                   ),
                 ),
-              const SizedBox(height: AppSpacing.xxs),
-              Expanded(child: child),
-              const SizedBox(height: AppSpacing.xs),
-              SizedBox(
-                height: _PreferenceScale.compactButtonHeight,
-                child: FilledButton(
-                  onPressed: isSaving ? null : onSave,
-                  child: isSaving
-                      ? const SizedBox.square(
-                          dimension: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Enregistrer'),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

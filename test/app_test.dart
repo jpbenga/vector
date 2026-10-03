@@ -174,6 +174,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(LectorSpacePage), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Mes marchés'), 200);
+      await tester.pumpAndSettle();
       expect(find.text('Mes marchés'), findsOneWidget);
       expect(find.text('Onboarding'), findsNothing);
     },

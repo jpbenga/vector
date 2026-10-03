@@ -44,6 +44,60 @@ soutien ne s’est pas produit.
 
 ## Contrats et déploiement
 
+### Exploration du bilan
+
+Le bilan conserve les fenêtres de 7, 30 et 90 jours, mesurées sur la date du
+coup d’envoi jusqu’au moment du chargement. Il affiche chaque lecture annoncée
+sur cette période, puis permet de croiser championnat et équipe concernée
+(domicile, extérieur, match entier). La vue « Par championnat » rassemble les
+lectures d’une compétition ; son ouverture applique ce filtre à la liste des
+lectures. Les préférences du compte ne réduisent pas ce bilan public.
+
+Le taux de confirmation est `confirmées / (confirmées + contredites)`.
+L’agrégation additionne les comptes et recalcule ce taux ; elle ne moyenne pas
+les pourcentages des championnats. Les annonces en attente, non évaluables et
+sans contrat de résultat figurent séparément. Les scénarios et les nuances ne
+font pas partie du dénominateur du bilan des lectures.
+
+L’unité comptée est une **annonce de lecture**, pas un match distinct : plusieurs
+lectures peuvent concerner la même rencontre, voire chacune des deux équipes.
+Le critère conservé avant match est affiché dans le détail. Par exemple, le
+contrat historique de « Dynamique positive » est une non-défaite : une victoire
+ou un nul le confirme, une défaite le contredit. Cette refonte ne modifie pas
+les contrats des annonces historiques. Les lectures descriptives sans contrat
+de résultat restent visibles, sans taux inventé.
+
+La migration `20261003180000_reading_bilan_exploration.sql` enrichit la vue
+publique avec les noms et le championnat du snapshot d’origine, même lorsque
+le résultat n’existe pas encore. Le score et le verdict proviennent du dernier
+résultat archivé ; un résultat plus récent sans évaluation reste en attente,
+sans emprunter le verdict d’un résultat précédent. Le détail est paginé par
+dix annonces, avec les mêmes filtres que la synthèse.
+
+La nouvelle RPC `match_reading_bilan_breakdown` agrège par lecture et
+championnat côté serveur. Le client parcourt toutes les pages de cette RPC
+pour éviter la limite de réponse de PostgREST. Il ne télécharge pas toutes les
+annonces pour calculer le tableau. L’ancienne RPC reste disponible pour les
+versions précédentes de l’application.
+
+**Déployer la migration SQL avant le nouveau front.** Aucun cycle de collecte
+n’est nécessaire : le bilan utilise les annonces et résultats déjà archivés.
+Si le fournisseur n’a pas encore livré de résultat, le détail indique son
+absence ; si aucun nom n’a été archivé, il utilise un libellé d’équipe générique.
+
+Vérifications :
+
+```sh
+deno test --node-modules-dir=none --no-lock --allow-read test/backend/reading_bilan_sql_test.ts
+flutter test test/features/matches/presentation/reading_bilan_section_test.dart test/features/matches/data/match_reading_bilan_repository_test.dart
+```
+
+Le test SQL exécute la migration réelle sur PostgreSQL en mémoire, remplace
+la vue précédente et vérifie l’accès anonyme, les noms avant résultat, les
+regroupements, les filtres et la correction d’un score. Les tests Flutter
+vérifient les calculs pondérés, les filtres croisés et la pagination du détail
+dans les deux thèmes. Ces tests font partie de la CI.
+
 Les migrations, Edge Functions et le front font partie du même changement :
 
 - `20260918110000_server_computed_match_feed.sql` crée le read model compact ;

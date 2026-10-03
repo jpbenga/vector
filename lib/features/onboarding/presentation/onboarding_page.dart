@@ -4,6 +4,7 @@ import '../../../app/auth/auth_menu_button.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/theme/app_radius.dart';
+import '../../../core/widgets/lector_responsive_layout.dart';
 import '../../tickets/domain/ticket_strategy.dart';
 import '../../matches/presentation/widgets/sports_asset_badge.dart';
 import '../data/onboarding_questionnaire.dart';
@@ -111,106 +112,111 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
-              child: Column(
-                children: [
-                  _OnboardingTopBar(
-                    canGoBack: _questionIndex > 0,
-                    onBack: _questionIndex > 0
-                        ? () {
-                            setState(() {
-                              _questionIndex -= 1;
-                            });
-                          }
-                        : null,
-                    onCancel: widget.onCancel,
-                  ),
-                  const SizedBox(height: 18),
-                  _StepIndicator(
-                    currentIndex: _questionIndex,
-                    totalCount: questions.length,
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
-                children: [
-                  Text(
-                    question.title.resolve(locale),
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    question.subtitle.resolve(locale),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  _QuestionBody(
-                    question: question,
-                    answer: _answers[question.id]!,
-                    strategies: _ticketStrategies,
-                    strategyDraft: _newStrategyDraft(),
-                    onAnswerChanged: (answer) {
-                      setState(() {
-                        _answers[question.id] = answer;
-                      });
-                    },
-                    onStrategiesChanged: (strategies) {
-                      setState(() {
-                        _ticketStrategies = strategies;
-                      });
-                    },
-                  ),
-                ],
-              ),
-            ),
-            SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
+      body: LectorContent(
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (!canContinue) ...[
-                      _ValidationNotice(message: _validationMessage(question)),
-                      const SizedBox(height: 10),
-                    ],
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: canContinue
-                            ? () {
-                                setState(() {
-                                  if (_questionIndex == questions.length - 1) {
-                                    _showsSummary = true;
-                                  } else {
-                                    _questionIndex += 1;
-                                  }
-                                });
-                              }
-                            : null,
-                        child: Text(
-                          _questionIndex == questions.length - 1
-                              ? 'Voir mon profil'
-                              : 'Continuer',
-                        ),
-                      ),
+                    _OnboardingTopBar(
+                      canGoBack: _questionIndex > 0,
+                      onBack: _questionIndex > 0
+                          ? () {
+                              setState(() {
+                                _questionIndex -= 1;
+                              });
+                            }
+                          : null,
+                      onCancel: widget.onCancel,
+                    ),
+                    const SizedBox(height: 18),
+                    _StepIndicator(
+                      currentIndex: _questionIndex,
+                      totalCount: questions.length,
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+                  children: [
+                    Text(
+                      question.title.resolve(locale),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      question.subtitle.resolve(locale),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    _QuestionBody(
+                      question: question,
+                      answer: _answers[question.id]!,
+                      strategies: _ticketStrategies,
+                      strategyDraft: _newStrategyDraft(),
+                      onAnswerChanged: (answer) {
+                        setState(() {
+                          _answers[question.id] = answer;
+                        });
+                      },
+                      onStrategiesChanged: (strategies) {
+                        setState(() {
+                          _ticketStrategies = strategies;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (!canContinue) ...[
+                        _ValidationNotice(
+                          message: _validationMessage(question),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: canContinue
+                              ? () {
+                                  setState(() {
+                                    if (_questionIndex ==
+                                        questions.length - 1) {
+                                      _showsSummary = true;
+                                    } else {
+                                      _questionIndex += 1;
+                                    }
+                                  });
+                                }
+                              : null,
+                          child: Text(
+                            _questionIndex == questions.length - 1
+                                ? 'Voir mon profil'
+                                : 'Continuer',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1369,8 +1375,13 @@ class _TicketStrategyEditorPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: _TicketStrategyDialog(strategy: strategy, canDelete: canDelete),
+      body: LectorContent(
+        child: SafeArea(
+          child: _TicketStrategyDialog(
+            strategy: strategy,
+            canDelete: canDelete,
+          ),
+        ),
       ),
     );
   }
@@ -2292,76 +2303,80 @@ class _OnboardingSummaryScreen extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
-              child: Column(
-                children: [
-                  _OnboardingTopBar(
-                    canGoBack: true,
-                    onBack: onBack,
-                    onCancel: onCancel,
-                  ),
-                  const SizedBox(height: 18),
-                  const _StepIndicator(currentIndex: 3, totalCount: 4),
-                ],
+      body: LectorContent(
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+                child: Column(
+                  children: [
+                    _OnboardingTopBar(
+                      canGoBack: true,
+                      onBack: onBack,
+                      onCancel: onCancel,
+                    ),
+                    const SizedBox(height: 18),
+                    const _StepIndicator(currentIndex: 3, totalCount: 4),
+                  ],
+                ),
               ),
-            ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
-                children: [
-                  Text(
-                    'Récapitulatif',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+                  children: [
+                    Text(
+                      'Récapitulatif',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Vérifiez vos préférences avant de terminer la configuration de votre profil.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      height: 1.35,
+                    const SizedBox(height: 8),
+                    Text(
+                      'Vérifiez vos préférences avant de terminer la configuration de votre profil.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        height: 1.35,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 18),
-                  for (final indexedQuestion in questions.indexed)
-                    _SummarySection(
-                      title: _summaryTitle(indexedQuestion.$2.id),
-                      icon: _summaryIcon(indexedQuestion.$2.id),
-                      countLabel: indexedQuestion.$2.id == 'ticket_strategies'
-                          ? _strategyCountLabel()
-                          : _countLabel(indexedQuestion.$2),
-                      values: indexedQuestion.$2.id == 'ticket_strategies'
-                          ? _strategyLabels(context)
-                          : _labelsForQuestion(indexedQuestion.$2, context),
-                      onTap: () => onEditQuestion(indexedQuestion.$1),
-                    ),
-                ],
+                    const SizedBox(height: 18),
+                    for (final indexedQuestion in questions.indexed)
+                      _SummarySection(
+                        title: _summaryTitle(indexedQuestion.$2.id),
+                        icon: _summaryIcon(indexedQuestion.$2.id),
+                        countLabel: indexedQuestion.$2.id == 'ticket_strategies'
+                            ? _strategyCountLabel()
+                            : _countLabel(indexedQuestion.$2),
+                        values: indexedQuestion.$2.id == 'ticket_strategies'
+                            ? _strategyLabels(context)
+                            : _labelsForQuestion(indexedQuestion.$2, context),
+                        onTap: () => onEditQuestion(indexedQuestion.$1),
+                      ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: onConfirm,
-                  child: const Text('Terminer la configuration'),
+        child: LectorContent(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: onConfirm,
+                    child: const Text('Terminer la configuration'),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              TextButton(onPressed: onBack, child: const Text('Retour')),
-            ],
+                const SizedBox(height: 8),
+                TextButton(onPressed: onBack, child: const Text('Retour')),
+              ],
+            ),
           ),
         ),
       ),
@@ -2456,100 +2471,102 @@ class _OnboardingCompletedScreen extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainer.withValues(alpha: 0.78),
-                  borderRadius: BorderRadius.circular(AppRadius.control),
-                  border: Border.all(color: colorScheme.outlineVariant),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(26),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: colorScheme.primary,
-                            width: 2,
+      body: LectorContent(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainer.withValues(alpha: 0.78),
+                    borderRadius: BorderRadius.circular(AppRadius.control),
+                    border: Border.all(color: colorScheme.outlineVariant),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(26),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        DecoratedBox(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: colorScheme.primary,
+                              width: 2,
+                            ),
+                          ),
+                          child: SizedBox.square(
+                            dimension: 94,
+                            child: Icon(
+                              Icons.check_rounded,
+                              color: colorScheme.primary,
+                              size: 54,
+                            ),
                           ),
                         ),
-                        child: SizedBox.square(
-                          dimension: 94,
-                          child: Icon(
-                            Icons.check_rounded,
-                            color: colorScheme.primary,
-                            size: 54,
+                        const SizedBox(height: 28),
+                        Text(
+                          'Votre profil est prêt !',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 28),
-                      Text(
-                        'Votre profil est prêt !',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Lector va maintenant rechercher les meilleures opportunités selon vos préférences.',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHigh.withValues(
-                            alpha: 0.55,
-                          ),
-                          borderRadius: BorderRadius.circular(
-                            AppRadius.control,
+                        const SizedBox(height: 10),
+                        Text(
+                          'Lector va maintenant rechercher les meilleures opportunités selon vos préférences.',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            height: 1.4,
                           ),
                         ),
-                        child: const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Column(
-                            children: [
-                              _NextStepLine(
-                                icon: Icons.star_rounded,
-                                text:
-                                    'Consultez “Pour moi” pour découvrir vos opportunités personnalisées.',
-                              ),
-                              SizedBox(height: 12),
-                              _NextStepLine(
-                                icon: Icons.style_outlined,
-                                text:
-                                    'Créez ou ajustez vos stratégies de tickets à tout moment.',
-                              ),
-                            ],
+                        const SizedBox(height: 24),
+                        DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceContainerHigh.withValues(
+                              alpha: 0.55,
+                            ),
+                            borderRadius: BorderRadius.circular(
+                              AppRadius.control,
+                            ),
+                          ),
+                          child: const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                _NextStepLine(
+                                  icon: Icons.star_rounded,
+                                  text:
+                                      'Consultez “Pour moi” pour découvrir vos opportunités personnalisées.',
+                                ),
+                                SizedBox(height: 12),
+                                _NextStepLine(
+                                  icon: Icons.style_outlined,
+                                  text:
+                                      'Créez ou ajustez vos stratégies de tickets à tout moment.',
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 28),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton(
-                          onPressed: onExplore,
-                          child: const Text('Accéder à mes opportunités'),
+                        const SizedBox(height: 28),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: onExplore,
+                            child: const Text('Accéder à mes opportunités'),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      TextButton(
-                        onPressed: onEditProfile,
-                        child: const Text('Modifier mes préférences'),
-                      ),
-                    ],
+                        const SizedBox(height: 10),
+                        TextButton(
+                          onPressed: onEditProfile,
+                          child: const Text('Modifier mes préférences'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

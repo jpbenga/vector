@@ -12,6 +12,7 @@ import '../../../core/theme/app_components.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/lector_brand_mark.dart';
+import '../../../core/widgets/lector_responsive_layout.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../onboarding/domain/decision_profile_catalogs.dart';
 import '../../opportunities/domain/opportunity.dart';
@@ -29,10 +30,9 @@ import '../data/match_reading_bilan_repository.dart';
 import 'opportunity_decision_presenter.dart';
 import 'reading_bilan_section.dart';
 import 'widgets/head_to_head_timeline_panel.dart';
+import 'widgets/lector_match_hero.dart';
+import 'widgets/lector_glass_card.dart';
 import 'widgets/sports_asset_badge.dart';
-
-const _matchCardStadiumBackgroundAsset =
-    'assets/backgrounds/match-card-stadium-premium.png';
 
 class MatchDetailPage extends StatefulWidget {
   const MatchDetailPage({
@@ -109,111 +109,118 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
         children: [
           const _LectorMatchBackground(),
           SafeArea(
-            child: CustomScrollView(
-              slivers: [
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 88),
-                  sliver: SliverList.list(
-                    children: [
-                      _LectorMatchTopBar(
-                        onBack: () => Navigator.of(context).maybePop(),
-                      ),
-                      const SizedBox(height: 10),
-                      _LectorMatchHero(match: widget.match),
-                      FutureBuilder<List<MatchReadingBilanEntry>>(
-                        future: _readingBilan,
-                        builder: (context, snapshot) {
-                          final entries =
-                              snapshot.data ?? const <MatchReadingBilanEntry>[];
-                          if (entries.isEmpty ||
-                              !entries.any((entry) => entry.hasResult)) {
-                            return const SizedBox.shrink();
-                          }
-                          final confirmed = entries
-                              .where((entry) => entry.verdict == 'confirmed')
-                              .length;
-                          final contradicted = entries
-                              .where((entry) => entry.verdict == 'contradicted')
-                              .length;
-                          final pertinentNuances = entries
-                              .where(
-                                (entry) => entry.verdict == 'caution_confirmed',
-                              )
-                              .length;
-                          final result = entries.firstWhere(
-                            (entry) => entry.hasResult,
-                          );
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 12),
-                            child: ExpansionTile(
-                              tilePadding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                              ),
-                              collapsedBackgroundColor:
-                                  context.surfaces.backgroundSecondary,
-                              backgroundColor:
-                                  context.surfaces.backgroundSecondary,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              collapsedShape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              title: Text(
-                                'Résultat ${result.homeGoals}–${result.awayGoals}',
-                                style: TextStyle(
-                                  color: context.textColors.primary,
-                                  fontWeight: FontWeight.w800,
+            child: LectorContent(
+              maxWidth: LectorLayout.workspaceWidth,
+              child: CustomScrollView(
+                slivers: [
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 88),
+                    sliver: SliverList.list(
+                      children: [
+                        _LectorMatchTopBar(
+                          onBack: () => Navigator.of(context).maybePop(),
+                        ),
+                        const SizedBox(height: 10),
+                        LectorMatchHero(match: widget.match),
+                        FutureBuilder<List<MatchReadingBilanEntry>>(
+                          future: _readingBilan,
+                          builder: (context, snapshot) {
+                            final entries =
+                                snapshot.data ??
+                                const <MatchReadingBilanEntry>[];
+                            if (entries.isEmpty ||
+                                !entries.any((entry) => entry.hasResult)) {
+                              return const SizedBox.shrink();
+                            }
+                            final confirmed = entries
+                                .where((entry) => entry.verdict == 'confirmed')
+                                .length;
+                            final contradicted = entries
+                                .where(
+                                  (entry) => entry.verdict == 'contradicted',
+                                )
+                                .length;
+                            final pertinentNuances = entries
+                                .where(
+                                  (entry) =>
+                                      entry.verdict == 'caution_confirmed',
+                                )
+                                .length;
+                            final result = entries.firstWhere(
+                              (entry) => entry.hasResult,
+                            );
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: ExpansionTile(
+                                tilePadding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
                                 ),
-                              ),
-                              subtitle: Text(
-                                '$confirmed lectures confirmées · '
-                                '$contradicted contredites · '
-                                '$pertinentNuances nuances pertinentes · '
-                                '${entries.length} annoncées',
-                                style: TextStyle(
-                                  color: context.textColors.secondary,
+                                collapsedBackgroundColor:
+                                    context.surfaces.backgroundSecondary,
+                                backgroundColor:
+                                    context.surfaces.backgroundSecondary,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
                                 ),
-                              ),
-                              children: [
-                                for (final entry in entries)
-                                  Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      10,
-                                      0,
-                                      10,
-                                      8,
-                                    ),
-                                    child: ReadingVerdictCard(entry: entry),
+                                collapsedShape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                title: Text(
+                                  'Résultat ${result.homeGoals}–${result.awayGoals}',
+                                  style: TextStyle(
+                                    color: context.textColors.primary,
+                                    fontWeight: FontWeight.w800,
                                   ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      _LectorSynthesisCard(
-                        match: widget.match,
-                        opportunity: widget.opportunity,
-                      ),
-                      const SizedBox(height: 12),
-                      _LectorMatchTabBar(
-                        selectedIndex: _selectedFreeTab,
-                        onSelected: (index) {
-                          setState(() => _selectedFreeTab = index);
-                        },
-                      ),
-                      const SizedBox(height: 10),
-                      _LectorFreeTabContent(
-                        match: widget.match,
-                        selectedIndex: _selectedFreeTab,
-                        selectedReadingIds: widget.selectedReadingIds,
-                        selectedScenarioIds: widget.selectedScenarioIds,
-                      ),
-                    ],
+                                ),
+                                subtitle: Text(
+                                  '$confirmed lectures confirmées · '
+                                  '$contradicted contredites · '
+                                  '$pertinentNuances nuances pertinentes · '
+                                  '${entries.length} annoncées',
+                                  style: TextStyle(
+                                    color: context.textColors.secondary,
+                                  ),
+                                ),
+                                children: [
+                                  for (final entry in entries)
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        10,
+                                        0,
+                                        10,
+                                        8,
+                                      ),
+                                      child: ReadingVerdictCard(entry: entry),
+                                    ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        _LectorSynthesisCard(
+                          match: widget.match,
+                          opportunity: widget.opportunity,
+                        ),
+                        const SizedBox(height: 12),
+                        _LectorMatchTabBar(
+                          selectedIndex: _selectedFreeTab,
+                          onSelected: (index) {
+                            setState(() => _selectedFreeTab = index);
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        _LectorFreeTabContent(
+                          match: widget.match,
+                          selectedIndex: _selectedFreeTab,
+                          selectedReadingIds: widget.selectedReadingIds,
+                          selectedScenarioIds: widget.selectedScenarioIds,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           Positioned(
@@ -565,225 +572,6 @@ class _LectorDetailMark extends StatelessWidget {
   }
 }
 
-class _LectorMatchHero extends StatelessWidget {
-  const _LectorMatchHero({required this.match});
-
-  final MatchBoardItem match;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final venueLabel = _venueValue(match.fixture.venue);
-    final roundLabel = _fixtureRoundLabel(match.fixture.round);
-
-    return _LectorGlassCard(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 13),
-      backgroundAsset: _matchCardStadiumBackgroundAsset,
-      child: Column(
-        children: [
-          Row(
-            children: [
-              SportsAssetBadge(
-                size: 34,
-                imageUrl: match.competition.logoUrl,
-                fallbackLabel: match.competition.name,
-                icon: Icons.emoji_events_outlined,
-                contrastPlate: true,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      match.competition.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        color: context.textColors.onImage,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    if (roundLabel != null)
-                      Text(
-                        roundLabel,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: context.textColors.onImageMuted,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              Text(
-                _matchDateTimeLabel(match),
-                textAlign: TextAlign.right,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: context.textColors.onImage,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: _HeroTeamBlock(team: match.homeTeam, alignRight: false),
-              ),
-              const SizedBox(width: 8),
-              _HeroStatusBlock(match: match),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _HeroTeamBlock(team: match.awayTeam, alignRight: true),
-              ),
-            ],
-          ),
-          if (venueLabel.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.stadium_outlined,
-                  color: context.textColors.onImageMuted,
-                  size: 18,
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    venueLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: context.textColors.onImageMuted,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _HeroTeamBlock extends StatelessWidget {
-  const _HeroTeamBlock({required this.team, required this.alignRight});
-
-  final TeamInfo team;
-  final bool alignRight;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Column(
-      crossAxisAlignment: alignRight
-          ? CrossAxisAlignment.end
-          : CrossAxisAlignment.start,
-      children: [
-        SportsAssetBadge(
-          size: 56,
-          imageUrl: team.logoUrl,
-          fallbackLabel: team.name,
-          backgroundColor: AppColors.transparent,
-          padding: 1,
-        ),
-        const SizedBox(height: 7),
-        Text(
-          team.name,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          textAlign: alignRight ? TextAlign.right : TextAlign.left,
-          style: theme.textTheme.titleMedium?.copyWith(
-            color: context.textColors.onImage,
-            fontWeight: FontWeight.w900,
-            height: 1.05,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _HeroStatusBlock extends StatelessWidget {
-  const _HeroStatusBlock({required this.match});
-
-  final MatchBoardItem match;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final score = match.fixture.score;
-    final isLive = match.fixture.status == FixtureStatus.live;
-    final isFinished = match.fixture.status == FixtureStatus.finished;
-
-    return SizedBox(
-      width: 94,
-      child: Column(
-        children: [
-          Text(
-            isLive
-                ? 'EN COURS'
-                : isFinished
-                ? 'TERMINÉ'
-                : 'Avant-match',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: context.textColors.onImage,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 5),
-          if (score != null)
-            Text(
-              '${score.home} - ${score.away}',
-              style: theme.textTheme.displaySmall?.copyWith(
-                color: context.textColors.onImage,
-                fontWeight: FontWeight.w900,
-                height: 1,
-              ),
-            )
-          else
-            Text(
-              '-',
-              style: theme.textTheme.headlineLarge?.copyWith(
-                color: context.textColors.onImage,
-                fontWeight: FontWeight.w900,
-                height: 1,
-              ),
-            ),
-          if (!isLive && !isFinished) ...[
-            const SizedBox(height: 6),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: context.textColors.onImage.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(AppRadius.chip),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                child: Text(
-                  'Avant-match',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: context.textColors.onImage,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
 class _LectorSynthesisCard extends StatelessWidget {
   const _LectorSynthesisCard({required this.match, this.opportunity});
 
@@ -801,7 +589,7 @@ class _LectorSynthesisCard extends StatelessWidget {
     final summary = _contextMatchSummary(match, readings);
     final count = readings.length;
 
-    return _LectorGlassCard(
+    return LectorGlassCard(
       padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3056,7 +2844,7 @@ class _LectorStandingContextCardState
       selectedScenarioIds: widget.selectedScenarioIds,
     );
     if (views.isEmpty) {
-      return _LectorGlassCard(
+      return LectorGlassCard(
         padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -3124,7 +2912,7 @@ class _LectorStandingContextCardState
         standings.any((standing) => _officialStandingZone(standing) != null);
     final officialZones = _officialStandingLegendItems(standings);
 
-    return _LectorGlassCard(
+    return LectorGlassCard(
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4750,7 +4538,7 @@ class _LectorFormContextCard extends StatelessWidget {
       fallbackResults: awayResults,
     );
 
-    return _LectorGlassCard(
+    return LectorGlassCard(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -5881,7 +5669,7 @@ class _LectorInfoCard extends StatelessWidget {
     final textColors = context.textColors;
     final surfaces = context.surfaces;
 
-    return _LectorGlassCard(
+    return LectorGlassCard(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -6004,7 +5792,7 @@ class _LectorRecentMatchesCard extends StatelessWidget {
     final textColors = context.textColors;
     final surfaces = context.surfaces;
 
-    return _LectorGlassCard(
+    return LectorGlassCard(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -6122,7 +5910,7 @@ class _LectorFollowCard extends StatelessWidget {
     final surfaces = context.surfaces;
     final brand = context.brand;
 
-    return _LectorGlassCard(
+    return LectorGlassCard(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -6204,73 +5992,6 @@ class _FollowActionRow extends StatelessWidget {
                 ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _LectorGlassCard extends StatelessWidget {
-  const _LectorGlassCard({
-    required this.child,
-    required this.padding,
-    this.backgroundAsset,
-  });
-
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-  final String? backgroundAsset;
-
-  @override
-  Widget build(BuildContext context) {
-    final surfaces = context.surfaces;
-    final radius = BorderRadius.circular(AppRadius.control);
-
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        borderRadius: radius,
-        boxShadow: [
-          BoxShadow(
-            color: surfaces.shadow.withValues(alpha: 0.18),
-            blurRadius: 22,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      foregroundDecoration: BoxDecoration(
-        borderRadius: radius,
-        border: Border.all(color: surfaces.border.withValues(alpha: 0.92)),
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: ColoredBox(color: surfaces.surface.withValues(alpha: 0.72)),
-          ),
-          if (backgroundAsset != null) ...[
-            Positioned.fill(
-              child: Image.asset(
-                backgroundAsset!,
-                fit: BoxFit.cover,
-                alignment: Alignment.center,
-              ),
-            ),
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      surfaces.shadow.withValues(alpha: 0.64),
-                      surfaces.shadow.withValues(alpha: 0.76),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-          Padding(padding: padding, child: child),
-        ],
       ),
     );
   }
@@ -9365,23 +9086,6 @@ class _ScenarioReadingLine extends StatelessWidget {
   }
 }
 
-String _matchDateTimeLabel(MatchBoardItem match) {
-  final label = match.fixture.kickoffLabel.trim();
-  return label.isEmpty ? 'Aujourd’hui' : 'Aujourd’hui · $label';
-}
-
-String _venueValue(FixtureVenue? venue) {
-  if (venue == null) {
-    return 'Stade à confirmer';
-  }
-  final name = venue.name?.trim();
-  final city = venue.city?.trim();
-  return [
-    if (name != null && name.isNotEmpty) name,
-    if (city != null && city.isNotEmpty) city,
-  ].join(' · ');
-}
-
 String _rankLabel(TeamStandingSnapshot? standing) {
   final rank = standing?.rank;
   if (rank == null) {
@@ -9472,20 +9176,6 @@ RecommendedMarket? _recommendedMarketForDetail(
   }
   final fromOpportunity = opportunity?.recommendedMarket;
   return _hasScenarioRecommendedPick(fromOpportunity) ? fromOpportunity : null;
-}
-
-String? _fixtureRoundLabel(String? rawRound) {
-  final round = rawRound?.trim();
-  if (round == null || round.isEmpty) {
-    return null;
-  }
-
-  final match = RegExp(
-    r'^(?:regular\s+season\s*-\s*)?(\d+)$',
-    caseSensitive: false,
-  ).firstMatch(round);
-  final number = match?.group(1);
-  return number == null ? null : 'Journée $number';
 }
 
 String? _scenarioRecommendedPickLabel(

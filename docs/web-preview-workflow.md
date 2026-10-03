@@ -39,11 +39,15 @@ Sans cette variable au moment du build, Supabase peut rediriger vers l'URL
 courante du navigateur, par exemple `localhost`, au lieu de revenir vers le
 déploiement Vercel.
 
-Le script de build force :
+Par défaut, le script de build utilise :
 
 ```text
 APP_ENV=staging
 ```
+
+Pour une ouverture publique avec un domaine, suivre
+[le plan de lancement web](web-public-launch.md). Le build peut recevoir
+`APP_ENV=production` sur l’environnement Vercel Production.
 
 Aucun secret prive ne doit etre ajoute a Vercel pour le front.
 Ne jamais exposer :
@@ -186,6 +190,6 @@ valider une iteration avant de la partager plus largement.
 - [ ] Redirect URL Vercel ajoutee dans Supabase
 - [ ] Comptes Google des testeurs ajoutes si OAuth est en mode test
 - [ ] Connexion Google testee sur l'URL Vercel
-- [ ] Snapshot Supabase charge ou fallback local clairement visible
+- [ ] Snapshot Supabase chargé ; navigation disponible même en l’absence de rencontres
 - [ ] QR code genere depuis l'URL stable
 - [ ] Guide testeur partage avec le lien et le QR code

@@ -1,4 +1,5 @@
 import 'package:copilot/app/theme/app_theme.dart';
+import 'package:copilot/features/matches/presentation/lector_guide_page.dart';
 import 'package:copilot/features/matches/presentation/lector_scenarios_page.dart';
 import 'package:copilot/features/matches/domain/football_scenario.dart';
 import 'package:copilot/features/onboarding/domain/decision_profile.dart';
@@ -7,6 +8,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets(
+    'Scenario help opens without following it and returns to the selection',
+    (tester) async {
+      final savedProfiles = <DecisionProfile>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark,
+          home: LectorScenariosPage(
+            profile: _profile(),
+            onProfileChanged: (profile) async => savedProfiles.add(profile),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final help = find.byKey(const ValueKey('scenario-guide-solid_favorite'));
+      await tester.ensureVisible(help);
+      await tester.pumpAndSettle();
+      await tester.tap(help);
+      await tester.pumpAndSettle();
+      expect(find.byType(LectorScenarioGuidePage), findsOneWidget);
+      expect(find.text('Hors de vos préférences'), findsOneWidget);
+      expect(savedProfiles, isEmpty);
+      await tester.tap(find.byTooltip('Retour'));
+      await tester.pumpAndSettle();
+      expect(find.byType(LectorScenariosPage), findsOneWidget);
+      expect(savedProfiles, isEmpty);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets(
     'shows strict scenario contracts and only enables available scenarios',
     (tester) async {

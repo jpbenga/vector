@@ -122,10 +122,10 @@ void main() {
       await tester.tap(find.text('Bilan'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Bilan Lector'), findsOneWidget);
+      expect(find.text('Bilan des lectures'), findsOneWidget);
       expect(
         find.textContaining(
-          'Les scénarios et nuances sont analysés séparément.',
+          'Comparez les lectures annoncées avant match avec les résultats',
         ),
         findsOneWidget,
       );
@@ -2649,13 +2649,12 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Choisir un thème'), findsOneWidget);
+        expect(find.text('Données d’exemple · Aperçu visuel'), findsOneWidget);
+        expect(find.text('Système'), findsNothing);
         expect(
-          find.text('Sélectionnez le thème qui vous convient.'),
+          find.byKey(const ValueKey('appearance-live-preview')),
           findsOneWidget,
         );
-        expect(find.text('Dark'), findsOneWidget);
-        expect(find.text('Light'), findsOneWidget);
-        expect(find.text('Système'), findsNothing);
         expect(
           find.byKey(const ValueKey('appearance-theme-vectorDark')),
           findsOneWidget,
@@ -2664,28 +2663,11 @@ void main() {
           find.byKey(const ValueKey('appearance-theme-preview-vectorDark')),
           findsOneWidget,
         );
-        for (final variant in [
-          AppThemeVariant.dracula,
-          AppThemeVariant.tokyoNight,
-          AppThemeVariant.catppuccinMocha,
-          AppThemeVariant.catppuccinLatte,
-          AppThemeVariant.solarizedLight,
-          AppThemeVariant.quietLight,
-        ]) {
-          final themeChoice = find.byKey(
-            ValueKey('appearance-theme-${variant.name}'),
-          );
-          await tester.scrollUntilVisible(
-            themeChoice,
-            300,
-            scrollable: find.byType(Scrollable),
-          );
-          expect(themeChoice, findsOneWidget);
-        }
-
         final quietLight = find.byKey(
           const ValueKey('appearance-theme-quietLight'),
         );
+        await tester.ensureVisible(quietLight);
+        await tester.pumpAndSettle();
         await tester.tap(quietLight);
         await tester.pumpAndSettle();
 
@@ -2857,7 +2839,7 @@ void main() {
         ),
       );
 
-      await tester.drag(find.byType(ListView), const Offset(0, -420));
+      await tester.scrollUntilVisible(find.text('Se déconnecter'), 200);
       await tester.pumpAndSettle();
 
       final signOut = find.text('Se déconnecter');

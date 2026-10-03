@@ -4,10 +4,12 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/lector_responsive_layout.dart';
 import '../domain/football_scenario.dart';
 import '../../onboarding/domain/decision_profile.dart';
 import '../../onboarding/domain/decision_profile_catalogs.dart';
 import 'lector_preferences_sheet.dart';
+import 'lector_guide_page.dart';
 
 class LectorScenariosPage extends StatefulWidget {
   const LectorScenariosPage({
@@ -72,55 +74,58 @@ class _LectorScenariosPageState extends State<LectorScenariosPage> {
     return Scaffold(
       backgroundColor: context.surfaces.background,
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(14, 6, 14, 20),
-          children: [
-            _ScenariosHeader(
-              count: _selectedIds.length,
-              isSaving: _isSaving,
-              onBack: () => Navigator.of(context).pop(),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            _ScenarioSummaryCard(count: _selectedIds.length),
-            const SizedBox(height: AppSpacing.md),
-            _ScenarioSearchField(
-              controller: _searchController,
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            _SectionIntro(
-              title: 'Suivis',
-              count: _selectedIds.length,
-              subtitle: 'Ces scénarios sont prioritaires pour Lector.',
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            followed.isEmpty
-                ? _ScenarioEmptyCard(query: query, isFollowedSection: true)
-                : _ScenarioListCard(
-                    scenarios: followed,
-                    selectedIds: _selectedIds,
-                    isSaving: _isSaving,
-                    onToggleScenario: _toggleScenario,
-                  ),
-            const SizedBox(height: AppSpacing.lg),
-            const _SectionIntro(
-              title: 'Autres scénarios',
-              subtitle: 'Lector les utilisera uniquement si vous les activez.',
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            others.isEmpty
-                ? _ScenarioEmptyCard(query: query, isFollowedSection: false)
-                : _ScenarioListCard(
-                    scenarios: others,
-                    selectedIds: _selectedIds,
-                    isSaving: _isSaving,
-                    onToggleScenario: _toggleScenario,
-                  ),
-            const SizedBox(height: AppSpacing.lg),
-            const _ScenariosInfoCard(),
-            const SizedBox(height: AppSpacing.lg),
-            _AutosaveNotice(isSaving: _isSaving),
-          ],
+        child: LectorContent(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(14, 6, 14, 20),
+            children: [
+              _ScenariosHeader(
+                count: _selectedIds.length,
+                isSaving: _isSaving,
+                onBack: () => Navigator.of(context).pop(),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _ScenarioSummaryCard(count: _selectedIds.length),
+              const SizedBox(height: AppSpacing.md),
+              _ScenarioSearchField(
+                controller: _searchController,
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              _SectionIntro(
+                title: 'Suivis',
+                count: _selectedIds.length,
+                subtitle: 'Ces scénarios sont prioritaires pour Lector.',
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              followed.isEmpty
+                  ? _ScenarioEmptyCard(query: query, isFollowedSection: true)
+                  : _ScenarioListCard(
+                      scenarios: followed,
+                      selectedIds: _selectedIds,
+                      isSaving: _isSaving,
+                      onToggleScenario: _toggleScenario,
+                    ),
+              const SizedBox(height: AppSpacing.lg),
+              const _SectionIntro(
+                title: 'Autres scénarios',
+                subtitle:
+                    'Lector les utilisera uniquement si vous les activez.',
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              others.isEmpty
+                  ? _ScenarioEmptyCard(query: query, isFollowedSection: false)
+                  : _ScenarioListCard(
+                      scenarios: others,
+                      selectedIds: _selectedIds,
+                      isSaving: _isSaving,
+                      onToggleScenario: _toggleScenario,
+                    ),
+              const SizedBox(height: AppSpacing.lg),
+              const _ScenariosInfoCard(),
+              const SizedBox(height: AppSpacing.lg),
+              _AutosaveNotice(isSaving: _isSaving),
+            ],
+          ),
         ),
       ),
     );
@@ -591,10 +596,19 @@ class _ScenarioRow extends StatelessWidget {
                           onChanged: canToggle ? (_) => onTap() : null,
                         ),
                       ),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: context.textColors.secondary,
-                        size: 20,
+                      IconButton(
+                        key: ValueKey('scenario-guide-${scenario.id}'),
+                        tooltip: 'Comprendre ce scénario',
+                        onPressed: () => openScenarioGuide(
+                          context,
+                          scenario.id,
+                          isFollowed: isSelected,
+                        ),
+                        icon: Icon(
+                          Icons.info_outline_rounded,
+                          color: context.textColors.secondary,
+                          size: 20,
+                        ),
                       ),
                     ],
                   ),

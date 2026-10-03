@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/lector_responsive_layout.dart';
 import '../../onboarding/domain/decision_profile.dart';
 import '../../onboarding/domain/decision_profile_catalogs.dart';
 import 'lector_preferences_sheet.dart';
@@ -73,61 +74,63 @@ class _LectorCompetitionsPageState extends State<LectorCompetitionsPage> {
     return Scaffold(
       backgroundColor: context.surfaces.background,
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(14, 6, 14, 20),
-          children: [
-            _CompetitionsHeader(
-              count: _selectedIds.length,
-              isSaving: _isSaving,
-              onBack: () => Navigator.of(context).pop(),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            _CompetitionSearchField(
-              controller: _searchController,
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            _SectionIntro(
-              title: 'Suivies',
-              count: _selectedIds.length,
-              subtitle: 'Vos compétitions suivies apparaissent en premier.',
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            _FollowedCompetitionsCard(
-              competitions: selectedCompetitions,
-              totalSelectedCount: _selectedIds.length,
-              query: query,
-              showAll: _showAllFollowed || query.isNotEmpty,
-              selectedIds: _selectedIds,
-              onToggleShowAll: () {
-                setState(() {
-                  _showAllFollowed = !_showAllFollowed;
-                });
-              },
-              onToggleCompetition: _toggleCompetition,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Divider(height: 1, color: context.surfaces.border),
-            const SizedBox(height: AppSpacing.lg),
-            const _SectionIntro(
-              title: 'Toutes les compétitions',
-              subtitle: 'Parcourir et ajouter d’autres compétitions.',
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            if (groupedCompetitions.isEmpty)
-              const _CompetitionsEmptyState()
-            else
-              _CountryGroupList(
-                groups: groupedCompetitions,
-                selectedIds: _selectedIds,
-                expandedCountryCodes: _expandedCountryCodes,
+        child: LectorContent(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(14, 6, 14, 20),
+            children: [
+              _CompetitionsHeader(
+                count: _selectedIds.length,
+                isSaving: _isSaving,
+                onBack: () => Navigator.of(context).pop(),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _CompetitionSearchField(
+                controller: _searchController,
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              _SectionIntro(
+                title: 'Suivies',
+                count: _selectedIds.length,
+                subtitle: 'Vos compétitions suivies apparaissent en premier.',
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              _FollowedCompetitionsCard(
+                competitions: selectedCompetitions,
+                totalSelectedCount: _selectedIds.length,
                 query: query,
-                onToggleCountry: _toggleCountry,
+                showAll: _showAllFollowed || query.isNotEmpty,
+                selectedIds: _selectedIds,
+                onToggleShowAll: () {
+                  setState(() {
+                    _showAllFollowed = !_showAllFollowed;
+                  });
+                },
                 onToggleCompetition: _toggleCompetition,
               ),
-            const SizedBox(height: AppSpacing.lg),
-            const _CompetitionsInfoCard(),
-          ],
+              const SizedBox(height: AppSpacing.lg),
+              Divider(height: 1, color: context.surfaces.border),
+              const SizedBox(height: AppSpacing.lg),
+              const _SectionIntro(
+                title: 'Toutes les compétitions',
+                subtitle: 'Parcourir et ajouter d’autres compétitions.',
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              if (groupedCompetitions.isEmpty)
+                const _CompetitionsEmptyState()
+              else
+                _CountryGroupList(
+                  groups: groupedCompetitions,
+                  selectedIds: _selectedIds,
+                  expandedCountryCodes: _expandedCountryCodes,
+                  query: query,
+                  onToggleCountry: _toggleCountry,
+                  onToggleCompetition: _toggleCompetition,
+                ),
+              const SizedBox(height: AppSpacing.lg),
+              const _CompetitionsInfoCard(),
+            ],
+          ),
         ),
       ),
     );

@@ -1,4 +1,5 @@
 import 'package:copilot/core/theme/app_theme.dart';
+import 'package:copilot/features/matches/presentation/lector_guide_page.dart';
 import 'package:copilot/features/matches/presentation/lector_preferences_sheet.dart';
 import 'package:copilot/features/onboarding/domain/decision_profile.dart';
 import 'package:copilot/features/onboarding/domain/onboarding_answer.dart';
@@ -124,4 +125,38 @@ void main() {
     expect(find.text('Dynamique négative'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'Reading help preserves the unsaved selection and returns to the editor',
+    (tester) async {
+      DecisionProfile? saved;
+      await openSheet(tester, onSaved: (profile) => saved = profile);
+      await tester.enterText(
+        find.byKey(const ValueKey('reading-search')),
+        'Dynamique positive',
+      );
+      await tester.pumpAndSettle();
+      final help = find.byKey(const ValueKey('reading-guide-positive_streak'));
+      await tester.ensureVisible(help);
+      await tester.pumpAndSettle();
+      await tester.tap(help);
+      await tester.pumpAndSettle();
+      expect(find.byType(LectorReadingGuidePage), findsOneWidget);
+      expect(find.text('Hors de vos préférences'), findsOneWidget);
+      expect(saved, isNull);
+      await tester.tap(find.byTooltip('Retour'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('reading-search')), findsOneWidget);
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('reading-search')))
+            .controller!
+            .text,
+        'Dynamique positive',
+      );
+      await tester.tap(find.text('Enregistrer'));
+      await tester.pumpAndSettle();
+      expect(saved!.optionIdsFor('readings'), profile.optionIdsFor('readings'));
+    },
+  );
 }

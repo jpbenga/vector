@@ -19,6 +19,9 @@ class MatchReadingBilanEntry {
     this.parentAnnouncementKey,
     this.evidence = const [],
     this.requiredReadingIds = const [],
+    this.leagueId,
+    this.competitionName,
+    this.countryName,
   });
 
   factory MatchReadingBilanEntry.fromJson(Map<String, dynamic> row) {
@@ -53,6 +56,9 @@ class MatchReadingBilanEntry {
               (row['required_reading_ids'] as List).map((id) => id.toString()),
             )
           : const [],
+      leagueId: _integer(row['league_id']),
+      competitionName: row['competition_name']?.toString(),
+      countryName: row['country_name']?.toString(),
     );
   }
 
@@ -73,6 +79,9 @@ class MatchReadingBilanEntry {
   final String? parentAnnouncementKey;
   final List<Map<String, Object?>> evidence;
   final List<String> requiredReadingIds;
+  final int? leagueId;
+  final String? competitionName;
+  final String? countryName;
 
   bool get isEvaluable =>
       verdict == 'confirmed' ||
@@ -103,6 +112,10 @@ class MatchReadingBilanSummary {
     this.cautionConfirmed = 0,
     this.cautionNotConfirmed = 0,
     required this.pending,
+    this.leagueId,
+    this.competitionName,
+    this.countryName,
+    this.outcomeRules = const [],
   });
 
   factory MatchReadingBilanSummary.fromJson(Map<String, dynamic> row) =>
@@ -125,6 +138,12 @@ class MatchReadingBilanSummary {
         cautionConfirmed: _integer(row['caution_confirmed']) ?? 0,
         cautionNotConfirmed: _integer(row['caution_not_confirmed']) ?? 0,
         pending: _integer(row['pending']) ?? 0,
+        leagueId: _integer(row['league_id']),
+        competitionName: row['competition_name']?.toString(),
+        countryName: row['country_name']?.toString(),
+        outcomeRules: row['outcome_rules'] is List
+            ? (row['outcome_rules'] as List).whereType<String>().toList()
+            : const [],
       );
 
   final String readingId;
@@ -145,6 +164,10 @@ class MatchReadingBilanSummary {
   final int cautionConfirmed;
   final int cautionNotConfirmed;
   final int pending;
+  final int? leagueId;
+  final String? competitionName;
+  final String? countryName;
+  final List<String> outcomeRules;
 
   int get evaluable => evaluableOverride ?? confirmed + contradicted;
 
@@ -167,12 +190,20 @@ double? _decimal(Object? value) => switch (value) {
 
 abstract interface class MatchReadingBilanRepository {
   Future<List<MatchReadingBilanSummary>> loadSummary({required DateTime since});
+  Future<List<MatchReadingBilanSummary>> loadBreakdown({
+    required DateTime since,
+    required DateTime until,
+    String? subjectSide,
+  });
   Future<List<MatchReadingBilanEntry>> loadForReading({
     required String readingId,
     required DateTime since,
     String? verdict,
     required int offset,
     required int limit,
+    DateTime? until,
+    int? leagueId,
+    String? subjectSide,
   });
   Future<List<MatchReadingBilanEntry>> loadForFixture(int fixtureId);
 }
@@ -187,7 +218,35 @@ class SupabaseMatchReadingBilanRepository
       'announcement_id,fixture_id,kickoff_at,reading_id,reading_label,'
       'verdict,explanation,home_team_name,away_team_name,home_goals,'
       'away_goals,outcome_rule,evidence,announcement_kind,required_reading_ids,'
-      'parent_announcement_key,subject_side';
+      'parent_announcement_key,subject_side,league_id,competition_name,country_name';
+
+  @override
+  Future<List<MatchReadingBilanSummary>> loadBreakdown({
+    required DateTime since,
+    required DateTime until,
+    String? subjectSide,
+  }) async {
+    const pageSize = 1000;
+    final results = <MatchReadingBilanSummary>[];
+    for (var offset = 0; ; offset += pageSize) {
+      final rows = await client
+          .rpc<List<dynamic>>(
+            'match_reading_bilan_breakdown',
+            params: {
+              'p_since': since.toUtc().toIso8601String(),
+              'p_until': until.toUtc().toIso8601String(),
+              'p_subject_side': subjectSide,
+            },
+          )
+          .range(offset, offset + pageSize - 1);
+      results.addAll(
+        rows.whereType<Map<String, dynamic>>().map(
+          MatchReadingBilanSummary.fromJson,
+        ),
+      );
+      if (rows.length < pageSize) return List.unmodifiable(results);
+    }
+  }
 
   @override
   Future<List<MatchReadingBilanSummary>> loadSummary({
@@ -213,16 +272,27 @@ class SupabaseMatchReadingBilanRepository
     String? verdict,
     required int offset,
     required int limit,
+    DateTime? until,
+    int? leagueId,
+    String? subjectSide,
   }) async {
     var query = client
         .from('match_reading_bilan')
         .select(_columns)
         .eq('reading_id', readingId)
+        .eq('announcement_kind', 'reading')
         .gte('kickoff_at', since.toUtc().toIso8601String())
-        .lte('kickoff_at', DateTime.now().toUtc().toIso8601String());
-    if (verdict != null) query = query.eq('verdict', verdict);
+        .lte('kickoff_at', (until ?? DateTime.now()).toUtc().toIso8601String());
+    if (verdict == 'pending') {
+      query = query.isFilter('verdict', null);
+    } else if (verdict != null) {
+      query = query.eq('verdict', verdict);
+    }
+    if (leagueId != null) query = query.eq('league_id', leagueId);
+    if (subjectSide != null) query = query.eq('subject_side', subjectSide);
     final rows = await query
         .order('kickoff_at', ascending: false)
+        .order('announcement_id', ascending: true)
         .range(offset, offset + limit - 1);
     return rows.map(MatchReadingBilanEntry.fromJson).toList(growable: false);
   }

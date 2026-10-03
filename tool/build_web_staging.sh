@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Previews keep their existing environment; production can opt in explicitly.
+LECTOR_BUILD_ENV="${APP_ENV:-staging}"
+case "$LECTOR_BUILD_ENV" in
+  staging|production) ;;
+  *) echo "APP_ENV must be staging or production for a hosted web build." >&2; exit 1 ;;
+esac
+
 if [[ -z "${SUPABASE_URL:-}" ]]; then
   echo "Missing SUPABASE_URL." >&2
   exit 1
@@ -32,7 +39,7 @@ fi
 flutter --version
 flutter pub get
 flutter build web --release --no-wasm-dry-run \
-  --dart-define=APP_ENV=staging \
+  --dart-define=APP_ENV="$LECTOR_BUILD_ENV" \
   --dart-define=SUPABASE_URL="$SUPABASE_URL" \
   --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
   --dart-define=APP_PUBLIC_URL="$APP_PUBLIC_URL" \

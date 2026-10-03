@@ -241,15 +241,20 @@ class _StoryCompetitionHeader extends StatelessWidget {
                   logo,
                   const SizedBox(width: 8),
                   Expanded(child: competitionName),
-                  if (readingCount > 0) ...[
-                    const SizedBox(width: 8),
-                    _StoryRelevanceLabel(readingCount: readingCount),
-                  ],
                 ],
               ),
               Padding(
                 padding: const EdgeInsets.only(left: 58, top: 2),
-                child: kickoff,
+                child: Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    kickoff,
+                    if (readingCount > 0)
+                      _StoryRelevanceLabel(readingCount: readingCount),
+                  ],
+                ),
               ),
             ],
           );
@@ -433,13 +438,15 @@ class _StoryRelevanceLabel extends StatelessWidget {
       children: [
         Icon(Icons.bar_chart_rounded, color: context.brand.accent, size: 16),
         const SizedBox(width: 5),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: context.textColors.primary,
-            fontWeight: FontWeight.w900,
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: context.textColors.primary,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ),
       ],

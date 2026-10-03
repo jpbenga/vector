@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../app/theme/app_theme.dart';
+import '../../appearance/presentation/appearance_page.dart';
 import '../../../core/auth/supabase_auth_controller.dart';
 import '../../../core/di/service_locator.dart';
 import '../../../core/identity/identity_controller.dart';
@@ -11,6 +11,7 @@ import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme_controller.dart';
 import '../../../core/widgets/lector_brand_mark.dart';
+import '../../../core/widgets/lector_responsive_layout.dart';
 import '../../onboarding/domain/decision_profile.dart';
 import '../../onboarding/domain/decision_profile_catalogs.dart';
 import '../../tickets/domain/ticket_strategy.dart';
@@ -75,147 +76,155 @@ class _LectorSpacePageState extends State<LectorSpacePage> {
           animation: authController ?? Listenable.merge([]),
           builder: (context, _) {
             final user = authController?.user;
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(14, 6, 14, 20),
-              children: [
-                _LectorSpaceHeader(
-                  onSettings: () => _openAppPreferences(context),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  'Gérez votre compte et personnalisez votre expérience Lector.',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.textColors.secondary,
-                    height: 1.3,
+            return LectorContent(
+              maxWidth: LectorLayout.workspaceWidth,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(14, 6, 14, 20),
+                children: [
+                  _LectorSpaceHeader(
+                    onSettings: () => _openAppPreferences(context),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                _ProfileCard(
-                  user: user,
-                  isSignedIn: authController?.isSignedIn ?? false,
-                  competitionCount: _selectedCompetitionCount(_profile),
-                  readingCount: _selectedReadingCount(_profile),
-                  scenarioCount: _selectedScenarioCount(_profile),
-                  activeStrategyCount: _activeStrategyCount(_ticketStrategies),
-                  onAccount: () => _showUnavailable(
-                    context,
-                    'Les informations personnelles seront reliées au prochain écran compte.',
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Gérez votre compte et personnalisez votre expérience Lector.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.textColors.secondary,
+                      height: 1.3,
+                    ),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                _SectionHeading(
-                  title: 'Personnaliser Lector',
-                  subtitle:
-                      'Définissez ce que Lector doit suivre et comment il construit vos opportunités.',
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                _SpaceActionCard(
-                  icon: Icons.emoji_events_outlined,
-                  title: 'Mes compétitions',
-                  subtitle:
-                      'Choisissez les championnats que vous souhaitez suivre.',
-                  count: _selectedCompetitionCount(_profile),
-                  color: context.brand.accent,
-                  onTap: () => _openCompetitions(context),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _SpaceActionCard(
-                  icon: Icons.auto_graph_rounded,
-                  title: 'Mes lectures',
-                  subtitle:
-                      'Choisissez les faits sportifs qui doivent retenir votre attention.',
-                  count: _selectedReadingCount(_profile),
-                  color: context.semantic.info,
-                  onTap: () => _openReadings(context),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _SpaceActionCard(
-                  icon: Icons.my_location_rounded,
-                  title: 'Mes scénarios',
-                  subtitle:
-                      'Choisissez les situations de match que Lector doit rechercher pour vous.',
-                  count: _selectedScenarioCount(_profile),
-                  color: context.opportunities.levelGap,
-                  onTap: () => _openScenarios(context),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _SpaceActionCard(
-                  icon: Icons.sports_score_outlined,
-                  title: 'Mes marchés',
-                  subtitle:
-                      'Choisissez les marchés que Lector peut recommander.',
-                  count: _selectedMarketCount(_profile),
-                  color: context.semantic.success,
-                  onTap: () => _openMarkets(context),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _SpaceActionCard(
-                  icon: Icons.confirmation_number_outlined,
-                  title: 'Mes stratégies',
-                  subtitle: 'Définissez comment Lector construit vos tickets.',
-                  count: _activeStrategyCount(_ticketStrategies),
-                  color: context.semantic.warning,
-                  onTap: () => _openStrategies(context),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                const _SectionHeading(title: 'Mon compte'),
-                const SizedBox(height: AppSpacing.xs),
-                _GroupedActionList(
-                  children: [
-                    _CompactSpaceRow(
-                      icon: Icons.person_outline_rounded,
-                      label: 'Compte et informations personnelles',
-                      onTap: () => _showUnavailable(
-                        context,
-                        'Aucun écran de gestion du compte n’est encore disponible.',
+                  const SizedBox(height: AppSpacing.md),
+                  _ProfileCard(
+                    user: user,
+                    isSignedIn: authController?.isSignedIn ?? false,
+                    competitionCount: _selectedCompetitionCount(_profile),
+                    readingCount: _selectedReadingCount(_profile),
+                    scenarioCount: _selectedScenarioCount(_profile),
+                    activeStrategyCount: _activeStrategyCount(
+                      _ticketStrategies,
+                    ),
+                    onAccount: () => _showUnavailable(
+                      context,
+                      'Les informations personnelles seront reliées au prochain écran compte.',
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  _SectionHeading(
+                    title: 'Personnaliser Lector',
+                    subtitle:
+                        'Choisissez votre apparence et les informations que vous souhaitez suivre.',
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  LectorAdaptiveCards(
+                    children: [
+                      _SpaceActionCard(
+                        icon: Icons.palette_outlined,
+                        title: 'Apparence',
+                        subtitle:
+                            'Comparez les thèmes sur un aperçu de Lector.',
+                        count: AppThemeVariant.values.length,
+                        color: context.brand.accent,
+                        onTap: () => _openAppPreferences(context),
                       ),
-                    ),
-                    _CompactSpaceRow(
-                      icon: Icons.credit_card_rounded,
-                      label: 'Abonnement et facturation',
-                      onTap: () => _showUnavailable(
-                        context,
-                        'Aucun système d’abonnement ou de facturation n’est encore relié.',
+                      _SpaceActionCard(
+                        icon: Icons.emoji_events_outlined,
+                        title: 'Mes compétitions',
+                        subtitle:
+                            'Choisissez les championnats que vous souhaitez suivre.',
+                        count: _selectedCompetitionCount(_profile),
+                        color: context.brand.accent,
+                        onTap: () => _openCompetitions(context),
                       ),
-                    ),
-                    _CompactSpaceRow(
-                      icon: Icons.notifications_none_rounded,
-                      label: 'Notifications',
-                      onTap: () => _showUnavailable(
-                        context,
-                        'Aucune préférence de notifications n’est encore disponible.',
+                      _SpaceActionCard(
+                        icon: Icons.auto_graph_rounded,
+                        title: 'Mes lectures',
+                        subtitle:
+                            'Choisissez les faits sportifs qui doivent retenir votre attention.',
+                        count: _selectedReadingCount(_profile),
+                        color: context.semantic.info,
+                        onTap: () => _openReadings(context),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                const _SectionHeading(title: 'Application'),
-                const SizedBox(height: AppSpacing.xs),
-                _GroupedActionList(
-                  children: [
-                    _CompactSpaceRow(
-                      icon: Icons.palette_outlined,
-                      label: 'Apparence',
-                      color: context.brand.accent,
-                      onTap: () => _openAppPreferences(context),
-                    ),
-                    if (authController?.isSignedIn ?? false)
+                      _SpaceActionCard(
+                        icon: Icons.my_location_rounded,
+                        title: 'Mes scénarios',
+                        subtitle:
+                            'Choisissez les situations de match que Lector doit rechercher pour vous.',
+                        count: _selectedScenarioCount(_profile),
+                        color: context.opportunities.levelGap,
+                        onTap: () => _openScenarios(context),
+                      ),
+                      _SpaceActionCard(
+                        icon: Icons.sports_score_outlined,
+                        title: 'Mes marchés',
+                        subtitle:
+                            'Choisissez les marchés que Lector peut recommander.',
+                        count: _selectedMarketCount(_profile),
+                        color: context.semantic.success,
+                        onTap: () => _openMarkets(context),
+                      ),
+                      _SpaceActionCard(
+                        icon: Icons.confirmation_number_outlined,
+                        title: 'Mes stratégies',
+                        subtitle:
+                            'Définissez comment Lector construit vos tickets.',
+                        count: _activeStrategyCount(_ticketStrategies),
+                        color: context.semantic.warning,
+                        onTap: () => _openStrategies(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  const _SectionHeading(title: 'Mon compte'),
+                  const SizedBox(height: AppSpacing.xs),
+                  _GroupedActionList(
+                    children: [
                       _CompactSpaceRow(
-                        icon: Icons.logout_rounded,
-                        label: 'Se déconnecter',
-                        color: context.semantic.error,
-                        onTap: () async {
-                          await (identityController?.signOut() ??
-                              authController?.signOut());
-                          if (context.mounted) {
-                            Navigator.of(context).pop();
-                          }
-                        },
+                        icon: Icons.person_outline_rounded,
+                        label: 'Compte et informations personnelles',
+                        onTap: () => _showUnavailable(
+                          context,
+                          'Aucun écran de gestion du compte n’est encore disponible.',
+                        ),
                       ),
-                  ],
-                ),
-              ],
+                      _CompactSpaceRow(
+                        icon: Icons.credit_card_rounded,
+                        label: 'Abonnement et facturation',
+                        onTap: () => _showUnavailable(
+                          context,
+                          'Aucun système d’abonnement ou de facturation n’est encore relié.',
+                        ),
+                      ),
+                      _CompactSpaceRow(
+                        icon: Icons.notifications_none_rounded,
+                        label: 'Notifications',
+                        onTap: () => _showUnavailable(
+                          context,
+                          'Aucune préférence de notifications n’est encore disponible.',
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (authController?.isSignedIn ?? false)
+                    const SizedBox(height: AppSpacing.lg),
+                  if (authController?.isSignedIn ?? false)
+                    _GroupedActionList(
+                      children: [
+                        _CompactSpaceRow(
+                          icon: Icons.logout_rounded,
+                          label: 'Se déconnecter',
+                          color: context.semantic.error,
+                          onTap: () async {
+                            await (identityController?.signOut() ??
+                                authController?.signOut());
+                            if (context.mounted) {
+                              Navigator.of(context).pop();
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                ],
+              ),
             );
           },
         ),
@@ -225,9 +234,7 @@ class _LectorSpacePageState extends State<LectorSpacePage> {
 
   void _openAppPreferences(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (context) => const _SpaceAppearancePage(),
-      ),
+      MaterialPageRoute<void>(builder: (context) => const AppearancePage()),
     );
   }
 
@@ -342,326 +349,6 @@ class _LectorSpaceHeader extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _SpaceAppearancePage extends StatelessWidget {
-  const _SpaceAppearancePage();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: context.surfaces.background,
-      body: SafeArea(
-        child: ValueListenableBuilder<AppThemeVariant>(
-          valueListenable: appThemeController,
-          builder: (context, activeVariant, _) {
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(14, 6, 14, 20),
-              children: [
-                const _SpaceSubmenuHeader(title: 'Apparence'),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  'Choisir un thème',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  'Sélectionnez le thème qui vous convient.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.textColors.secondary,
-                    height: 1.3,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                for (final variant in AppThemeVariant.values) ...[
-                  _SpaceThemeChoiceCard(
-                    key: ValueKey('appearance-theme-${variant.name}'),
-                    variant: variant,
-                    isSelected: variant == activeVariant,
-                    onTap: () => appThemeController.select(variant),
-                  ),
-                  if (variant != AppThemeVariant.values.last)
-                    const SizedBox(height: AppSpacing.sm),
-                ],
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Le thème est appliqué immédiatement.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.textColors.secondary,
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _SpaceSubmenuHeader extends StatelessWidget {
-  const _SpaceSubmenuHeader({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 42,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: IconButton(
-              tooltip: 'Retour',
-              onPressed: () => Navigator.of(context).pop(),
-              icon: const Icon(Icons.chevron_left_rounded, size: 26),
-            ),
-          ),
-          Text(
-            title,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SpaceThemeChoiceCard extends StatelessWidget {
-  const _SpaceThemeChoiceCard({
-    super.key,
-    required this.variant,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  final AppThemeVariant variant;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final previewTheme = AppTheme.forVariant(variant);
-    final previewBrand =
-        previewTheme.extension<AppBrandPalette>() ?? context.brand;
-    final borderColor = isSelected
-        ? previewBrand.accent
-        : context.surfaces.border.withValues(alpha: 0.82);
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.card),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? previewBrand.accent.withValues(alpha: 0.07)
-              : context.surfaces.backgroundSecondary,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          border: Border.all(color: borderColor, width: isSelected ? 1.4 : 1),
-          boxShadow: [
-            if (isSelected)
-              BoxShadow(
-                color: previewBrand.accent.withValues(alpha: 0.08),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Icon(variant.icon, size: 28, color: previewBrand.accent),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Text(
-                    variant.shortLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 160),
-                  child: Icon(
-                    isSelected
-                        ? Icons.check_circle_rounded
-                        : Icons.radio_button_unchecked_rounded,
-                    key: ValueKey(isSelected),
-                    size: 24,
-                    color: isSelected
-                        ? previewBrand.accent
-                        : context.textColors.secondary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Theme(
-              data: previewTheme,
-              child: _ThemePreview(
-                key: ValueKey('appearance-theme-preview-${variant.name}'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ThemePreview extends StatelessWidget {
-  const _ThemePreview({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 86,
-      padding: const EdgeInsets.all(AppSpacing.xs),
-      decoration: BoxDecoration(
-        color: context.surfaces.background,
-        borderRadius: BorderRadius.circular(AppRadius.input),
-        border: Border.all(color: context.surfaces.border),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 54,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: context.surfaces.surface,
-                    borderRadius: BorderRadius.circular(AppRadius.odds),
-                  ),
-                  child: const Padding(
-                    padding: EdgeInsets.all(7),
-                    child: LectorBrandMark(size: 28),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                _ThemePreviewLine(width: 34, color: context.brand.accent),
-                const SizedBox(height: 4),
-                _ThemePreviewLine(width: 28, color: context.brand.accentHover),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    const Expanded(child: _ThemePreviewPill()),
-                    const SizedBox(width: AppSpacing.xs),
-                    Expanded(
-                      child: _ThemePreviewPill(
-                        color: context.surfaces.surfaceHover,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: _ThemePreviewLine(
-                    width: 70,
-                    color: context.textColors.secondary.withValues(alpha: 0.34),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                _ThemePreviewContentBar(),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ThemePreviewPill extends StatelessWidget {
-  const _ThemePreviewPill({this.color});
-
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color ?? context.surfaces.backgroundSecondary,
-        borderRadius: BorderRadius.circular(AppRadius.chip),
-      ),
-      child: const SizedBox(height: 14),
-    );
-  }
-}
-
-class _ThemePreviewContentBar extends StatelessWidget {
-  const _ThemePreviewContentBar();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.surfaces.surface,
-        borderRadius: BorderRadius.circular(AppRadius.chip),
-        border: Border.all(
-          color: context.surfaces.border.withValues(alpha: 0.5),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xs,
-          vertical: 5,
-        ),
-        child: Row(
-          children: [
-            _ThemePreviewLine(width: 38, color: context.brand.accent),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
-              child: _ThemePreviewLine(
-                width: double.infinity,
-                color: context.textColors.primary.withValues(alpha: 0.18),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ThemePreviewLine extends StatelessWidget {
-  const _ThemePreviewLine({required this.width, required this.color});
-
-  final double width;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(AppRadius.chip),
-      ),
-      child: SizedBox(width: width, height: 5),
     );
   }
 }

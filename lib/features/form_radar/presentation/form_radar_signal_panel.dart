@@ -57,11 +57,13 @@ class FormRadarSignalPanel extends StatelessWidget {
                     ),
                   ),
                 ),
-                Text(
-                  '${entries.length} signal${entries.length > 1 ? 's' : ''} de forme',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: context.textColors.secondary,
-                    fontWeight: FontWeight.w800,
+                Flexible(
+                  child: Text(
+                    '${entries.length} signal${entries.length > 1 ? 's' : ''} de forme',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: context.textColors.secondary,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
                 if (isLocalPreview) ...[

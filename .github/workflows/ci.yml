@@ -50,3 +50,6 @@ jobs:
           deno test
           --allow-env=SUPABASE_SERVICE_ROLE_KEY,SUPABASE_URL,API_FOOTBALL_KEY,API_FOOTBALL_SYNC_SECRET
           supabase/functions/_shared
+
+      - name: Test Bilan SQL migration
+        run: deno test --node-modules-dir=none --no-lock --allow-read test/backend/reading_bilan_sql_test.ts

@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/lector_responsive_layout.dart';
 import '../../tickets/domain/ticket_strategy.dart';
 import 'lector_preferences_sheet.dart';
 
@@ -48,57 +49,59 @@ class _LectorStrategiesPageState extends State<LectorStrategiesPage> {
     return Scaffold(
       backgroundColor: context.surfaces.background,
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(14, 6, 14, 20),
-          children: [
-            _StrategiesHeader(totalCount: activeCount),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Définissez comment Lector construit vos tickets.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: context.textColors.secondary,
-                height: 1.3,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            _SummaryCard(activeCount: activeCount),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              'Vos stratégies',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: AppSpacing.xxs),
-            Text(
-              'Vos différentes configurations de tickets.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: context.textColors.secondary,
-                height: 1.3,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            if (_strategies.isEmpty)
-              _EmptyStrategiesCard(onCreate: _createStrategy)
-            else ...[
-              for (var index = 0; index < _strategies.length; index++) ...[
-                _StrategyCard(
-                  rank: index + 1,
-                  strategy: _strategies[index],
-                  style: context.strategies.styleForIndex(index),
-                  isSaving: _isSaving,
-                  onTap: () => _editStrategy(index),
-                  onToggle: (value) => _toggleStrategy(index, value),
+        child: LectorContent(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(14, 6, 14, 20),
+            children: [
+              _StrategiesHeader(totalCount: activeCount),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Définissez comment Lector construit vos tickets.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.textColors.secondary,
+                  height: 1.3,
                 ),
-                const SizedBox(height: AppSpacing.sm),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _SummaryCard(activeCount: activeCount),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                'Vos stratégies',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                'Vos différentes configurations de tickets.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.textColors.secondary,
+                  height: 1.3,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              if (_strategies.isEmpty)
+                _EmptyStrategiesCard(onCreate: _createStrategy)
+              else ...[
+                for (var index = 0; index < _strategies.length; index++) ...[
+                  _StrategyCard(
+                    rank: index + 1,
+                    strategy: _strategies[index],
+                    style: context.strategies.styleForIndex(index),
+                    isSaving: _isSaving,
+                    onTap: () => _editStrategy(index),
+                    onToggle: (value) => _toggleStrategy(index, value),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                ],
+                _CreateStrategyButton(onCreate: _createStrategy),
               ],
-              _CreateStrategyButton(onCreate: _createStrategy),
+              const SizedBox(height: AppSpacing.lg),
+              const _StrategyInfoCard(),
+              const SizedBox(height: AppSpacing.lg),
+              _AutosaveNote(isSaving: _isSaving),
             ],
-            const SizedBox(height: AppSpacing.lg),
-            const _StrategyInfoCard(),
-            const SizedBox(height: AppSpacing.lg),
-            _AutosaveNote(isSaving: _isSaving),
-          ],
+          ),
         ),
       ),
     );

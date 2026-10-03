@@ -17,6 +17,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme_controller.dart';
 import '../../../core/widgets/google_brand_icon.dart';
 import '../../../core/widgets/lector_brand_mark.dart';
+import '../../../core/widgets/lector_responsive_layout.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../onboarding/domain/compiled_decision_profile.dart';
 import '../../onboarding/domain/decision_profile.dart';
@@ -5147,7 +5148,9 @@ class _ChampionshipsByCountryViewState
         children: [
           Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1120),
+              constraints: const BoxConstraints(
+                maxWidth: LectorLayout.workspaceWidth,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -7467,7 +7470,9 @@ class _MatchListState extends State<_MatchList> {
       children: [
         Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1120),
+            constraints: const BoxConstraints(
+              maxWidth: LectorLayout.workspaceWidth,
+            ),
             child: orderedOpportunities.isEmpty
                 ? widget.opportunities.isEmpty
                       ? _ForMeEmptyDashboard(

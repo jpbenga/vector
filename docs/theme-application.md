@@ -78,6 +78,12 @@ Variantes actuellement supportees :
 - `VectorThemeTokens.vectorLight`
 - `VectorThemeTokens.gold`
 - `VectorThemeTokens.aurora`
+- `VectorThemeTokens.dracula`
+- `VectorThemeTokens.tokyoNight`
+- `VectorThemeTokens.catppuccinMocha`
+- `VectorThemeTokens.catppuccinLatte`
+- `VectorThemeTokens.solarizedLight`
+- `VectorThemeTokens.quietLight`
 
 Chaque variante fournit les memes familles de tokens :
 
@@ -96,8 +102,9 @@ Les composants doivent privilegier :
 - `Theme.of(context).colorScheme` pour les couleurs Flutter standard ;
 - `context.brand`, `context.surfaces`, `context.textColors`, `context.semantic`, `context.components`, `context.opportunities`, `context.strategies` pour les tokens produit.
 
-Le basculement manuel temporaire est centralise dans `appThemeController`.
-Il demarre volontairement en `Vector Dark` et permet de tester `Vector Light`, `Vector Gold` et `Vector Aurora` sans suivre le theme systeme.
+Le choix manuel est centralisé dans `appThemeController` et mémorisé par le
+store de préférences existant. Sans préférence enregistrée, il démarre en
+`Vector Dark`. Il expose les dix variantes sans suivre le thème système.
 
 ## Strategie De Lisibilite Multi-Theme
 
@@ -1006,6 +1013,37 @@ Workflow theme :
 - ne pas inventer un mode `Systeme` tant qu'il n'est pas supporte par le
   controleur de theme ;
 - les couleurs du menu doivent provenir des ThemeExtensions du theme courant.
+
+### Aperçu et sélection des thèmes
+
+L’entrée `Apparence` est la première action de `Personnaliser Lector`, avant les
+compétitions et les lectures. Elle est accessible sans connexion.
+
+La page présente un grand aperçu et des vignettes compactes des dix variantes
+exposées par `AppThemeVariant`, filtrables par familles claires, sombres et
+colorées. Sur ordinateur, aperçu et palette sont côte à côte ; sur mobile,
+la palette suit l’aperçu. Les flèches permettent de comparer les thèmes de la
+famille sélectionnée sans revenir à la palette.
+
+Les vues `Aperçu`, `Match`, `Radar`, `Chat` et `Composants` montrent le rendu des
+surfaces, textes, lectures, cotes, résultats, champs et contrôles. Le bandeau
+de rencontre (`LectorMatchHero`), la carte du flux (`MatchFeedCard`), les signaux
+Radar et leur timeline sont les composants partagés de l’application.
+La vue Chat est un exemple visuel statique.
+
+Les données de démonstration sont isolées dans
+`lib/features/appearance/data/appearance_preview_fixture.dart` et signalées
+comme exemples. Elles ne sont jamais chargées par les flux de rencontres.
+La page ne lance aucun batch et ne dépend pas de Supabase.
+
+Le choix s’applique immédiatement via le contrôleur de thème existant et
+conserve sa préférence persistée. `Réinitialiser` restaure le thème sombre
+par défaut. Tous les composants utilisent les tokens du thème sélectionné ;
+aucune palette locale parallèle n’est ajoutée.
+
+Tests dédiés : `test/features/appearance/presentation/appearance_page_test.dart`
+(dix thèmes, persistance, familles, navigation, mobile étroit avec texte agrandi,
+ordinateur et réduction des animations).
 
 ## Panels Et Bottom Sheets
 
