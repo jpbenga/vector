@@ -112,7 +112,7 @@ void main() {
       expect(cronGenerator, isNot(contains('api-football-sync')));
       expect(cronGenerator, isNot(contains('build-match-feed-snapshot')));
       expect(cronGenerator, contains("'results_days_back', 7"));
-      expect(cronGenerator, contains("'future_days', 3"));
+      expect(cronGenerator, contains("'future_days', 13"));
       expect(cronGenerator, contains("'include_player_statistics', false"));
       expect(cronGenerator, contains("'api-football-enrichment-\$leagueId'"));
       expect(cronGenerator, contains("'api-football-queue-worker'"));
@@ -130,7 +130,7 @@ void main() {
       );
       expect(cronGenerator, isNot(contains("'bookmaker_id', 16")));
       expect(dailySync, isNot(contains('defaultBookmakerId')));
-      expect(snapshotBuilder, contains('filters: oddsFilters,\n        //'));
+      expect(snapshotBuilder, matches(RegExp(r'filters: oddsFilters,\s+//')));
       expect(cronGenerator, contains("where jobname like 'api-football-%'"));
       expect(
         cronGenerator,

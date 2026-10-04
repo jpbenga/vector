@@ -1,3 +1,4 @@
+import { footballCalendarDays } from "./football_calendar_policy.ts";
 export type Obj = Record<string, unknown>;
 export const stages = ["collect", "results", "snapshot", "publish"] as const;
 export const object = (v: unknown): Obj =>
@@ -126,7 +127,7 @@ export function stageCall(task: Obj): { name: string; payload: Obj } {
       payload: {
         ...common,
         window_start: day,
-        window_end: offset(3),
+        window_end: offset(footballCalendarDays - 1),
         purpose: "daily_football_sync",
         include_player_statistics: task.job_kind === "enrichment",
         include_recent_player_performances: true,
@@ -163,7 +164,7 @@ export function stageCall(task: Obj): { name: string; payload: Obj } {
         ...common,
         season_by_league: summary.leagueSeasons,
         window_start: day,
-        window_end: offset(3),
+        window_end: offset(footballCalendarDays - 1),
         as_of: task.started_at,
         recent_form_matches: 10,
       },

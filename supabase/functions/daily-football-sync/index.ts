@@ -1,8 +1,9 @@
+import { footballCalendarDays } from "../_shared/football_calendar_policy.ts";
 type JsonObject = Record<string, unknown>;
 
 const defaultTimezone = "Europe/Paris";
 const defaultResultsDaysBack = 7;
-const defaultFutureDays = 3;
+const defaultFutureDays = footballCalendarDays - 1;
 const defaultDatabaseSizeLimitBytes = 500 * 1024 * 1024;
 const defaultApiRequestDelayMs = 220;
 const defaultRecentFormDaysBack = 180;
@@ -245,7 +246,7 @@ function dailyOptionsFromPayload(payload: JsonObject): DailyOptions {
   const futureDays = boundedInteger(
     numberValue(payload.future_days),
     1,
-    6,
+    footballCalendarDays - 1,
     defaultFutureDays,
   );
   const feedWindowStart = stringValue(payload.feed_window_start) ?? today;
@@ -584,35 +585,46 @@ async function enqueueDailySync({
       prefer: "return=minimal",
     });
     if (options.leagueIds.length > 1) {
-      const queued = await Promise.all(options.leagueIds.map((leagueId) =>
-        enqueueDailySync({
-          supabaseUrl,
-          serviceRoleKey,
-          payload: {
-            ...payload,
-            league_ids: [leagueId],
-            manual_override: false,
-            manual_cycle: true,
-          },
-        })
-      ));
+      const queued = await Promise.all(
+        options.leagueIds.map((leagueId) =>
+          enqueueDailySync({
+            supabaseUrl,
+            serviceRoleKey,
+            payload: {
+              ...payload,
+              league_ids: [leagueId],
+              manual_override: false,
+              manual_cycle: true,
+            },
+          })
+        ),
+      );
       return jsonResponse({
         ok: true,
         status: "queued",
         manual: true,
         queuedLeagues: options.leagueIds.length,
-        responses: await Promise.all(queued.map(async (response) => response.json())),
+        responses: await Promise.all(
+          queued.map(async (response) => response.json()),
+        ),
       }, 202);
     }
   }
   const mode = manualOverride
     ? "manual"
-    : options.includePlayerStatistics ? "enrichment" : "rolling";
-  const dedupeKey = `${mode}:${requestedAt}:${[...options.leagueIds].sort((a, b) => a - b).join(",")}`;
+    : options.includePlayerStatistics
+    ? "enrichment"
+    : "rolling";
+  const dedupeKey = `${mode}:${requestedAt}:${
+    [...options.leagueIds].sort((a, b) => a - b).join(",")
+  }`;
   const existing = await supabaseFetch({
     supabaseUrl,
     serviceRoleKey,
-    path: `/rest/v1/api_football_sync_queue_jobs?dedupe_key=eq.${encodeURIComponent(dedupeKey)}` +
+    path:
+      `/rest/v1/api_football_sync_queue_jobs?dedupe_key=eq.${
+        encodeURIComponent(dedupeKey)
+      }` +
       "&status=in.(queued,running,retrying)&select=id,status,available_at,attempts&limit=1",
     method: "GET",
     prefer: "return=representation",
@@ -725,7 +737,9 @@ async function processOneQueuedJob({
       payload: { ...job.payload, _queue_job: true, queue_job_id: job.id },
     });
     if (booleanValue(response.ok) !== true) {
-      throw new Error(`Queued orchestration returned ${JSON.stringify(response)}`);
+      throw new Error(
+        `Queued orchestration returned ${JSON.stringify(response)}`,
+      );
     }
     await finishQueuedJob({
       supabaseUrl,
@@ -770,7 +784,9 @@ async function finishQueuedJob({
   await supabaseFetch({
     supabaseUrl,
     serviceRoleKey,
-    path: `/rest/v1/api_football_sync_queue_jobs?id=eq.${encodeURIComponent(jobId)}`,
+    path: `/rest/v1/api_football_sync_queue_jobs?id=eq.${
+      encodeURIComponent(jobId)
+    }`,
     method: "PATCH",
     body: {
       status,
@@ -785,7 +801,9 @@ async function finishQueuedJob({
 }
 
 function isRetryableQueueError(message: string): boolean {
-  return /\b(?:429|5\d\d)\b|rate.?limit|timeout|network|temporar/i.test(message);
+  return /\b(?:429|5\d\d)\b|rate.?limit|timeout|network|temporar/i.test(
+    message,
+  );
 }
 
 function retryDelayMs(attempt: number): number {

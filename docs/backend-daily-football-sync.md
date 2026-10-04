@@ -1,6 +1,6 @@
 # Backend Daily Football Sync MVP
 
-Date : 2026-08-13 (mise a jour : 2026-09-16)
+Date : 2026-08-13 (mise a jour : 2026-10-04)
 
 ## Objectif
 
@@ -10,11 +10,19 @@ live.
 Le MVP doit :
 
 - mettre a jour les resultats recents ;
-- preparer les rencontres futures sur une fenetre glissante de 4 jours ;
+- preparer les rencontres futures sur une fenetre glissante de 14 jours ;
 - mettre a jour les cotes pre-match disponibles ;
 - construire un read model compatible avec le front ;
 - rester poli avec API-Football ;
 - surveiller la taille de la base Supabase.
+
+L’orchestrateur actuel est décrit dans `admin-operations-control.md`. Les
+fonctions quotidiennes de compatibilité utilisent les mêmes bornes. Le live
+est un circuit distinct, décrit dans `live-match-updates.md`.
+
+L’extension de calendrier et son coût sont détaillés dans
+`football-calendar-14-days.md` : calendrier J à J+13, cotes disponibles sur
+ces dates, lectures publiées J à J+3 pour conserver un bilan cohérent.
 
 ## Strategie temporelle
 
@@ -32,8 +40,8 @@ Fenetre technique par defaut :
 
 ```text
 Resultats : J-7 -> J-1
-Feed front : J -> J+3
-Collecte feed API : J -> J+3
+Feed front : J -> J+13
+Collecte feed API : J -> J+13
 Collecte resultats API : J-7 -> J-1
 ```
 
@@ -355,7 +363,7 @@ Body commun aux runs orchestres :
 {
   "league_ids": [61],
   "results_days_back": 7,
-  "future_days": 3,
+  "future_days": 13,
   "api_request_delay_ms": 220,
   "include_team_statistics": true,
   "include_recent_form": true,
@@ -418,7 +426,7 @@ curl -X POST \
   -d '{
     "league_ids": [61, 62],
     "results_days_back": 7,
-    "future_days": 3,
+    "future_days": 13,
     "api_request_delay_ms": 220
   }'
 ```
@@ -457,7 +465,7 @@ Le SQL genere :
 - crée un job `api-football-enrichment-<id>` par compétition active, réparti sur la semaine pour les
   statistiques joueurs ;
 - laisse `daily-football-sync` calculer les fenetres `J-7 -> J-1` et
-  `J -> J+3` ;
+  `J -> J+13` ;
 - utilise `API_FOOTBALL_SYNC_SECRET` depuis `.env`.
 
 Important : le SQL genere contient `API_FOOTBALL_SYNC_SECRET` en clair dans la

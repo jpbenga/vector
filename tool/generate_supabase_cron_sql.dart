@@ -111,7 +111,7 @@ void main() {
       ..writeln('    body := jsonb_build_object(')
       ..writeln("      'league_ids', jsonb_build_array($leagueId),")
       ..writeln("      'results_days_back', 7,")
-      ..writeln("      'future_days', 3,")
+      ..writeln("      'future_days', 13,")
       ..writeln("      'api_request_delay_ms', 220,")
       ..writeln("      'include_team_statistics', true,")
       ..writeln("      'include_recent_form', true,")
@@ -145,7 +145,7 @@ void main() {
       ..writeln('    body := jsonb_build_object(')
       ..writeln("      'league_ids', jsonb_build_array($leagueId),")
       ..writeln("      'results_days_back', 7,")
-      ..writeln("      'future_days', 3,")
+      ..writeln("      'future_days', 13,")
       ..writeln("      'api_request_delay_ms', 220,")
       ..writeln("      'include_team_statistics', true,")
       ..writeln("      'include_recent_form', true,")
@@ -173,7 +173,7 @@ void main() {
       "    headers := jsonb_build_object('Content-Type', 'application/json', 'Authorization', 'Bearer ${_sql(syncSecret)}'),",
     )
     ..writeln(
-      "    body := jsonb_build_object('league_ids', jsonb_build_array($fullScope), 'manual_override', true, 'results_days_back', 7, 'future_days', 3, 'api_request_delay_ms', 220, 'include_team_statistics', true, 'include_recent_form', true, 'include_expected_goals', true, 'include_player_statistics', false, 'recent_form_days_back', 180, 'recent_form_matches', 5),",
+      "    body := jsonb_build_object('league_ids', jsonb_build_array($fullScope), 'manual_override', true, 'results_days_back', 7, 'future_days', 13, 'api_request_delay_ms', 220, 'include_team_statistics', true, 'include_recent_form', true, 'include_expected_goals', true, 'include_player_statistics', false, 'recent_form_days_back', 180, 'recent_form_matches', 5),",
     )
     ..writeln('    timeout_milliseconds := 300000')
     ..writeln('  );')

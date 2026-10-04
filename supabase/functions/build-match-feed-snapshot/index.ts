@@ -1,3 +1,10 @@
+import {
+  fixtureBodyForDate,
+  footballCalendarDays,
+  oddsDatesForFixtures,
+  selectCachedOddsPages,
+  usesDatedFixtureSource,
+} from "../_shared/football_calendar_policy.ts";
 import { eligibleHeadToHeadMeetings } from "../_shared/head_to_head_history.ts";
 import { OpsReporter } from "../_shared/ops_runtime.ts";
 type JsonObject = Record<string, unknown>;
@@ -6,7 +13,7 @@ const source = "api-football";
 const schemaVersion = 1;
 const snapshotKind = "pre_match_feed";
 const defaultTimezone = "Europe/Paris";
-const maxDays = 7;
+const maxDays = footballCalendarDays;
 const maxLeagues = 40;
 const injuryCollectionWindowMs = 24 * 60 * 60 * 1000;
 
@@ -427,41 +434,61 @@ async function collectSnapshotSources({
     addSourceRows(leagueFixtureRows);
     rawLeagueFixtures.push(...flatResponseItems(leagueFixtureRows));
 
+    const collectedOddsDates = new Set<string>();
     for (const date of dateWindow(options.windowStart, options.windowEnd)) {
-      const fixtureRows = await cachedResponsesFor({
-        supabaseUrl,
-        serviceRoleKey,
-        endpoint: "/fixtures",
-        filters: {
+      const fixtureRows = usesDatedFixtureSource(date, options.windowStart)
+        ? await cachedResponsesFor({
+          supabaseUrl,
+          serviceRoleKey,
+          endpoint: "/fixtures",
+          filters: {
+            league: String(leagueId),
+            season: String(leagueSeason),
+            date,
+            timezone: options.timezone,
+          },
+          exactQuery: true,
+        })
+        : [];
+      addSourceRows(fixtureRows);
+      const fixtureBody = fixtureBodyForDate(
+        leagueFixtureRows[0]?.response_body ?? {},
+        fixtureRows[0]?.response_body,
+        date,
+        options.windowStart,
+        options.timezone,
+      );
+      const dateFixtures = Array.isArray(fixtureBody.response)
+        ? fixtureBody.response.map((row) => objectValue(row)).filter((
+          row,
+        ): row is JsonObject => row !== null)
+        : [];
+      rawFixtures.push(...dateFixtures);
+
+      for (const oddsDate of oddsDatesForFixtures(dateFixtures)) {
+        if (collectedOddsDates.has(oddsDate)) continue;
+        collectedOddsDates.add(oddsDate);
+        const oddsFilters: Record<string, string> = {
           league: String(leagueId),
           season: String(leagueSeason),
-          date,
-          timezone: options.timezone,
-        },
-      });
-      addSourceRows(fixtureRows);
-      rawFixtures.push(...flatResponseItems(fixtureRows));
-
-      const oddsFilters: Record<string, string> = {
-        league: String(leagueId),
-        season: String(leagueSeason),
-        date,
-      };
-      if (options.bookmakerId !== null) {
-        oddsFilters.bookmaker = String(options.bookmakerId);
+          date: oddsDate,
+        };
+        if (options.bookmakerId !== null) {
+          oddsFilters.bookmaker = String(options.bookmakerId);
+        }
+        const oddsRows = await cachedResponsesFor({
+          supabaseUrl,
+          serviceRoleKey,
+          endpoint: "/odds",
+          filters: oddsFilters,
+          // Do not mix a fresh all-bookmakers response with older responses
+          // collected for one bookmaker. The adapter performs bookmaker
+          // prioritisation from the complete response.
+          paginatedOdds: true,
+        });
+        addSourceRows(oddsRows);
+        rawOdds.push(...flatResponseItems(oddsRows));
       }
-      const oddsRows = await cachedResponsesFor({
-        supabaseUrl,
-        serviceRoleKey,
-        endpoint: "/odds",
-        filters: oddsFilters,
-        // Do not mix a fresh all-bookmakers response with older responses
-        // collected for one bookmaker. The adapter performs bookmaker
-        // prioritisation from the complete response.
-        exactQuery: true,
-      });
-      addSourceRows(oddsRows);
-      rawOdds.push(...flatResponseItems(oddsRows));
     }
   }
 
@@ -1005,12 +1032,14 @@ async function cachedResponsesFor({
   endpoint,
   filters,
   exactQuery = false,
+  paginatedOdds = false,
 }: {
   supabaseUrl: string;
   serviceRoleKey: string;
   endpoint: string;
   filters: Record<string, string>;
   exactQuery?: boolean;
+  paginatedOdds?: boolean;
 }): Promise<CachedRawResponse[]> {
   const query = new URLSearchParams();
   query.set(
@@ -1050,6 +1079,7 @@ async function cachedResponsesFor({
   const usableRows = normalizedRows.filter((row) =>
     apiFootballErrorMessages(row.response_body).length === 0
   );
+  if (paginatedOdds) return selectCachedOddsPages(usableRows, filters);
   if (!exactQuery) {
     return usableRows;
   }
@@ -1357,7 +1387,7 @@ function hasVerifiedEmptyFixtureCoverage(
   options: SnapshotOptions,
 ): boolean {
   // During breaks, a provider can have no fixture at all for a competition.
-  // One successful date-scoped fixture response proves this is an empty
+  // A successful season or date-scoped fixture response proves this is an empty
   // calendar rather than an absent collection. Requiring every calendar day
   // turned normal inactive competitions into failed batch runs whenever a
   // dated response was legitimately absent from the cache.
@@ -1366,7 +1396,7 @@ function hasVerifiedEmptyFixtureCoverage(
       if (row.endpoint !== "/fixtures") return false;
       const query = row.query_params;
       return String(query.league ?? "") === String(leagueId) &&
-        query.date !== undefined && query.season !== undefined &&
+        query.season !== undefined &&
         String(query.timezone ?? "") === options.timezone &&
         query.team === undefined && query.fixture === undefined;
     })
@@ -1849,9 +1879,8 @@ function recentFixtureRequests(
       continue;
     }
 
-    const fixtureDate = dateOnly(new Date(fixtureDateTime));
-    const from = subtractDays(fixtureDate, options.recentFormDaysBack);
-    const to = subtractDays(fixtureDate, 1);
+    const from = subtractDays(options.windowStart, options.recentFormDaysBack);
+    const to = subtractDays(options.windowStart, 1);
     const season = numberValue(league.season) ?? seasonForLeague(
       options,
       leagueId,

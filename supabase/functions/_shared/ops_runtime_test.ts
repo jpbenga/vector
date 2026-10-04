@@ -14,12 +14,16 @@ Deno.test("stage dependencies use exact predecessor and date window", () => {
     },
   };
   const collect = stageCall({ ...task, stage: 0 });
-  assert.equal(collect.payload.window_end, "2026-10-03");
+  assert.equal(collect.payload.window_end, "2026-10-13");
   assert.equal(collect.payload.include_player_statistics, false);
   assert.equal(
     stageCall({ ...task, stage: 0, job_kind: "enrichment" }).payload
       .include_player_statistics,
     true,
+  );
+  assert.equal(
+    stageCall({ ...task, stage: 2 }).payload.window_end,
+    collect.payload.window_end,
   );
   const result = stageCall({ ...task, stage: 1 });
   assert.equal(result.payload.window_start, "2026-09-23");

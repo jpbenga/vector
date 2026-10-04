@@ -1,0 +1,858 @@
+{
+  "schema_version": 1,
+  "source": "api-football",
+  "captured_at": "2030-10-04T04:00:00.000Z",
+  "timezone": "Europe/Paris",
+  "window_start": "2030-10-04",
+  "window_end": "2030-10-17",
+  "raw": {
+    "fixtures": [
+      {
+        "fixture": {
+          "id": 1,
+          "date": "2030-10-04T18:00:00+00:00",
+          "status": {
+            "short": "NS",
+            "long": "Not Started"
+          }
+        },
+        "league": {
+          "id": 61,
+          "name": "Ligue 1",
+          "country": "France",
+          "season": 2030,
+          "round": "Regular Season - 8"
+        },
+        "teams": {
+          "home": {
+            "id": 81,
+            "name": "Club 1",
+            "logo": null
+          },
+          "away": {
+            "id": 200,
+            "name": "Club visiteur",
+            "logo": null
+          }
+        },
+        "goals": {
+          "home": null,
+          "away": null
+        }
+      },
+      {
+        "fixture": {
+          "id": 2,
+          "date": "2030-10-17T18:00:00+00:00",
+          "status": {
+            "short": "NS",
+            "long": "Not Started"
+          }
+        },
+        "league": {
+          "id": 61,
+          "name": "Ligue 1",
+          "country": "France",
+          "season": 2030,
+          "round": "Regular Season - 8"
+        },
+        "teams": {
+          "home": {
+            "id": 82,
+            "name": "Club 2",
+            "logo": null
+          },
+          "away": {
+            "id": 200,
+            "name": "Club visiteur",
+            "logo": null
+          }
+        },
+        "goals": {
+          "home": null,
+          "away": null
+        }
+      },
+      {
+        "fixture": {
+          "id": 3,
+          "date": "2030-10-17T18:00:00+00:00",
+          "status": {
+            "short": "NS",
+            "long": "Not Started"
+          }
+        },
+        "league": {
+          "id": 61,
+          "name": "Ligue 1",
+          "country": "France",
+          "season": 2030,
+          "round": "Regular Season - 8"
+        },
+        "teams": {
+          "home": {
+            "id": 83,
+            "name": "Club 3",
+            "logo": null
+          },
+          "away": {
+            "id": 200,
+            "name": "Club visiteur",
+            "logo": null
+          }
+        },
+        "goals": {
+          "home": null,
+          "away": null
+        }
+      },
+      {
+        "fixture": {
+          "id": 4,
+          "date": "2030-10-17T18:00:00+00:00",
+          "status": {
+            "short": "NS",
+            "long": "Not Started"
+          }
+        },
+        "league": {
+          "id": 61,
+          "name": "Ligue 1",
+          "country": "France",
+          "season": 2030,
+          "round": "Regular Season - 8"
+        },
+        "teams": {
+          "home": {
+            "id": 84,
+            "name": "Club 4",
+            "logo": null
+          },
+          "away": {
+            "id": 200,
+            "name": "Club visiteur",
+            "logo": null
+          }
+        },
+        "goals": {
+          "home": null,
+          "away": null
+        }
+      },
+      {
+        "fixture": {
+          "id": 5,
+          "date": "2030-10-17T18:00:00+00:00",
+          "status": {
+            "short": "NS",
+            "long": "Not Started"
+          }
+        },
+        "league": {
+          "id": 61,
+          "name": "Ligue 1",
+          "country": "France",
+          "season": 2030,
+          "round": "Regular Season - 8"
+        },
+        "teams": {
+          "home": {
+            "id": 85,
+            "name": "Club 5",
+            "logo": null
+          },
+          "away": {
+            "id": 200,
+            "name": "Club visiteur",
+            "logo": null
+          }
+        },
+        "goals": {
+          "home": null,
+          "away": null
+        }
+      },
+      {
+        "fixture": {
+          "id": 6,
+          "date": "2030-10-17T18:00:00+00:00",
+          "status": {
+            "short": "NS",
+            "long": "Not Started"
+          }
+        },
+        "league": {
+          "id": 61,
+          "name": "Ligue 1",
+          "country": "France",
+          "season": 2030,
+          "round": "Regular Season - 8"
+        },
+        "teams": {
+          "home": {
+            "id": 86,
+            "name": "Club 6",
+            "logo": null
+          },
+          "away": {
+            "id": 200,
+            "name": "Club visiteur",
+            "logo": null
+          }
+        },
+        "goals": {
+          "home": null,
+          "away": null
+        }
+      },
+      {
+        "fixture": {
+          "id": 7,
+          "date": "2030-10-17T18:00:00+00:00",
+          "status": {
+            "short": "NS",
+            "long": "Not Started"
+          }
+        },
+        "league": {
+          "id": 61,
+          "name": "Ligue 1",
+          "country": "France",
+          "season": 2030,
+          "round": "Regular Season - 8"
+        },
+        "teams": {
+          "home": {
+            "id": 87,
+            "name": "Club 7",
+            "logo": null
+          },
+          "away": {
+            "id": 200,
+            "name": "Club visiteur",
+            "logo": null
+          }
+        },
+        "goals": {
+          "home": null,
+          "away": null
+        }
+      },
+      {
+        "fixture": {
+          "id": 8,
+          "date": "2030-10-17T18:00:00+00:00",
+          "status": {
+            "short": "NS",
+            "long": "Not Started"
+          }
+        },
+        "league": {
+          "id": 61,
+          "name": "Ligue 1",
+          "country": "France",
+          "season": 2030,
+          "round": "Regular Season - 8"
+        },
+        "teams": {
+          "home": {
+            "id": 88,
+            "name": "Club 8",
+            "logo": null
+          },
+          "away": {
+            "id": 200,
+            "name": "Club visiteur",
+            "logo": null
+          }
+        },
+        "goals": {
+          "home": null,
+          "away": null
+        }
+      },
+      {
+        "fixture": {
+          "id": 9,
+          "date": "2030-10-17T18:00:00+00:00",
+          "status": {
+            "short": "NS",
+            "long": "Not Started"
+          }
+        },
+        "league": {
+          "id": 61,
+          "name": "Ligue 1",
+          "country": "France",
+          "season": 2030,
+          "round": "Regular Season - 8"
+        },
+        "teams": {
+          "home": {
+            "id": 89,
+            "name": "Club 9",
+            "logo": null
+          },
+          "away": {
+            "id": 200,
+            "name": "Club visiteur",
+            "logo": null
+          }
+        },
+        "goals": {
+          "home": null,
+          "away": null
+        }
+      },
+      {
+        "fixture": {
+          "id": 10,
+          "date": "2030-10-17T18:00:00+00:00",
+          "status": {
+            "short": "NS",
+            "long": "Not Started"
+          }
+        },
+        "league": {
+          "id": 61,
+          "name": "Ligue 1",
+          "country": "France",
+          "season": 2030,
+          "round": "Regular Season - 8"
+        },
+        "teams": {
+          "home": {
+            "id": 90,
+            "name": "Club 10",
+            "logo": null
+          },
+          "away": {
+            "id": 200,
+            "name": "Club visiteur",
+            "logo": null
+          }
+        },
+        "goals": {
+          "home": null,
+          "away": null
+        }
+      },
+      {
+        "fixture": {
+          "id": 11,
+          "date": "2030-10-17T18:00:00+00:00",
+          "status": {
+            "short": "NS",
+            "long": "Not Started"
+          }
+        },
+        "league": {
+          "id": 61,
+          "name": "Ligue 1",
+          "country": "France",
+          "season": 2030,
+          "round": "Regular Season - 8"
+        },
+        "teams": {
+          "home": {
+            "id": 91,
+            "name": "Club 11",
+            "logo": null
+          },
+          "away": {
+            "id": 200,
+            "name": "Club visiteur",
+            "logo": null
+          }
+        },
+        "goals": {
+          "home": null,
+          "away": null
+        }
+      },
+      {
+        "fixture": {
+          "id": 12,
+          "date": "2030-10-17T18:00:00+00:00",
+          "status": {
+            "short": "NS",
+            "long": "Not Started"
+          }
+        },
+        "league": {
+          "id": 61,
+          "name": "Ligue 1",
+          "country": "France",
+          "season": 2030,
+          "round": "Regular Season - 8"
+        },
+        "teams": {
+          "home": {
+            "id": 92,
+            "name": "Club 12",
+            "logo": null
+          },
+          "away": {
+            "id": 200,
+            "name": "Club visiteur",
+            "logo": null
+          }
+        },
+        "goals": {
+          "home": null,
+          "away": null
+        }
+      },
+      {
+        "fixture": {
+          "id": 13,
+          "date": "2030-10-17T18:00:00+00:00",
+          "status": {
+            "short": "NS",
+            "long": "Not Started"
+          }
+        },
+        "league": {
+          "id": 61,
+          "name": "Ligue 1",
+          "country": "France",
+          "season": 2030,
+          "round": "Regular Season - 8"
+        },
+        "teams": {
+          "home": {
+            "id": 93,
+            "name": "Club 13",
+            "logo": null
+          },
+          "away": {
+            "id": 200,
+            "name": "Club visiteur",
+            "logo": null
+          }
+        },
+        "goals": {
+          "home": null,
+          "away": null
+        }
+      }
+    ],
+    "odds": [
+      {
+        "fixture": {
+          "id": 2
+        },
+        "bookmakers": [
+          {
+            "id": 16,
+            "name": "Unibet",
+            "bets": [
+              {
+                "id": 1,
+                "name": "Match Winner",
+                "values": [
+                  {
+                    "value": "Home",
+                    "odd": "1.90"
+                  },
+                  {
+                    "value": "Draw",
+                    "odd": "3.20"
+                  },
+                  {
+                    "value": "Away",
+                    "odd": "4.10"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "fixture": {
+          "id": 3
+        },
+        "bookmakers": [
+          {
+            "id": 16,
+            "name": "Unibet",
+            "bets": [
+              {
+                "id": 1,
+                "name": "Match Winner",
+                "values": [
+                  {
+                    "value": "Home",
+                    "odd": "1.90"
+                  },
+                  {
+                    "value": "Draw",
+                    "odd": "3.20"
+                  },
+                  {
+                    "value": "Away",
+                    "odd": "4.10"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "fixture": {
+          "id": 4
+        },
+        "bookmakers": [
+          {
+            "id": 16,
+            "name": "Unibet",
+            "bets": [
+              {
+                "id": 1,
+                "name": "Match Winner",
+                "values": [
+                  {
+                    "value": "Home",
+                    "odd": "1.90"
+                  },
+                  {
+                    "value": "Draw",
+                    "odd": "3.20"
+                  },
+                  {
+                    "value": "Away",
+                    "odd": "4.10"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "fixture": {
+          "id": 5
+        },
+        "bookmakers": [
+          {
+            "id": 16,
+            "name": "Unibet",
+            "bets": [
+              {
+                "id": 1,
+                "name": "Match Winner",
+                "values": [
+                  {
+                    "value": "Home",
+                    "odd": "1.90"
+                  },
+                  {
+                    "value": "Draw",
+                    "odd": "3.20"
+                  },
+                  {
+                    "value": "Away",
+                    "odd": "4.10"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "fixture": {
+          "id": 6
+        },
+        "bookmakers": [
+          {
+            "id": 16,
+            "name": "Unibet",
+            "bets": [
+              {
+                "id": 1,
+                "name": "Match Winner",
+                "values": [
+                  {
+                    "value": "Home",
+                    "odd": "1.90"
+                  },
+                  {
+                    "value": "Draw",
+                    "odd": "3.20"
+                  },
+                  {
+                    "value": "Away",
+                    "odd": "4.10"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "fixture": {
+          "id": 7
+        },
+        "bookmakers": [
+          {
+            "id": 16,
+            "name": "Unibet",
+            "bets": [
+              {
+                "id": 1,
+                "name": "Match Winner",
+                "values": [
+                  {
+                    "value": "Home",
+                    "odd": "1.90"
+                  },
+                  {
+                    "value": "Draw",
+                    "odd": "3.20"
+                  },
+                  {
+                    "value": "Away",
+                    "odd": "4.10"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "fixture": {
+          "id": 8
+        },
+        "bookmakers": [
+          {
+            "id": 16,
+            "name": "Unibet",
+            "bets": [
+              {
+                "id": 1,
+                "name": "Match Winner",
+                "values": [
+                  {
+                    "value": "Home",
+                    "odd": "1.90"
+                  },
+                  {
+                    "value": "Draw",
+                    "odd": "3.20"
+                  },
+                  {
+                    "value": "Away",
+                    "odd": "4.10"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "fixture": {
+          "id": 9
+        },
+        "bookmakers": [
+          {
+            "id": 16,
+            "name": "Unibet",
+            "bets": [
+              {
+                "id": 1,
+                "name": "Match Winner",
+                "values": [
+                  {
+                    "value": "Home",
+                    "odd": "1.90"
+                  },
+                  {
+                    "value": "Draw",
+                    "odd": "3.20"
+                  },
+                  {
+                    "value": "Away",
+                    "odd": "4.10"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "fixture": {
+          "id": 10
+        },
+        "bookmakers": [
+          {
+            "id": 16,
+            "name": "Unibet",
+            "bets": [
+              {
+                "id": 1,
+                "name": "Match Winner",
+                "values": [
+                  {
+                    "value": "Home",
+                    "odd": "1.90"
+                  },
+                  {
+                    "value": "Draw",
+                    "odd": "3.20"
+                  },
+                  {
+                    "value": "Away",
+                    "odd": "4.10"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "fixture": {
+          "id": 11
+        },
+        "bookmakers": [
+          {
+            "id": 16,
+            "name": "Unibet",
+            "bets": [
+              {
+                "id": 1,
+                "name": "Match Winner",
+                "values": [
+                  {
+                    "value": "Home",
+                    "odd": "1.90"
+                  },
+                  {
+                    "value": "Draw",
+                    "odd": "3.20"
+                  },
+                  {
+                    "value": "Away",
+                    "odd": "4.10"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "fixture": {
+          "id": 12
+        },
+        "bookmakers": [
+          {
+            "id": 16,
+            "name": "Unibet",
+            "bets": [
+              {
+                "id": 1,
+                "name": "Match Winner",
+                "values": [
+                  {
+                    "value": "Home",
+                    "odd": "1.90"
+                  },
+                  {
+                    "value": "Draw",
+                    "odd": "3.20"
+                  },
+                  {
+                    "value": "Away",
+                    "odd": "4.10"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "standings": [],
+    "recent_league_matches": [],
+    "head_to_head": [],
+    "player_form_radar": []
+  },
+  "computed": {
+    "engine_version": "server_computed_feed_v1",
+    "fixtures": [
+      {
+        "fixture_id": 1,
+        "readings": [],
+        "scenarios": []
+      },
+      {
+        "fixture_id": 2,
+        "readings": [],
+        "scenarios": []
+      },
+      {
+        "fixture_id": 3,
+        "readings": [],
+        "scenarios": []
+      },
+      {
+        "fixture_id": 4,
+        "readings": [],
+        "scenarios": []
+      },
+      {
+        "fixture_id": 5,
+        "readings": [],
+        "scenarios": []
+      },
+      {
+        "fixture_id": 6,
+        "readings": [],
+        "scenarios": []
+      },
+      {
+        "fixture_id": 7,
+        "readings": [],
+        "scenarios": []
+      },
+      {
+        "fixture_id": 8,
+        "readings": [],
+        "scenarios": []
+      },
+      {
+        "fixture_id": 9,
+        "readings": [],
+        "scenarios": []
+      },
+      {
+        "fixture_id": 10,
+        "readings": [],
+        "scenarios": []
+      },
+      {
+        "fixture_id": 11,
+        "readings": [],
+        "scenarios": []
+      },
+      {
+        "fixture_id": 12,
+        "readings": [],
+        "scenarios": []
+      },
+      {
+        "fixture_id": 13,
+        "readings": [],
+        "scenarios": []
+      }
+    ]
+  }
+}

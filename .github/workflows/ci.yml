@@ -48,7 +48,7 @@ jobs:
       - name: Test Supabase reading policies
         run: >-
           deno test
-          --allow-env=SUPABASE_SERVICE_ROLE_KEY,SUPABASE_URL,API_FOOTBALL_KEY,API_FOOTBALL_SYNC_SECRET
+          --allow-env=SUPABASE_SERVICE_ROLE_KEY,SUPABASE_URL,API_FOOTBALL_KEY,API_FOOTBALL_SYNC_SECRET,API_FOOTBALL_BASE_URL,API_FOOTBALL_REQUEST_DELAY_MS
           supabase/functions/_shared
 
       - name: Test Bilan SQL migration

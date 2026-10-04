@@ -56,7 +56,7 @@ class MatchFeedRepositoryLoader {
           snapshot: remoteSnapshot,
         );
         final metadata = repository.snapshotMetadata;
-        // The selected date can be in the J+1 to J+3 forecast window. Its
+        // The selected date can be in the J+1 to J+13 calendar window. Its
         // snapshot is legitimately captured today, so freshness must be
         // evaluated against the real current day, never against the selected
         // future day.

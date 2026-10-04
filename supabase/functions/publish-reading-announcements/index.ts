@@ -1,3 +1,4 @@
+import { fixturesEligibleForAnnouncements } from "../_shared/football_calendar_policy.ts";
 import { assessFormGap } from "../_shared/form_gap_policy.ts";
 import { assessStructuralGap } from "../_shared/structural_gap_policy.ts";
 
@@ -120,7 +121,7 @@ Deno.serve(async (request) => {
       supabaseUrl,
       serviceRoleKey,
       path:
-        "/rest/v1/match_feed_snapshots?select=id,captured_at,payload&id=eq." +
+        "/rest/v1/match_feed_snapshots?select=id,captured_at,timezone,payload&id=eq." +
         encodeURIComponent(snapshotId) + "&limit=1",
       method: "GET",
     });
@@ -136,7 +137,11 @@ Deno.serve(async (request) => {
     }
 
     const raw = objectValue(snapshotPayload.raw) ?? {};
-    const fixtures = objectList(raw.fixtures);
+    const fixtures = fixturesEligibleForAnnouncements(
+      objectList(raw.fixtures),
+      capturedAt,
+      stringValue(snapshot?.timezone) ?? "Europe/Paris",
+    );
     const leagueFixtures = objectList(raw.league_fixtures);
     const recentForms = recentFormsByTeam(
       objectList(raw.recent_league_matches),
