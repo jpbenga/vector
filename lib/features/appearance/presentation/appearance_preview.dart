@@ -8,10 +8,12 @@ import '../../form_radar/presentation/widgets/form_radar_event_timeline.dart';
 import '../../matches/presentation/widgets/lector_match_hero.dart';
 import '../../matches/presentation/widgets/match_feed_card.dart';
 import '../data/appearance_preview_fixture.dart';
+import 'appearance_live_preview.dart';
 
 enum AppearancePreviewKind {
   overview('Aperçu'),
   match('Match'),
+  live('Live & bilan'),
   radar('Radar'),
   chat('Chat'),
   components('Composants');
@@ -46,6 +48,7 @@ class AppearancePreview extends StatelessWidget {
           ),
         ),
       ],
+      AppearancePreviewKind.live => [const AppearanceLivePreview()],
       AppearancePreviewKind.radar => [
         const _PreviewTitle(
           title: 'Joueurs en forme',

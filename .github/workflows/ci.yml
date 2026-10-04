@@ -52,4 +52,4 @@ jobs:
           supabase/functions/_shared
 
       - name: Test Bilan SQL migration
-        run: deno test --node-modules-dir=none --no-lock --allow-read test/backend/reading_bilan_sql_test.ts
+        run: deno test --node-modules-dir=none --no-lock --allow-read test/backend/reading_bilan_sql_test.ts test/backend/live_match_sql_test.ts

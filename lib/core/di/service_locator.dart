@@ -1,5 +1,8 @@
 import 'package:get_it/get_it.dart';
 
+import '../../features/matches/application/live_match_controller.dart';
+import '../../features/matches/data/live_match_repository.dart';
+
 import '../auth/supabase_auth_controller.dart';
 import '../config/app_config.dart';
 import '../identity/identity_controller.dart';
@@ -28,4 +31,10 @@ Future<void> configureDependencies(AppConfig config) async {
         supabaseInitializer: getIt<SupabaseInitializer>(),
       ),
     );
+  getIt.registerLazySingleton<LiveMatchController>(
+    () => LiveMatchController(
+      SupabaseLiveMatchRepository(getIt<SupabaseInitializer>().client!),
+    ),
+    dispose: (controller) => controller.dispose(),
+  );
 }

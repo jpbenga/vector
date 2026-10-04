@@ -1263,6 +1263,7 @@ class MatchBoardItem {
   }
 
   MatchBoardItem copyWith({
+    NormalizedFixture? fixture,
     MarketOdds? primaryMarket,
     List<MatchMarket>? availableMarkets,
     List<BetCandidate>? betCandidates,
@@ -1275,7 +1276,7 @@ class MatchBoardItem {
     MatchThesis? thesis,
   }) {
     return MatchBoardItem(
-      fixture: fixture,
+      fixture: fixture ?? this.fixture,
       primaryMarket: primaryMarket ?? this.primaryMarket,
       availableMarkets: availableMarkets ?? this.availableMarkets,
       betCandidates: betCandidates ?? this.betCandidates,

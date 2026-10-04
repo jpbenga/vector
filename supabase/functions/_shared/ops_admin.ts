@@ -3,7 +3,7 @@ const publicTaskSelect =
   "id,cycle_id,league_id,competition_name,position,job_kind,status,stage,cancel_requested,attempts,day,counters,sample,error_message,created_at,started_at,finished_at,heartbeat_at";
 export async function operationsOverview(cycleId?: string): Promise<Obj> {
   if (cycleId && !uuid(cycleId)) throw new Error("Cycle invalide");
-  const [cycles, competitions, config, legacy, budget, audit, durations] =
+  const [cycles, competitions, config, legacy, budget, audit, durations, live] =
     await Promise.all([
       db("ops_cycle_overview?select=*&order=created_at.desc&limit=50"),
       db("ops_competitions?select=*&order=name.asc"),
@@ -20,6 +20,21 @@ export async function operationsOverview(cycleId?: string): Promise<Obj> {
         "ops_events?select=id,actor,kind,message,created_at&task_id=is.null&order=created_at.desc&limit=100",
       ),
       db("ops_duration_overview?select=*"),
+      Promise.all([
+        db(
+          "match_live_configuration?select=enabled,last_started_at,last_completed_at,last_success_at,last_error,requests_last_run,requests_total&singleton=eq.true",
+        ),
+        db(
+          "match_live_runs?select=id,status,started_at,finished_at,provider_requests,fixture_count,error_message&order=started_at.desc&limit=10",
+        ),
+        db(
+          "match_live_states?select=fixture_id&status=in.(1H,HT,2H,ET,BT,P,LIVE)&limit=2000",
+        ),
+      ]).then(([configuration, runs, watched]) => ({
+        ...(configuration[0] ?? {}),
+        runs,
+        watched: watched.length,
+      })).catch(() => null),
     ]);
   const selected = cycleId ?? cycles[0]?.id;
   const tasks = selected
@@ -31,6 +46,7 @@ export async function operationsOverview(cycleId?: string): Promise<Obj> {
     `ops_tasks?select=${publicTaskSelect}&status=eq.running&limit=10`,
   );
   return {
+    live,
     cycles,
     competitions,
     tasks,
@@ -58,6 +74,13 @@ export async function handleOperations(
         typeof payload.cycle_id === "string" ? payload.cycle_id : undefined,
       ),
     };
+  }
+  if (action === "ops_live_enabled") {
+    await rpc("match_live_set_enabled", {
+      p_enabled: payload.enabled === true,
+    });
+    if (payload.enabled === true) await rpc("match_live_tick");
+    return { ok: true };
   }
   if (action === "ops_events") {
     if (!uuid(payload.task_id)) throw new Error("Batch invalide");

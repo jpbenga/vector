@@ -158,6 +158,9 @@ Deno.serve(async (request) => {
               final_events: enrichment.events,
               computed: {
                 player_decisive: decisivePlayers(enrichment.events),
+                player_events_complete: enrichment.providerRequests > 0 &&
+                  enrichment.events.filter((event) => event.type === "Goal" && event.detail !== "Missed Penalty" && event.comments !== "Penalty Shootout").length >=
+                    (number(goals.home) ?? 0) + (number(goals.away) ?? 0),
               },
             },
           };

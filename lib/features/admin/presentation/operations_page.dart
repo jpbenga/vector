@@ -1293,10 +1293,76 @@ class _OperationsPageState extends State<OperationsPage>
 
   Widget _api(BuildContext context, OpsOverview data) {
     final budget = opsMap(data.json['budget']);
+    final live = opsMap(data.json['live']);
     final failed = data.tasks.where((t) => t.status == 'failed').toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _panel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Scores en direct',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  if (live.isNotEmpty)
+                    Switch(
+                      value: live['enabled'] == true,
+                      onChanged: (enabled) =>
+                          _action('ops_live_enabled', {'enabled': enabled}),
+                    ),
+                ],
+              ),
+              Text(
+                live.isEmpty
+                    ? 'Collecteur à installer sur Supabase.'
+                    : live['enabled'] == true
+                    ? 'Collecte chaque minute · compétitions activées'
+                    : 'Collecte désactivée',
+              ),
+              if (live.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(
+                  'Dernière collecte réussie : ${live['last_success_at'] == null ? 'aucune' : _date(live['last_success_at'])}',
+                ),
+                Text(
+                  '${live['watched'] ?? 0} matchs en cours · ${live['requests_last_run'] ?? 0} appels au dernier passage',
+                ),
+                Text(
+                  '${live['requests_total'] ?? 0} appels depuis l’installation (inclus dans le budget commun)',
+                ),
+                if (live['last_error'] != null) _issue('${live['last_error']}'),
+                for (final run in opsRows(live['runs']).take(5))
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      '${_date(run['started_at'])} · ${run['status'] == 'succeeded'
+                          ? 'Réussi'
+                          : run['status'] == 'deferred'
+                          ? 'Différé'
+                          : run['status'] == 'cancelled'
+                          ? 'Interrompu'
+                          : run['status'] == 'running'
+                          ? 'En cours'
+                          : 'En erreur'}',
+                    ),
+                    subtitle: Text(
+                      '${run['fixture_count'] ?? 0} matchs reçus · ${run['provider_requests'] ?? 0} appels${run['error_message'] == null ? '' : ' · ${run['error_message']}'}',
+                    ),
+                  ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
         _panel(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

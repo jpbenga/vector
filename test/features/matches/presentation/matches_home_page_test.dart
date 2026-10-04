@@ -8,6 +8,8 @@ import 'package:copilot/core/supabase/supabase_initializer.dart';
 import 'package:copilot/core/theme/app_theme.dart';
 import 'package:copilot/core/theme/app_theme_controller.dart';
 import 'package:copilot/features/matches/data/match_feed_repository.dart';
+import 'package:copilot/features/matches/data/match_feed_repository_loader.dart';
+import 'package:copilot/features/matches/data/supabase_match_feed_snapshot_repository.dart';
 import 'package:copilot/features/matches/domain/football_reading.dart';
 import 'package:copilot/features/matches/domain/analysis_maturity.dart';
 import 'package:copilot/features/matches/domain/match_board_item.dart';
@@ -32,6 +34,67 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
   group('MatchesHomePage redesign', () {
+    testWidgets('displays covered fixtures collected before midnight', (
+      tester,
+    ) async {
+      final today = _dayOnly(DateTime.now());
+      final yesterday = DateTime(today.year, today.month, today.day - 1, 14);
+      final end = DateTime(today.year, today.month, today.day + 2);
+      String day(DateTime value) => value.toIso8601String().split('T').first;
+      final config = AppConfig(
+        environment: AppEnvironment.development,
+        supabaseUrl: Uri.parse('https://example.test'),
+        supabaseAnonKey: 'anon-key',
+      );
+      final loader = MatchFeedRepositoryLoader(
+        config: config,
+        supabaseInitializer: SupabaseInitializer(config),
+        clock: () => today.add(const Duration(hours: 1)),
+        remoteDataSource: _MidnightSnapshotDataSource({
+          'schema_version': 1,
+          'source': 'api-football',
+          'captured_at': yesterday.toIso8601String(),
+          'window_start': day(yesterday),
+          'window_end': day(end),
+          'timezone': 'Europe/Paris',
+          'raw': {
+            'fixtures': [
+              {
+                'fixture': {
+                  'id': 91000001,
+                  'date': today
+                      .add(const Duration(hours: 20))
+                      .toIso8601String(),
+                  'status': {'short': 'NS'},
+                },
+                'league': {
+                  'id': 61,
+                  'name': 'Ligue 1',
+                  'country': 'France',
+                  'season': 2026,
+                },
+                'teams': {
+                  'home': {'id': 10, 'name': 'Publication FC'},
+                  'away': {'id': 11, 'name': 'Minuit FC'},
+                },
+              },
+            ],
+            'odds': <Object?>[],
+          },
+        }),
+      );
+      await _pumpPage(
+        tester,
+        repositoryForDateLoader: (date) => loader.load(now: date),
+      );
+      await tester.tap(find.text('Tous'));
+      await tester.pumpAndSettle();
+      expect(find.text('Publication FC'), findsOneWidget);
+      expect(find.text('Minuit FC'), findsOneWidget);
+      expect(find.byType(MatchFeedCard), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('keeps primary navigation compact without stories to filter', (
       tester,
     ) async {
@@ -3044,6 +3107,16 @@ void main() {
       },
     );
   });
+}
+
+class _MidnightSnapshotDataSource implements MatchFeedSnapshotRemoteDataSource {
+  const _MidnightSnapshotDataSource(this.payload);
+
+  final Map<String, Object?> payload;
+
+  @override
+  Future<Map<String, Object?>?> loadLatestForDate(DateTime date) async =>
+      payload;
 }
 
 Future<void> _pumpPage(

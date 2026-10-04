@@ -8,6 +8,9 @@ import '../../../form_radar/domain/player_form_radar.dart';
 import '../../../form_radar/presentation/form_radar_signal_panel.dart';
 import '../../../onboarding/domain/decision_profile_catalogs.dart';
 import '../../domain/match_board_item.dart';
+import '../../domain/live_match_state.dart';
+import 'live_fixture_builder.dart';
+import 'live_match_status.dart';
 import '../opportunity_decision_presenter.dart';
 import 'sports_asset_badge.dart';
 
@@ -33,7 +36,45 @@ class MatchFeedCard extends StatelessWidget {
     this.showReadings = true,
     this.readingMatch,
     this.radarEntries,
+    this.liveState,
     super.key,
+  });
+  final MatchBoardItem match;
+  final VoidCallback onTap;
+  final bool showCompetitionHeader;
+  final bool showReadings;
+  final MatchBoardItem? readingMatch;
+  final List<PlayerFormRadarEntry>? radarEntries;
+
+  /// Explicit state for the local preview and regression tests.
+  final LiveMatchState? liveState;
+  @override
+  Widget build(BuildContext context) => LiveFixtureBuilder(
+    fixtureId: liveState == null ? match.fixture.apiFootballFixtureId : null,
+    builder: (context, received) {
+      final state = liveState ?? received;
+      return _MatchFeedCardContent(
+        match: state?.overlay(match) ?? match,
+        readingMatch: readingMatch ?? match,
+        onTap: onTap,
+        showCompetitionHeader: showCompetitionHeader,
+        showReadings: showReadings,
+        radarEntries: radarEntries,
+        liveState: state,
+      );
+    },
+  );
+}
+
+class _MatchFeedCardContent extends StatelessWidget {
+  const _MatchFeedCardContent({
+    required this.match,
+    required this.onTap,
+    this.showCompetitionHeader = true,
+    this.showReadings = true,
+    this.readingMatch,
+    this.radarEntries,
+    this.liveState,
   });
 
   final MatchBoardItem match;
@@ -45,6 +86,7 @@ class MatchFeedCard extends StatelessWidget {
   final bool showReadings;
   final MatchBoardItem? readingMatch;
   final List<PlayerFormRadarEntry>? radarEntries;
+  final LiveMatchState? liveState;
 
   @override
   Widget build(BuildContext context) {
@@ -93,6 +135,7 @@ class MatchFeedCard extends StatelessWidget {
                 )
               else
                 _StoryMatchTimeHeader(match: match, readingCount: readingCount),
+              if (liveState != null) LiveMatchStatus(state: liveState!),
               const SizedBox(height: 9),
               Divider(height: 1, color: context.surfaces.border),
               const SizedBox(height: 10),
@@ -152,6 +195,25 @@ class MatchFeedCard extends StatelessWidget {
                   );
                 },
               ),
+              if (liveState != null && showReadings)
+                LiveReadingSummary(
+                  state: liveState!,
+                  hasReadings: readings.isNotEmpty,
+                  entries: liveState!.visibleReadings(
+                    {
+                      ...readings.map((r) => r.id),
+                      ...analyzedMatch.signals
+                          .where(
+                            (s) => s.id.startsWith('standout_decisive_player'),
+                          )
+                          .map((_) => 'standout_decisive_player'),
+                    },
+                    scenarioIds: analyzedMatch.signals
+                        .where((s) => s.id.startsWith('scenario:'))
+                        .map((s) => s.id.substring(9))
+                        .toSet(),
+                  ),
+                ),
               if (visibleRadarEntries.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Divider(height: 1, color: context.surfaces.border),
@@ -609,13 +671,20 @@ class _StoryTeams extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _StoryTeamLine(team: match.homeTeam),
+              _StoryTeamLine(
+                team: match.homeTeam,
+                score: match.fixture.score?.home,
+              ),
               const SizedBox(height: 10),
-              _StoryTeamLine(team: match.awayTeam),
+              _StoryTeamLine(
+                team: match.awayTeam,
+                score: match.fixture.score?.away,
+              ),
             ],
           ),
         ),
-        if (resultOdds.length == 3) ...[
+        if (match.fixture.status == FixtureStatus.scheduled &&
+            resultOdds.length == 3) ...[
           const SizedBox(width: 10),
           _StoryMatchResultOdds(matchId: match.id, resultOdds: resultOdds),
         ],
@@ -625,7 +694,8 @@ class _StoryTeams extends StatelessWidget {
 }
 
 class _StoryTeamLine extends StatelessWidget {
-  const _StoryTeamLine({required this.team});
+  const _StoryTeamLine({required this.team, this.score});
+  final int? score;
 
   final TeamInfo team;
 
@@ -651,6 +721,15 @@ class _StoryTeamLine extends StatelessWidget {
             ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
           ),
         ),
+        if (score != null) ...[
+          const SizedBox(width: 8),
+          Text(
+            '$score',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+          ),
+        ],
       ],
     );
   }

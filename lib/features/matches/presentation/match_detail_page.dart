@@ -4,7 +4,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/deck/lector_deck.dart';
 import '../../../core/theme/app_colors.dart';
@@ -26,11 +25,11 @@ import '../domain/market_assessment.dart';
 import '../domain/match_board_item.dart';
 import '../domain/match_context_key_models.dart';
 import '../domain/structural_tiers/tier_models.dart';
-import '../data/match_reading_bilan_repository.dart';
 import 'opportunity_decision_presenter.dart';
-import 'reading_bilan_section.dart';
 import 'widgets/head_to_head_timeline_panel.dart';
 import 'widgets/lector_match_hero.dart';
+import 'widgets/live_fixture_builder.dart';
+import 'widgets/live_match_status.dart';
 import 'widgets/lector_glass_card.dart';
 import 'widgets/sports_asset_badge.dart';
 
@@ -71,34 +70,6 @@ class MatchDetailPage extends StatefulWidget {
 class _MatchDetailPageState extends State<MatchDetailPage> {
   int _selectedFreeTab = 0;
   bool _isTicketPanelExpanded = false;
-  late Future<List<MatchReadingBilanEntry>> _readingBilan;
-
-  @override
-  void initState() {
-    super.initState();
-    _readingBilan = _loadReadingBilan();
-  }
-
-  @override
-  void didUpdateWidget(covariant MatchDetailPage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.match.fixture.apiFootballFixtureId !=
-        widget.match.fixture.apiFootballFixtureId) {
-      _readingBilan = _loadReadingBilan();
-    }
-  }
-
-  Future<List<MatchReadingBilanEntry>> _loadReadingBilan() async {
-    final fixtureId = widget.match.fixture.apiFootballFixtureId;
-    if (fixtureId == null) return const [];
-    try {
-      return await SupabaseMatchReadingBilanRepository(
-        Supabase.instance.client,
-      ).loadForFixture(fixtureId);
-    } catch (_) {
-      return const [];
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -121,81 +92,31 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                           onBack: () => Navigator.of(context).maybePop(),
                         ),
                         const SizedBox(height: 10),
-                        LectorMatchHero(match: widget.match),
-                        FutureBuilder<List<MatchReadingBilanEntry>>(
-                          future: _readingBilan,
-                          builder: (context, snapshot) {
-                            final entries =
-                                snapshot.data ??
-                                const <MatchReadingBilanEntry>[];
-                            if (entries.isEmpty ||
-                                !entries.any((entry) => entry.hasResult)) {
-                              return const SizedBox.shrink();
-                            }
-                            final confirmed = entries
-                                .where((entry) => entry.verdict == 'confirmed')
-                                .length;
-                            final contradicted = entries
-                                .where(
-                                  (entry) => entry.verdict == 'contradicted',
-                                )
-                                .length;
-                            final pertinentNuances = entries
-                                .where(
-                                  (entry) =>
-                                      entry.verdict == 'caution_confirmed',
-                                )
-                                .length;
-                            final result = entries.firstWhere(
-                              (entry) => entry.hasResult,
-                            );
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 12),
-                              child: ExpansionTile(
-                                tilePadding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                ),
-                                collapsedBackgroundColor:
-                                    context.surfaces.backgroundSecondary,
-                                backgroundColor:
-                                    context.surfaces.backgroundSecondary,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                collapsedShape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                title: Text(
-                                  'Résultat ${result.homeGoals}–${result.awayGoals}',
-                                  style: TextStyle(
-                                    color: context.textColors.primary,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  '$confirmed lectures confirmées · '
-                                  '$contradicted contredites · '
-                                  '$pertinentNuances nuances pertinentes · '
-                                  '${entries.length} annoncées',
-                                  style: TextStyle(
-                                    color: context.textColors.secondary,
-                                  ),
-                                ),
-                                children: [
-                                  for (final entry in entries)
-                                    Padding(
-                                      padding: const EdgeInsets.fromLTRB(
-                                        10,
-                                        0,
-                                        10,
-                                        8,
-                                      ),
-                                      child: ReadingVerdictCard(entry: entry),
-                                    ),
-                                ],
+                        LiveFixtureBuilder(
+                          fixtureId: widget.match.fixture.apiFootballFixtureId,
+                          builder: (context, state) => Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              LectorMatchHero(
+                                match:
+                                    state?.overlay(widget.match) ??
+                                    widget.match,
                               ),
-                            );
-                          },
+                              if (state != null) ...[
+                                LiveMatchStatus(state: state),
+                                LiveReadingSummary(
+                                  state: state,
+                                  entries: state.visibleReadings(
+                                    widget.selectedReadingIds.toSet(),
+                                    scenarioIds: widget.selectedScenarioIds
+                                        .toSet(),
+                                  ),
+                                  hasReadings:
+                                      widget.selectedReadingIds.isNotEmpty,
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 12),
                         _LectorSynthesisCard(

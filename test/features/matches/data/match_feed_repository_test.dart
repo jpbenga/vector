@@ -18,6 +18,32 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('MatchFeedSnapshotMetadata', () {
+    test('keeps a covered publication across midnight but bounds its age', () {
+      final captured = DateTime(2026, 10, 3, 14);
+      final metadata = MatchFeedSnapshotMetadata(
+        source: 'api-football',
+        capturedAt: captured,
+        timezone: 'Europe/Paris',
+        matchCount: 1,
+        windowStart: DateTime(2026, 10, 3),
+        windowEnd: DateTime(2026, 10, 6),
+      );
+      expect(metadata.covers(DateTime(2026, 10, 4)), isTrue);
+      expect(metadata.isObsolete(DateTime(2026, 10, 3, 23, 59)), isFalse);
+      expect(metadata.isObsolete(DateTime(2026, 10, 4, 0, 1)), isFalse);
+      expect(metadata.isObsolete(DateTime(2026, 10, 4, 14)), isFalse);
+      expect(
+        metadata.isObsolete(captured.add(const Duration(hours: 36))),
+        isFalse,
+      );
+      expect(
+        metadata.isObsolete(
+          captured.add(const Duration(hours: 36, seconds: 1)),
+        ),
+        isTrue,
+      );
+    });
+
     test('parses explicit freshness window from the snapshot contract', () {
       final repository = const MatchFeedRepositoryFactory().create(
         MatchDataSourceMode.snapshot,
@@ -593,6 +619,31 @@ void main() {
   });
 
   group('MatchFeedRepositoryLoader', () {
+    test('loads yesterday’s covered fixtures after midnight', () async {
+      final remote = _FakeRemoteSnapshotDataSource(
+        latestForDate: _snapshot(
+          capturedAt: DateTime(2026, 10, 3, 14).toIso8601String(),
+          windowStart: '2026-10-03',
+          windowEnd: '2026-10-06',
+          fixtureDate: DateTime(2026, 10, 4, 20).toIso8601String(),
+        ),
+      );
+      final loader = _loader(
+        source: 'auto',
+        configuredSupabase: true,
+        remoteDataSource: remote,
+        currentDay: DateTime(2026, 10, 4, 1, 40),
+      );
+      final repository = await loader.load(now: DateTime(2026, 10, 4));
+      expect(repository, isA<SnapshotMatchFeedRepository>());
+      expect(repository.allMatches(), hasLength(1));
+      expect(repository.allMatches().single.homeTeam.name, 'Home');
+      expect(
+        repository.snapshotMetadata?.covers(DateTime(2026, 10, 4)),
+        isTrue,
+      );
+    });
+
     test('loads the current remote snapshot in auto mode', () async {
       final remote = _FakeRemoteSnapshotDataSource(
         latestForDate: _snapshot(

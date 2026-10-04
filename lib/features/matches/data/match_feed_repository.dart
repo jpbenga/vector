@@ -54,6 +54,11 @@ class MatchFeedRepositoryFactory {
 }
 
 class MatchFeedSnapshotMetadata {
+  // Daily batches run at different hours. Midnight must not discard a recent
+  // publication that still covers the requested fixtures. Bound elapsed age
+  // to one daily interval plus 12 hours of recovery margin.
+  static const maximumAge = Duration(hours: 36);
+
   const MatchFeedSnapshotMetadata({
     required this.source,
     required this.capturedAt,
@@ -120,7 +125,7 @@ class MatchFeedSnapshotMetadata {
       return true;
     }
 
-    return _dateOnly(captured).isBefore(today);
+    return now.toUtc().difference(captured.toUtc()) > maximumAge;
   }
 
   static (DateTime?, DateTime?) _inferWindow(List<MatchBoardItem> matches) {
