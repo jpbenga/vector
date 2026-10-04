@@ -98,7 +98,10 @@ void main() {
       expect(supabaseFunction, contains('api_request_delay_ms'));
       expect(supabaseFunction, contains('include_player_statistics'));
       expect(supabaseFunction, contains('defaultResultsDaysBack = 7'));
-      expect(supabaseFunction, contains('defaultFutureDays = 3'));
+      expect(
+        supabaseFunction,
+        contains('defaultFutureDays = footballCalendarDays - 1'),
+      );
       expect(supabaseFunction, contains('markStaleDailyRuns'));
       expect(
         supabaseFunction,
@@ -207,13 +210,11 @@ void main() {
       );
       expect(
         snapshotBuilder,
-        contains(
-          'endpoint: "/odds",\n        filters: oddsFilters,\n        //',
-        ),
+        matches(RegExp(r'endpoint: "/odds",\s+filters: oddsFilters,')),
       );
       expect(
         snapshotBuilder,
-        contains('exactQuery: true'),
+        contains('paginatedOdds: true'),
         reason:
             'fresh all-bookmaker odds must not be mixed with an older single-bookmaker cache row',
       );
@@ -280,7 +281,7 @@ void main() {
     test('documents manual deployment and validation steps', () {
       expect(docs, contains('00:00 UTC'));
       expect(docs, contains('Resultats : J-7 -> J-1'));
-      expect(docs, contains('Feed front : J -> J+3'));
+      expect(docs, contains('Feed front : J -> J+13'));
       expect(docs, contains('tool/generate_supabase_cron_sql.dart'));
       expect(docs, contains('npx supabase db push'));
       expect(
@@ -313,7 +314,7 @@ void main() {
       expect(generator, isNot(contains('api-football-build-snapshot')));
       expect(generator, contains('final dailyMinuteOffset = index * 4'));
       expect(generator, contains("'results_days_back', 7"));
-      expect(generator, contains("'future_days', 3"));
+      expect(generator, contains("'future_days', 13"));
       expect(
         generator,
         contains("'include_player_statistics', false"),

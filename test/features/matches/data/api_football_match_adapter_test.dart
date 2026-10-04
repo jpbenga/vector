@@ -103,39 +103,44 @@ void main() {
       );
     });
 
-    test('shows international friendlies only when a market is available', () {
-      final noOdds = _internationalFriendlySnapshot();
-      final withOdds = _internationalFriendlySnapshot(
-        odds: [
-          {
-            'fixture': {'id': 10},
-            'bookmakers': [
-              {
-                'id': 16,
-                'name': 'Unibet',
-                'bets': [
-                  {
-                    'id': 1,
-                    'name': 'Match Winner',
-                    'values': [
-                      {'value': 'Home', 'odd': '1.90'},
-                      {'value': 'Draw', 'odd': '3.20'},
-                      {'value': 'Away', 'odd': '4.10'},
-                    ],
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      );
+    test(
+      'keeps international friendlies visible before odds become available',
+      () {
+        final noOdds = _internationalFriendlySnapshot();
+        final withOdds = _internationalFriendlySnapshot(
+          odds: [
+            {
+              'fixture': {'id': 10},
+              'bookmakers': [
+                {
+                  'id': 16,
+                  'name': 'Unibet',
+                  'bets': [
+                    {
+                      'id': 1,
+                      'name': 'Match Winner',
+                      'values': [
+                        {'value': 'Home', 'odd': '1.90'},
+                        {'value': 'Draw', 'odd': '3.20'},
+                        {'value': 'Away', 'odd': '4.10'},
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        );
 
-      expect(const ApiFootballMatchAdapter().fromSnapshot(noOdds), isEmpty);
-      final matches = const ApiFootballMatchAdapter().fromSnapshot(withOdds);
-      expect(matches, hasLength(1));
-      expect(matches.single.competition.apiFootballLeagueId, 10);
-      expect(matches.single.hasMatchResultMarket, isTrue);
-    });
+        final upcoming = const ApiFootballMatchAdapter().fromSnapshot(noOdds);
+        expect(upcoming, hasLength(1));
+        expect(upcoming.single.hasMatchResultMarket, isFalse);
+        final matches = const ApiFootballMatchAdapter().fromSnapshot(withOdds);
+        expect(matches, hasLength(1));
+        expect(matches.single.competition.apiFootballLeagueId, 10);
+        expect(matches.single.hasMatchResultMarket, isTrue);
+      },
+    );
 
     test('keeps the provider round on the normalized fixture', () {
       final snapshot = {

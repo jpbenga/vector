@@ -37,7 +37,7 @@ Future<void> main(List<String> arguments) async {
         jsonEncode({
           'league_ids': [leagueId],
           'results_days_back': 7,
-          'future_days': 3,
+          'future_days': 13,
           'api_request_delay_ms': 220,
           'include_team_statistics': true,
           'include_recent_form': true,

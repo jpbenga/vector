@@ -236,12 +236,7 @@ class ApiFootballMatchAdapter {
         : 'api-fixture-$apiFixtureId';
     final kickoff = _dateTimeValue(fixture['date']);
     final odds = apiFixtureId == null ? null : oddsByFixtureId[apiFixtureId];
-    // International friendlies are useful only when a concrete market is
-    // available. Keep all other supported competitions visible even when the
-    // provider has not published odds yet.
-    if (leagueId == 10 && (odds == null || odds.availableMarkets.isEmpty)) {
-      return null;
-    }
+    // Calendar fixtures remain visible before bookmakers publish their odds.
     final fixtureStandingTables = _standingTablesForFixture(
       leagueId: leagueId,
       homeTeamId: homeTeamId,

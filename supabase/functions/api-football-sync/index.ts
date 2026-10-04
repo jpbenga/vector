@@ -1,4 +1,11 @@
 import {
+  collectOddsPages,
+  fixtureBodyForDate,
+  footballCalendarDays,
+  oddsDatesForFixtures,
+  usesDatedFixtureSource,
+} from "../_shared/football_calendar_policy.ts";
+import {
   eligibleHeadToHeadFixtureIds,
 } from "../_shared/head_to_head_history.ts";
 import { fixtureSample, OpsReporter } from "../_shared/ops_runtime.ts";
@@ -22,7 +29,7 @@ type EnrichmentTask = {
 const source = "api-football";
 const defaultBaseUrl = "https://v3.football.api-sports.io";
 const defaultTimezone = "Europe/Paris";
-const maxDays = 7;
+const maxDays = footballCalendarDays;
 const maxLeagues = 40;
 // Enrichment is processed in small resumable batches. The limit is per worker
 // invocation, not per competition or per daily run.
@@ -322,25 +329,37 @@ Deno.serve(async (request) => {
         }
       }
 
+      const collectedOddsDates = new Set<string>();
       for (const date of dateWindow(options.windowStart, options.windowEnd)) {
-        const fixtures = await fetchAndAccount({
-          apiBaseUrl,
-          apiKey,
-          supabaseUrl,
-          serviceRoleKey,
-          runId,
-          endpoint: "/fixtures",
-          query: {
-            league: String(leagueId),
-            season: String(leagueSeason),
+        const datedFixtures = usesDatedFixtureSource(date, options.windowStart)
+          ? await fetchAndAccount({
+            apiBaseUrl,
+            apiKey,
+            supabaseUrl,
+            serviceRoleKey,
+            runId,
+            endpoint: "/fixtures",
+            query: {
+              league: String(leagueId),
+              season: String(leagueSeason),
+              date,
+              timezone: options.timezone,
+            },
+            ttlSeconds: 15 * 60,
+            requestDelayMs: apiRequestDelayMs,
+          })
+          : undefined;
+        const fixtures = {
+          body: fixtureBodyForDate(
+            leagueFixtures.body,
+            datedFixtures?.body,
             date,
-            timezone: options.timezone,
-          },
-          ttlSeconds: 15 * 60,
-          requestDelayMs: apiRequestDelayMs,
-        });
+            options.windowStart,
+            options.timezone,
+          ),
+        };
         summary.fixtures += responseRows(fixtures.body).length;
-        summary.cachedResponses += 1;
+        if (datedFixtures) summary.cachedResponses += 1;
         for (
           const pair of upcomingHeadToHeadPairs(
             fixtures.body,
@@ -401,27 +420,39 @@ Deno.serve(async (request) => {
           }
         }
 
-        const oddsQuery: Record<string, string> = {
-          league: String(leagueId),
-          season: String(leagueSeason),
-          date,
-        };
-        if (options.bookmakerId !== null) {
-          oddsQuery.bookmaker = String(options.bookmakerId);
+        for (
+          const oddsDate of oddsDatesForFixtures(responseRows(fixtures.body))
+        ) {
+          if (collectedOddsDates.has(oddsDate)) continue;
+          collectedOddsDates.add(oddsDate);
+          const oddsQuery: Record<string, string> = {
+            league: String(leagueId),
+            season: String(leagueSeason),
+            date: oddsDate,
+          };
+          if (options.bookmakerId !== null) {
+            oddsQuery.bookmaker = String(options.bookmakerId);
+          }
+          const oddsPages = await collectOddsPages((page) =>
+            fetchAndAccount({
+              apiBaseUrl,
+              apiKey,
+              supabaseUrl,
+              serviceRoleKey,
+              runId: String(runId),
+              endpoint: "/odds",
+              query: page === 1
+                ? oddsQuery
+                : { ...oddsQuery, page: String(page) },
+              ttlSeconds: 15 * 60,
+              requestDelayMs: apiRequestDelayMs,
+            })
+          );
+          for (const odds of oddsPages) {
+            summary.odds += responseRows(odds.body).length;
+            summary.cachedResponses += 1;
+          }
         }
-        const odds = await fetchAndAccount({
-          apiBaseUrl,
-          apiKey,
-          supabaseUrl,
-          serviceRoleKey,
-          runId,
-          endpoint: "/odds",
-          query: oddsQuery,
-          ttlSeconds: 15 * 60,
-          requestDelayMs: apiRequestDelayMs,
-        });
-        summary.odds += responseRows(odds.body).length;
-        summary.cachedResponses += 1;
 
         if (options.includeRecentForm || options.includeExpectedGoals) {
           const fixtureTeamContexts = fixtureTeamContextsFromFixtures(
@@ -430,10 +461,10 @@ Deno.serve(async (request) => {
           );
           for (const context of fixtureTeamContexts) {
             const recentFrom = subtractDays(
-              context.fixtureDate,
+              options.windowStart,
               options.recentFormDaysBack,
             );
-            const recentTo = subtractDays(context.fixtureDate, 1);
+            const recentTo = subtractDays(options.windowStart, 1);
             const isNational = isNationalCompetitionId(context.leagueId);
             const recentFixtures = await fetchAndAccount({
               apiBaseUrl,

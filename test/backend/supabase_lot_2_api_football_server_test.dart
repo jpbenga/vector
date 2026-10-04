@@ -113,7 +113,7 @@ void main() {
     });
 
     test('edge function protects quotas and writes cache idempotently', () {
-      expect(functionSource, contains('const maxDays = 7;'));
+      expect(functionSource, contains('const maxDays = footballCalendarDays;'));
       expect(functionSource, contains('const maxLeagues = 40;'));
       expect(functionSource, contains('const enrichmentBatchSize = 40;'));
       expect(functionSource, contains('ops_batch_cursor'));
