@@ -1,6 +1,11 @@
 # Socle multisport — première étape hockey
 
-Branche : `codex/multisport-hockey`, créée depuis `de1c0b5`.
+Branche : `codex/multisport-hockey`, créée depuis `de1c0b5`, puis actualisée
+avec `main` à `50af53a` (calendrier football de 14 jours).
+
+Le cadrage actualisé, les contrats implémentés et les limites de cette première
+itération sont dans [Architecture multisport — socle](multisport-foundation.md).
+Ce document conserve les propositions initiales de lectures hockey.
 
 ## Décision d’architecture
 
@@ -98,8 +103,8 @@ Sources officielles consultées :
 
 1. Confirmer le fournisseur, le forfait hockey, ses quotas et des exemples de
    réponses : compétitions, saisons, calendrier, résultats, classements,
-   statistiques, événements, joueurs et cotes. Aucun endpoint ni ID NHL n’est
-   codé à ce stade.
+   statistiques, événements, joueurs et cotes. Les sept IDs des compétitions demandées sont recensés
+   comme cibles dans `HockeyIntegrationScope`, sans activer de collecte.
 2. Choisir les compétitions initiales, dont la NHL, et définir leurs règles
    (saison régulière / playoffs, barème, périmètres des cotes).
 3. Adapter les réponses dans le backend : conserver le score à 60 minutes,

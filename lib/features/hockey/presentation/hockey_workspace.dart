@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/sports/domain/sport.dart';
 import '../../../core/sports/domain/sport_module.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/widgets/lector_brand_mark.dart';
 import '../../../core/widgets/lector_responsive_layout.dart';
-import '../../sports/domain/sport_module_registry.dart';
+import '../domain/hockey_module.dart';
 
 /// A browsable preparation workspace, with no fabricated production fixtures.
 class HockeyWorkspace extends StatefulWidget {
-  const HockeyWorkspace({this.sport = SportId.hockey, super.key});
-  final SportId sport;
+  const HockeyWorkspace({super.key});
 
   @override
   State<HockeyWorkspace> createState() => _HockeyWorkspaceState();
@@ -21,7 +19,7 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
 
   @override
   Widget build(BuildContext context) {
-    final module = SportModuleRegistry.forSport(widget.sport);
+    const module = HockeyModule.definition;
     return ListView(
       key: const ValueKey('hockey-workspace'),
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),
@@ -36,7 +34,7 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Lector · ${widget.sport.label}',
+                      'Lector · ${module.sport.label}',
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                   ),
@@ -44,9 +42,7 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
               ),
               const SizedBox(height: 12),
               Text(
-                widget.sport == SportId.hockey
-                    ? 'Les mêmes principes d’analyse, adaptés au hockey.'
-                    : 'Cette discipline sera intégrée dans un prochain module.',
+                'Les mêmes principes d’analyse, adaptés au hockey.',
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
               const SizedBox(height: 16),
@@ -81,7 +77,7 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
                   ),
                 ),
               ),
-              if (widget.sport == SportId.hockey) ...[
+              ...[
                 const SizedBox(height: 16),
                 Wrap(
                   spacing: 8,

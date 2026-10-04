@@ -1,4 +1,5 @@
 import 'sport.dart';
+import 'sport_policy.dart';
 
 enum SportModuleStage { active, preparation, planned }
 
@@ -54,10 +55,16 @@ class SportModuleDefinition {
     required this.stage,
     required this.capabilities,
     this.readings = const [],
+    this.participantOrder = SportParticipantOrder.homeAway,
+    this.dataPolicy = const SportDataPolicy(),
+    this.provider,
     this.scenarios = const [],
   });
 
   final SportId sport;
+  final SportParticipantOrder participantOrder;
+  final SportDataPolicy dataPolicy;
+  final SportProviderPolicy? provider;
   final SportModuleStage stage;
   final Set<SportCapability> capabilities;
   final List<SportReadingDefinition> readings;
@@ -86,4 +93,12 @@ class SportReadingAssessment {
   final int sampleSize;
   final DateTime asOf;
   final Map<String, Object> evidence;
+}
+
+/// Context types and algorithms remain discipline specific. Shared consumers
+/// receive explainable assessments, never sport-specific provider payloads.
+abstract interface class SportReadingEngine<Context> {
+  SportId get sport;
+  String get rulesVersion;
+  List<SportReadingAssessment> analyze(Context context);
 }

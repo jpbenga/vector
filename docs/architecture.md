@@ -1,5 +1,23 @@
 # Architecture du projet
 
+## Architecture actuelle et transition multisport
+
+Le football dispose maintenant d’une collecte backend, de publications Supabase,
+de lectures publiques, de profils privés, d’un flux live et d’un calendrier de
+14 jours. Le socle multisport est développé sur `codex/multisport-hockey`.
+
+Consulter le [cadrage multisport](architecture/multisport-foundation.md) pour les
+frontières entre modules, les contrats communs, le plan Supabase, les tests et
+les prochaines étapes. Le [premier module hockey](architecture/multisport-hockey.md)
+conserve les propositions analytiques et l’audit fournisseur.
+
+## Historique des fondations du MVP
+
+Les sections ci-dessous décrivent les premières fondations. Les mentions de
+backend futur ou de fonctionnalités non connectées sont historiques ; elles
+ne décrivent pas l’état actuel du football en production.
+
+
 ## Objectif
 
 Vector est une application Flutter mobile-first qui sert de copilote de decision

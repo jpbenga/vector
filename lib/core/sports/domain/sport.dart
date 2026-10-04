@@ -1,19 +1,45 @@
 /// Stable domain keys; provider IDs never identify a sport on their own.
-enum SportId {
-  football('football', 'Football'),
-  hockey('hockey', 'Hockey'),
-  basketball('basketball', 'Basket'),
-  baseball('baseball', 'Baseball'),
-  americanFootball('american-football', 'Football américain');
-
+final class SportId {
   const SportId(this.key, this.label);
+
+  static const football = SportId('football', 'Football');
+  static const hockey = SportId('hockey', 'Hockey');
+  static const basketball = SportId('basketball', 'Basket');
+  static const baseball = SportId('baseball', 'Baseball');
+  static const americanFootball = SportId(
+    'american-football',
+    'Football américain',
+  );
+  static const values = [
+    football,
+    hockey,
+    basketball,
+    baseball,
+    americanFootball,
+  ];
+
   final String key;
   final String label;
 
+  // The built-in parser is only for historic callers. Runtime navigation
+  // resolves keys through the registered module catalog, including new sports.
   static SportId parse(String key) => values.firstWhere(
     (sport) => sport.key == key,
     orElse: () => throw FormatException('Unknown sport: $key'),
   );
+
+  void validate() {
+    if (!RegExp(r'^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$').hasMatch(key) ||
+        label.trim().isEmpty) {
+      throw ArgumentError('A sport needs a stable URL key and a label.');
+    }
+  }
+
+  @override
+  bool operator ==(Object other) => other is SportId && key == other.key;
+
+  @override
+  int get hashCode => key.hashCode;
 }
 
 enum SportEntityKind { competition, season, team, player, match }

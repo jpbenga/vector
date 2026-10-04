@@ -5,10 +5,15 @@ import 'hockey_module.dart';
 import 'hockey_rules.dart';
 
 /// Provider-independent draft engine. No football models or rules are imported.
-class HockeyReadingEngine {
+class HockeyReadingEngine implements SportReadingEngine<HockeyMatchContext> {
   const HockeyReadingEngine({this.policy = const HockeyReadingPolicy()});
   final HockeyReadingPolicy policy;
+  @override
+  SportId get sport => SportId.hockey;
+  @override
+  String get rulesVersion => policy.version;
 
+  @override
   List<SportReadingAssessment> analyze(HockeyMatchContext context) {
     _validate(context);
     final homeForm = _recent(context, context.home);

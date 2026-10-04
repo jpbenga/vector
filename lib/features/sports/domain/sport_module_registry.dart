@@ -1,27 +1,15 @@
 import '../../../core/sports/domain/sport.dart';
 import '../../../core/sports/domain/sport_module.dart';
 import '../../hockey/domain/hockey_module.dart';
+import '../../football/domain/football_module.dart';
+
+export '../../../core/sports/domain/sport_module_catalog.dart';
 
 /// The legacy football pipeline is the active football module. Migrate its
 /// adapters incrementally rather than copying it into each new discipline.
 abstract final class SportModuleRegistry {
   static const modules = [
-    SportModuleDefinition(
-      sport: SportId.football,
-      stage: SportModuleStage.active,
-      capabilities: {
-        SportCapability.fixtures,
-        SportCapability.standings,
-        SportCapability.recentForm,
-        SportCapability.readings,
-        SportCapability.scenarios,
-        SportCapability.teamRadar,
-        SportCapability.playerRadar,
-        SportCapability.eventTimeline,
-        SportCapability.liveScores,
-        SportCapability.outcomeBilan,
-      },
-    ),
+    FootballModule.definition,
     HockeyModule.definition,
     SportModuleDefinition(
       sport: SportId.basketball,

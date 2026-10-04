@@ -1,10 +1,18 @@
 import '../../../core/sports/domain/sport.dart';
 import '../../../core/sports/domain/sport_module.dart';
+import '../../../core/sports/domain/sport_policy.dart';
 
 abstract final class HockeyModule {
   static const definition = SportModuleDefinition(
     sport: SportId.hockey,
     stage: SportModuleStage.preparation,
+    participantOrder: SportParticipantOrder.awayHome,
+    provider: SportProviderPolicy(
+      provider: 'api-hockey',
+      quotaKey: 'api-hockey',
+      dailyLimit: 7500,
+      minuteLimit: 280,
+    ),
     capabilities: {SportCapability.readings, SportCapability.scenarios},
     readings: [
       SportReadingDefinition(
