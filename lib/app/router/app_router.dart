@@ -2,7 +2,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/config/app_config.dart';
 import '../../features/admin/presentation/operations_page.dart';
-import '../view/copilot_flow_page.dart';
+import '../../core/sports/domain/sport.dart';
+import '../../features/sports/presentation/sport_workspace_page.dart';
 
 GoRouter createAppRouter(AppConfig config) {
   return GoRouter(
@@ -12,8 +13,16 @@ GoRouter createAppRouter(AppConfig config) {
         path: '/',
         name: AppRoute.root.name,
         builder: (context, state) {
-          return const CopilotFlowPage();
+          return const SportWorkspacePage(sport: SportId.football);
         },
+      ),
+      GoRoute(
+        path:
+            '/sports/:sport(football|hockey|basketball|baseball|american-football)',
+        name: AppRoute.sport.name,
+        builder: (context, state) => SportWorkspacePage(
+          sport: SportId.parse(state.pathParameters['sport']!),
+        ),
       ),
       GoRoute(
         path: '/admin',
@@ -26,4 +35,4 @@ GoRouter createAppRouter(AppConfig config) {
   );
 }
 
-enum AppRoute { root, admin }
+enum AppRoute { root, sport, admin }
