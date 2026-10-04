@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "sport": "hockey",
+  "provider": "api-hockey",
+  "competitionId": "57",
+  "season": "2026",
+  "capturedAt": "2026-10-04T09:00:00.000Z",
+  "windowStart": "2026-09-27",
+  "windowEnd": "2026-10-17",
+  "timezone": "Europe/Paris",
+  "collectionId": "nhl-contract-example",
+  "items": [
+    {
+      "id": "444616",
+      "competitionId": "57",
+      "competitionName": "NHL",
+      "season": "2026",
+      "home": {
+        "id": "704",
+        "name": "Winnipeg Jets",
+        "logoUrl": "https://media.api-sports.io/hockey/teams/704.png"
+      },
+      "away": {
+        "id": "673",
+        "name": "Boston Bruins",
+        "logoUrl": "https://media.api-sports.io/hockey/teams/673.png"
+      },
+      "startsAt": "2026-10-03T00:00:00.000Z",
+      "calendarDate": "2026-10-03",
+      "status": "finished",
+      "providerStatus": "AOT",
+      "scores": {
+        "final": {
+          "home": 3,
+          "away": 4
+        },
+        "first": {
+          "home": 1,
+          "away": 2
+        },
+        "second": {
+          "home": 2,
+          "away": 0
+        },
+        "third": {
+          "home": 0,
+          "away": 1
+        },
+        "overtime": {
+          "home": 0,
+          "away": 1
+        },
+        "regulation": {
+          "home": 3,
+          "away": 3
+        }
+      }
+    }
+  ]
+}

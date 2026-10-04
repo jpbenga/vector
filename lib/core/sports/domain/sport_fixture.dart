@@ -1,7 +1,14 @@
 import 'sport.dart';
 import 'sport_policy.dart';
 
-enum SportFixtureStatus { scheduled, live, finished, postponed, cancelled }
+enum SportFixtureStatus {
+  scheduled,
+  live,
+  finished,
+  postponed,
+  cancelled,
+  unknown,
+}
 
 /// Modules can declare additional scopes (periods, quarters, innings...).
 /// A final score must never be used as a missing regulation score.
@@ -45,6 +52,8 @@ class SportFixture {
     required this.away,
     required this.startsAt,
     required this.status,
+    this.calendarDate,
+    this.providerStatus,
     Map<SportScoreScope, SportScore> scores = const {},
   }) : scores = Map.unmodifiable(scores) {
     if (id.kind != SportEntityKind.match ||
@@ -73,6 +82,9 @@ class SportFixture {
   final SportParticipant away;
   final DateTime? startsAt;
   final SportFixtureStatus status;
+  // Publication calendar day; avoids shifting dates with browser time zones.
+  final DateTime? calendarDate;
+  final String? providerStatus;
   final Map<SportScoreScope, SportScore> scores;
   SportId get sport => id.sport;
 

@@ -89,7 +89,7 @@ void main() {
       );
       final hockey = SportModuleRegistry.forSport(SportId.hockey);
       expect(hockey.stage, SportModuleStage.preparation);
-      expect(hockey.capabilities.contains(SportCapability.fixtures), isFalse);
+      expect(hockey.capabilities.contains(SportCapability.fixtures), isTrue);
       for (final scenario in hockey.scenarios) {
         expect(
           scenario.requiredReadingIds.every(

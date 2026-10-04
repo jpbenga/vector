@@ -415,3 +415,6 @@ enabled = true
 
 [functions.sync-live-matches]
 verify_jwt = false
+
+[functions.collect-sport-feed]
+verify_jwt = false

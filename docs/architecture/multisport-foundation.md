@@ -2,7 +2,12 @@
 
 Statut : implémentation locale sur `codex/multisport-hockey`. La branche reprend
 `main` à `50af53a`, dont le calendrier football de 14 jours. Aucune modification
-de production, aucun collecteur hockey activé dans cette itération.
+de production, aucun collecteur hockey activé en production.
+
+**Étape suivante réalisée :** la [première collecte NHL locale](nhl-first-collection.md)
+relie des réponses API réelles au brut, au compact et à l’affichage. Le raccordement
+Supabase est préparé et testé en base embarquée, mais pas installé en production.
+Les sections backend ci-dessous décrivent la trajectoire générale de migration.
 
 ## Décision
 

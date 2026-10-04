@@ -4,6 +4,8 @@ import '../../core/sports/domain/sport.dart';
 import '../../core/sports/domain/sport_module.dart';
 import '../../core/sports/domain/sport_feed_repository.dart';
 import '../../core/di/service_locator.dart';
+import '../../core/config/app_config.dart';
+import '../../core/sports/data/published_sport_feed_repository.dart';
 import '../../features/football/data/football_sport_feed_adapter.dart';
 import '../../features/matches/data/match_feed_repository_loader.dart';
 import '../../features/hockey/presentation/hockey_workspace.dart';
@@ -42,6 +44,8 @@ class SportWorkspaceRegistry {
                 loadFootball: (date) =>
                     getIt<MatchFeedRepositoryLoader>().load(now: date),
               )
+            : module.sport == SportId.hockey
+            ? _hockeyFeed
             : null,
         icon: switch (module.sport.key) {
           'football' => Icons.sports_soccer_rounded,
@@ -52,11 +56,30 @@ class SportWorkspaceRegistry {
         },
         builder: switch (module.sport.key) {
           'football' => (_) => const CopilotFlowPage(),
-          'hockey' => (_) => const HockeyWorkspace(),
+          'hockey' => (_) => HockeyWorkspace(repository: _hockeyFeed()),
           _ => (_) => PlannedSportWorkspace(sport: module.sport),
         },
       ),
   ]);
+
+  static SportFeedRepository _hockeyFeed() {
+    final config = getIt.isRegistered<AppConfig>() ? getIt<AppConfig>() : null;
+    final url = config?.sportFeedBaseUrl;
+    return ValidatedSportFeedRepository(
+      delegate: PublishedSportFeedRepository(
+        sport: SportId.hockey,
+        source: url != null
+            ? HttpSportPublicationSource(url)
+            : config?.isSupabaseConfigured == true
+            ? SupabaseSportPublicationSource(
+                projectUrl: config!.supabaseUrl!,
+                publicKey: config.supabaseAnonKey!,
+              )
+            : null,
+      ),
+      policy: SportModuleRegistry.forSport(SportId.hockey).dataPolicy,
+    );
+  }
 
   Future<SportFeedResult> loadFeed(String sportKey, DateTime selectedDate) {
     final entry = find(sportKey);

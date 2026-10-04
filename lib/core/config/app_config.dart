@@ -9,6 +9,7 @@ class AppConfig {
     required this.supabaseAnonKey,
     this.appPublicUrl,
     this.matchFeedSource = 'auto',
+    this.sportFeedBaseUrl,
   });
 
   final AppEnvironment environment;
@@ -16,6 +17,7 @@ class AppConfig {
   final String? supabaseAnonKey;
   final Uri? appPublicUrl;
   final String matchFeedSource;
+  final Uri? sportFeedBaseUrl;
 
   bool get isSupabaseConfigured {
     return supabaseUrl != null &&
@@ -36,7 +38,20 @@ class AppConfig {
       defaultValue: 'auto',
     );
 
+    const sportFeedBaseUrlValue = String.fromEnvironment('SPORT_FEED_BASE_URL');
     final environment = AppEnvironment.parse(environmentValue);
+    final sportFeedBaseUrl = _parseOptionalUri(
+      'SPORT_FEED_BASE_URL',
+      sportFeedBaseUrlValue,
+    );
+    if (sportFeedBaseUrl != null &&
+        (environment == AppEnvironment.production ||
+            sportFeedBaseUrl.scheme != 'http' ||
+            !['localhost', '127.0.0.1'].contains(sportFeedBaseUrl.host))) {
+      throw StateError(
+        'The sport preview server is restricted to local development.',
+      );
+    }
     final supabaseUrl = _parseSupabaseUrl(supabaseUrlValue);
     final appPublicUrl = _parseOptionalUri('APP_PUBLIC_URL', appPublicUrlValue);
     final supabaseAnonKey = supabaseAnonKeyValue.isEmpty
@@ -49,6 +64,7 @@ class AppConfig {
       supabaseAnonKey: supabaseAnonKey,
       appPublicUrl: appPublicUrl,
       matchFeedSource: matchFeedSourceValue,
+      sportFeedBaseUrl: sportFeedBaseUrl,
     );
 
     if (environment == AppEnvironment.production &&

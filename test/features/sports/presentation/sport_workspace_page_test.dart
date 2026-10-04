@@ -9,8 +9,10 @@ import 'package:copilot/core/config/app_environment.dart';
 import 'package:copilot/features/hockey/presentation/hockey_workspace.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 void main() {
+  setUpAll(() => initializeDateFormatting('fr'));
   testWidgets(
     'hockey workspace explains draft readings without loading football',
     (tester) async {

@@ -1,0 +1,73 @@
+{
+  "leagues": {
+    "errors": [],
+    "results": 1,
+    "response": [
+      {
+        "id": 57,
+        "seasons": [
+          {
+            "season": 2026,
+            "current": true
+          }
+        ]
+      }
+    ]
+  },
+  "games": {
+    "errors": [],
+    "results": 1,
+    "response": [
+      {
+        "id": 444616,
+        "date": "2026-10-03T00:00:00+00:00",
+        "time": "00:00",
+        "timestamp": 1790985600,
+        "timezone": "UTC",
+        "week": null,
+        "timer": null,
+        "status": {
+          "long": "After Over Time",
+          "short": "AOT"
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "teams": {
+          "home": {
+            "id": 704,
+            "name": "Winnipeg Jets",
+            "logo": "https://media.api-sports.io/hockey/teams/704.png"
+          },
+          "away": {
+            "id": 673,
+            "name": "Boston Bruins",
+            "logo": "https://media.api-sports.io/hockey/teams/673.png"
+          }
+        },
+        "scores": {
+          "home": 3,
+          "away": 4
+        },
+        "periods": {
+          "first": "1-2",
+          "second": "2-0",
+          "third": "0-1",
+          "overtime": "0-1",
+          "penalties": null
+        },
+        "events": true
+      }
+    ]
+  }
+}

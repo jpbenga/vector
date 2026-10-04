@@ -13,7 +13,7 @@ abstract final class HockeyModule {
       dailyLimit: 7500,
       minuteLimit: 280,
     ),
-    capabilities: {SportCapability.readings, SportCapability.scenarios},
+    capabilities: {SportCapability.fixtures},
     readings: [
       SportReadingDefinition(
         id: 'standing_advantage',
