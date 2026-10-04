@@ -36,25 +36,67 @@ class _LiveMatchStatusState extends State<LiveMatchStatus> {
     final state = widget.state;
     if (state.capturedAt == null) return const SizedBox.shrink();
     final stale = state.isStale(DateTime.now());
-    final color = stale
+    final liveLabel = state.status == 'HT'
+        ? 'Mi-temps · En direct'
+        : state.statusLabel;
+    final badgeColor = stale
         ? context.semantic.warning
-        : state.isLive
-        ? context.semantic.success
-        : context.textColors.secondary;
+        : context.components.liveBadgeText;
+    final badgeBackground = stale
+        ? context.surfaces.surfaceHover
+        : context.components.liveBadgeBackground;
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Wrap(
         spacing: 10,
         runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          Text(
-            state.statusLabel,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w800,
-              fontSize: 12,
+          if (state.isLive)
+            DecoratedBox(
+              key: const ValueKey('live-match-status-badge'),
+              decoration: BoxDecoration(
+                color: badgeBackground,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: badgeColor),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      stale ? Icons.pause_circle_outline_rounded : Icons.circle,
+                      color: badgeColor,
+                      size: 10,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      liveLabel,
+                      style: TextStyle(
+                        color: badgeColor,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            Text(
+              state.statusLabel,
+              style: TextStyle(
+                color: stale
+                    ? context.semantic.warning
+                    : context.textColors.secondary,
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+              ),
             ),
-          ),
           Text(
             '${stale ? 'Actualisation en retard · dernière réception' : 'Reçu à'} ${DateFormat('HH:mm').format(state.capturedAt!.toLocal())}',
             style: TextStyle(color: context.textColors.secondary, fontSize: 12),
