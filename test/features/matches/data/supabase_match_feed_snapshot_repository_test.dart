@@ -1,5 +1,9 @@
+import 'package:copilot/app/theme/app_theme.dart';
 import 'package:copilot/features/matches/data/supabase_match_feed_snapshot_repository.dart';
 import 'package:copilot/features/matches/data/match_feed_repository.dart';
+import 'package:copilot/features/matches/domain/live_match_state.dart';
+import 'package:copilot/features/matches/presentation/widgets/match_feed_card.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -72,6 +76,125 @@ void main() {
   });
 
   group('mergeMatchFeedSnapshotPayloads', () {
+    testWidgets('contextual standings cannot hide another league calendar', (
+      tester,
+    ) async {
+      final european = _payload(
+        leagueId: 3,
+        capturedAt: '2026-10-04T09:57:10.904Z',
+        fixtureId: 3001,
+        teamId: 31,
+      );
+      // Existing production compact payloads have no scope in their JSON.
+      european.remove('season_by_league');
+      final raw = european['raw'] as Map<String, Object?>;
+      (raw['standings'] as List).add({
+        'league': {'id': 95},
+      });
+      final portugal = _payload(
+        leagueId: 95,
+        capturedAt: '2026-10-04T00:36:23.694Z',
+        fixtureId: 1576482,
+        teamId: 231,
+      );
+      portugal.remove('season_by_league');
+      final portugalRaw = portugal['raw'] as Map<String, Object?>;
+      final fixture = (portugalRaw['fixtures'] as List).single as Map;
+      fixture['fixture'] = {
+        'id': 1576482,
+        'date': '2026-10-04T12:00:00+02:00',
+        'status': {'short': 'NS'},
+      };
+      fixture['teams'] = {
+        'home': {'id': 231, 'name': 'Farense'},
+        'away': {'id': 223, 'name': 'Chaves'},
+      };
+      final payload = mergeMatchFeedSnapshotRows([
+        {
+          'scope': 'league',
+          'league_ids': [3],
+          'payload': european,
+        },
+        {
+          'scope': 'league',
+          'league_ids': [95],
+          'payload': portugal,
+        },
+      ])!;
+      final matches = SnapshotMatchFeedRepository(
+        snapshot: payload,
+      ).allMatches();
+      expect(matches, hasLength(2));
+      final match = matches.singleWhere((m) => m.id == 'api-fixture-1576482');
+      expect(match.homeTeam.name, 'Farense');
+      expect(match.awayTeam.name, 'Chaves');
+      expect(match.competition.apiFootballLeagueId, 95);
+      expect(match.fixture.kickoff?.toUtc(), DateTime.utc(2026, 10, 4, 10));
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark,
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: MatchFeedCard(
+                match: match,
+                onTap: () {},
+                radarEntries: const [],
+                showReadings: false,
+                liveState: LiveMatchState(
+                  fixtureId: 1576482,
+                  status: '1H',
+                  elapsed: 35,
+                  homeGoals: 1,
+                  awayGoals: 0,
+                  capturedAt: DateTime.now(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(find.text('Farense'), findsOneWidget);
+      expect(find.text('Chaves'), findsOneWidget);
+      expect(find.text('35′ · En direct'), findsOneWidget);
+      expect(find.text('1'), findsOneWidget);
+      expect(find.text('0'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    test('an explicitly empty publication replaces its older calendar', () {
+      final latest = _payload(
+        leagueId: 95,
+        capturedAt: '2026-10-04T09:00:00Z',
+        fixtureId: 1,
+        teamId: 231,
+      );
+      latest['raw'] = <String, Object?>{'fixtures': <Object?>[]};
+      latest.remove('season_by_league');
+      final old = _payload(
+        leagueId: 95,
+        capturedAt: '2026-10-03T09:00:00Z',
+        fixtureId: 1576482,
+        teamId: 231,
+      );
+      final merged = mergeMatchFeedSnapshotRows([
+        {
+          'scope': 'league',
+          'league_ids': [95],
+          'payload': latest,
+        },
+        {
+          'scope': 'league',
+          'league_ids': [95],
+          'payload': old,
+        },
+      ])!;
+      expect((merged['raw'] as Map)['fixtures'], isEmpty);
+    });
+
     test('merges league scoped snapshots into one feed payload', () {
       final payload = mergeMatchFeedSnapshotPayloads([
         _payload(

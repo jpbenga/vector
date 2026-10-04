@@ -60,7 +60,7 @@ void main() {
 
     // This is the exact relation and payload used by the Flutter reader.
     expect(client, contains(".from('match_feed_analysis_snapshots')"));
-    expect(client, contains(".select('id,payload')"));
+    expect(client, contains(".select('id,scope,league_ids,payload')"));
     expect(loader, contains('EmptyMatchFeedRepository'));
     expect(loader, isNot(contains('localSnapshotAsset')));
   });

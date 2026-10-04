@@ -178,11 +178,23 @@ void main() {
               ),
             );
         await pump(_state('2H'));
+        expect(
+          find.byKey(const ValueKey('live-match-status-badge')),
+          findsOneWidget,
+        );
         expect(find.text('67′ · En direct'), findsOneWidget);
         expect(find.text('1'), findsOneWidget);
         expect(find.text('2'), findsOneWidget);
         expect(find.text('Forme'), findsOneWidget);
         expect(find.text('Voir les lectures'), findsNothing);
+        await pump(_state('HT', home: 2, away: 0));
+        expect(
+          find.byKey(const ValueKey('live-match-status-badge')),
+          findsOneWidget,
+        );
+        expect(find.text('Mi-temps · En direct'), findsOneWidget);
+        expect(find.text('2'), findsOneWidget);
+        expect(find.text('0'), findsOneWidget);
         final finalState = _state(
           'FT',
           away: 3,
@@ -192,6 +204,10 @@ void main() {
           ],
         );
         await pump(finalState);
+        expect(
+          find.byKey(const ValueKey('live-match-status-badge')),
+          findsNothing,
+        );
         expect(find.text('Terminé'), findsOneWidget);
         expect(find.text('1 confirmée'), findsOneWidget);
         expect(find.textContaining('contredite'), findsNothing);

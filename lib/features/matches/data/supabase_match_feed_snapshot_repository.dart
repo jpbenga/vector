@@ -112,7 +112,7 @@ class SupabaseMatchFeedSnapshotRepository
             .map(
               (chunk) async => await _client
                   .from('match_feed_analysis_snapshots')
-                  .select('id,payload')
+                  .select('id,scope,league_ids,payload')
                   .inFilter('id', chunk),
             ),
       );
@@ -283,13 +283,14 @@ Map<String, Object?>? _payloadFromRow(Object? row) {
     return null;
   }
   final payload = row['payload'];
-  if (payload is Map<String, Object?>) {
-    return payload;
-  }
   if (payload is Map) {
     return {
       for (final entry in payload.entries)
         if (entry.key != null) entry.key.toString(): entry.value,
+      // Table metadata defines publication scope. Contextual standings can
+      // describe other leagues without publishing their fixture calendars.
+      if (row['scope'] != null) 'scope': row['scope'],
+      if (row['league_ids'] is List) 'league_ids': row['league_ids'],
     };
   }
   return null;
@@ -373,6 +374,10 @@ String _rawEntryKey(String key, Object? entry) {
 }
 
 Set<int> _leagueIdsForPayload(Map<String, Object?> payload) {
+  final publishedLeagueIds = payload['league_ids'];
+  if (publishedLeagueIds is List && publishedLeagueIds.isNotEmpty) {
+    return publishedLeagueIds.whereType<int>().toSet();
+  }
   final ids = <int>{};
   final seasonByLeague = _objectMap(payload['season_by_league']);
   if (seasonByLeague != null) {
