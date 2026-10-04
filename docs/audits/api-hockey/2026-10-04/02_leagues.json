@@ -1,0 +1,158 @@
+{
+  "get": "leagues",
+  "parameters": {
+    "search": "NHL"
+  },
+  "errors": [],
+  "results": 2,
+  "response": [
+    {
+      "id": 57,
+      "name": "NHL",
+      "type": "League",
+      "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "seasons": [
+        {
+          "season": 2019,
+          "current": false,
+          "start": "2019-09-15",
+          "end": "2020-09-29"
+        },
+        {
+          "season": 2018,
+          "current": false,
+          "start": "2018-09-15",
+          "end": "2019-06-13"
+        },
+        {
+          "season": 2017,
+          "current": false,
+          "start": "2017-09-16",
+          "end": "2018-06-08"
+        },
+        {
+          "season": 2016,
+          "current": false,
+          "start": "2016-09-25",
+          "end": "2017-06-12"
+        },
+        {
+          "season": 2015,
+          "current": false,
+          "start": "2015-09-20",
+          "end": "2016-06-13"
+        },
+        {
+          "season": 2020,
+          "current": false,
+          "start": "2021-01-13",
+          "end": "2021-07-08"
+        },
+        {
+          "season": 2021,
+          "current": false,
+          "start": "2021-09-25",
+          "end": "2022-06-27"
+        },
+        {
+          "season": 2022,
+          "current": false,
+          "start": "2022-09-24",
+          "end": "2023-06-14"
+        },
+        {
+          "season": 2014,
+          "current": false,
+          "start": "2014-09-21",
+          "end": "2015-06-16"
+        },
+        {
+          "season": 2013,
+          "current": false,
+          "start": "2013-09-14",
+          "end": "2014-06-14"
+        },
+        {
+          "season": 2012,
+          "current": false,
+          "start": "2013-01-19",
+          "end": "2013-06-25"
+        },
+        {
+          "season": 2011,
+          "current": false,
+          "start": "2011-09-19",
+          "end": "2012-06-12"
+        },
+        {
+          "season": 2010,
+          "current": false,
+          "start": "2010-09-21",
+          "end": "2011-06-16"
+        },
+        {
+          "season": 2009,
+          "current": false,
+          "start": "2009-09-18",
+          "end": "2010-06-10"
+        },
+        {
+          "season": 2008,
+          "current": false,
+          "start": "2008-10-11",
+          "end": "2009-06-13"
+        },
+        {
+          "season": 2023,
+          "current": false,
+          "start": "2023-09-23",
+          "end": "2024-06-25"
+        },
+        {
+          "season": 2024,
+          "current": false,
+          "start": "2024-09-21",
+          "end": "2025-06-18"
+        },
+        {
+          "season": 2025,
+          "current": false,
+          "start": "2025-09-20",
+          "end": "2026-06-15"
+        },
+        {
+          "season": 2026,
+          "current": true,
+          "start": "2026-09-19",
+          "end": "2027-04-11"
+        }
+      ]
+    },
+    {
+      "id": 271,
+      "name": "NHL 4 Nations Face-Off",
+      "type": "League",
+      "logo": "https://media.api-sports.io/hockey/leagues/271.png",
+      "country": {
+        "id": 34,
+        "name": "World",
+        "code": null,
+        "flag": null
+      },
+      "seasons": [
+        {
+          "season": 2025,
+          "current": false,
+          "start": "2025-02-13",
+          "end": "2025-02-21"
+        }
+      ]
+    }
+  ]
+}

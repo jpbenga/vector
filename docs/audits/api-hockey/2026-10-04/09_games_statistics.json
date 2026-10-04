@@ -1,0 +1,11 @@
+{
+  "get": "games",
+  "parameters": {
+    "game": "444616"
+  },
+  "errors": {
+    "endpoint": "This endpoint do not exist."
+  },
+  "results": 0,
+  "response": []
+}

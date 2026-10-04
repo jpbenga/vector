@@ -1,0 +1,195 @@
+[
+  {
+    "route": "/status",
+    "at": "2026-10-04T07:53:06.782391+00:00",
+    "http_status": 200,
+    "headers": {
+      "x-ratelimit-limit": "300",
+      "x-ratelimit-remaining": "299",
+      "x-ratelimit-requests-limit": "7500",
+      "x-ratelimit-requests-remaining": "7500"
+    },
+    "file": "01_status.json",
+    "errors": [],
+    "results": 0
+  },
+  {
+    "route": "/leagues?search=NHL",
+    "at": "2026-10-04T07:53:11.268745+00:00",
+    "http_status": 200,
+    "headers": {
+      "x-ratelimit-limit": "300",
+      "x-ratelimit-remaining": "298",
+      "x-ratelimit-requests-limit": "7500",
+      "x-ratelimit-requests-remaining": "7498"
+    },
+    "file": "02_leagues.json",
+    "errors": [],
+    "results": 2
+  },
+  {
+    "route": "/games?league=57&season=2026&date=2026-10-03",
+    "at": "2026-10-04T07:53:28.892955+00:00",
+    "http_status": 200,
+    "headers": {
+      "x-ratelimit-limit": "300",
+      "x-ratelimit-remaining": "297",
+      "x-ratelimit-requests-limit": "7500",
+      "x-ratelimit-requests-remaining": "7497"
+    },
+    "file": "03_games.json",
+    "errors": [],
+    "results": 11
+  },
+  {
+    "route": "/games/events?game=444616",
+    "at": "2026-10-04T07:53:53.551012+00:00",
+    "http_status": 200,
+    "headers": {
+      "x-ratelimit-limit": "300",
+      "x-ratelimit-remaining": "296",
+      "x-ratelimit-requests-limit": "7500",
+      "x-ratelimit-requests-remaining": "7496"
+    },
+    "file": "04_games_events.json",
+    "errors": [],
+    "results": 16
+  },
+  {
+    "route": "/teams/statistics?league=57&season=2026&team=704",
+    "at": "2026-10-04T07:53:56.922812+00:00",
+    "http_status": 200,
+    "headers": {
+      "x-ratelimit-limit": "300",
+      "x-ratelimit-remaining": "295",
+      "x-ratelimit-requests-limit": "7500",
+      "x-ratelimit-requests-remaining": "7495"
+    },
+    "file": "05_teams_statistics.json",
+    "errors": [],
+    "results": 5
+  },
+  {
+    "route": "/standings?league=57&season=2026",
+    "at": "2026-10-04T07:54:01.376448+00:00",
+    "http_status": 200,
+    "headers": {
+      "x-ratelimit-limit": "300",
+      "x-ratelimit-remaining": "299",
+      "x-ratelimit-requests-limit": "7500",
+      "x-ratelimit-requests-remaining": "7499"
+    },
+    "file": "06_standings.json",
+    "errors": [],
+    "results": 2
+  },
+  {
+    "route": "/teams/statistics?league=57&season=2026&team=673",
+    "at": "2026-10-04T07:54:21.748369+00:00",
+    "http_status": 200,
+    "headers": {
+      "x-ratelimit-limit": "300",
+      "x-ratelimit-remaining": "298",
+      "x-ratelimit-requests-limit": "7500",
+      "x-ratelimit-requests-remaining": "7498"
+    },
+    "file": "07_teams_statistics.json",
+    "errors": [],
+    "results": 5
+  },
+  {
+    "route": "/games?league=57&season=2026&team=704",
+    "at": "2026-10-04T07:54:25.201679+00:00",
+    "http_status": 200,
+    "headers": {
+      "x-ratelimit-limit": "300",
+      "x-ratelimit-remaining": "297",
+      "x-ratelimit-requests-limit": "7500",
+      "x-ratelimit-requests-remaining": "7497"
+    },
+    "file": "08_games.json",
+    "errors": [],
+    "results": 88
+  },
+  {
+    "route": "/games/statistics?game=444616",
+    "at": "2026-10-04T07:55:03.612055+00:00",
+    "http_status": 200,
+    "headers": {},
+    "file": "09_games_statistics.json",
+    "errors": {
+      "endpoint": "This endpoint do not exist."
+    },
+    "results": 0
+  },
+  {
+    "route": "/status",
+    "at": "2026-10-04T07:55:10.337033+00:00",
+    "http_status": 200,
+    "headers": {
+      "x-ratelimit-limit": "300",
+      "x-ratelimit-remaining": "299",
+      "x-ratelimit-requests-limit": "7500",
+      "x-ratelimit-requests-remaining": "7500"
+    },
+    "file": "10_status.json",
+    "errors": [],
+    "results": 0
+  },
+  {
+    "route": "/games/h2h?h2h=704-673",
+    "at": "2026-10-04T08:03:32.344077+00:00",
+    "http_status": 200,
+    "headers": {
+      "x-ratelimit-limit": "300",
+      "x-ratelimit-remaining": "299",
+      "x-ratelimit-requests-limit": "7500",
+      "x-ratelimit-requests-remaining": "7492"
+    },
+    "file": "11_games_h2h.json",
+    "errors": [],
+    "results": 47
+  },
+  {
+    "route": "/leagues",
+    "at": "2026-10-04T08:03:37.713597+00:00",
+    "http_status": 200,
+    "headers": {
+      "x-ratelimit-limit": "300",
+      "x-ratelimit-remaining": "298",
+      "x-ratelimit-requests-limit": "7500",
+      "x-ratelimit-requests-remaining": "7491"
+    },
+    "file": "12_leagues.json",
+    "errors": [],
+    "results": 262
+  },
+  {
+    "route": "/odds/bets",
+    "at": "2026-10-04T08:12:44.617994+00:00",
+    "http_status": 200,
+    "headers": {
+      "x-ratelimit-limit": "300",
+      "x-ratelimit-remaining": "299",
+      "x-ratelimit-requests-limit": "7500",
+      "x-ratelimit-requests-remaining": "7490"
+    },
+    "file": "13_odds_bets.json",
+    "errors": [],
+    "results": 221
+  },
+  {
+    "route": "/odds?league=57&season=2026",
+    "at": "2026-10-04T08:12:49.800763+00:00",
+    "http_status": 200,
+    "headers": {
+      "x-ratelimit-limit": "300",
+      "x-ratelimit-remaining": "298",
+      "x-ratelimit-requests-limit": "7500",
+      "x-ratelimit-requests-remaining": "7489"
+    },
+    "file": "14_odds.json",
+    "errors": [],
+    "results": 38
+  }
+]

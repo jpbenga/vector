@@ -1,0 +1,2360 @@
+{
+  "get": "games",
+  "parameters": {
+    "h2h": "704-673"
+  },
+  "errors": [],
+  "results": 47,
+  "response": [
+    {
+      "id": 310168,
+      "date": "2008-10-25T23:00:00+00:00",
+      "time": "23:00",
+      "timestamp": 1224975600,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2008
+      },
+      "teams": {
+        "home": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": 5,
+        "away": 4
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 310485,
+      "date": "2008-12-13T00:30:00+00:00",
+      "time": "00:30",
+      "timestamp": 1229128200,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2008
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 3,
+        "away": 7
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 310497,
+      "date": "2008-12-14T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1229212800,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2008
+      },
+      "teams": {
+        "home": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": 4,
+        "away": 2
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 310588,
+      "date": "2008-12-28T22:00:00+00:00",
+      "time": "22:00",
+      "timestamp": 1230501600,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2008
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 1,
+        "away": 2
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 309054,
+      "date": "2009-11-20T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1258675200,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "After Penalties",
+        "short": "AP"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2009
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 3,
+        "away": 4
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 309301,
+      "date": "2009-12-24T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1261612800,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2009
+      },
+      "teams": {
+        "home": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": 6,
+        "away": 4
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 309346,
+      "date": "2009-12-31T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1262217600,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2009
+      },
+      "teams": {
+        "home": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": 4,
+        "away": 0
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 309835,
+      "date": "2010-03-23T23:00:00+00:00",
+      "time": "23:00",
+      "timestamp": 1269385200,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2009
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 0,
+        "away": 4
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 307695,
+      "date": "2010-11-28T22:00:00+00:00",
+      "time": "22:00",
+      "timestamp": 1290981600,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2010
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 4,
+        "away": 1
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 307856,
+      "date": "2010-12-24T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1293148800,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2010
+      },
+      "teams": {
+        "home": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": 4,
+        "away": 1
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 307900,
+      "date": "2010-12-31T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1293753600,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "After Penalties",
+        "short": "AP"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2010
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 3,
+        "away": 2
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 308514,
+      "date": "2011-04-02T17:00:00+00:00",
+      "time": "17:00",
+      "timestamp": 1301763600,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2010
+      },
+      "teams": {
+        "home": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": 3,
+        "away": 2
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 306261,
+      "date": "2011-11-27T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1322352000,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2011
+      },
+      "teams": {
+        "home": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": 4,
+        "away": 2
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 306330,
+      "date": "2011-12-07T01:30:00+00:00",
+      "time": "01:30",
+      "timestamp": 1323221400,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2011
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 2,
+        "away": 1
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 306550,
+      "date": "2012-01-11T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1326240000,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2011
+      },
+      "teams": {
+        "home": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": 5,
+        "away": 3
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 306797,
+      "date": "2012-02-18T01:00:00+00:00",
+      "time": "01:00",
+      "timestamp": 1329526800,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2011
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 4,
+        "away": 2
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 305047,
+      "date": "2013-01-21T18:00:00+00:00",
+      "time": "18:00",
+      "timestamp": 1358791200,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "After Penalties",
+        "short": "AP"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2012
+      },
+      "teams": {
+        "home": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": 2,
+        "away": 1
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 305242,
+      "date": "2013-02-17T23:00:00+00:00",
+      "time": "23:00",
+      "timestamp": 1361142000,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2012
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 2,
+        "away": 3
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 305460,
+      "date": "2013-03-20T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1363737600,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2012
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 3,
+        "away": 1
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 303683,
+      "date": "2013-09-26T23:30:00+00:00",
+      "time": "23:30",
+      "timestamp": 1380238200,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "After Over Time",
+        "short": "AOT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2013
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 2,
+        "away": 3
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 303694,
+      "date": "2013-09-28T01:00:00+00:00",
+      "time": "01:00",
+      "timestamp": 1380330000,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2013
+      },
+      "teams": {
+        "home": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": 5,
+        "away": 0
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 304329,
+      "date": "2014-01-04T18:00:00+00:00",
+      "time": "18:00",
+      "timestamp": 1388858400,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2013
+      },
+      "teams": {
+        "home": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": 4,
+        "away": 1
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 304903,
+      "date": "2014-04-11T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1397174400,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "After Penalties",
+        "short": "AP"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2013
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 2,
+        "away": 1
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 302619,
+      "date": "2014-11-29T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1417219200,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "After Over Time",
+        "short": "AOT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2014
+      },
+      "teams": {
+        "home": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": 2,
+        "away": 1
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 302757,
+      "date": "2014-12-20T01:00:00+00:00",
+      "time": "01:00",
+      "timestamp": 1419037200,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2014
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 2,
+        "away": 1
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 102573,
+      "date": "2015-10-08T23:00:00+00:00",
+      "time": "23:00",
+      "timestamp": 1444345200,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2015
+      },
+      "teams": {
+        "home": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": 2,
+        "away": 6
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 103381,
+      "date": "2016-02-12T01:00:00+00:00",
+      "time": "01:00",
+      "timestamp": 1455238800,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2015
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 2,
+        "away": 6
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 101179,
+      "date": "2016-10-18T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1476748800,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2016
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 1,
+        "away": 4
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 101405,
+      "date": "2016-11-20T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1479600000,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2016
+      },
+      "teams": {
+        "home": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": 4,
+        "away": 1
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 100212,
+      "date": "2017-12-22T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1513900800,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "After Penalties",
+        "short": "AP"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2017
+      },
+      "teams": {
+        "home": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": 2,
+        "away": 1
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 100862,
+      "date": "2018-03-28T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1522195200,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "After Penalties",
+        "short": "AP"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2017
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 5,
+        "away": 4
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 98988,
+      "date": "2019-01-30T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1548806400,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "After Penalties",
+        "short": "AP"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2018
+      },
+      "teams": {
+        "home": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": 3,
+        "away": 4
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 99302,
+      "date": "2019-03-15T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1552608000,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2018
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 4,
+        "away": 3
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 16158,
+      "date": "2020-01-10T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1578614400,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2019
+      },
+      "teams": {
+        "home": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": 5,
+        "away": 4
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 16271,
+      "date": "2020-02-01T01:00:00+00:00",
+      "time": "01:00",
+      "timestamp": 1580518800,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2019
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 1,
+        "away": 2
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 162066,
+      "date": "2022-01-22T20:00:00+00:00",
+      "time": "20:00",
+      "timestamp": 1642881600,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2021
+      },
+      "teams": {
+        "home": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": 3,
+        "away": 2
+      },
+      "periods": {
+        "first": "1-2",
+        "second": "1-0",
+        "third": "1-0",
+        "overtime": null,
+        "penalties": null
+      },
+      "events": true
+    },
+    {
+      "id": 162323,
+      "date": "2022-03-19T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1647648000,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2021
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 2,
+        "away": 4
+      },
+      "periods": {
+        "first": "0-0",
+        "second": "0-2",
+        "third": "2-2",
+        "overtime": null,
+        "penalties": null
+      },
+      "events": true
+    },
+    {
+      "id": 324822,
+      "date": "2022-12-23T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1671753600,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2022
+      },
+      "teams": {
+        "home": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": 3,
+        "away": 2
+      },
+      "periods": {
+        "first": "0-2",
+        "second": "2-0",
+        "third": "1-0",
+        "overtime": null,
+        "penalties": null
+      },
+      "events": true
+    },
+    {
+      "id": 325381,
+      "date": "2023-03-17T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1679011200,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2022
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 0,
+        "away": 3
+      },
+      "periods": {
+        "first": "0-2",
+        "second": "0-0",
+        "third": "0-1",
+        "overtime": null,
+        "penalties": null
+      },
+      "events": true
+    },
+    {
+      "id": 351600,
+      "date": "2023-12-23T01:00:00+00:00",
+      "time": "01:00",
+      "timestamp": 1703293200,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2023
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 5,
+        "away": 1
+      },
+      "periods": {
+        "first": "1-0",
+        "second": "2-0",
+        "third": "2-1",
+        "overtime": null,
+        "penalties": null
+      },
+      "events": true
+    },
+    {
+      "id": 351812,
+      "date": "2024-01-23T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1705968000,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2023
+      },
+      "teams": {
+        "home": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": 4,
+        "away": 1
+      },
+      "periods": {
+        "first": "2-1",
+        "second": "0-0",
+        "third": "2-0",
+        "overtime": null,
+        "penalties": null
+      },
+      "events": true
+    },
+    {
+      "id": 386682,
+      "date": "2024-12-11T01:00:00+00:00",
+      "time": "01:00",
+      "timestamp": 1733878800,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2024
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 8,
+        "away": 1
+      },
+      "periods": {
+        "first": "2-0",
+        "second": "1-1",
+        "third": "5-0",
+        "overtime": null,
+        "penalties": null
+      },
+      "events": true
+    },
+    {
+      "id": 387046,
+      "date": "2025-01-31T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1738281600,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2024
+      },
+      "teams": {
+        "home": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": 2,
+        "away": 6
+      },
+      "periods": {
+        "first": "1-2",
+        "second": "0-0",
+        "third": "1-4",
+        "overtime": null,
+        "penalties": null
+      },
+      "events": true
+    },
+    {
+      "id": 416106,
+      "date": "2025-12-12T01:00:00+00:00",
+      "time": "01:00",
+      "timestamp": 1765501200,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2025
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 3,
+        "away": 6
+      },
+      "periods": {
+        "first": "2-3",
+        "second": "1-1",
+        "third": "0-2",
+        "overtime": null,
+        "penalties": null
+      },
+      "events": true
+    },
+    {
+      "id": 416703,
+      "date": "2026-03-19T23:00:00+00:00",
+      "time": "23:00",
+      "timestamp": 1773961200,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2025
+      },
+      "teams": {
+        "home": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": 6,
+        "away": 1
+      },
+      "periods": {
+        "first": "1-0",
+        "second": "2-0",
+        "third": "3-1",
+        "overtime": null,
+        "penalties": null
+      },
+      "events": true
+    },
+    {
+      "id": 444616,
+      "date": "2026-10-03T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1790985600,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "After Over Time",
+        "short": "AOT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2026
+      },
+      "teams": {
+        "home": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "away": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        }
+      },
+      "scores": {
+        "home": 3,
+        "away": 4
+      },
+      "periods": {
+        "first": "1-2",
+        "second": "2-0",
+        "third": "0-1",
+        "overtime": "0-1",
+        "penalties": null
+      },
+      "events": true
+    },
+    {
+      "id": 444986,
+      "date": "2026-11-26T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1795651200,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Not Started",
+        "short": "NS"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2026
+      },
+      "teams": {
+        "home": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": null,
+        "away": null
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+{
+  "get": "teams",
+  "parameters": {
+    "league": "57",
+    "season": "2026",
+    "team": "704"
+  },
+  "errors": [],
+  "results": 5,
+  "response": {
+    "country": {
+      "id": 31,
+      "name": "USA",
+      "code": "US",
+      "flag": "https://media.api-sports.io/flags/us.svg"
+    },
+    "league": {
+      "id": 57,
+      "name": "NHL",
+      "type": "League",
+      "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+      "season": 2026
+    },
+    "team": {
+      "id": 704,
+      "name": "Winnipeg Jets",
+      "logo": "https://media.api-sports.io/hockey/teams/704.png"
+    },
+    "games": {
+      "played": {
+        "home": 3,
+        "away": 2,
+        "all": 5
+      },
+      "wins": {
+        "home": {
+          "total": 1,
+          "percentage": "0.333"
+        },
+        "away": {
+          "total": 0,
+          "percentage": "0.000"
+        },
+        "all": {
+          "total": 1,
+          "percentage": "0.200"
+        }
+      },
+      "loses": {
+        "home": {
+          "total": 2,
+          "percentage": "0.667"
+        },
+        "away": {
+          "total": 2,
+          "percentage": "1.000"
+        },
+        "all": {
+          "total": 4,
+          "percentage": "0.800"
+        }
+      }
+    },
+    "goals": {
+      "for": {
+        "total": {
+          "home": 7,
+          "away": 4,
+          "all": 11
+        },
+        "average": {
+          "home": "2.3",
+          "away": "2.0",
+          "all": "2.2"
+        }
+      },
+      "against": {
+        "total": {
+          "home": 7,
+          "away": 10,
+          "all": 17
+        },
+        "average": {
+          "home": "2.3",
+          "away": "5.0",
+          "all": "3.4"
+        }
+      }
+    }
+  }
+}

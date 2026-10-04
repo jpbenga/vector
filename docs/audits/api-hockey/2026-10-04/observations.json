@@ -1,0 +1,22 @@
+{
+  "http_requests_sent": 10,
+  "data_endpoints_successful_requests": 7,
+  "status_requests": 2,
+  "unsupported_endpoint_probe_requests": 1,
+  "game_id": 444616,
+  "score_regulation": {
+    "home": 3,
+    "away": 3
+  },
+  "score_final": {
+    "home": 3,
+    "away": 4
+  },
+  "goals": 7,
+  "penalties": 9,
+  "winnipeg_team_statistics_games": 5,
+  "winnipeg_regular_season_games": 1,
+  "winnipeg_preseason_games": 4,
+  "checks": "event goals reconcile with final and period scores; history reconciles with aggregate goals; phases differ from aggregates",
+  "quota_counter_caveat": "status requests.current stayed zero; remaining daily header reset across minute boundary; exact billable consumption not established"
+}

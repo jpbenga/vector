@@ -1,0 +1,91 @@
+{
+  "get": "teams",
+  "parameters": {
+    "league": "57",
+    "season": "2026",
+    "team": "673"
+  },
+  "errors": [],
+  "results": 5,
+  "response": {
+    "country": {
+      "id": 31,
+      "name": "USA",
+      "code": "US",
+      "flag": "https://media.api-sports.io/flags/us.svg"
+    },
+    "league": {
+      "id": 57,
+      "name": "NHL",
+      "type": "League",
+      "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+      "season": 2026
+    },
+    "team": {
+      "id": 673,
+      "name": "Boston Bruins",
+      "logo": "https://media.api-sports.io/hockey/teams/673.png"
+    },
+    "games": {
+      "played": {
+        "home": 3,
+        "away": 4,
+        "all": 7
+      },
+      "wins": {
+        "home": {
+          "total": 3,
+          "percentage": "1.000"
+        },
+        "away": {
+          "total": 1,
+          "percentage": "0.250"
+        },
+        "all": {
+          "total": 4,
+          "percentage": "0.571"
+        }
+      },
+      "loses": {
+        "home": {
+          "total": 0,
+          "percentage": "0.000"
+        },
+        "away": {
+          "total": 3,
+          "percentage": "0.750"
+        },
+        "all": {
+          "total": 3,
+          "percentage": "0.429"
+        }
+      }
+    },
+    "goals": {
+      "for": {
+        "total": {
+          "home": 11,
+          "away": 7,
+          "all": 18
+        },
+        "average": {
+          "home": "3.7",
+          "away": "1.8",
+          "all": "2.6"
+        }
+      },
+      "against": {
+        "total": {
+          "home": 3,
+          "away": 12,
+          "all": 15
+        },
+        "average": {
+          "home": "1.0",
+          "away": "3.0",
+          "all": "2.1"
+        }
+      }
+    }
+  }
+}

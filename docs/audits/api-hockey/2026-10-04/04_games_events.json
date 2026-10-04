@@ -1,0 +1,287 @@
+{
+  "get": "games",
+  "parameters": {
+    "game": "444616"
+  },
+  "errors": [],
+  "results": 16,
+  "response": [
+    {
+      "game_id": 444616,
+      "period": "P1",
+      "minute": "02",
+      "team": {
+        "id": 673,
+        "name": "Boston Bruins",
+        "logo": "https://media.api-sports.io/hockey/teams/673.png"
+      },
+      "players": [
+        "J. Aspirot"
+      ],
+      "assists": [],
+      "comment": "Cross-checking",
+      "type": "penalty"
+    },
+    {
+      "game_id": 444616,
+      "period": "P1",
+      "minute": "04",
+      "team": {
+        "id": 704,
+        "name": "Winnipeg Jets",
+        "logo": "https://media.api-sports.io/hockey/teams/704.png"
+      },
+      "players": [
+        "D. DeMelo"
+      ],
+      "assists": [
+        "M. Barron",
+        "A. Lowry"
+      ],
+      "comment": null,
+      "type": "goal"
+    },
+    {
+      "game_id": 444616,
+      "period": "P1",
+      "minute": "07",
+      "team": {
+        "id": 673,
+        "name": "Boston Bruins",
+        "logo": "https://media.api-sports.io/hockey/teams/673.png"
+      },
+      "players": [
+        "M. Kastelic"
+      ],
+      "assists": [],
+      "comment": "Fighting",
+      "type": "penalty"
+    },
+    {
+      "game_id": 444616,
+      "period": "P1",
+      "minute": "07",
+      "team": {
+        "id": 704,
+        "name": "Winnipeg Jets",
+        "logo": "https://media.api-sports.io/hockey/teams/704.png"
+      },
+      "players": [
+        "T. Bauer"
+      ],
+      "assists": [],
+      "comment": "Fighting",
+      "type": "penalty"
+    },
+    {
+      "game_id": 444616,
+      "period": "P1",
+      "minute": "09",
+      "team": {
+        "id": 673,
+        "name": "Boston Bruins",
+        "logo": "https://media.api-sports.io/hockey/teams/673.png"
+      },
+      "players": [
+        "H. Lindholm"
+      ],
+      "assists": [
+        "M. Geekie",
+        "W. Borgen"
+      ],
+      "comment": null,
+      "type": "goal"
+    },
+    {
+      "game_id": 444616,
+      "period": "P1",
+      "minute": "15",
+      "team": {
+        "id": 673,
+        "name": "Boston Bruins",
+        "logo": "https://media.api-sports.io/hockey/teams/673.png"
+      },
+      "players": [
+        "J. Hagens"
+      ],
+      "assists": [
+        "N. Zadorov",
+        "M. Kastelic"
+      ],
+      "comment": null,
+      "type": "goal"
+    },
+    {
+      "game_id": 444616,
+      "period": "P2",
+      "minute": "01",
+      "team": {
+        "id": 673,
+        "name": "Boston Bruins",
+        "logo": "https://media.api-sports.io/hockey/teams/673.png"
+      },
+      "players": [
+        "E. Lindholm"
+      ],
+      "assists": [],
+      "comment": "Tripping",
+      "type": "penalty"
+    },
+    {
+      "game_id": 444616,
+      "period": "P2",
+      "minute": "01",
+      "team": {
+        "id": 704,
+        "name": "Winnipeg Jets",
+        "logo": "https://media.api-sports.io/hockey/teams/704.png"
+      },
+      "players": [
+        "K. Connor"
+      ],
+      "assists": [
+        "G. Vilardi",
+        "C. Perfetti"
+      ],
+      "comment": "Power-play",
+      "type": "goal"
+    },
+    {
+      "game_id": 444616,
+      "period": "P2",
+      "minute": "02",
+      "team": {
+        "id": 704,
+        "name": "Winnipeg Jets",
+        "logo": "https://media.api-sports.io/hockey/teams/704.png"
+      },
+      "players": [
+        "T. Bauer"
+      ],
+      "assists": [],
+      "comment": "Cross-checking",
+      "type": "penalty"
+    },
+    {
+      "game_id": 444616,
+      "period": "P2",
+      "minute": "02",
+      "team": {
+        "id": 704,
+        "name": "Winnipeg Jets",
+        "logo": "https://media.api-sports.io/hockey/teams/704.png"
+      },
+      "players": [
+        "T. Bauer"
+      ],
+      "assists": [],
+      "comment": "Roughing",
+      "type": "penalty"
+    },
+    {
+      "game_id": 444616,
+      "period": "P2",
+      "minute": "02",
+      "team": {
+        "id": 673,
+        "name": "Boston Bruins",
+        "logo": "https://media.api-sports.io/hockey/teams/673.png"
+      },
+      "players": [
+        "S. Kuraly"
+      ],
+      "assists": [],
+      "comment": "Roughing",
+      "type": "penalty"
+    },
+    {
+      "game_id": 444616,
+      "period": "P2",
+      "minute": "16",
+      "team": {
+        "id": 704,
+        "name": "Winnipeg Jets",
+        "logo": "https://media.api-sports.io/hockey/teams/704.png"
+      },
+      "players": [
+        "M. Barron"
+      ],
+      "assists": [],
+      "comment": "Tripping",
+      "type": "penalty"
+    },
+    {
+      "game_id": 444616,
+      "period": "P2",
+      "minute": "19",
+      "team": {
+        "id": 704,
+        "name": "Winnipeg Jets",
+        "logo": "https://media.api-sports.io/hockey/teams/704.png"
+      },
+      "players": [
+        "M. Ferraro"
+      ],
+      "assists": [
+        "A. Lowry",
+        "K. Connor"
+      ],
+      "comment": null,
+      "type": "goal"
+    },
+    {
+      "game_id": 444616,
+      "period": "P3",
+      "minute": "07",
+      "team": {
+        "id": 673,
+        "name": "Boston Bruins",
+        "logo": "https://media.api-sports.io/hockey/teams/673.png"
+      },
+      "players": [
+        "J. Aspirot"
+      ],
+      "assists": [],
+      "comment": "High sticking",
+      "type": "penalty"
+    },
+    {
+      "game_id": 444616,
+      "period": "P3",
+      "minute": "18",
+      "team": {
+        "id": 673,
+        "name": "Boston Bruins",
+        "logo": "https://media.api-sports.io/hockey/teams/673.png"
+      },
+      "players": [
+        "E. Lindholm"
+      ],
+      "assists": [
+        "D. Pastrnak",
+        "M. Lohrei"
+      ],
+      "comment": null,
+      "type": "goal"
+    },
+    {
+      "game_id": 444616,
+      "period": "OT",
+      "minute": "03",
+      "team": {
+        "id": 673,
+        "name": "Boston Bruins",
+        "logo": "https://media.api-sports.io/hockey/teams/673.png"
+      },
+      "players": [
+        "J. Peterka"
+      ],
+      "assists": [
+        "D. Pastrnak",
+        "N. Zadorov"
+      ],
+      "comment": null,
+      "type": "goal"
+    }
+  ]
+}

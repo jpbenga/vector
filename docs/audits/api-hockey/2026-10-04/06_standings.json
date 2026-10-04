@@ -1,0 +1,4911 @@
+{
+  "get": "standings",
+  "parameters": {
+    "league": "57",
+    "season": "2026"
+  },
+  "errors": [],
+  "results": 2,
+  "response": [
+    [
+      {
+        "position": 1,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Western Conference"
+        },
+        "team": {
+          "id": 683,
+          "name": "Edmonton Oilers",
+          "logo": "https://media.api-sports.io/hockey/teams/683.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 3,
+          "win": {
+            "total": 2,
+            "percentage": "0.667"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.333"
+          }
+        },
+        "goals": {
+          "for": 17,
+          "against": 14
+        },
+        "points": 5,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 2,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Western Conference"
+        },
+        "team": {
+          "id": 679,
+          "name": "Colorado Avalanche",
+          "logo": "https://media.api-sports.io/hockey/teams/679.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 2,
+            "percentage": "1.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 14,
+          "against": 5
+        },
+        "points": 4,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 3,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Western Conference"
+        },
+        "team": {
+          "id": 2483,
+          "name": "Utah Mammoth",
+          "logo": "https://media.api-sports.io/hockey/teams/2483.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 2,
+            "percentage": "1.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 10,
+          "against": 1
+        },
+        "points": 4,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 4,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Western Conference"
+        },
+        "team": {
+          "id": 687,
+          "name": "Minnesota Wild",
+          "logo": "https://media.api-sports.io/hockey/teams/687.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 2,
+            "percentage": "1.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 7,
+          "against": 2
+        },
+        "points": 4,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 5,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Western Conference"
+        },
+        "team": {
+          "id": 697,
+          "name": "San Jose Sharks",
+          "logo": "https://media.api-sports.io/hockey/teams/697.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 2,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 9,
+          "against": 7
+        },
+        "points": 4,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 6,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Western Conference"
+        },
+        "team": {
+          "id": 701,
+          "name": "Vancouver Canucks",
+          "logo": "https://media.api-sports.io/hockey/teams/701.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 3,
+          "win": {
+            "total": 1,
+            "percentage": "0.333"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.333"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.333"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 17,
+          "against": 15
+        },
+        "points": 4,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 7,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Western Conference"
+        },
+        "team": {
+          "id": 670,
+          "name": "Anaheim Ducks",
+          "logo": "https://media.api-sports.io/hockey/teams/670.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 1,
+          "win": {
+            "total": 1,
+            "percentage": "1.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 4,
+          "against": 3
+        },
+        "points": 2,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 8,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Western Conference"
+        },
+        "team": {
+          "id": 1436,
+          "name": "Seattle Kraken",
+          "logo": "https://media.api-sports.io/hockey/teams/1436.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 7,
+          "against": 4
+        },
+        "points": 2,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 9,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Western Conference"
+        },
+        "team": {
+          "id": 702,
+          "name": "Vegas Golden Knights",
+          "logo": "https://media.api-sports.io/hockey/teams/702.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 8,
+          "against": 6
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 10,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Western Conference"
+        },
+        "team": {
+          "id": 698,
+          "name": "St. Louis Blues",
+          "logo": "https://media.api-sports.io/hockey/teams/698.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 5,
+          "against": 6
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 11,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Western Conference"
+        },
+        "team": {
+          "id": 689,
+          "name": "Nashville Predators",
+          "logo": "https://media.api-sports.io/hockey/teams/689.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 3,
+          "against": 4
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 12,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Western Conference"
+        },
+        "team": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 1,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 3,
+          "against": 4
+        },
+        "points": 1,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 13,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Western Conference"
+        },
+        "team": {
+          "id": 685,
+          "name": "Los Angeles Kings",
+          "logo": "https://media.api-sports.io/hockey/teams/685.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 8,
+          "against": 13
+        },
+        "points": 1,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 14,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Western Conference"
+        },
+        "team": {
+          "id": 681,
+          "name": "Dallas Stars",
+          "logo": "https://media.api-sports.io/hockey/teams/681.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 2,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 1,
+          "against": 6
+        },
+        "points": 0,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 15,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Western Conference"
+        },
+        "team": {
+          "id": 675,
+          "name": "Calgary Flames",
+          "logo": "https://media.api-sports.io/hockey/teams/675.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 2,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 2,
+          "against": 10
+        },
+        "points": 0,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 16,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Western Conference"
+        },
+        "team": {
+          "id": 678,
+          "name": "Chicago Blackhawks",
+          "logo": "https://media.api-sports.io/hockey/teams/678.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 3,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 3,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 5,
+          "against": 15
+        },
+        "points": 0,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 1,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Eastern Conference"
+        },
+        "team": {
+          "id": 696,
+          "name": "Pittsburgh Penguins",
+          "logo": "https://media.api-sports.io/hockey/teams/696.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 13,
+          "against": 5
+        },
+        "points": 4,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 2,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Eastern Conference"
+        },
+        "team": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 3,
+          "win": {
+            "total": 1,
+            "percentage": "0.333"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.333"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.333"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 8,
+          "against": 7
+        },
+        "points": 4,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 3,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Eastern Conference"
+        },
+        "team": {
+          "id": 692,
+          "name": "New York Rangers",
+          "logo": "https://media.api-sports.io/hockey/teams/692.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 3,
+          "win": {
+            "total": 2,
+            "percentage": "0.667"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.333"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 7,
+          "against": 4
+        },
+        "points": 4,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 4,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Eastern Conference"
+        },
+        "team": {
+          "id": 688,
+          "name": "Montreal Canadiens",
+          "logo": "https://media.api-sports.io/hockey/teams/688.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.500"
+          }
+        },
+        "goals": {
+          "for": 8,
+          "against": 8
+        },
+        "points": 3,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 5,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Eastern Conference"
+        },
+        "team": {
+          "id": 684,
+          "name": "Florida Panthers",
+          "logo": "https://media.api-sports.io/hockey/teams/684.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 4,
+          "against": 4
+        },
+        "points": 3,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 6,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Eastern Conference"
+        },
+        "team": {
+          "id": 676,
+          "name": "Carolina Hurricanes",
+          "logo": "https://media.api-sports.io/hockey/teams/676.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 3,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 5,
+          "against": 8
+        },
+        "points": 3,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 7,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Eastern Conference"
+        },
+        "team": {
+          "id": 693,
+          "name": "Ottawa Senators",
+          "logo": "https://media.api-sports.io/hockey/teams/693.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 1,
+          "win": {
+            "total": 1,
+            "percentage": "1.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 3,
+          "against": 2
+        },
+        "points": 2,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 8,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Eastern Conference"
+        },
+        "team": {
+          "id": 691,
+          "name": "New York Islanders",
+          "logo": "https://media.api-sports.io/hockey/teams/691.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 7,
+          "against": 2
+        },
+        "points": 2,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 9,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Eastern Conference"
+        },
+        "team": {
+          "id": 680,
+          "name": "Columbus Blue Jackets",
+          "logo": "https://media.api-sports.io/hockey/teams/680.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 7,
+          "against": 7
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 10,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Eastern Conference"
+        },
+        "team": {
+          "id": 699,
+          "name": "Tampa Bay Lightning",
+          "logo": "https://media.api-sports.io/hockey/teams/699.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 4,
+          "against": 6
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 11,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Eastern Conference"
+        },
+        "team": {
+          "id": 703,
+          "name": "Washington Capitals",
+          "logo": "https://media.api-sports.io/hockey/teams/703.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 6,
+          "against": 5
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 12,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Eastern Conference"
+        },
+        "team": {
+          "id": 674,
+          "name": "Buffalo Sabres",
+          "logo": "https://media.api-sports.io/hockey/teams/674.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 7,
+          "against": 9
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 13,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Eastern Conference"
+        },
+        "team": {
+          "id": 690,
+          "name": "New Jersey Devils",
+          "logo": "https://media.api-sports.io/hockey/teams/690.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 3,
+          "against": 8
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 14,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Eastern Conference"
+        },
+        "team": {
+          "id": 700,
+          "name": "Toronto Maple Leafs",
+          "logo": "https://media.api-sports.io/hockey/teams/700.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 3,
+          "win": {
+            "total": 1,
+            "percentage": "0.333"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 2,
+            "percentage": "0.667"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 6,
+          "against": 7
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 15,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Eastern Conference"
+        },
+        "team": {
+          "id": 695,
+          "name": "Philadelphia Flyers",
+          "logo": "https://media.api-sports.io/hockey/teams/695.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 3,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 2,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 4,
+          "against": 13
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 16,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Eastern Conference"
+        },
+        "team": {
+          "id": 682,
+          "name": "Detroit Red Wings",
+          "logo": "https://media.api-sports.io/hockey/teams/682.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 1,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 0,
+          "against": 2
+        },
+        "points": 0,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 1,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Atlantic Division"
+        },
+        "team": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 3,
+          "win": {
+            "total": 1,
+            "percentage": "0.333"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.333"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.333"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 8,
+          "against": 7
+        },
+        "points": 4,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 2,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Atlantic Division"
+        },
+        "team": {
+          "id": 688,
+          "name": "Montreal Canadiens",
+          "logo": "https://media.api-sports.io/hockey/teams/688.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.500"
+          }
+        },
+        "goals": {
+          "for": 8,
+          "against": 8
+        },
+        "points": 3,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 3,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Atlantic Division"
+        },
+        "team": {
+          "id": 684,
+          "name": "Florida Panthers",
+          "logo": "https://media.api-sports.io/hockey/teams/684.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 4,
+          "against": 4
+        },
+        "points": 3,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 4,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Atlantic Division"
+        },
+        "team": {
+          "id": 693,
+          "name": "Ottawa Senators",
+          "logo": "https://media.api-sports.io/hockey/teams/693.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 1,
+          "win": {
+            "total": 1,
+            "percentage": "1.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 3,
+          "against": 2
+        },
+        "points": 2,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 5,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Atlantic Division"
+        },
+        "team": {
+          "id": 674,
+          "name": "Buffalo Sabres",
+          "logo": "https://media.api-sports.io/hockey/teams/674.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 7,
+          "against": 9
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 6,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Atlantic Division"
+        },
+        "team": {
+          "id": 699,
+          "name": "Tampa Bay Lightning",
+          "logo": "https://media.api-sports.io/hockey/teams/699.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 4,
+          "against": 6
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 7,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Atlantic Division"
+        },
+        "team": {
+          "id": 700,
+          "name": "Toronto Maple Leafs",
+          "logo": "https://media.api-sports.io/hockey/teams/700.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 3,
+          "win": {
+            "total": 1,
+            "percentage": "0.333"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 2,
+            "percentage": "0.667"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 6,
+          "against": 7
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 8,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Atlantic Division"
+        },
+        "team": {
+          "id": 682,
+          "name": "Detroit Red Wings",
+          "logo": "https://media.api-sports.io/hockey/teams/682.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 1,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 0,
+          "against": 2
+        },
+        "points": 0,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 1,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Central Division"
+        },
+        "team": {
+          "id": 679,
+          "name": "Colorado Avalanche",
+          "logo": "https://media.api-sports.io/hockey/teams/679.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 2,
+            "percentage": "1.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 14,
+          "against": 5
+        },
+        "points": 4,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 2,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Central Division"
+        },
+        "team": {
+          "id": 2483,
+          "name": "Utah Mammoth",
+          "logo": "https://media.api-sports.io/hockey/teams/2483.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 2,
+            "percentage": "1.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 10,
+          "against": 1
+        },
+        "points": 4,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 3,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Central Division"
+        },
+        "team": {
+          "id": 687,
+          "name": "Minnesota Wild",
+          "logo": "https://media.api-sports.io/hockey/teams/687.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 2,
+            "percentage": "1.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 7,
+          "against": 2
+        },
+        "points": 4,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 4,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Central Division"
+        },
+        "team": {
+          "id": 698,
+          "name": "St. Louis Blues",
+          "logo": "https://media.api-sports.io/hockey/teams/698.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 5,
+          "against": 6
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 5,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Central Division"
+        },
+        "team": {
+          "id": 689,
+          "name": "Nashville Predators",
+          "logo": "https://media.api-sports.io/hockey/teams/689.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 3,
+          "against": 4
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 6,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Central Division"
+        },
+        "team": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 1,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 3,
+          "against": 4
+        },
+        "points": 1,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 7,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Central Division"
+        },
+        "team": {
+          "id": 681,
+          "name": "Dallas Stars",
+          "logo": "https://media.api-sports.io/hockey/teams/681.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 2,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 1,
+          "against": 6
+        },
+        "points": 0,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 8,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Central Division"
+        },
+        "team": {
+          "id": 678,
+          "name": "Chicago Blackhawks",
+          "logo": "https://media.api-sports.io/hockey/teams/678.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 3,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 3,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 5,
+          "against": 15
+        },
+        "points": 0,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 1,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Pacific Division"
+        },
+        "team": {
+          "id": 683,
+          "name": "Edmonton Oilers",
+          "logo": "https://media.api-sports.io/hockey/teams/683.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 3,
+          "win": {
+            "total": 2,
+            "percentage": "0.667"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.333"
+          }
+        },
+        "goals": {
+          "for": 17,
+          "against": 14
+        },
+        "points": 5,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 2,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Pacific Division"
+        },
+        "team": {
+          "id": 697,
+          "name": "San Jose Sharks",
+          "logo": "https://media.api-sports.io/hockey/teams/697.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 2,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 9,
+          "against": 7
+        },
+        "points": 4,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 3,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Pacific Division"
+        },
+        "team": {
+          "id": 701,
+          "name": "Vancouver Canucks",
+          "logo": "https://media.api-sports.io/hockey/teams/701.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 3,
+          "win": {
+            "total": 1,
+            "percentage": "0.333"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.333"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.333"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 17,
+          "against": 15
+        },
+        "points": 4,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 4,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Pacific Division"
+        },
+        "team": {
+          "id": 670,
+          "name": "Anaheim Ducks",
+          "logo": "https://media.api-sports.io/hockey/teams/670.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 1,
+          "win": {
+            "total": 1,
+            "percentage": "1.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 4,
+          "against": 3
+        },
+        "points": 2,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 5,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Pacific Division"
+        },
+        "team": {
+          "id": 1436,
+          "name": "Seattle Kraken",
+          "logo": "https://media.api-sports.io/hockey/teams/1436.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 7,
+          "against": 4
+        },
+        "points": 2,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 6,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Pacific Division"
+        },
+        "team": {
+          "id": 702,
+          "name": "Vegas Golden Knights",
+          "logo": "https://media.api-sports.io/hockey/teams/702.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 8,
+          "against": 6
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 7,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Pacific Division"
+        },
+        "team": {
+          "id": 685,
+          "name": "Los Angeles Kings",
+          "logo": "https://media.api-sports.io/hockey/teams/685.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 8,
+          "against": 13
+        },
+        "points": 1,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 8,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Pacific Division"
+        },
+        "team": {
+          "id": 675,
+          "name": "Calgary Flames",
+          "logo": "https://media.api-sports.io/hockey/teams/675.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 2,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 2,
+          "against": 10
+        },
+        "points": 0,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 1,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Metropolitan Division"
+        },
+        "team": {
+          "id": 696,
+          "name": "Pittsburgh Penguins",
+          "logo": "https://media.api-sports.io/hockey/teams/696.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 13,
+          "against": 5
+        },
+        "points": 4,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 2,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Metropolitan Division"
+        },
+        "team": {
+          "id": 692,
+          "name": "New York Rangers",
+          "logo": "https://media.api-sports.io/hockey/teams/692.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 3,
+          "win": {
+            "total": 2,
+            "percentage": "0.667"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.333"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 7,
+          "against": 4
+        },
+        "points": 4,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 3,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Metropolitan Division"
+        },
+        "team": {
+          "id": 676,
+          "name": "Carolina Hurricanes",
+          "logo": "https://media.api-sports.io/hockey/teams/676.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 3,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 5,
+          "against": 8
+        },
+        "points": 3,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 4,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Metropolitan Division"
+        },
+        "team": {
+          "id": 691,
+          "name": "New York Islanders",
+          "logo": "https://media.api-sports.io/hockey/teams/691.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 7,
+          "against": 2
+        },
+        "points": 2,
+        "form": null,
+        "description": "Promotion - NHL (Play Offs)"
+      },
+      {
+        "position": 5,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Metropolitan Division"
+        },
+        "team": {
+          "id": 703,
+          "name": "Washington Capitals",
+          "logo": "https://media.api-sports.io/hockey/teams/703.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 6,
+          "against": 5
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 6,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Metropolitan Division"
+        },
+        "team": {
+          "id": 680,
+          "name": "Columbus Blue Jackets",
+          "logo": "https://media.api-sports.io/hockey/teams/680.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 7,
+          "against": 7
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 7,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Metropolitan Division"
+        },
+        "team": {
+          "id": 690,
+          "name": "New Jersey Devils",
+          "logo": "https://media.api-sports.io/hockey/teams/690.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 2,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 3,
+          "against": 8
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 8,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Metropolitan Division"
+        },
+        "team": {
+          "id": 695,
+          "name": "Philadelphia Flyers",
+          "logo": "https://media.api-sports.io/hockey/teams/695.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 3,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 2,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 4,
+          "against": 13
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      }
+    ],
+    [
+      {
+        "position": 1,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Atlantic Division"
+        },
+        "team": {
+          "id": 688,
+          "name": "Montreal Canadiens",
+          "logo": "https://media.api-sports.io/hockey/teams/688.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 5,
+          "win": {
+            "total": 2,
+            "percentage": "0.400"
+          },
+          "win_overtime": {
+            "total": 2,
+            "percentage": "0.400"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.200"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 18,
+          "against": 12
+        },
+        "points": 8,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 2,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Atlantic Division"
+        },
+        "team": {
+          "id": 684,
+          "name": "Florida Panthers",
+          "logo": "https://media.api-sports.io/hockey/teams/684.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 2,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 2,
+            "percentage": "0.500"
+          }
+        },
+        "goals": {
+          "for": 15,
+          "against": 12
+        },
+        "points": 6,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 3,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Atlantic Division"
+        },
+        "team": {
+          "id": 700,
+          "name": "Toronto Maple Leafs",
+          "logo": "https://media.api-sports.io/hockey/teams/700.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 2,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.250"
+          }
+        },
+        "goals": {
+          "for": 14,
+          "against": 11
+        },
+        "points": 5,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 4,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Atlantic Division"
+        },
+        "team": {
+          "id": 682,
+          "name": "Detroit Red Wings",
+          "logo": "https://media.api-sports.io/hockey/teams/682.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.250"
+          }
+        },
+        "goals": {
+          "for": 12,
+          "against": 11
+        },
+        "points": 5,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 5,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Atlantic Division"
+        },
+        "team": {
+          "id": 673,
+          "name": "Boston Bruins",
+          "logo": "https://media.api-sports.io/hockey/teams/673.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.250"
+          }
+        },
+        "goals": {
+          "for": 10,
+          "against": 8
+        },
+        "points": 5,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 6,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Atlantic Division"
+        },
+        "team": {
+          "id": 699,
+          "name": "Tampa Bay Lightning",
+          "logo": "https://media.api-sports.io/hockey/teams/699.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.250"
+          }
+        },
+        "goals": {
+          "for": 10,
+          "against": 11
+        },
+        "points": 5,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 7,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Atlantic Division"
+        },
+        "team": {
+          "id": 674,
+          "name": "Buffalo Sabres",
+          "logo": "https://media.api-sports.io/hockey/teams/674.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 2,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.250"
+          }
+        },
+        "goals": {
+          "for": 9,
+          "against": 11
+        },
+        "points": 3,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 8,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Atlantic Division"
+        },
+        "team": {
+          "id": 693,
+          "name": "Ottawa Senators",
+          "logo": "https://media.api-sports.io/hockey/teams/693.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 5,
+          "win": {
+            "total": 1,
+            "percentage": "0.200"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 3,
+            "percentage": "0.600"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.200"
+          }
+        },
+        "goals": {
+          "for": 11,
+          "against": 20
+        },
+        "points": 3,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 1,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Central Division"
+        },
+        "team": {
+          "id": 681,
+          "name": "Dallas Stars",
+          "logo": "https://media.api-sports.io/hockey/teams/681.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 4,
+            "percentage": "1.000"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 8,
+          "against": 3
+        },
+        "points": 8,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 2,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Central Division"
+        },
+        "team": {
+          "id": 2483,
+          "name": "Utah Mammoth",
+          "logo": "https://media.api-sports.io/hockey/teams/2483.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 2,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.250"
+          }
+        },
+        "goals": {
+          "for": 13,
+          "against": 12
+        },
+        "points": 5,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 3,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Central Division"
+        },
+        "team": {
+          "id": 678,
+          "name": "Chicago Blackhawks",
+          "logo": "https://media.api-sports.io/hockey/teams/678.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.250"
+          }
+        },
+        "goals": {
+          "for": 9,
+          "against": 9
+        },
+        "points": 5,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 4,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Central Division"
+        },
+        "team": {
+          "id": 679,
+          "name": "Colorado Avalanche",
+          "logo": "https://media.api-sports.io/hockey/teams/679.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 2,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 2,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 10,
+          "against": 8
+        },
+        "points": 4,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 5,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Central Division"
+        },
+        "team": {
+          "id": 687,
+          "name": "Minnesota Wild",
+          "logo": "https://media.api-sports.io/hockey/teams/687.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 2,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 7,
+          "against": 10
+        },
+        "points": 3,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 6,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Central Division"
+        },
+        "team": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 2,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.250"
+          }
+        },
+        "goals": {
+          "for": 8,
+          "against": 13
+        },
+        "points": 3,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 7,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Central Division"
+        },
+        "team": {
+          "id": 698,
+          "name": "St. Louis Blues",
+          "logo": "https://media.api-sports.io/hockey/teams/698.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 3,
+            "percentage": "0.750"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 5,
+          "against": 7
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 8,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Central Division"
+        },
+        "team": {
+          "id": 689,
+          "name": "Nashville Predators",
+          "logo": "https://media.api-sports.io/hockey/teams/689.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 3,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 9,
+          "against": 16
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 1,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Pacific Division"
+        },
+        "team": {
+          "id": 683,
+          "name": "Edmonton Oilers",
+          "logo": "https://media.api-sports.io/hockey/teams/683.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 3,
+            "percentage": "0.750"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 13,
+          "against": 5
+        },
+        "points": 8,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 2,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Pacific Division"
+        },
+        "team": {
+          "id": 1436,
+          "name": "Seattle Kraken",
+          "logo": "https://media.api-sports.io/hockey/teams/1436.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 2,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 15,
+          "against": 11
+        },
+        "points": 6,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 3,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Pacific Division"
+        },
+        "team": {
+          "id": 702,
+          "name": "Vegas Golden Knights",
+          "logo": "https://media.api-sports.io/hockey/teams/702.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "win_overtime": {
+            "total": 2,
+            "percentage": "0.500"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 13,
+          "against": 11
+        },
+        "points": 6,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 4,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Pacific Division"
+        },
+        "team": {
+          "id": 697,
+          "name": "San Jose Sharks",
+          "logo": "https://media.api-sports.io/hockey/teams/697.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 2,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.250"
+          }
+        },
+        "goals": {
+          "for": 17,
+          "against": 10
+        },
+        "points": 5,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 5,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Pacific Division"
+        },
+        "team": {
+          "id": 685,
+          "name": "Los Angeles Kings",
+          "logo": "https://media.api-sports.io/hockey/teams/685.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 2,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 2,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 13,
+          "against": 13
+        },
+        "points": 4,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 6,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Pacific Division"
+        },
+        "team": {
+          "id": 675,
+          "name": "Calgary Flames",
+          "logo": "https://media.api-sports.io/hockey/teams/675.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 2,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.250"
+          }
+        },
+        "goals": {
+          "for": 9,
+          "against": 13
+        },
+        "points": 3,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 7,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Pacific Division"
+        },
+        "team": {
+          "id": 701,
+          "name": "Vancouver Canucks",
+          "logo": "https://media.api-sports.io/hockey/teams/701.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 3,
+            "percentage": "0.750"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 8,
+          "against": 12
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 8,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Pacific Division"
+        },
+        "team": {
+          "id": 670,
+          "name": "Anaheim Ducks",
+          "logo": "https://media.api-sports.io/hockey/teams/670.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 3,
+            "percentage": "0.750"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 9,
+          "against": 20
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 1,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Metropolitan Division"
+        },
+        "team": {
+          "id": 703,
+          "name": "Washington Capitals",
+          "logo": "https://media.api-sports.io/hockey/teams/703.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 2,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.250"
+          }
+        },
+        "goals": {
+          "for": 15,
+          "against": 8
+        },
+        "points": 7,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 2,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Metropolitan Division"
+        },
+        "team": {
+          "id": 690,
+          "name": "New Jersey Devils",
+          "logo": "https://media.api-sports.io/hockey/teams/690.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 3,
+            "percentage": "0.750"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.250"
+          }
+        },
+        "goals": {
+          "for": 12,
+          "against": 8
+        },
+        "points": 7,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 3,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Metropolitan Division"
+        },
+        "team": {
+          "id": 676,
+          "name": "Carolina Hurricanes",
+          "logo": "https://media.api-sports.io/hockey/teams/676.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 2,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 18,
+          "against": 13
+        },
+        "points": 6,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 4,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Metropolitan Division"
+        },
+        "team": {
+          "id": 680,
+          "name": "Columbus Blue Jackets",
+          "logo": "https://media.api-sports.io/hockey/teams/680.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 2,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 10,
+          "against": 7
+        },
+        "points": 6,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 5,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Metropolitan Division"
+        },
+        "team": {
+          "id": 696,
+          "name": "Pittsburgh Penguins",
+          "logo": "https://media.api-sports.io/hockey/teams/696.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 2,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 2,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 11,
+          "against": 13
+        },
+        "points": 4,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 6,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Metropolitan Division"
+        },
+        "team": {
+          "id": 692,
+          "name": "New York Rangers",
+          "logo": "https://media.api-sports.io/hockey/teams/692.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "win_overtime": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "lose": {
+            "total": 2,
+            "percentage": "0.500"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 15,
+          "against": 11
+        },
+        "points": 4,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 7,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Metropolitan Division"
+        },
+        "team": {
+          "id": 691,
+          "name": "New York Islanders",
+          "logo": "https://media.api-sports.io/hockey/teams/691.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 3,
+            "percentage": "0.750"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 7,
+          "against": 15
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      },
+      {
+        "position": 8,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Metropolitan Division"
+        },
+        "team": {
+          "id": 695,
+          "name": "Philadelphia Flyers",
+          "logo": "https://media.api-sports.io/hockey/teams/695.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2026
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 4,
+          "win": {
+            "total": 1,
+            "percentage": "0.250"
+          },
+          "win_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          },
+          "lose": {
+            "total": 3,
+            "percentage": "0.750"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 6,
+          "against": 15
+        },
+        "points": 2,
+        "form": null,
+        "description": null
+      }
+    ]
+  ]
+}

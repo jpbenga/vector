@@ -11,7 +11,11 @@ ses scénarios, ses marchés et sa mesure des résultats.
 
 Le point d’entrée propose un sélecteur de sport. Le football reste accessible
 sur `/`, le hockey sur `/sports/hockey`. Basket, baseball et football américain
-sont recensés comme modules à venir. Aucun appel fournisseur hockey n’est lancé.
+sont recensés comme modules à venir. Aucun appel fournisseur hockey n’est lancé
+par l'application. L'accès fournisseur a depuis été vérifié dans
+[l'audit réel du 4 octobre](../audits/api-hockey/2026-10-04/README.md) : NHL 57,
+saison 2026, forfait 7 500/jour et 300/minute. Cet audit confirme notamment
+que les agrégats d'équipe mélangent présaison et saison régulière.
 
 Une configuration **typée par module** est préférable à un grand JSON universel :
 le compilateur vérifie les paramètres et les conditions ; les algorithmes propres
@@ -124,8 +128,9 @@ modules, données et politiques d’accès peuvent y être séparés. Aucun chan
 ou coût supplémentaire d’infrastructure n’est déclenché par cette étape locale.
 La nécessité d’augmenter les ressources devra être mesurée avec le volume réel,
 la taille des publications, la rétention, les temps des workers et les lectures
-publiques. Aucun tarif hockey ni budget d’appels fiable ne peut être établi
-avant de connaître le fournisseur et son contrat.
+publiques. Le forfait hockey est maintenant confirmé à 7 500 appels/jour ;
+le budget opérationnel devra être calculé à partir des compétitions activées,
+des fenêtres historiques et de la fréquence du live.
 
 ## Vérification locale
 
