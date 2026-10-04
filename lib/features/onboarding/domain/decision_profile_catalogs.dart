@@ -64,11 +64,15 @@ class DecisionCompetitionDefinition {
     required this.name,
     required this.apiFootballLeagueId,
     this.legacyIds = const [],
+    this.isWomen = false,
+    this.isYouth = false,
   });
 
   final String name;
   final int apiFootballLeagueId;
   final List<String> legacyIds;
+  final bool isWomen;
+  final bool isYouth;
 
   String get id => apiFootballLeagueId.toString();
 
@@ -522,7 +526,11 @@ class CompetitionCatalog {
       name: 'UEFA Nations League',
       apiFootballLeagueId: 5,
     ),
-    DecisionCompetitionDefinition(name: 'Euro U21', apiFootballLeagueId: 38),
+    DecisionCompetitionDefinition(
+      name: 'Euro U21',
+      apiFootballLeagueId: 38,
+      isYouth: true,
+    ),
     DecisionCompetitionDefinition(
       name: 'Matchs amicaux internationaux',
       apiFootballLeagueId: 10,
@@ -544,18 +552,22 @@ class CompetitionCatalog {
     DecisionCompetitionDefinition(
       name: 'Première Ligue féminine',
       apiFootballLeagueId: 64,
+      isWomen: true,
     ),
     DecisionCompetitionDefinition(
       name: 'UEFA Champions League Women',
       apiFootballLeagueId: 525,
+      isWomen: true,
     ),
     DecisionCompetitionDefinition(
       name: 'UEFA Europa Cup Women',
       apiFootballLeagueId: 1191,
+      isWomen: true,
     ),
     DecisionCompetitionDefinition(
       name: 'Coupe du Monde féminine',
       apiFootballLeagueId: 8,
+      isWomen: true,
     ),
   ];
 

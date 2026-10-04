@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/identity/identity_scope.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/theme/app_radius.dart';
@@ -11,6 +12,8 @@ import 'form_radar_signal_panel.dart';
 import '../data/player_form_radar_fixture.dart';
 import '../domain/player_form_radar.dart';
 import '../domain/team_form_radar.dart';
+import '../domain/radar_audience_filter.dart';
+import '../data/radar_audience_filter_store.dart';
 import 'player_form_radar_match_detail_sheet.dart';
 import 'team_form_radar_match_detail_sheet.dart';
 
@@ -26,6 +29,8 @@ class PlayerFormRadarPage extends StatefulWidget {
     this.personalizedMatches = const [],
     this.showProfileReadings = false,
     this.teamProfiles = const [],
+    this.identityScope = const IdentityScope.device(),
+    this.filterStore = const SharedPreferencesRadarAudienceFilterStore(),
     super.key,
   });
 
@@ -43,6 +48,8 @@ class PlayerFormRadarPage extends StatefulWidget {
   final DateTime selectedDate;
   final ValueChanged<MatchBoardItem> onOpenMatch;
   final List<TeamFormRadarProfile> teamProfiles;
+  final IdentityScope identityScope;
+  final RadarAudienceFilterStore filterStore;
 
   @override
   State<PlayerFormRadarPage> createState() => _PlayerFormRadarPageState();
@@ -53,6 +60,67 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
   int _teamPage = 0;
   _RadarContentMode _mode = _RadarContentMode.players;
   _RadarScope _scope = _RadarScope.club;
+  RadarAudienceFilter _audienceFilter = const RadarAudienceFilter();
+  int _filterGeneration = 0;
+  Future<void> _pendingSave = Future.value();
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreFilters();
+  }
+
+  @override
+  void didUpdateWidget(PlayerFormRadarPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.identityScope != widget.identityScope ||
+        oldWidget.filterStore != widget.filterStore) {
+      _audienceFilter = const RadarAudienceFilter();
+      _playerPage = 0;
+      _teamPage = 0;
+      _restoreFilters();
+    }
+  }
+
+  Future<void> _restoreFilters() async {
+    final generation = ++_filterGeneration;
+    final store = widget.filterStore;
+    final scope = widget.identityScope;
+    try {
+      await _pendingSave;
+      final filter = await store.load(scope);
+      if (!mounted || generation != _filterGeneration) return;
+      setState(() => _audienceFilter = filter);
+    } on Object {
+      // Storage failures keep the safe defaults and never block the Radar.
+    }
+  }
+
+  Future<void> _chooseFilters() async {
+    final scope = widget.identityScope;
+    final filter = await showModalBottomSheet<RadarAudienceFilter>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (_) => _RadarAudienceFilterSheet(initial: _audienceFilter),
+    );
+    if (!mounted || filter == null || scope != widget.identityScope) return;
+    ++_filterGeneration;
+    setState(() {
+      _audienceFilter = filter;
+      _playerPage = 0;
+      _teamPage = 0;
+    });
+    final store = widget.filterStore;
+    _pendingSave = _pendingSave.then((_) async {
+      try {
+        await store.save(scope, filter);
+      } on Object {
+        // Apply the current choice even if this device cannot persist it.
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,13 +139,47 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
         ? widget.teamProfiles
         : _teamProfilesForMatches(widget.radarSourceMatches);
     final rankedTeams = TeamFormRadarRanker.rank(teamProfiles);
+    final competitionNames = <int, String>{
+      for (final match in widget.radarSourceMatches)
+        if (match.competition.apiFootballLeagueId case final int id)
+          id: match.competition.name,
+    };
     final isTeamRadar = _mode == _RadarContentMode.teams;
-    final scoped = ranked
+    final allScoped = ranked
         .where((entry) => _scope.includesLeague(entry.profile.leagueId))
         .toList(growable: false);
-    final scopedTeams = rankedTeams
+    final allScopedTeams = rankedTeams
         .where((entry) => _scope.includesLeague(entry.profile.leagueId))
         .toList(growable: false);
+    final scoped = allScoped
+        .where((entry) {
+          final profile = entry.profile;
+          final competitionName =
+              competitionNames[profile.leagueId] ??
+              profile.activity.reversed
+                  .map((match) => match.competitionName)
+                  .whereType<String>()
+                  .firstOrNull ??
+              '';
+          return _audienceFilter.includes(
+            leagueId: profile.leagueId,
+            teamName: profile.teamName,
+            competitionName: competitionName,
+          );
+        })
+        .toList(growable: false);
+    final scopedTeams = allScopedTeams
+        .where(
+          (entry) => _audienceFilter.includes(
+            leagueId: entry.profile.leagueId,
+            teamName: entry.profile.teamName,
+            competitionName: entry.profile.leagueName,
+          ),
+        )
+        .toList(growable: false);
+    final hiddenCount = isTeamRadar
+        ? allScopedTeams.length - scopedTeams.length
+        : allScoped.length - scoped.length;
     final cappedPlayers = scoped.take(_radarTopLimit).toList(growable: false);
     final cappedTeams = scopedTeams
         .take(_radarTopLimit)
@@ -90,8 +192,11 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
         .toInt();
     final visible = _pageSlice(cappedPlayers, playerPage, _radarPageSize);
     final visibleTeams = _pageSlice(cappedTeams, teamPage, _radarPageSize);
-    final radarMatches = _matchesWithHotPlayers(widget.matches, scoped);
-    final teamRadarMatches = _matchesWithTeams(widget.matches, scopedTeams);
+    final allowedMatches = widget.matches
+        .where(_audienceFilter.includesMatch)
+        .toList(growable: false);
+    final radarMatches = _matchesWithHotPlayers(allowedMatches, scoped);
+    final teamRadarMatches = _matchesWithTeams(allowedMatches, scopedTeams);
     final personalizedMatchesById = {
       for (final match in widget.personalizedMatches) match.id: match,
     };
@@ -104,12 +209,28 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Radar',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: context.textColors.primary,
-                fontWeight: FontWeight.w900,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Radar',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      color: context.textColors.primary,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  key: const ValueKey('radar-audience-filters'),
+                  onPressed: _chooseFilters,
+                  icon: const Icon(Icons.tune_rounded, size: 20),
+                  label: Text(
+                    _audienceFilter.exclusionCount == 0
+                        ? 'Filtres'
+                        : 'Filtres (${_audienceFilter.exclusionCount})',
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 3),
             Text(
@@ -122,6 +243,15 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
               ),
             ),
           ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          '${_audienceFilter.label}'
+          '${hiddenCount == 0 ? '' : ' · $hiddenCount profil${hiddenCount > 1 ? 's' : ''} masqué${hiddenCount > 1 ? 's' : ''}'}',
+          key: const ValueKey('radar-audience-summary'),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: context.textColors.secondary),
         ),
         const SizedBox(height: AppSpacing.md),
         _RadarModeToggle(
@@ -193,6 +323,109 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
       ],
     );
   }
+}
+
+class _RadarAudienceFilterSheet extends StatefulWidget {
+  const _RadarAudienceFilterSheet({required this.initial});
+
+  final RadarAudienceFilter initial;
+
+  @override
+  State<_RadarAudienceFilterSheet> createState() =>
+      _RadarAudienceFilterSheetState();
+}
+
+class _RadarAudienceFilterSheetState extends State<_RadarAudienceFilterSheet> {
+  late RadarAudienceFilter _draft = widget.initial;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * .8,
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Filtres du radar',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Choisissez les catégories à explorer. Le filtre s’applique aux '
+              'joueurs, aux équipes et aux matchs proposés dans le radar.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: context.textColors.secondary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SwitchListTile.adaptive(
+              key: const ValueKey('radar-include-women'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Inclure le football féminin'),
+              subtitle: const Text('Joueuses, clubs et sélections féminines.'),
+              value: _draft.includeWomen,
+              onChanged: (value) => setState(
+                () => _draft = RadarAudienceFilter(
+                  includeWomen: value,
+                  includeYouth: _draft.includeYouth,
+                ),
+              ),
+            ),
+            SwitchListTile.adaptive(
+              key: const ValueKey('radar-include-youth'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Inclure les équipes de jeunes'),
+              subtitle: const Text(
+                'U17, U19, U20, U21, U23… équipes et joueurs.',
+              ),
+              value: _draft.includeYouth,
+              onChanged: (value) => setState(
+                () => _draft = RadarAudienceFilter(
+                  includeWomen: _draft.includeWomen,
+                  includeYouth: value,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                TextButton(
+                  onPressed: () => setState(
+                    () => _draft = const RadarAudienceFilter(
+                      includeWomen: true,
+                      includeYouth: true,
+                    ),
+                  ),
+                  child: const Text('Tout inclure'),
+                ),
+                TextButton.icon(
+                  onPressed: () =>
+                      setState(() => _draft = const RadarAudienceFilter()),
+                  icon: const Icon(Icons.restart_alt_rounded, size: 18),
+                  label: const Text('Réinitialiser'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                key: const ValueKey('radar-apply-audience-filters'),
+                onPressed: () => Navigator.pop(context, _draft),
+                child: const Text('Appliquer'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _RadarFutureDataNotice extends StatelessWidget {

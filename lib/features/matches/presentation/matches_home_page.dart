@@ -1340,6 +1340,7 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                                   ? const ReadingBilanSection()
                                   : showsRadar
                                   ? PlayerFormRadarPage(
+                                      identityScope: widget.identityScope,
                                       matches: allMatchesForSelectedDate,
                                       radarSourceMatches: widget.matches,
                                       personalizedMatches:
