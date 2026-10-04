@@ -134,7 +134,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 110));
       repository.emit(_state('2H'));
       await tester.pump();
-      expect(find.text('67′ · En direct'), findsOneWidget);
+      expect(find.text('67′'), findsOneWidget);
       repository.rows = [
         _state(
           'FT',
@@ -182,7 +182,7 @@ void main() {
           find.byKey(const ValueKey('live-match-status-badge')),
           findsOneWidget,
         );
-        expect(find.text('67′ · En direct'), findsOneWidget);
+        expect(find.text('67′'), findsOneWidget);
         expect(find.text('1'), findsOneWidget);
         expect(find.text('2'), findsOneWidget);
         expect(find.text('Forme'), findsOneWidget);
@@ -192,7 +192,7 @@ void main() {
           find.byKey(const ValueKey('live-match-status-badge')),
           findsOneWidget,
         );
-        expect(find.text('Mi-temps · En direct'), findsOneWidget);
+        expect(find.text('MT'), findsOneWidget);
         expect(find.text('2'), findsOneWidget);
         expect(find.text('0'), findsOneWidget);
         final finalState = _state(

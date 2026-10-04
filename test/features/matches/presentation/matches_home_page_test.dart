@@ -33,6 +33,29 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
+  testWidgets(
+    'anonymous For me invites personalization while public matches stay accessible',
+    (tester) async {
+      await _pumpPage(
+        tester,
+        identityScope: const IdentityScope.guest('anonymous-live'),
+        repository: _FakeMatchFeedRepository(
+          opportunities: const [],
+          matches: [_match()],
+        ),
+      );
+      expect(find.text('Personnalisez votre Lector'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('for-me-compact-filter-control')),
+        findsNothing,
+      );
+      await tester.tap(find.text('Découvrir tous les matchs'));
+      await tester.pumpAndSettle();
+      expect(find.text('Personnalisez votre Lector'), findsNothing);
+      expect(find.byKey(const ValueKey('temporal-filter-all')), findsOneWidget);
+    },
+  );
+
   group('MatchesHomePage redesign', () {
     testWidgets('displays covered fixtures collected before midnight', (
       tester,
@@ -3122,7 +3145,7 @@ class _MidnightSnapshotDataSource implements MatchFeedSnapshotRemoteDataSource {
 Future<void> _pumpPage(
   WidgetTester tester, {
   DecisionProfile? profile,
-  IdentityScope identityScope = const IdentityScope.guest('test-guest'),
+  IdentityScope identityScope = const IdentityScope.account('test-account'),
   MatchFeedRepository? repository,
   Future<MatchFeedRepository> Function(DateTime date)? repositoryForDateLoader,
   List<TicketStrategy> strategies = const [],

@@ -1,3 +1,5 @@
+import '../../../core/widgets/lector_live_badge.dart';
+import '../../matches/presentation/widgets/live_fixture_builder.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/identity/identity_scope.dart';
@@ -288,6 +290,7 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
         const SizedBox(height: AppSpacing.md),
         if (isTeamRadar)
           _HotTeamsPanel(
+            matches: widget.matches,
             entries: visibleTeams,
             totalCount: cappedTeams.length,
             page: teamPage,
@@ -860,12 +863,14 @@ class _HotPlayersPanel extends StatelessWidget {
 class _HotTeamsPanel extends StatelessWidget {
   const _HotTeamsPanel({
     required this.entries,
+    this.matches = const [],
     required this.totalCount,
     required this.page,
     required this.onPageChanged,
   });
 
   final List<TeamFormRadarEntry> entries;
+  final List<MatchBoardItem> matches;
   final int totalCount;
   final int page;
   final ValueChanged<int> onPageChanged;
@@ -913,6 +918,7 @@ class _HotTeamsPanel extends StatelessWidget {
                     child: _HotTeamRow(
                       rank: page * _radarPageSize + indexed.$1 + 1,
                       entry: indexed.$2,
+                      match: _matchForTeam(matches, indexed.$2.profile.teamId),
                     ),
                   ),
                 ],
@@ -1072,10 +1078,11 @@ class _TeamRadarEmptyState extends StatelessWidget {
 }
 
 class _HotTeamRow extends StatelessWidget {
-  const _HotTeamRow({required this.rank, required this.entry});
+  const _HotTeamRow({required this.rank, required this.entry, this.match});
 
   final int rank;
   final TeamFormRadarEntry entry;
+  final MatchBoardItem? match;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -1279,7 +1286,21 @@ class _HotPlayerRow extends StatelessWidget {
   final int matrixColumns;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LiveFixtureBuilder(
+    fixtureId: match?.fixture.apiFootballFixtureId,
+    builder: (context, state) => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (state?.isLive == true)
+          Align(
+            alignment: Alignment.centerRight,
+            child: LectorLiveBadge(state: state!.temporal),
+          ),
+        _buildRow(context),
+      ],
+    ),
+  );
+  Widget _buildRow(BuildContext context) {
     final recentLine =
         '${entry.recentDecisiveMatches}/3 déc. · série ${entry.decisiveStreak}';
     final stats =

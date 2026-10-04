@@ -159,7 +159,7 @@ void main() {
       );
       expect(find.text('Farense'), findsOneWidget);
       expect(find.text('Chaves'), findsOneWidget);
-      expect(find.text('35′ · En direct'), findsOneWidget);
+      expect(find.text('35′'), findsOneWidget);
       expect(find.text('1'), findsOneWidget);
       expect(find.text('0'), findsOneWidget);
       expect(tester.takeException(), isNull);

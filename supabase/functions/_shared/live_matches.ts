@@ -60,6 +60,15 @@ export function liveState(
     home_team_name: liveObject(teams.home).name ?? "",
     away_team_name: liveObject(teams.away).name ?? "",
     captured_at: capturedAt,
+    // The existing ids endpoint already returns match statistics. A missing
+    // block is not zero and must not erase the previous factual block.
+    statistics: Array.isArray(row.statistics) && row.statistics.length > 0
+      ? row.statistics
+      : null,
+    statistics_captured_at:
+      Array.isArray(row.statistics) && row.statistics.length > 0
+        ? capturedAt
+        : null,
   };
 }
 

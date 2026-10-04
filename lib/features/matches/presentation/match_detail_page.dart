@@ -1,3 +1,5 @@
+import '../../../core/widgets/lector_match_detail_view.dart';
+import 'widgets/football_live_stats.dart';
 // ignore_for_file: unused_element, unused_element_parameter
 
 import 'dart:ui' as ui;
@@ -11,7 +13,6 @@ import '../../../core/theme/app_components.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/lector_brand_mark.dart';
-import '../../../core/widgets/lector_responsive_layout.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../onboarding/domain/decision_profile_catalogs.dart';
 import '../../opportunities/domain/opportunity.dart';
@@ -68,91 +69,52 @@ class MatchDetailPage extends StatefulWidget {
 }
 
 class _MatchDetailPageState extends State<MatchDetailPage> {
-  int _selectedFreeTab = 0;
   bool _isTicketPanelExpanded = false;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: context.surfaces.background,
-      bottomNavigationBar: _buildTicketPanel(),
-      body: Stack(
-        children: [
-          const _LectorMatchBackground(),
-          SafeArea(
-            child: LectorContent(
-              maxWidth: LectorLayout.workspaceWidth,
-              child: CustomScrollView(
-                slivers: [
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 88),
-                    sliver: SliverList.list(
-                      children: [
-                        _LectorMatchTopBar(
-                          onBack: () => Navigator.of(context).maybePop(),
-                        ),
-                        const SizedBox(height: 10),
-                        LiveFixtureBuilder(
-                          fixtureId: widget.match.fixture.apiFootballFixtureId,
-                          builder: (context, state) => Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              LectorMatchHero(
-                                match:
-                                    state?.overlay(widget.match) ??
-                                    widget.match,
-                              ),
-                              if (state != null) ...[
-                                LiveMatchStatus(state: state),
-                                LiveReadingSummary(
-                                  state: state,
-                                  entries: state.visibleReadings(
-                                    widget.selectedReadingIds.toSet(),
-                                    scenarioIds: widget.selectedScenarioIds
-                                        .toSet(),
-                                  ),
-                                  hasReadings:
-                                      widget.selectedReadingIds.isNotEmpty,
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _LectorSynthesisCard(
-                          match: widget.match,
-                          opportunity: widget.opportunity,
-                        ),
-                        const SizedBox(height: 12),
-                        _LectorMatchTabBar(
-                          selectedIndex: _selectedFreeTab,
-                          onSelected: (index) {
-                            setState(() => _selectedFreeTab = index);
-                          },
-                        ),
-                        const SizedBox(height: 10),
-                        _LectorFreeTabContent(
-                          match: widget.match,
-                          selectedIndex: _selectedFreeTab,
-                          selectedReadingIds: widget.selectedReadingIds,
-                          selectedScenarioIds: widget.selectedScenarioIds,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+  Widget build(BuildContext context) => LiveFixtureBuilder(
+    fixtureId: widget.match.fixture.apiFootballFixtureId,
+    builder: (context, state) {
+      final current = state?.overlay(widget.match) ?? widget.match;
+      final live = current.fixture.status == FixtureStatus.live;
+      final hasStats = live || current.fixture.status == FixtureStatus.finished;
+      return LectorMatchDetailView(
+        bottomNavigationBar: _buildTicketPanel(),
+        overlay: _buildDeck(context),
+        openStats: live,
+        stats: hasStats
+            ? FootballLiveStats(match: widget.match, state: state)
+            : null,
+        hero: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            LectorMatchHero(match: current),
+            if (state != null) ...[
+              LiveMatchStatus(state: state),
+              LiveReadingSummary(
+                state: state,
+                entries: state.visibleReadings(
+                  widget.selectedReadingIds.toSet(),
+                  scenarioIds: widget.selectedScenarioIds.toSet(),
+                ),
+                hasReadings: widget.selectedReadingIds.isNotEmpty,
               ),
-            ),
-          ),
-          Positioned(
-            left: 14,
-            bottom: 16 + MediaQuery.paddingOf(context).bottom,
-            child: _buildDeck(context),
-          ),
-        ],
-      ),
-    );
-  }
+            ],
+          ],
+        ),
+        synthesis: _LectorSynthesisCard(
+          match: widget.match,
+          opportunity: widget.opportunity,
+        ),
+        tabBuilder: (context, index) => _LectorFreeTabContent(
+          match: widget.match,
+          selectedIndex: index,
+          selectedReadingIds: widget.selectedReadingIds,
+          selectedScenarioIds: widget.selectedScenarioIds,
+        ),
+      );
+    },
+  );
 
   Widget? _buildTicketPanel() {
     final ticketDraftListenable = widget.ticketDraftListenable;

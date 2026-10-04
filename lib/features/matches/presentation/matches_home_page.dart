@@ -1,3 +1,8 @@
+import '../../../core/widgets/lector_personalize_invitation.dart';
+import '../../../core/widgets/lector_temporal_feed.dart';
+import '../../../core/domain/lector_temporal_state.dart';
+import '../domain/live_match_state.dart';
+import 'widgets/live_match_list_builder.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -1197,8 +1202,33 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
     }
   }
 
+  Map<int, LiveMatchState> _liveStates = const {};
+  LectorMatchPhase _phase(MatchBoardItem match) =>
+      switch (match.fixture.status) {
+        FixtureStatus.live => LectorMatchPhase.live,
+        FixtureStatus.scheduled => LectorMatchPhase.upcoming,
+        FixtureStatus.finished => LectorMatchPhase.finished,
+        _ => LectorMatchPhase.other,
+      };
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LiveMatchListBuilder(
+    fixtureIds: widget.matches
+        .where(
+          (m) => DateUtils.isSameDay(
+            lectorLocalCalendarDateForFixture(m.fixture),
+            widget.selectedDate,
+          ),
+        )
+        .map((m) => m.fixture.apiFootballFixtureId)
+        .whereType<int>()
+        .toSet(),
+    builder: (context, states) {
+      _liveStates = states;
+      return _build(context);
+    },
+  );
+
+  Widget _build(BuildContext context) {
     // The competition picker must be built from the complete match feed for
     // the selected day, never from the already-filtered "Pour moi" stories.
     // Otherwise a league with no currently rendered story cannot be selected
@@ -1250,11 +1280,6 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                 (match) => _matchReadingIds(match).contains(activeReadingId),
               )
               .toList(growable: false);
-    final storyCompetitionGroups = _competitionGroups(
-      filteredStoryMatches,
-      orderByFirstKickoff: true,
-    );
-    final allCompetitionGroups = _competitionGroups(visibleMatches);
     final showsGenerator = widget.mode == _ScoresRedesignMode.generator;
     final showsRadar = widget.mode == _ScoresRedesignMode.radar;
     // The Radar owns its player/team selection. Keeping its subtree key stable
@@ -1362,46 +1387,48 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        _ForMeCompactFilterControl(
-                                          totalMatchCount: _uniqueMatchCount(
-                                            filteredStoryMatches,
+                                        if (widget.identityScope.isAccount ||
+                                            widget.isExplorationActive)
+                                          _ForMeCompactFilterControl(
+                                            totalMatchCount: _uniqueMatchCount(
+                                              filteredStoryMatches,
+                                            ),
+                                            reading: activeReadingId == null
+                                                ? null
+                                                : availableReadingFilters
+                                                      .firstWhere(
+                                                        (filter) =>
+                                                            filter.id ==
+                                                            activeReadingId,
+                                                      ),
+                                            options: competitionOptions,
+                                            selectedCompetitionIds:
+                                                selectedCompetitionIds,
+                                            onClearReading:
+                                                activeReadingId == null
+                                                ? null
+                                                : () {
+                                                    setState(() {
+                                                      _selectedForMeReadingId =
+                                                          null;
+                                                    });
+                                                  },
+                                            onClearCompetitions:
+                                                selectedCompetitionIds.isEmpty
+                                                ? null
+                                                : () {
+                                                    setState(() {
+                                                      _selectedForMeCompetitionIds =
+                                                          const {};
+                                                    });
+                                                  },
+                                            onOpenFilter: () =>
+                                                _openCompetitionFilters(
+                                                  availableReadingFilters,
+                                                  competitionOptions,
+                                                  filterableMatches,
+                                                ),
                                           ),
-                                          reading: activeReadingId == null
-                                              ? null
-                                              : availableReadingFilters
-                                                    .firstWhere(
-                                                      (filter) =>
-                                                          filter.id ==
-                                                          activeReadingId,
-                                                    ),
-                                          options: competitionOptions,
-                                          selectedCompetitionIds:
-                                              selectedCompetitionIds,
-                                          onClearReading:
-                                              activeReadingId == null
-                                              ? null
-                                              : () {
-                                                  setState(() {
-                                                    _selectedForMeReadingId =
-                                                        null;
-                                                  });
-                                                },
-                                          onClearCompetitions:
-                                              selectedCompetitionIds.isEmpty
-                                              ? null
-                                              : () {
-                                                  setState(() {
-                                                    _selectedForMeCompetitionIds =
-                                                        const {};
-                                                  });
-                                                },
-                                          onOpenFilter: () =>
-                                              _openCompetitionFilters(
-                                                availableReadingFilters,
-                                                competitionOptions,
-                                                filterableMatches,
-                                              ),
-                                        ),
                                         if (!widget.isExplorationActive)
                                           const SizedBox(height: AppSpacing.md),
                                         if (widget.isExplorationActive) ...[
@@ -1416,24 +1443,81 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                                           ),
                                           const SizedBox(height: 10),
                                         ],
-                                        _TodayCompetitionStoriesSection(
-                                          selectedDate: widget.selectedDate,
-                                          groups: storyCompetitionGroups,
-                                          totalMatchCount:
-                                              filteredStoryMatches.length,
-                                          isExplorationActive:
-                                              widget.isExplorationActive,
-                                          onOpenMatch: _openStoryMatch,
-                                        ),
+                                        if (!widget.identityScope.isAccount &&
+                                            !widget.isExplorationActive)
+                                          LectorPersonalizeInvitation(
+                                            onConnect: widget.onOpenProfile,
+                                            onExplore: () =>
+                                                widget.onModeChanged(
+                                                  _ScoresRedesignMode.all,
+                                                ),
+                                          )
+                                        else
+                                          _FootballTemporalSelection(
+                                            title: widget.isExplorationActive
+                                                ? 'Résultats de votre exploration'
+                                                : _todayStorySectionTitle(
+                                                    widget.selectedDate,
+                                                  ),
+                                            subtitle:
+                                                '${filteredStoryMatches.length} rencontres · ${filteredStoryMatches.map((m) => m.competition.id).toSet().length} compétitions',
+                                            child: LectorTemporalFeed<MatchBoardItem>(
+                                              key: ValueKey(
+                                                'for-me-time-${widget.selectedDate}',
+                                              ),
+                                              items: filteredStoryMatches,
+                                              phaseOf: _phase,
+                                              sectionBuilder:
+                                                  (
+                                                    context,
+                                                    items,
+                                                    phase,
+                                                  ) => _TodayCompetitionStoriesSection(
+                                                    showHeading: false,
+                                                    selectedDate:
+                                                        widget.selectedDate,
+                                                    groups: _competitionGroups(
+                                                      items,
+                                                      orderByFirstKickoff: true,
+                                                    ),
+                                                    totalMatchCount:
+                                                        items.length,
+                                                    isExplorationActive: widget
+                                                        .isExplorationActive,
+                                                    onOpenMatch:
+                                                        _openStoryMatch,
+                                                  ),
+                                            ),
+                                          ),
                                       ],
                                     )
-                                  : _AllMatchesCountrySection(
-                                      showReadings:
-                                          widget.identityScope.isAccount,
+                                  : _FootballTemporalSelection(
                                       title: listTitle,
-                                      emptySubtitle: listSubtitle,
-                                      groups: allCompetitionGroups,
-                                      onOpenMatch: widget.onOpenMatch,
+                                      subtitle:
+                                          '${visibleMatches.length} rencontres · ${visibleMatches.map((m) => m.competition.id).toSet().length} compétitions',
+                                      child: LectorTemporalFeed<MatchBoardItem>(
+                                        key: ValueKey(
+                                          'all-time-${widget.selectedDate}',
+                                        ),
+                                        items: visibleMatches,
+                                        phaseOf: _phase,
+                                        sectionBuilder:
+                                            (
+                                              context,
+                                              items,
+                                              phase,
+                                            ) => _AllMatchesCountrySection(
+                                              showHeading: false,
+
+                                              showReadings: widget
+                                                  .identityScope
+                                                  .isAccount,
+                                              title: listTitle,
+                                              emptySubtitle: listSubtitle,
+                                              groups: _competitionGroups(items),
+                                              onOpenMatch: widget.onOpenMatch,
+                                            ),
+                                      ),
                                     ),
                             ),
                           ),
@@ -1525,13 +1609,20 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
   }
 
   List<MatchBoardItem> _matchesForDate(List<MatchBoardItem> source) {
-    return source.where((match) {
-      final fixtureDay = lectorLocalCalendarDateForFixture(match.fixture);
-      if (fixtureDay == null) {
-        return _isSameCalendarDay(widget.selectedDate, _todayDate());
-      }
-      return _isSameCalendarDay(fixtureDay, widget.selectedDate);
-    }).toList();
+    return source
+        .where((match) {
+          final fixtureDay = lectorLocalCalendarDateForFixture(match.fixture);
+          if (fixtureDay == null) {
+            return _isSameCalendarDay(widget.selectedDate, _todayDate());
+          }
+          return _isSameCalendarDay(fixtureDay, widget.selectedDate);
+        })
+        .map(
+          (match) =>
+              _liveStates[match.fixture.apiFootballFixtureId]?.overlay(match) ??
+              match,
+        )
+        .toList();
   }
 
   List<MatchBoardItem> _forMeMatches() {
@@ -3789,9 +3880,11 @@ class _TodayCompetitionStoriesSection extends StatelessWidget {
     required this.totalMatchCount,
     required this.isExplorationActive,
     required this.onOpenMatch,
+    this.showHeading = true,
   });
 
   final DateTime selectedDate;
+  final bool showHeading;
   final List<_ScoresCompetitionGroup> groups;
   final int totalMatchCount;
   final bool isExplorationActive;
@@ -3803,40 +3896,41 @@ class _TodayCompetitionStoriesSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Icon(
-              Icons.my_location_rounded,
-              color: context.brand.accent,
-              size: 20,
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    isExplorationActive
-                        ? 'Résultats de votre exploration'
-                        : _todayStorySectionTitle(selectedDate),
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  Text(
-                    groups.isEmpty
-                        ? 'Aucune rencontre ne correspond à cette lecture.'
-                        : '$totalMatchCount rencontre${totalMatchCount > 1 ? 's' : ''} · ${groups.length} compétition${groups.length > 1 ? 's' : ''}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: context.textColors.secondary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+        if (showHeading)
+          Row(
+            children: [
+              Icon(
+                Icons.my_location_rounded,
+                color: context.brand.accent,
+                size: 20,
               ),
-            ),
-          ],
-        ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isExplorationActive
+                          ? 'Résultats de votre exploration'
+                          : _todayStorySectionTitle(selectedDate),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Text(
+                      groups.isEmpty
+                          ? 'Aucune rencontre ne correspond à cette lecture.'
+                          : '$totalMatchCount rencontre${totalMatchCount > 1 ? 's' : ''} · ${groups.length} compétition${groups.length > 1 ? 's' : ''}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: context.textColors.secondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         const SizedBox(height: 10),
         if (groups.isEmpty)
           const _ScoresEmptyPanel(
@@ -4059,6 +4153,7 @@ String _todayStorySectionTitle(DateTime date) {
 
 class _AllMatchesCountrySection extends StatelessWidget {
   const _AllMatchesCountrySection({
+    this.showHeading = true,
     required this.showReadings,
     required this.title,
     required this.emptySubtitle,
@@ -4066,6 +4161,7 @@ class _AllMatchesCountrySection extends StatelessWidget {
     required this.onOpenMatch,
   });
 
+  final bool showHeading;
   final String title;
   final String emptySubtitle;
   final List<_ScoresCompetitionGroup> groups;
@@ -4085,32 +4181,33 @@ class _AllMatchesCountrySection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Icon(
-              Icons.format_list_bulleted_rounded,
-              color: context.brand.accent,
-              size: 21,
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Text(
-                title,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+        if (showHeading)
+          Row(
+            children: [
+              Icon(
+                Icons.format_list_bulleted_rounded,
+                color: context.brand.accent,
+                size: 21,
               ),
-            ),
-            SizedBox(
-              height: _homeNavigationControlHeight,
-              child: OutlinedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.tune_rounded, size: 18),
-                label: const Text('Filtres'),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ),
-            ),
-          ],
-        ),
+              SizedBox(
+                height: _homeNavigationControlHeight,
+                child: OutlinedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.tune_rounded, size: 18),
+                  label: const Text('Filtres'),
+                ),
+              ),
+            ],
+          ),
         const SizedBox(height: 10),
         if (countryGroups.isEmpty)
           _ScoresEmptyPanel(title: 'Aucune rencontre', subtitle: emptySubtitle)
@@ -10246,4 +10343,31 @@ class _DashboardDivider extends StatelessWidget {
 
     return SizedBox(height: 72, child: VerticalDivider(color: color));
   }
+}
+
+class _FootballTemporalSelection extends StatelessWidget {
+  const _FootballTemporalSelection({
+    required this.title,
+    required this.child,
+    this.subtitle,
+  });
+  final String title;
+  final String? subtitle;
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        title,
+        style: Theme.of(
+          context,
+        ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+      ),
+      if (subtitle != null)
+        Text(subtitle!, style: TextStyle(color: context.textColors.secondary)),
+      const SizedBox(height: 12),
+      child,
+    ],
+  );
 }

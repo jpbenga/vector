@@ -117,12 +117,16 @@ Deno.test("live SQL: lease, public scores, immutable final evaluations, correcti
         "select match_live_publish($1,$2::jsonb,$3::jsonb,$4::int[],2,false)",
         [plan.token, JSON.stringify(states), JSON.stringify(results), checked],
       );
+    await db.exec(await Deno.readTextFile('supabase/migrations/20261004230000_premium_live_statistics.sql'));
     const now = new Date().toISOString();
-    await publish([liveState(fixture(1, "2H", 1, 2), now)]);
+    const stats = [{team: {id: 1}, statistics: [{type: 'Total Shots', value: 0}]}];
+    await publish([liveState({...fixture(1, "2H", 1, 2), statistics: stats}, now)]);
     await db.exec("set role anon");
     let rows = (await db.query<{ states: Record<string, unknown>[] }>(
       "select match_live_for_fixtures(array[1,2]) states",
     )).rows[0].states;
+    assert.deepEqual(rows.find((r) => r.fixture_id === 1)?.statistics, stats, 'anon reads exact current statistics');
+    assert.ok(rows.find((r) => r.fixture_id === 1)?.statistics_captured_at);
     assert.equal(rows.find((r) => r.fixture_id === 1)?.home_goals, 1);
     assert.equal(rows.find((r) => r.fixture_id === 1)?.away_goals, 2);
     assert.equal(
@@ -160,6 +164,8 @@ Deno.test("live SQL: lease, public scores, immutable final evaluations, correcti
       new Date(Date.now() + 1000).toISOString(),
     );
     await publish([liveState(final, String(result?.captured_at))], [result]);
+    assert.deepEqual((await db.query<{statistics: unknown}>('select statistics from match_live_states where fixture_id=1')).rows[0].statistics, stats,
+      'a score-only update does not erase statistics or invent new values');
     const verdicts = async () =>
       (await db.query<{ reading_id: string; verdict: string }>(
         "select reading_id,verdict from match_reading_bilan where fixture_id=1 order by reading_id",

@@ -22,6 +22,10 @@ export function fixture(id = 1, status = "2H", home = 1, away = 2) {
 }
 Deno.test("live collection groups leagues, reconciles missing finals, and never invents scores", async () => {
   const queries: string[] = [];
+  const statistics = [{
+    team: { id: 1 },
+    statistics: [{ type: "Total Shots", value: 0 }],
+  }];
   const result = await collectLiveMatches([140, 39, 140], [2, 3], {
     reserve: () => Promise.resolve(true),
     fetchFixtures: (q) => {
@@ -29,7 +33,7 @@ Deno.test("live collection groups leagues, reconciles missing finals, and never 
       return Promise.resolve({
         response: q.startsWith("live=")
           ? [fixture(1), { ...fixture(100), league: { id: 61 } }]
-          : [fixture(2, "FT")],
+          : [{ ...fixture(2, "FT"), statistics }],
       });
     },
   }, "2026-10-04T20:07:00Z");
@@ -38,6 +42,10 @@ Deno.test("live collection groups leagues, reconciles missing finals, and never 
   assert.deepEqual(result.checked, [2, 3]);
   assert.equal(result.results.length, 1);
   assert.equal(result.requests, 2);
+  assert.deepEqual(result.states[1].statistics, statistics);
+  assert.equal(result.states[1].statistics_captured_at, "2026-10-04T20:07:00Z");
+  assert.equal(result.states[0].statistics, null);
+  assert.equal(result.states[0].statistics_captured_at, null);
   assert.equal(
     liveState(
       { ...fixture(), goals: { home: null, away: null } },

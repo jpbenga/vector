@@ -1,8 +1,10 @@
+import '../../../../core/widgets/lector_live_badge.dart';
+import '../../../../core/domain/lector_temporal_state.dart';
+import '../../../../core/widgets/lector_match_card.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_components.dart';
 import '../../../../core/theme/app_radius.dart';
-import '../../../../core/theme/app_spacing.dart';
 import '../../../form_radar/data/player_form_radar_fixture.dart';
 import '../../../form_radar/domain/player_form_radar.dart';
 import '../../../form_radar/presentation/form_radar_signal_panel.dart';
@@ -114,119 +116,67 @@ class _MatchFeedCardContent extends StatelessWidget {
         ? context.opportunities.readingIdentityForId(readings.first.id).color
         : context.brand.accent;
 
-    return Material(
-      color: context.surfaces.surface.withValues(alpha: 0.72),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        side: BorderSide(color: context.surfaces.border),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 11, 12, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (showCompetitionHeader)
-                _StoryCompetitionHeader(
-                  match: match,
-                  readingCount: readingCount,
-                )
-              else
-                _StoryMatchTimeHeader(match: match, readingCount: readingCount),
-              if (liveState != null) LiveMatchStatus(state: liveState!),
-              const SizedBox(height: 9),
-              Divider(height: 1, color: context.surfaces.border),
-              const SizedBox(height: 10),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final compact = constraints.maxWidth < 680;
-                  final insights = _StoryInsights(
-                    scenarios: scenarios,
-                    readings: readings,
-                    fallbackSummary: showReadings
-                        ? _storySummary(analyzedMatch)
-                        : '',
-                  );
-                  final action = IconButton.outlined(
-                    onPressed: onTap,
-                    tooltip: 'Voir l’analyse',
-                    icon: Icon(Icons.chevron_right_rounded, color: actionColor),
-                    style: IconButton.styleFrom(
-                      side: BorderSide(color: context.surfaces.border),
-                      backgroundColor: context.surfaces.surfaceHover.withValues(
-                        alpha: 0.4,
-                      ),
-                    ),
-                  );
-
-                  if (compact) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(child: _StoryTeams(match: match)),
-                            const SizedBox(width: 8),
-                            action,
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        insights,
-                      ],
-                    );
-                  }
-
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      SizedBox(width: 260, child: _StoryTeams(match: match)),
-                      Container(
-                        width: 1,
-                        height: 84,
-                        margin: const EdgeInsets.symmetric(horizontal: 14),
-                        color: context.surfaces.border,
-                      ),
-                      Expanded(child: insights),
-                      const SizedBox(width: 10),
-                      action,
-                    ],
-                  );
-                },
-              ),
-              if (liveState != null && showReadings)
-                LiveReadingSummary(
-                  state: liveState!,
-                  hasReadings: readings.isNotEmpty,
-                  entries: liveState!.visibleReadings(
-                    {
-                      ...readings.map((r) => r.id),
-                      ...analyzedMatch.signals
-                          .where(
-                            (s) => s.id.startsWith('standout_decisive_player'),
-                          )
-                          .map((_) => 'standout_decisive_player'),
-                    },
-                    scenarioIds: analyzedMatch.signals
-                        .where((s) => s.id.startsWith('scenario:'))
-                        .map((s) => s.id.substring(9))
-                        .toSet(),
-                  ),
-                ),
-              if (visibleRadarEntries.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Divider(height: 1, color: context.surfaces.border),
-                const SizedBox(height: 10),
-                FormRadarSignalPanel(
-                  entries: visibleRadarEntries,
-                  isLocalPreview: usesLocalRadarPreview,
-                ),
-              ],
-            ],
+    return LectorMatchCard(
+      onTap: onTap,
+      temporal:
+          liveState?.temporal ??
+          LectorTemporalState(
+            phase: match.fixture.status == FixtureStatus.live
+                ? LectorMatchPhase.live
+                : match.fixture.status == FixtureStatus.finished
+                ? LectorMatchPhase.finished
+                : LectorMatchPhase.upcoming,
           ),
-        ),
+      actionLabel: match.fixture.status == FixtureStatus.live
+          ? 'Suivre le match'
+          : 'Voir l’analyse',
+      actionColor: actionColor,
+      header: showCompetitionHeader
+          ? _StoryCompetitionHeader(
+              match: match,
+              readingCount: readingCount,
+              liveState: liveState,
+            )
+          : _StoryMatchTimeHeader(
+              match: match,
+              readingCount: readingCount,
+              liveState: liveState,
+            ),
+      teams: _StoryTeams(match: match),
+      insights: _StoryInsights(
+        scenarios: scenarios,
+        readings: readings,
+        fallbackSummary: showReadings ? _storySummary(analyzedMatch) : '',
       ),
+      liveStatus: liveState?.isLive == true
+          ? null
+          : liveState == null
+          ? null
+          : LiveMatchStatus(state: liveState!),
+      liveSummary: liveState == null || !showReadings
+          ? null
+          : LiveReadingSummary(
+              state: liveState!,
+              hasReadings: readings.isNotEmpty,
+              entries: liveState!.visibleReadings(
+                {
+                  ...readings.map((r) => r.id),
+                  ...analyzedMatch.signals
+                      .where((s) => s.id.startsWith('standout_decisive_player'))
+                      .map((_) => 'standout_decisive_player'),
+                },
+                scenarioIds: analyzedMatch.signals
+                    .where((s) => s.id.startsWith('scenario:'))
+                    .map((s) => s.id.substring(9))
+                    .toSet(),
+              ),
+            ),
+      contextPanel: visibleRadarEntries.isEmpty
+          ? null
+          : FormRadarSignalPanel(
+              entries: visibleRadarEntries,
+              isLocalPreview: usesLocalRadarPreview,
+            ),
     );
   }
 }
@@ -248,10 +198,12 @@ class _StoryCompetitionHeader extends StatelessWidget {
   const _StoryCompetitionHeader({
     required this.match,
     required this.readingCount,
+    this.liveState,
   });
 
   final MatchBoardItem match;
   final int readingCount;
+  final LiveMatchState? liveState;
 
   @override
   Widget build(BuildContext context) {
@@ -283,13 +235,19 @@ class _StoryCompetitionHeader extends StatelessWidget {
         fontWeight: FontWeight.w900,
       ),
     );
-    final kickoff = Text(
-      matchFixtureTime(match.fixture),
-      style: theme.textTheme.labelMedium?.copyWith(
-        color: context.textColors.secondary,
-        fontWeight: FontWeight.w700,
-      ),
-    );
+    final kickoff = match.fixture.status == FixtureStatus.live
+        ? LectorLiveBadge(
+            state:
+                liveState?.temporal ??
+                const LectorTemporalState(phase: LectorMatchPhase.live),
+          )
+        : Text(
+            matchFixtureTime(match.fixture),
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: context.textColors.secondary,
+              fontWeight: FontWeight.w700,
+            ),
+          );
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < 480) {
@@ -355,27 +313,34 @@ class _StoryMatchTimeHeader extends StatelessWidget {
   const _StoryMatchTimeHeader({
     required this.match,
     required this.readingCount,
+    this.liveState,
   });
 
   final MatchBoardItem match;
   final int readingCount;
+  final LiveMatchState? liveState;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(Icons.schedule_rounded, size: 17, color: context.brand.accent),
-        const SizedBox(width: 6),
-        Text(
-          matchFixtureTime(match.fixture),
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: context.textColors.primary,
-            fontWeight: FontWeight.w900,
+    if (match.fixture.status == FixtureStatus.live) {
+      return Row(
+        children: [
+          LectorLiveBadge(
+            state:
+                liveState?.temporal ??
+                const LectorTemporalState(phase: LectorMatchPhase.live),
           ),
-        ),
-        const Spacer(),
-        if (readingCount > 0) _StoryRelevanceLabel(readingCount: readingCount),
-      ],
+          const Spacer(),
+          if (readingCount > 0)
+            _StoryRelevanceLabel(readingCount: readingCount),
+        ],
+      );
+    }
+    return LectorMatchTimeHeader(
+      timeLabel: matchFixtureTime(match.fixture),
+      trailing: readingCount > 0
+          ? _StoryRelevanceLabel(readingCount: readingCount)
+          : null,
     );
   }
 }
@@ -665,30 +630,20 @@ class _StoryTeams extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final resultOdds = matchResultOddsFor(match);
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _StoryTeamLine(
-                team: match.homeTeam,
-                score: match.fixture.score?.home,
-              ),
-              const SizedBox(height: 10),
-              _StoryTeamLine(
-                team: match.awayTeam,
-                score: match.fixture.score?.away,
-              ),
-            ],
-          ),
-        ),
-        if (match.fixture.status == FixtureStatus.scheduled &&
-            resultOdds.length == 3) ...[
-          const SizedBox(width: 10),
-          _StoryMatchResultOdds(matchId: match.id, resultOdds: resultOdds),
-        ],
-      ],
+    return LectorMatchTeams(
+      first: _StoryTeamLine(
+        team: match.homeTeam,
+        score: match.fixture.score?.home,
+      ),
+      second: _StoryTeamLine(
+        team: match.awayTeam,
+        score: match.fixture.score?.away,
+      ),
+      odds:
+          match.fixture.status == FixtureStatus.scheduled &&
+              resultOdds.length == 3
+          ? _StoryMatchResultOdds(matchId: match.id, resultOdds: resultOdds)
+          : null,
     );
   }
 }
@@ -701,37 +656,7 @@ class _StoryTeamLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SportsAssetBadge(
-          size: 28,
-          imageUrl: team.logoUrl,
-          fallbackLabel: team.name,
-          borderRadius: AppRadius.chip,
-          padding: 1,
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        Expanded(
-          child: Text(
-            team.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(
-              context,
-            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
-          ),
-        ),
-        if (score != null) ...[
-          const SizedBox(width: 8),
-          Text(
-            '$score',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
-          ),
-        ],
-      ],
-    );
+    return LectorTeamLine(name: team.name, logoUrl: team.logoUrl, score: score);
   }
 }
 
