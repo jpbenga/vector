@@ -1,3 +1,4 @@
+import 'package:copilot/features/form_radar/domain/player_form_radar.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -10,6 +11,47 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('ApiFootballMatchAdapter', () {
+    test(
+      'France Belgium public snapshot exposes current players once, without July form',
+      () {
+        final snapshot =
+            jsonDecode(
+                  File(
+                    'test/fixtures/france_belgium_radar_snapshot.json',
+                  ).readAsStringSync(),
+                )
+                as Map<String, Object?>;
+        final match = const ApiFootballMatchAdapter()
+            .fromSnapshot(snapshot)
+            .single;
+        final ranked = PlayerFormRadarRanker.rank(
+          match.analysis.playerFormRadarProfiles,
+        );
+        expect(ranked, hasLength(5));
+        expect(
+          ranked.where((entry) => entry.profile.playerId == 19617),
+          hasLength(1),
+        );
+        expect(
+          ranked.map((entry) => entry.profile.playerName),
+          containsAll([
+            'M. Olise',
+            'R. Cherki',
+            'K. De Bruyne',
+            'C. De Ketelaere',
+            'D. Lukebakio',
+          ]),
+        );
+        expect(ranked.every((entry) => entry.profile.leagueId == 5), isTrue);
+        expect(
+          ranked.every(
+            (entry) => entry.profile.activity.last.playedAt.month == 10,
+          ),
+          isTrue,
+        );
+      },
+    );
+
     test('maps fixture and odds snapshots to normalized match board items', () {
       final snapshot = _loadSnapshot();
 

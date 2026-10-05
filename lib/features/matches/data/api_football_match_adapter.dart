@@ -1,3 +1,4 @@
+import '../../form_radar/domain/player_form_radar.dart';
 import '../domain/match_board_item.dart';
 import '../domain/odds_normalization.dart';
 import '../../onboarding/domain/decision_profile_catalogs.dart';
@@ -146,8 +147,21 @@ class ApiFootballMatchAdapter {
     final playerStatisticsByLeagueTeamId = _playerStatisticsByLeagueTeamId(
       _list(raw['player_statistics']),
     );
-    final playerFormRadarProfiles = _playerFormRadarProfiles(
-      _list(raw['player_form_radar']),
+    final latestTeamMatchDates = <int, DateTime>{};
+    for (final entry in recentMatchesByLeagueTeamId.entries) {
+      final teamId = int.tryParse(entry.key.split(':').last);
+      if (teamId == null) continue;
+      for (final match in entry.value) {
+        final date = match.playedAt;
+        final previous = latestTeamMatchDates[teamId];
+        if (date != null && (previous == null || date.isAfter(previous))) {
+          latestTeamMatchDates[teamId] = date;
+        }
+      }
+    }
+    final playerFormRadarProfiles = PlayerFormRadarRanker.latestProfiles(
+      _playerFormRadarProfiles(_list(raw['player_form_radar'])),
+      latestTeamMatchDates: latestTeamMatchDates,
     );
     final injuriesByFixtureId = _injuriesByFixtureId(_list(raw['injuries']));
     final performanceStatisticsByLeagueTeamId =

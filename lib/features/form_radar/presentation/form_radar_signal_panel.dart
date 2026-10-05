@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_components.dart';
-import '../../../core/theme/app_radius.dart';
+import '../../../core/widgets/lector_form_radar_signal_panel.dart';
 import '../../matches/domain/match_board_item.dart';
 import '../../matches/presentation/widgets/sports_asset_badge.dart';
 import '../domain/player_form_radar.dart';
@@ -22,79 +22,23 @@ class FormRadarSignalPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (entries.isEmpty) return const SizedBox.shrink();
-    final matrixColumns = entries.fold<int>(
+    final uniqueEntries = PlayerFormRadarRanker.rank(
+      entries.map((entry) => entry.profile),
+    );
+    if (uniqueEntries.isEmpty) return const SizedBox.shrink();
+    final matrixColumns = uniqueEntries.fold<int>(
       PlayerFormRadarRanker.recentWindow,
       (current, entry) => entry.profile.activity.length > current
           ? entry.profile.activity.length
           : current,
     );
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.surfaces.background.withValues(alpha: .45),
-        border: Border.all(color: context.surfaces.border),
-        borderRadius: BorderRadius.circular(AppRadius.control),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(9),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.bar_chart_rounded,
-                  color: context.brand.accent,
-                  size: 19,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    'Signaux Form Radar',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: context.textColors.primary,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                Flexible(
-                  child: Text(
-                    '${entries.length} signal${entries.length > 1 ? 's' : ''} de forme',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: context.textColors.secondary,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                if (isLocalPreview) ...[
-                  const SizedBox(width: 6),
-                  Text(
-                    'aperçu local',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: context.brand.accent,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 7),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FormRadarPeriodLabel(columnCount: matrixColumns),
-            ),
-            const SizedBox(height: 4),
-            for (final indexed in entries.indexed) ...[
-              if (indexed.$1 > 0)
-                Divider(height: 12, color: context.surfaces.border),
-              _FormRadarSignalRow(
-                entry: indexed.$2,
-                matrixColumns: matrixColumns,
-              ),
-            ],
-          ],
-        ),
-      ),
+    return LectorFormRadarSignalPanel(
+      isLocalPreview: isLocalPreview,
+      periodLabel: FormRadarPeriodLabel(columnCount: matrixColumns),
+      rows: [
+        for (final entry in uniqueEntries)
+          _FormRadarSignalRow(entry: entry, matrixColumns: matrixColumns),
+      ],
     );
   }
 }

@@ -1,0 +1,2262 @@
+{
+  "captured_at": "2026-10-05T05:49:12.166Z",
+  "raw": {
+    "fixtures": [
+      {
+        "goals": {
+          "away": null,
+          "home": null
+        },
+        "score": {
+          "penalty": {
+            "away": null,
+            "home": null
+          },
+          "fulltime": {
+            "away": null,
+            "home": null
+          },
+          "halftime": {
+            "away": null,
+            "home": null
+          },
+          "extratime": {
+            "away": null,
+            "home": null
+          }
+        },
+        "teams": {
+          "away": {
+            "id": 1,
+            "logo": "https://media.api-sports.io/football/teams/1.png",
+            "name": "Belgium",
+            "winner": null
+          },
+          "home": {
+            "id": 2,
+            "logo": "https://media.api-sports.io/football/teams/2.png",
+            "name": "France",
+            "winner": null
+          }
+        },
+        "league": {
+          "id": 5,
+          "flag": null,
+          "logo": "https://media.api-sports.io/football/leagues/5.png",
+          "name": "UEFA Nations League",
+          "round": "League A - 4",
+          "season": 2026,
+          "country": "World",
+          "standings": true
+        },
+        "fixture": {
+          "id": 1528944,
+          "date": "2026-10-05T20:45:00+02:00",
+          "venue": {
+            "id": 0,
+            "city": "Paris",
+            "name": "Stade de France"
+          },
+          "status": {
+            "long": "Not Started",
+            "extra": null,
+            "short": "NS",
+            "elapsed": null
+          },
+          "periods": {
+            "first": null,
+            "second": null
+          },
+          "referee": "Nick Walsh",
+          "timezone": "Europe/Paris",
+          "timestamp": 1791225900
+        }
+      }
+    ],
+    "player_form_radar": [
+      {
+        "team": {
+          "id": 2,
+          "logo": "https://media.api-sports.io/football/teams/2.png",
+          "name": "France"
+        },
+        "player": {
+          "id": 156477,
+          "name": "R. Cherki",
+          "photo": "https://media.api-sports.io/football/players/156477.png"
+        },
+        "league": {
+          "id": 5
+        },
+        "activity": [
+          {
+            "fixture_id": 1539017,
+            "played_at": "2026-06-22T23:00:00+02:00",
+            "appeared": true,
+            "starter": false,
+            "substitute": true,
+            "minutes": 22,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489416,
+            "played_at": "2026-06-26T21:00:00+02:00",
+            "appeared": true,
+            "starter": false,
+            "substitute": true,
+            "minutes": 25,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1565177,
+            "played_at": "2026-06-30T23:00:00+02:00",
+            "appeared": true,
+            "starter": false,
+            "substitute": true,
+            "minutes": 9,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1569870,
+            "played_at": "2026-07-04T23:00:00+02:00",
+            "appeared": true,
+            "starter": false,
+            "substitute": true,
+            "minutes": 17,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1578539,
+            "played_at": "2026-07-09T22:00:00+02:00",
+            "appeared": false,
+            "starter": false,
+            "substitute": false,
+            "minutes": 0,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1585131,
+            "played_at": "2026-07-14T21:00:00+02:00",
+            "appeared": true,
+            "starter": false,
+            "substitute": true,
+            "minutes": 18,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1591865,
+            "played_at": "2026-07-18T23:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 45,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1528882,
+            "played_at": "2026-09-25T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 78,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1528904,
+            "played_at": "2026-09-28T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 13,
+            "goals": 0,
+            "assists": 1
+          },
+          {
+            "fixture_id": 1528924,
+            "played_at": "2026-10-02T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 76,
+            "goals": 0,
+            "assists": 1
+          }
+        ]
+      },
+      {
+        "team": {
+          "id": 2,
+          "logo": "https://media.api-sports.io/football/teams/2.png",
+          "name": "France"
+        },
+        "player": {
+          "id": 19617,
+          "name": "M. Olise",
+          "photo": "https://media.api-sports.io/football/players/19617.png"
+        },
+        "league": {
+          "id": 5
+        },
+        "activity": [
+          {
+            "fixture_id": 1539017,
+            "played_at": "2026-06-22T23:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 68,
+            "goals": 0,
+            "assists": 2
+          },
+          {
+            "fixture_id": 1489416,
+            "played_at": "2026-06-26T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 65,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1565177,
+            "played_at": "2026-06-30T23:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 85,
+            "goals": 0,
+            "assists": 2
+          },
+          {
+            "fixture_id": 1569870,
+            "played_at": "2026-07-04T23:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1578539,
+            "played_at": "2026-07-09T22:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1585131,
+            "played_at": "2026-07-14T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 72,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1591865,
+            "played_at": "2026-07-18T23:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 0,
+            "assists": 2
+          },
+          {
+            "fixture_id": 1528882,
+            "played_at": "2026-09-25T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 78,
+            "goals": 0,
+            "assists": 1
+          },
+          {
+            "fixture_id": 1528904,
+            "played_at": "2026-09-28T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 13,
+            "goals": 1,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1528924,
+            "played_at": "2026-10-02T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 1,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "team": {
+          "id": 2,
+          "logo": "https://media.api-sports.io/football/teams/2.png",
+          "name": "France"
+        },
+        "player": {
+          "id": 278,
+          "name": "Kylian Mbappé",
+          "photo": "https://media.api-sports.io/football/players/278.png"
+        },
+        "league": {
+          "id": 5
+        },
+        "activity": [
+          {
+            "fixture_id": 1539017,
+            "played_at": "2026-06-22T23:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 89,
+            "goals": 2,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489416,
+            "played_at": "2026-06-26T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 87,
+            "goals": 0,
+            "assists": 2
+          },
+          {
+            "fixture_id": 1565177,
+            "played_at": "2026-06-30T23:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 85,
+            "goals": 2,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1569870,
+            "played_at": "2026-07-04T23:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 1,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1578539,
+            "played_at": "2026-07-09T22:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 77,
+            "goals": 1,
+            "assists": 1
+          },
+          {
+            "fixture_id": 1585131,
+            "played_at": "2026-07-14T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1591865,
+            "played_at": "2026-07-18T23:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 2,
+            "assists": 1
+          },
+          {
+            "fixture_id": 1528882,
+            "played_at": "2026-09-25T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 59,
+            "goals": 1,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1528904,
+            "played_at": "2026-09-28T20:45:00+02:00",
+            "appeared": false,
+            "starter": false,
+            "substitute": false,
+            "minutes": 0,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1528924,
+            "played_at": "2026-10-02T20:45:00+02:00",
+            "appeared": false,
+            "starter": false,
+            "substitute": false,
+            "minutes": 0,
+            "goals": 0,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "team": {
+          "id": 1,
+          "logo": "https://media.api-sports.io/football/teams/1.png",
+          "name": "Belgium"
+        },
+        "player": {
+          "id": 629,
+          "name": "K. De Bruyne",
+          "photo": "https://media.api-sports.io/football/players/629.png"
+        },
+        "league": {
+          "id": 5
+        },
+        "activity": [
+          {
+            "fixture_id": 1489377,
+            "played_at": "2026-06-15T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 86,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489395,
+            "played_at": "2026-06-21T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 87,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489415,
+            "played_at": "2026-06-27T05:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 72,
+            "goals": 1,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1567308,
+            "played_at": "2026-07-01T22:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 56,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1570715,
+            "played_at": "2026-07-07T02:00:00+02:00",
+            "appeared": false,
+            "starter": false,
+            "substitute": false,
+            "minutes": 0,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1581821,
+            "played_at": "2026-07-10T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 86,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1528883,
+            "played_at": "2026-09-25T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 58,
+            "goals": 0,
+            "assists": 1
+          },
+          {
+            "fixture_id": 1528904,
+            "played_at": "2026-09-28T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 63,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1528925,
+            "played_at": "2026-10-02T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 82,
+            "goals": 2,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "team": {
+          "id": 1,
+          "logo": "https://media.api-sports.io/football/teams/1.png",
+          "name": "Belgium"
+        },
+        "player": {
+          "id": 147859,
+          "name": "C. De Ketelaere",
+          "photo": "https://media.api-sports.io/football/players/147859.png"
+        },
+        "league": {
+          "id": 5
+        },
+        "activity": [
+          {
+            "fixture_id": 1489377,
+            "played_at": "2026-06-15T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 66,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489395,
+            "played_at": "2026-06-21T21:00:00+02:00",
+            "appeared": false,
+            "starter": false,
+            "substitute": false,
+            "minutes": 0,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489415,
+            "played_at": "2026-06-27T05:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 85,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1567308,
+            "played_at": "2026-07-01T22:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 45,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1570715,
+            "played_at": "2026-07-07T02:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 67,
+            "goals": 2,
+            "assists": 1
+          },
+          {
+            "fixture_id": 1581821,
+            "played_at": "2026-07-10T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 1,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1528883,
+            "played_at": "2026-09-25T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 84,
+            "goals": 0,
+            "assists": 1
+          },
+          {
+            "fixture_id": 1528904,
+            "played_at": "2026-09-28T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 85,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1528925,
+            "played_at": "2026-10-02T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 82,
+            "goals": 0,
+            "assists": 1
+          }
+        ]
+      },
+      {
+        "team": {
+          "id": 1,
+          "logo": "https://media.api-sports.io/football/teams/1.png",
+          "name": "Belgium"
+        },
+        "player": {
+          "id": 25458,
+          "name": "D. Lukebakio",
+          "photo": "https://media.api-sports.io/football/players/25458.png"
+        },
+        "league": {
+          "id": 5
+        },
+        "activity": [
+          {
+            "fixture_id": 1489377,
+            "played_at": "2026-06-15T21:00:00+02:00",
+            "appeared": false,
+            "starter": false,
+            "substitute": false,
+            "minutes": 0,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489395,
+            "played_at": "2026-06-21T21:00:00+02:00",
+            "appeared": true,
+            "starter": false,
+            "substitute": true,
+            "minutes": 32,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489415,
+            "played_at": "2026-06-27T05:00:00+02:00",
+            "appeared": false,
+            "starter": false,
+            "substitute": false,
+            "minutes": 0,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1567308,
+            "played_at": "2026-07-01T22:00:00+02:00",
+            "appeared": true,
+            "starter": false,
+            "substitute": true,
+            "minutes": 64,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1570715,
+            "played_at": "2026-07-07T02:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 67,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1581821,
+            "played_at": "2026-07-10T21:00:00+02:00",
+            "appeared": false,
+            "starter": false,
+            "substitute": false,
+            "minutes": 0,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1528883,
+            "played_at": "2026-09-25T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 32,
+            "goals": 1,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1528904,
+            "played_at": "2026-09-28T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 27,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1528925,
+            "played_at": "2026-10-02T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 61,
+            "goals": 0,
+            "assists": 1
+          }
+        ]
+      },
+      {
+        "team": {
+          "id": 1,
+          "logo": "https://media.api-sports.io/football/teams/1.png",
+          "name": "Belgium"
+        },
+        "player": {
+          "id": 2926,
+          "name": "Y. Tielemans",
+          "photo": "https://media.api-sports.io/football/players/2926.png"
+        },
+        "league": {
+          "id": 5
+        },
+        "activity": [
+          {
+            "fixture_id": 1489377,
+            "played_at": "2026-06-15T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489395,
+            "played_at": "2026-06-21T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489415,
+            "played_at": "2026-06-27T05:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 85,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1567308,
+            "played_at": "2026-07-01T22:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 120,
+            "goals": 2,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1570715,
+            "played_at": "2026-07-07T02:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1581821,
+            "played_at": "2026-07-10T21:00:00+02:00",
+            "appeared": false,
+            "starter": false,
+            "substitute": false,
+            "minutes": 0,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1528883,
+            "played_at": "2026-09-25T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1528904,
+            "played_at": "2026-09-28T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1528925,
+            "played_at": "2026-10-02T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 0,
+            "assists": 1
+          }
+        ]
+      },
+      {
+        "team": {
+          "id": 1,
+          "logo": "https://media.api-sports.io/football/teams/1.png",
+          "name": "Belgium"
+        },
+        "player": {
+          "id": 907,
+          "name": "R. Lukaku",
+          "photo": "https://media.api-sports.io/football/players/907.png"
+        },
+        "league": {
+          "id": 5
+        },
+        "activity": [
+          {
+            "fixture_id": 1489377,
+            "played_at": "2026-06-15T21:00:00+02:00",
+            "appeared": true,
+            "starter": false,
+            "substitute": true,
+            "minutes": 24,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489395,
+            "played_at": "2026-06-21T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 73,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489415,
+            "played_at": "2026-06-27T05:00:00+02:00",
+            "appeared": true,
+            "starter": false,
+            "substitute": true,
+            "minutes": 11,
+            "goals": 1,
+            "assists": 1
+          },
+          {
+            "fixture_id": 1567308,
+            "played_at": "2026-07-01T22:00:00+02:00",
+            "appeared": true,
+            "starter": false,
+            "substitute": true,
+            "minutes": 75,
+            "goals": 1,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1570715,
+            "played_at": "2026-07-07T02:00:00+02:00",
+            "appeared": true,
+            "starter": false,
+            "substitute": true,
+            "minutes": 23,
+            "goals": 1,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1581821,
+            "played_at": "2026-07-10T21:00:00+02:00",
+            "appeared": true,
+            "starter": false,
+            "substitute": true,
+            "minutes": 30,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1528883,
+            "played_at": "2026-09-25T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 6,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1528904,
+            "played_at": "2026-09-28T20:45:00+02:00",
+            "appeared": false,
+            "starter": false,
+            "substitute": false,
+            "minutes": 0,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1528925,
+            "played_at": "2026-10-02T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 29,
+            "goals": 1,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "team": {
+          "id": 1,
+          "logo": "https://media.api-sports.io/football/teams/1.png",
+          "name": "Belgium"
+        },
+        "player": {
+          "id": 340153,
+          "name": "M. Godts",
+          "photo": "https://media.api-sports.io/football/players/340153.png"
+        },
+        "league": {
+          "id": 5
+        },
+        "activity": [
+          {
+            "fixture_id": 1489377,
+            "played_at": "2026-06-15T21:00:00+02:00",
+            "appeared": false,
+            "starter": false,
+            "substitute": false,
+            "minutes": 0,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489395,
+            "played_at": "2026-06-21T21:00:00+02:00",
+            "appeared": false,
+            "starter": false,
+            "substitute": false,
+            "minutes": 0,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489415,
+            "played_at": "2026-06-27T05:00:00+02:00",
+            "appeared": false,
+            "starter": false,
+            "substitute": false,
+            "minutes": 0,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1567308,
+            "played_at": "2026-07-01T22:00:00+02:00",
+            "appeared": false,
+            "starter": false,
+            "substitute": false,
+            "minutes": 0,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1570715,
+            "played_at": "2026-07-07T02:00:00+02:00",
+            "appeared": false,
+            "starter": false,
+            "substitute": false,
+            "minutes": 0,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1581821,
+            "played_at": "2026-07-10T21:00:00+02:00",
+            "appeared": false,
+            "starter": false,
+            "substitute": false,
+            "minutes": 0,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1528883,
+            "played_at": "2026-09-25T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 83,
+            "goals": 1,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1528904,
+            "played_at": "2026-09-28T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1528925,
+            "played_at": "2026-10-02T20:45:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 75,
+            "goals": 0,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "team": {
+          "id": 1,
+          "logo": "https://media.api-sports.io/football/teams/1.png",
+          "name": "Belgium"
+        },
+        "player": {
+          "id": 147859,
+          "name": "Charles De Ketelaere",
+          "photo": "https://media.api-sports.io/football/players/147859.png"
+        },
+        "league": {
+          "id": 1
+        },
+        "activity": [
+          {
+            "fixture_id": 1489377,
+            "played_at": "2026-06-15T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 66,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489395,
+            "played_at": "2026-06-21T21:00:00+02:00",
+            "appeared": false,
+            "starter": false,
+            "substitute": false,
+            "minutes": 0,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489415,
+            "played_at": "2026-06-27T05:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 85,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1567308,
+            "played_at": "2026-07-01T22:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 45,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1570715,
+            "played_at": "2026-07-07T02:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 67,
+            "goals": 2,
+            "assists": 1
+          },
+          {
+            "fixture_id": 1581821,
+            "played_at": "2026-07-10T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 1,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "team": {
+          "id": 1,
+          "logo": "https://media.api-sports.io/football/teams/1.png",
+          "name": "Belgium"
+        },
+        "player": {
+          "id": 1946,
+          "name": "Leandro Trossard",
+          "photo": "https://media.api-sports.io/football/players/1946.png"
+        },
+        "league": {
+          "id": 1
+        },
+        "activity": [
+          {
+            "fixture_id": 1489377,
+            "played_at": "2026-06-15T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489395,
+            "played_at": "2026-06-21T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489415,
+            "played_at": "2026-06-27T05:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 72,
+            "goals": 2,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1567308,
+            "played_at": "2026-07-01T22:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 109,
+            "goals": 0,
+            "assists": 1
+          },
+          {
+            "fixture_id": 1570715,
+            "played_at": "2026-07-07T02:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 89,
+            "goals": 0,
+            "assists": 1
+          },
+          {
+            "fixture_id": 1581821,
+            "played_at": "2026-07-10T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 60,
+            "goals": 0,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "team": {
+          "id": 1,
+          "logo": "https://media.api-sports.io/football/teams/1.png",
+          "name": "Belgium"
+        },
+        "player": {
+          "id": 78,
+          "name": "Hans Vanaken",
+          "photo": "https://media.api-sports.io/football/players/78.png"
+        },
+        "league": {
+          "id": 1
+        },
+        "activity": [
+          {
+            "fixture_id": 1489377,
+            "played_at": "2026-06-15T21:00:00+02:00",
+            "appeared": true,
+            "starter": false,
+            "substitute": true,
+            "minutes": 10,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489395,
+            "played_at": "2026-06-21T21:00:00+02:00",
+            "appeared": true,
+            "starter": false,
+            "substitute": true,
+            "minutes": 32,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489415,
+            "played_at": "2026-06-27T05:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 0,
+            "assists": 1
+          },
+          {
+            "fixture_id": 1567308,
+            "played_at": "2026-07-01T22:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 63,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1570715,
+            "played_at": "2026-07-07T02:00:00+02:00",
+            "appeared": true,
+            "starter": false,
+            "substitute": true,
+            "minutes": 69,
+            "goals": 1,
+            "assists": 1
+          },
+          {
+            "fixture_id": 1581821,
+            "played_at": "2026-07-10T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 60,
+            "goals": 0,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "team": {
+          "id": 1,
+          "logo": "https://media.api-sports.io/football/teams/1.png",
+          "name": "Belgium"
+        },
+        "player": {
+          "id": 907,
+          "name": "Romelu Lukaku",
+          "photo": "https://media.api-sports.io/football/players/907.png"
+        },
+        "league": {
+          "id": 1
+        },
+        "activity": [
+          {
+            "fixture_id": 1489377,
+            "played_at": "2026-06-15T21:00:00+02:00",
+            "appeared": true,
+            "starter": false,
+            "substitute": true,
+            "minutes": 24,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489395,
+            "played_at": "2026-06-21T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 73,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489415,
+            "played_at": "2026-06-27T05:00:00+02:00",
+            "appeared": true,
+            "starter": false,
+            "substitute": true,
+            "minutes": 11,
+            "goals": 1,
+            "assists": 1
+          },
+          {
+            "fixture_id": 1567308,
+            "played_at": "2026-07-01T22:00:00+02:00",
+            "appeared": true,
+            "starter": false,
+            "substitute": true,
+            "minutes": 75,
+            "goals": 1,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1570715,
+            "played_at": "2026-07-07T02:00:00+02:00",
+            "appeared": true,
+            "starter": false,
+            "substitute": true,
+            "minutes": 23,
+            "goals": 1,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1581821,
+            "played_at": "2026-07-10T21:00:00+02:00",
+            "appeared": true,
+            "starter": false,
+            "substitute": true,
+            "minutes": 30,
+            "goals": 0,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "team": {
+          "id": 1,
+          "logo": "https://media.api-sports.io/football/teams/1.png",
+          "name": "Belgium"
+        },
+        "player": {
+          "id": 2926,
+          "name": "Youri Tielemans",
+          "photo": "https://media.api-sports.io/football/players/2926.png"
+        },
+        "league": {
+          "id": 1
+        },
+        "activity": [
+          {
+            "fixture_id": 1489377,
+            "played_at": "2026-06-15T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489395,
+            "played_at": "2026-06-21T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489415,
+            "played_at": "2026-06-27T05:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 85,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1567308,
+            "played_at": "2026-07-01T22:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 120,
+            "goals": 2,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1570715,
+            "played_at": "2026-07-07T02:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1581821,
+            "played_at": "2026-07-10T21:00:00+02:00",
+            "appeared": false,
+            "starter": false,
+            "substitute": false,
+            "minutes": 0,
+            "goals": 0,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "team": {
+          "id": 2,
+          "logo": "https://media.api-sports.io/football/teams/2.png",
+          "name": "France"
+        },
+        "player": {
+          "id": 19617,
+          "name": "Michael Olise",
+          "photo": "https://media.api-sports.io/football/players/19617.png"
+        },
+        "league": {
+          "id": 1
+        },
+        "activity": [
+          {
+            "fixture_id": 1489383,
+            "played_at": "2026-06-16T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 0,
+            "assists": 1
+          },
+          {
+            "fixture_id": 1539017,
+            "played_at": "2026-06-22T23:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 68,
+            "goals": 0,
+            "assists": 2
+          },
+          {
+            "fixture_id": 1489416,
+            "played_at": "2026-06-26T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 65,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1565177,
+            "played_at": "2026-06-30T23:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 85,
+            "goals": 0,
+            "assists": 2
+          },
+          {
+            "fixture_id": 1569870,
+            "played_at": "2026-07-04T23:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1578539,
+            "played_at": "2026-07-09T22:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1585131,
+            "played_at": "2026-07-14T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 72,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1591865,
+            "played_at": "2026-07-18T23:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 0,
+            "assists": 2
+          }
+        ]
+      },
+      {
+        "team": {
+          "id": 2,
+          "logo": "https://media.api-sports.io/football/teams/2.png",
+          "name": "France"
+        },
+        "player": {
+          "id": 278,
+          "name": "Kylian Mbappé",
+          "photo": "https://media.api-sports.io/football/players/278.png"
+        },
+        "league": {
+          "id": 1
+        },
+        "activity": [
+          {
+            "fixture_id": 1489383,
+            "played_at": "2026-06-16T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 2,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1539017,
+            "played_at": "2026-06-22T23:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 89,
+            "goals": 2,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1489416,
+            "played_at": "2026-06-26T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 87,
+            "goals": 0,
+            "assists": 2
+          },
+          {
+            "fixture_id": 1565177,
+            "played_at": "2026-06-30T23:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 85,
+            "goals": 2,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1569870,
+            "played_at": "2026-07-04T23:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 1,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1578539,
+            "played_at": "2026-07-09T22:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 77,
+            "goals": 1,
+            "assists": 1
+          },
+          {
+            "fixture_id": 1585131,
+            "played_at": "2026-07-14T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1591865,
+            "played_at": "2026-07-18T23:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 2,
+            "assists": 1
+          }
+        ]
+      },
+      {
+        "team": {
+          "id": 2,
+          "logo": "https://media.api-sports.io/football/teams/2.png",
+          "name": "France"
+        },
+        "player": {
+          "id": 153,
+          "name": "Ousmane Dembélé",
+          "photo": "https://media.api-sports.io/football/players/153.png"
+        },
+        "league": {
+          "id": 1
+        },
+        "activity": [
+          {
+            "fixture_id": 1489383,
+            "played_at": "2026-06-16T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 80,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1539017,
+            "played_at": "2026-06-22T23:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 68,
+            "goals": 1,
+            "assists": 1
+          },
+          {
+            "fixture_id": 1489416,
+            "played_at": "2026-06-26T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 65,
+            "goals": 3,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1565177,
+            "played_at": "2026-06-30T23:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 75,
+            "goals": 0,
+            "assists": 1
+          },
+          {
+            "fixture_id": 1569870,
+            "played_at": "2026-07-04T23:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 84,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1578539,
+            "played_at": "2026-07-09T22:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 1,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1585131,
+            "played_at": "2026-07-14T21:00:00+02:00",
+            "appeared": true,
+            "starter": true,
+            "substitute": false,
+            "minutes": 90,
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "fixture_id": 1591865,
+            "played_at": "2026-07-18T23:00:00+02:00",
+            "appeared": true,
+            "starter": false,
+            "substitute": true,
+            "minutes": 45,
+            "goals": 1,
+            "assists": 0
+          }
+        ]
+      }
+    ],
+    "recent_league_matches": [
+      {
+        "team": {
+          "id": 2,
+          "name": "France"
+        },
+        "league": {
+          "id": 5
+        },
+        "matches": [
+          {
+            "goals": {
+              "for": 1,
+              "against": 1
+            },
+            "venue": "home",
+            "events": [
+              {
+                "minute": 55,
+                "team_id": 2,
+                "team_name": "France",
+                "player_name": "Michael Olise"
+              },
+              {
+                "minute": 68,
+                "team_id": 768,
+                "team_name": "Italy",
+                "player_name": "Alessandro Bastoni"
+              }
+            ],
+            "result": "D",
+            "fixture": {
+              "id": 1528924,
+              "date": "2026-10-02T20:45:00+02:00"
+            },
+            "opponent": {
+              "id": 768,
+              "logo": "https://media.api-sports.io/football/teams/768.png",
+              "name": "Italy"
+            },
+            "team_logo": "https://media.api-sports.io/football/teams/2.png",
+            "statistics": {
+              "shots_for": 18,
+              "shots_against": 14,
+              "possession_for": null,
+              "expected_goals_for": null,
+              "possession_against": null,
+              "shots_on_target_for": 8,
+              "expected_goals_against": null,
+              "shots_on_target_against": 2
+            },
+            "competition_name": null
+          },
+          {
+            "goals": {
+              "for": 1,
+              "against": 0
+            },
+            "venue": "away",
+            "events": [
+              {
+                "minute": 88,
+                "team_id": 2,
+                "team_name": "France",
+                "player_name": "Michael Olise"
+              }
+            ],
+            "result": "W",
+            "fixture": {
+              "id": 1528904,
+              "date": "2026-09-28T20:45:00+02:00"
+            },
+            "opponent": {
+              "id": 1,
+              "logo": "https://media.api-sports.io/football/teams/1.png",
+              "name": "Belgium"
+            },
+            "team_logo": "https://media.api-sports.io/football/teams/2.png",
+            "statistics": {
+              "shots_for": 18,
+              "shots_against": 12,
+              "possession_for": null,
+              "expected_goals_for": null,
+              "possession_against": null,
+              "shots_on_target_for": 7,
+              "expected_goals_against": null,
+              "shots_on_target_against": 2
+            },
+            "competition_name": null
+          },
+          {
+            "goals": {
+              "for": 1,
+              "against": 0
+            },
+            "venue": "away",
+            "events": [
+              {
+                "minute": 54,
+                "team_id": 2,
+                "team_name": "France",
+                "player_name": "Kylian Mbappé"
+              }
+            ],
+            "result": "W",
+            "fixture": {
+              "id": 1528882,
+              "date": "2026-09-25T20:45:00+02:00"
+            },
+            "opponent": {
+              "id": 777,
+              "logo": "https://media.api-sports.io/football/teams/777.png",
+              "name": "Türkiye"
+            },
+            "team_logo": "https://media.api-sports.io/football/teams/2.png",
+            "statistics": {
+              "shots_for": 12,
+              "shots_against": 12,
+              "possession_for": null,
+              "expected_goals_for": null,
+              "possession_against": null,
+              "shots_on_target_for": 4,
+              "expected_goals_against": null,
+              "shots_on_target_against": 3
+            },
+            "competition_name": null
+          },
+          {
+            "goals": {
+              "for": 4,
+              "against": 6
+            },
+            "venue": "home",
+            "events": [
+              {
+                "minute": 3,
+                "team_id": 10,
+                "team_name": "England",
+                "player_name": "D. Rice"
+              },
+              {
+                "minute": 18,
+                "team_id": 10,
+                "team_name": "England",
+                "player_name": "E. Konsa"
+              },
+              {
+                "minute": 37,
+                "team_id": 10,
+                "team_name": "England",
+                "player_name": "B. Saka"
+              },
+              {
+                "minute": 45,
+                "team_id": 10,
+                "team_name": "England",
+                "player_name": "B. Saka"
+              },
+              {
+                "minute": 48,
+                "team_id": 2,
+                "team_name": "France",
+                "player_name": "K. Mbappe"
+              },
+              {
+                "minute": 54,
+                "team_id": 2,
+                "team_name": "France",
+                "player_name": "B. Barcola"
+              },
+              {
+                "minute": 66,
+                "team_id": 2,
+                "team_name": "France",
+                "player_name": "K. Mbappe"
+              },
+              {
+                "minute": 87,
+                "team_id": 10,
+                "team_name": "England",
+                "player_name": "B. Saka"
+              },
+              {
+                "minute": 90,
+                "team_id": 2,
+                "team_name": "France",
+                "player_name": "O. Dembele"
+              },
+              {
+                "minute": 90,
+                "team_id": 10,
+                "team_name": "England",
+                "player_name": "J. Bellingham"
+              }
+            ],
+            "result": "L",
+            "fixture": {
+              "id": 1591865,
+              "date": "2026-07-18T23:00:00+02:00"
+            },
+            "opponent": {
+              "id": 10,
+              "logo": "https://media.api-sports.io/football/teams/10.png",
+              "name": "England"
+            },
+            "team_logo": "https://media.api-sports.io/football/teams/2.png",
+            "statistics": {
+              "shots_for": 19,
+              "shots_against": 19,
+              "possession_for": null,
+              "expected_goals_for": 2.87,
+              "possession_against": null,
+              "shots_on_target_for": 9,
+              "expected_goals_against": 2.58,
+              "shots_on_target_against": 11
+            },
+            "competition_name": null
+          },
+          {
+            "goals": {
+              "for": 0,
+              "against": 2
+            },
+            "venue": "home",
+            "events": [
+              {
+                "minute": 22,
+                "team_id": 9,
+                "team_name": "Spain",
+                "player_name": "M. Oyarzabal"
+              },
+              {
+                "minute": 58,
+                "team_id": 9,
+                "team_name": "Spain",
+                "player_name": "P. Porro"
+              }
+            ],
+            "result": "L",
+            "fixture": {
+              "id": 1585131,
+              "date": "2026-07-14T21:00:00+02:00"
+            },
+            "opponent": {
+              "id": 9,
+              "logo": "https://media.api-sports.io/football/teams/9.png",
+              "name": "Spain"
+            },
+            "team_logo": "https://media.api-sports.io/football/teams/2.png",
+            "statistics": {
+              "shots_for": 10,
+              "shots_against": 10,
+              "possession_for": null,
+              "expected_goals_for": 0.3,
+              "possession_against": null,
+              "shots_on_target_for": 3,
+              "expected_goals_against": 1.63,
+              "shots_on_target_against": 2
+            },
+            "competition_name": null
+          }
+        ]
+      },
+      {
+        "team": {
+          "id": 1,
+          "name": "Belgium"
+        },
+        "league": {
+          "id": 5
+        },
+        "matches": [
+          {
+            "goals": {
+              "for": 3,
+              "against": 0
+            },
+            "venue": "home",
+            "events": [
+              {
+                "minute": 10,
+                "team_id": 1,
+                "team_name": "Belgium",
+                "player_name": "Kevin De Bruyne"
+              },
+              {
+                "minute": 59,
+                "team_id": 1,
+                "team_name": "Belgium",
+                "player_name": "Kevin De Bruyne"
+              },
+              {
+                "minute": 76,
+                "team_id": 1,
+                "team_name": "Belgium",
+                "player_name": "Romelu Lukaku"
+              }
+            ],
+            "result": "W",
+            "fixture": {
+              "id": 1528925,
+              "date": "2026-10-02T20:45:00+02:00"
+            },
+            "opponent": {
+              "id": 777,
+              "logo": "https://media.api-sports.io/football/teams/777.png",
+              "name": "Türkiye"
+            },
+            "team_logo": "https://media.api-sports.io/football/teams/1.png",
+            "statistics": {
+              "shots_for": 17,
+              "shots_against": 23,
+              "possession_for": null,
+              "expected_goals_for": null,
+              "possession_against": null,
+              "shots_on_target_for": 10,
+              "expected_goals_against": null,
+              "shots_on_target_against": 8
+            },
+            "competition_name": null
+          },
+          {
+            "goals": {
+              "for": 0,
+              "against": 1
+            },
+            "venue": "home",
+            "events": [
+              {
+                "minute": 88,
+                "team_id": 2,
+                "team_name": "France",
+                "player_name": "Michael Olise"
+              }
+            ],
+            "result": "L",
+            "fixture": {
+              "id": 1528904,
+              "date": "2026-09-28T20:45:00+02:00"
+            },
+            "opponent": {
+              "id": 2,
+              "logo": "https://media.api-sports.io/football/teams/2.png",
+              "name": "France"
+            },
+            "team_logo": "https://media.api-sports.io/football/teams/1.png",
+            "statistics": {
+              "shots_for": 12,
+              "shots_against": 18,
+              "possession_for": null,
+              "expected_goals_for": null,
+              "possession_against": null,
+              "shots_on_target_for": 2,
+              "expected_goals_against": null,
+              "shots_on_target_against": 7
+            },
+            "competition_name": null
+          },
+          {
+            "goals": {
+              "for": 2,
+              "against": 0
+            },
+            "venue": "away",
+            "events": [
+              {
+                "minute": 20,
+                "team_id": 1,
+                "team_name": "Belgium",
+                "player_name": "Mika Godts"
+              },
+              {
+                "minute": 69,
+                "team_id": 1,
+                "team_name": "Belgium",
+                "player_name": "Dodi Lukebakio"
+              }
+            ],
+            "result": "W",
+            "fixture": {
+              "id": 1528883,
+              "date": "2026-09-25T20:45:00+02:00"
+            },
+            "opponent": {
+              "id": 768,
+              "logo": "https://media.api-sports.io/football/teams/768.png",
+              "name": "Italy"
+            },
+            "team_logo": "https://media.api-sports.io/football/teams/1.png",
+            "statistics": {
+              "shots_for": 19,
+              "shots_against": 21,
+              "possession_for": null,
+              "expected_goals_for": null,
+              "possession_against": null,
+              "shots_on_target_for": 8,
+              "expected_goals_against": null,
+              "shots_on_target_against": 6
+            },
+            "competition_name": null
+          },
+          {
+            "goals": {
+              "for": 1,
+              "against": 2
+            },
+            "venue": "away",
+            "events": [
+              {
+                "minute": 30,
+                "team_id": 9,
+                "team_name": "Spain",
+                "player_name": "F. Ruiz"
+              },
+              {
+                "minute": 41,
+                "team_id": 1,
+                "team_name": "Belgium",
+                "player_name": "C. De Ketelaere"
+              },
+              {
+                "minute": 88,
+                "team_id": 9,
+                "team_name": "Spain",
+                "player_name": "M. Merino"
+              }
+            ],
+            "result": "L",
+            "fixture": {
+              "id": 1581821,
+              "date": "2026-07-10T21:00:00+02:00"
+            },
+            "opponent": {
+              "id": 9,
+              "logo": "https://media.api-sports.io/football/teams/9.png",
+              "name": "Spain"
+            },
+            "team_logo": "https://media.api-sports.io/football/teams/1.png",
+            "statistics": {
+              "shots_for": 5,
+              "shots_against": 17,
+              "possession_for": null,
+              "expected_goals_for": 0.37,
+              "possession_against": null,
+              "shots_on_target_for": 2,
+              "expected_goals_against": 2.08,
+              "shots_on_target_against": 8
+            },
+            "competition_name": null
+          },
+          {
+            "goals": {
+              "for": 4,
+              "against": 1
+            },
+            "venue": "away",
+            "events": [
+              {
+                "minute": 9,
+                "team_id": 1,
+                "team_name": "Belgium",
+                "player_name": "C. De Ketelaere"
+              },
+              {
+                "minute": 31,
+                "team_id": 2384,
+                "team_name": "USA",
+                "player_name": "M. Tillman"
+              },
+              {
+                "minute": 33,
+                "team_id": 1,
+                "team_name": "Belgium",
+                "player_name": "C. De Ketelaere"
+              },
+              {
+                "minute": 57,
+                "team_id": 1,
+                "team_name": "Belgium",
+                "player_name": "H. Vanaken"
+              },
+              {
+                "minute": 90,
+                "team_id": 1,
+                "team_name": "Belgium",
+                "player_name": "R. Lukaku"
+              }
+            ],
+            "result": "W",
+            "fixture": {
+              "id": 1570715,
+              "date": "2026-07-07T02:00:00+02:00"
+            },
+            "opponent": {
+              "id": 2384,
+              "logo": "https://media.api-sports.io/football/teams/2384.png",
+              "name": "USA"
+            },
+            "team_logo": "https://media.api-sports.io/football/teams/1.png",
+            "statistics": {
+              "shots_for": 15,
+              "shots_against": 7,
+              "possession_for": null,
+              "expected_goals_for": 2.01,
+              "possession_against": null,
+              "shots_on_target_for": 7,
+              "expected_goals_against": 0.63,
+              "shots_on_target_against": 2
+            },
+            "competition_name": null
+          }
+        ]
+      }
+    ]
+  }
+}
