@@ -81,16 +81,16 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
       return LectorMatchDetailView(
         bottomNavigationBar: _buildTicketPanel(),
         overlay: _buildDeck(context),
-        openStats: live,
+        openStats: hasStats,
         stats: hasStats
             ? FootballLiveStats(match: widget.match, state: state)
             : null,
         hero: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            LectorMatchHero(match: current),
+            LectorMatchHero(match: current, state: state),
             if (state != null) ...[
-              LiveMatchStatus(state: state),
+              LiveMatchStatus(state: state, showBadge: false),
               LiveReadingSummary(
                 state: state,
                 entries: state.visibleReadings(

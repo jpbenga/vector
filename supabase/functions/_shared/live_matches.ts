@@ -39,6 +39,7 @@ export function liveState(
   const status = liveObject(fixture.status);
   const teams = liveObject(row.teams);
   const goals = liveObject(row.goals);
+  const half = liveObject(liveObject(row.score).halftime);
   const id = integer(fixture.id), leagueId = integer(league.id);
   const kickoff = typeof fixture.date === "string" ? fixture.date : "";
   if (
@@ -57,6 +58,8 @@ export function liveState(
     extra: integer(status.extra),
     home_goals: integer(goals.home),
     away_goals: integer(goals.away),
+    halftime_home_goals: integer(half.home),
+    halftime_away_goals: integer(half.away),
     home_team_name: liveObject(teams.home).name ?? "",
     away_team_name: liveObject(teams.away).name ?? "",
     captured_at: capturedAt,
@@ -65,6 +68,8 @@ export function liveState(
     statistics: Array.isArray(row.statistics) && row.statistics.length > 0
       ? row.statistics
       : null,
+    events: Array.isArray(row.events) ? row.events : null,
+    events_captured_at: Array.isArray(row.events) ? capturedAt : null,
     statistics_captured_at:
       Array.isArray(row.statistics) && row.statistics.length > 0
         ? capturedAt

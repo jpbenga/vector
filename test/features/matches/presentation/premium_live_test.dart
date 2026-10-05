@@ -166,10 +166,15 @@ void main() {
   testWidgets(
     'Stats binds team ids, preserves zero and never fills missing values with season averages',
     (tester) async {
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       final f = appearancePreviewMatch.fixture;
       final match = appearancePreviewMatch.copyWith(
         fixture: NormalizedFixture(
           id: f.id,
+          apiFootballFixtureId: 1,
           competition: f.competition,
           homeTeam: TeamInfo(
             id: 'home',
@@ -218,8 +223,8 @@ void main() {
           ),
         ),
       );
-      expect(find.text('0'), findsOneWidget);
-      expect(find.text('7'), findsOneWidget);
+      expect(find.text('0'), findsWidgets);
+      expect(find.text('7'), findsWidgets);
       expect(find.text('999'), findsNothing);
       expect(find.text('Possession'), findsNothing);
     },

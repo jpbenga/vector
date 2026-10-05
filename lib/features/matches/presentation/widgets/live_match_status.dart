@@ -10,8 +10,13 @@ import '../../domain/live_match_state.dart';
 import '../reading_bilan_section.dart';
 
 class LiveMatchStatus extends StatefulWidget {
-  const LiveMatchStatus({required this.state, super.key});
+  const LiveMatchStatus({
+    required this.state,
+    this.showBadge = true,
+    super.key,
+  });
   final LiveMatchState state;
+  final bool showBadge;
   @override
   State<LiveMatchStatus> createState() => _LiveMatchStatusState();
 }
@@ -44,9 +49,9 @@ class _LiveMatchStatusState extends State<LiveMatchStatus> {
         runSpacing: 4,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          if (state.isLive)
+          if (state.isLive && widget.showBadge)
             LectorLiveBadge(state: state.temporal)
-          else
+          else if (!state.isLive)
             Text(
               state.statusLabel,
               style: TextStyle(

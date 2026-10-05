@@ -1,3 +1,5 @@
+import '../../../../core/widgets/lector_live_badge.dart';
+import '../../domain/live_match_state.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -11,9 +13,10 @@ const _matchCardStadiumBackgroundAsset =
     'assets/backgrounds/match-card-stadium-premium.png';
 
 class LectorMatchHero extends StatelessWidget {
-  const LectorMatchHero({required this.match, super.key});
+  const LectorMatchHero({required this.match, this.state, super.key});
 
   final MatchBoardItem match;
+  final LiveMatchState? state;
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +86,7 @@ class LectorMatchHero extends StatelessWidget {
                 child: _HeroTeamBlock(team: match.homeTeam, alignRight: false),
               ),
               const SizedBox(width: 8),
-              _HeroStatusBlock(match: match),
+              _HeroStatusBlock(match: match, state: state),
               const SizedBox(width: 8),
               Expanded(
                 child: _HeroTeamBlock(team: match.awayTeam, alignRight: true),
@@ -145,6 +148,13 @@ class _HeroTeamBlock extends StatelessWidget {
         ),
         const SizedBox(height: 7),
         Text(
+          alignRight ? 'Extérieur' : 'Domicile',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: context.textColors.onImageMuted,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
           team.name,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
@@ -161,9 +171,10 @@ class _HeroTeamBlock extends StatelessWidget {
 }
 
 class _HeroStatusBlock extends StatelessWidget {
-  const _HeroStatusBlock({required this.match});
+  const _HeroStatusBlock({required this.match, this.state});
 
   final MatchBoardItem match;
+  final LiveMatchState? state;
 
   @override
   Widget build(BuildContext context) {
@@ -173,20 +184,25 @@ class _HeroStatusBlock extends StatelessWidget {
     final isFinished = match.fixture.status == FixtureStatus.finished;
 
     return SizedBox(
-      width: 94,
+      width: isLive ? 138 : 94,
       child: Column(
         children: [
-          Text(
-            isLive
-                ? 'EN COURS'
-                : isFinished
-                ? 'TERMINÉ'
-                : 'Avant-match',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: context.textColors.onImage,
-              fontWeight: FontWeight.w900,
+          if (isLive && state != null)
+            FittedBox(
+              child: LectorLiveBadge(state: state!.temporal, prominent: true),
+            )
+          else
+            Text(
+              isLive
+                  ? 'EN COURS'
+                  : isFinished
+                  ? 'TERMINÉ'
+                  : 'Avant-match',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: context.textColors.onImage,
+                fontWeight: FontWeight.w900,
+              ),
             ),
-          ),
           const SizedBox(height: 5),
           if (score != null)
             Text(
@@ -206,6 +222,16 @@ class _HeroStatusBlock extends StatelessWidget {
                 height: 1,
               ),
             ),
+          if (state?.halftimeLabel != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              state!.halftimeLabel!,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: context.textColors.onImageMuted,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
           if (!isLive && !isFinished) ...[
             const SizedBox(height: 6),
             DecoratedBox(

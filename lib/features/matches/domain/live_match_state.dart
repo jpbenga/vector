@@ -12,8 +12,13 @@ class LiveMatchState {
     this.extra,
     this.homeGoals,
     this.awayGoals,
+    this.halftimeHomeGoals,
+    this.halftimeAwayGoals,
     this.statistics = const [],
     this.statisticsCapturedAt,
+    this.statisticsIsFinal = false,
+    this.events = const [],
+    this.eventsCapturedAt,
     this.readings = const [],
   });
 
@@ -25,12 +30,19 @@ class LiveMatchState {
     extra: (json['extra'] as num?)?.toInt(),
     homeGoals: (json['home_goals'] as num?)?.toInt(),
     awayGoals: (json['away_goals'] as num?)?.toInt(),
+    halftimeHomeGoals: (json['halftime_home_goals'] as num?)?.toInt(),
+    halftimeAwayGoals: (json['halftime_away_goals'] as num?)?.toInt(),
     statistics: (json['statistics'] as List<dynamic>? ?? const [])
         .whereType<Map<String, dynamic>>()
         .toList(growable: false),
     statisticsCapturedAt: DateTime.tryParse(
       '${json['statistics_captured_at']}',
     ),
+    statisticsIsFinal: json['statistics_is_final'] == true,
+    events: (json['events'] as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .toList(growable: false),
+    eventsCapturedAt: DateTime.tryParse('${json['events_captured_at']}'),
     readings: (json['readings'] as List<dynamic>? ?? const [])
         .whereType<Map<String, dynamic>>()
         .map(MatchReadingBilanEntry.fromJson)
@@ -44,9 +56,28 @@ class LiveMatchState {
   final int? extra;
   final int? homeGoals;
   final int? awayGoals;
+  final int? halftimeHomeGoals, halftimeAwayGoals;
+  String? get halftimeLabel =>
+      halftimeHomeGoals == null ||
+          halftimeAwayGoals == null ||
+          !const {
+            'HT',
+            '2H',
+            'ET',
+            'BT',
+            'P',
+            'FT',
+            'AET',
+            'PEN',
+          }.contains(status)
+      ? null
+      : 'MT $halftimeHomeGoals–$halftimeAwayGoals';
   final List<MatchReadingBilanEntry> readings;
   final List<Map<String, dynamic>> statistics;
   final DateTime? statisticsCapturedAt;
+  final bool statisticsIsFinal;
+  final List<Map<String, dynamic>> events;
+  final DateTime? eventsCapturedAt;
   bool get isFinal => const {'FT', 'AET', 'PEN'}.contains(status);
   bool get isLive =>
       const {'1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE'}.contains(status);
