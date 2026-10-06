@@ -111,6 +111,16 @@ void main() {
     await tester.tap(find.text('Niveau, forme et lieu'));
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.text('Dynamique positive'),
+      100,
+      scrollable: find
+          .descendant(
+            of: find.byType(ListView).last,
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
     await tester.tap(find.text('Dynamique positive'));
     await tester.pumpAndSettle();
 

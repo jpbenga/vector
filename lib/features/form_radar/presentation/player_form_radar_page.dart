@@ -1,6 +1,10 @@
 import '../../../core/widgets/lector_live_badge.dart';
 import '../../matches/presentation/widgets/live_fixture_builder.dart';
+import '../../../core/widgets/lector_player_radar.dart';
+import '../../../core/widgets/lector_radar.dart';
+import '../../../core/widgets/lector_competition_browser.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/identity/identity_scope.dart';
 import '../../../core/theme/app_colors.dart';
@@ -8,7 +12,6 @@ import '../../../core/theme/app_components.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../matches/domain/match_board_item.dart';
-import '../../matches/presentation/widgets/sports_asset_badge.dart';
 import '../../matches/presentation/widgets/match_feed_card.dart';
 import 'form_radar_signal_panel.dart';
 import '../data/player_form_radar_fixture.dart';
@@ -543,76 +546,13 @@ class _RadarModeToggle extends StatelessWidget {
   final ValueChanged<_RadarContentMode> onChanged;
 
   @override
-  Widget build(BuildContext context) {
-    final accent = context.brand.accent;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.surfaces.backgroundSecondary,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: context.surfaces.border),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: InkWell(
-              onTap: () => onChanged(_RadarContentMode.players),
-              borderRadius: BorderRadius.circular(AppRadius.card - 1),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: selected == _RadarContentMode.players
-                      ? accent
-                      : AppColors.transparent,
-                  borderRadius: BorderRadius.circular(AppRadius.card - 1),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 11),
-                  child: Center(
-                    child: Text(
-                      'Joueurs',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: selected == _RadarContentMode.players
-                            ? context.brand.onAccent
-                            : context.textColors.secondary,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: InkWell(
-              onTap: () => onChanged(_RadarContentMode.teams),
-              borderRadius: BorderRadius.circular(AppRadius.card - 1),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: selected == _RadarContentMode.teams
-                      ? accent
-                      : AppColors.transparent,
-                  borderRadius: BorderRadius.circular(AppRadius.card - 1),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 11),
-                  child: Center(
-                    child: Text(
-                      'Équipes',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: selected == _RadarContentMode.teams
-                            ? context.brand.onAccent
-                            : context.textColors.secondary,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => LectorRadarModeToggle(
+    firstLabel: 'Joueurs',
+    secondLabel: 'Équipes',
+    secondSelected: selected == _RadarContentMode.teams,
+    onChanged: (second) =>
+        onChanged(second ? _RadarContentMode.teams : _RadarContentMode.players),
+  );
 }
 
 class _RadarScopeFilterControl extends StatelessWidget {
@@ -774,90 +714,60 @@ class _HotPlayersPanel extends StatelessWidget {
   final ValueChanged<MatchBoardItem> onOpenMatch;
 
   @override
-  Widget build(BuildContext context) {
-    final matrixColumns = entries.fold<int>(
-      PlayerFormRadarRanker.recentWindow,
-      (current, entry) => entry.profile.activity.length > current
-          ? entry.profile.activity.length
-          : current,
-    );
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.surfaces.backgroundSecondary,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: context.surfaces.border),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
-        child: entries.isEmpty
-            ? _RadarEmptyState(hasRadarData: hasRadarData)
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.local_fire_department_rounded,
-                        color: context.semantic.warning,
-                      ),
-                      const SizedBox(width: 7),
-                      Expanded(
-                        child: Text(
-                          'Joueurs les plus chauds',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
-                                color: context.textColors.primary,
-                                fontWeight: FontWeight.w900,
-                              ),
-                        ),
-                      ),
-                      Text(
-                        'Top $totalCount',
-                        style: Theme.of(context).textTheme.labelMedium
-                            ?.copyWith(
-                              color: context.textColors.secondary,
-                              fontWeight: FontWeight.w800,
-                            ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Expanded(child: _RadarLegend()),
-                      const SizedBox(width: 12),
-                      FormRadarPeriodLabel(columnCount: matrixColumns),
-                    ],
-                  ),
-                  Divider(height: 18, color: context.surfaces.border),
-                  for (final indexed in entries.indexed) ...[
-                    _PremiumRadarEntryCard(
-                      child: _HotPlayerRow(
-                        rank: page * _radarPageSize + indexed.$1 + 1,
-                        entry: indexed.$2,
-                        match: _matchForTeam(
-                          matches,
-                          indexed.$2.profile.teamId,
-                        ),
-                        onOpenMatch: onOpenMatch,
-                        matrixColumns: matrixColumns,
-                      ),
-                    ),
-                  ],
-                  if (totalCount > _radarPageSize)
-                    _RadarPagination(
-                      keyPrefix: 'player',
-                      itemCount: totalCount,
-                      page: page,
-                      pageSize: _radarPageSize,
-                      onPageChanged: onPageChanged,
-                    ),
-                ],
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final historyCount = entries.fold<int>(
+        PlayerFormRadarRanker.recentWindow,
+        (current, entry) => entry.profile.activity.length > current
+            ? entry.profile.activity.length
+            : current,
+      );
+      final matrixColumns = lectorPlayerMatrixColumns(
+        historyCount,
+        constraints.maxWidth - 24,
+      );
+      return LectorRadarRankingPanel(
+        title: 'Joueurs les plus chauds',
+        totalCount: totalCount,
+        icon: Icons.local_fire_department_rounded,
+        emptyState: _RadarEmptyState(hasRadarData: hasRadarData),
+        description: Column(
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Expanded(child: LectorPlayerRadarLegend()),
+                const SizedBox(width: 12),
+                FormRadarPeriodLabel(columnCount: matrixColumns),
+              ],
+            ),
+            Divider(height: 18, color: context.surfaces.border),
+          ],
+        ),
+        footer: totalCount > _radarPageSize
+            ? LectorRadarPagination(
+                keyPrefix: 'player',
+                itemCount: totalCount,
+                page: page,
+                pageSize: _radarPageSize,
+                onPageChanged: onPageChanged,
+              )
+            : null,
+        children: [
+          for (final indexed in entries.indexed)
+            LectorRadarEntryCard(
+              child: _HotPlayerRow(
+                rank: page * _radarPageSize + indexed.$1 + 1,
+                entry: indexed.$2,
+                match: _matchForTeam(matches, indexed.$2.profile.teamId),
+                onOpenMatch: onOpenMatch,
+                matrixColumns: matrixColumns,
               ),
-      ),
-    );
-  }
+            ),
+        ],
+      );
+    },
+  );
 }
 
 class _HotTeamsPanel extends StatelessWidget {
@@ -876,172 +786,44 @@ class _HotTeamsPanel extends StatelessWidget {
   final ValueChanged<int> onPageChanged;
 
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      color: context.surfaces.backgroundSecondary,
-      borderRadius: BorderRadius.circular(AppRadius.card),
-      border: Border.all(color: context.surfaces.border),
+  Widget build(BuildContext context) => LectorRadarRankingPanel(
+    title: 'Équipes les plus chaudes',
+    totalCount: totalCount,
+    description: const Padding(
+      padding: EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Points sur 5 matchs. À égalité : 6ᵉ match, puis 7ᵉ, etc.'),
+          SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: LectorTeamFormHistoryLegend(),
+          ),
+        ],
+      ),
     ),
-    child: Padding(
-      padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
-      child: entries.isEmpty
-          ? const _TeamRadarEmptyState()
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.groups_rounded, color: context.brand.accent),
-                    const SizedBox(width: 7),
-                    Expanded(
-                      child: Text(
-                        'Équipes les plus chaudes',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              color: context.textColors.primary,
-                              fontWeight: FontWeight.w900,
-                            ),
-                      ),
-                    ),
-                    Text(
-                      'Top $totalCount',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: context.textColors.secondary,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                for (final indexed in entries.indexed) ...[
-                  _PremiumRadarEntryCard(
-                    child: _HotTeamRow(
-                      rank: page * _radarPageSize + indexed.$1 + 1,
-                      entry: indexed.$2,
-                      match: _matchForTeam(matches, indexed.$2.profile.teamId),
-                    ),
-                  ),
-                ],
-                if (totalCount > _radarPageSize)
-                  _RadarPagination(
-                    keyPrefix: 'team',
-                    itemCount: totalCount,
-                    page: page,
-                    pageSize: _radarPageSize,
-                    onPageChanged: onPageChanged,
-                  ),
-              ],
-            ),
-    ),
+    emptyState: const _TeamRadarEmptyState(),
+    footer: totalCount > _radarPageSize
+        ? LectorRadarPagination(
+            keyPrefix: 'team',
+            itemCount: totalCount,
+            page: page,
+            pageSize: _radarPageSize,
+            onPageChanged: onPageChanged,
+          )
+        : null,
+    children: [
+      for (final indexed in entries.indexed)
+        LectorRadarEntryCard(
+          child: _HotTeamRow(
+            rank: page * _radarPageSize + indexed.$1 + 1,
+            entry: indexed.$2,
+            match: _matchForTeam(matches, indexed.$2.profile.teamId),
+          ),
+        ),
+    ],
   );
-}
-
-class _PremiumRadarEntryCard extends StatelessWidget {
-  const _PremiumRadarEntryCard({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(AppRadius.control);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Material(
-        color: context.surfaces.surface,
-        elevation: 2,
-        shadowColor: context.surfaces.shadow.withValues(alpha: .16),
-        borderRadius: radius,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            border: Border.all(
-              color: context.surfaces.border.withValues(alpha: .8),
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 9),
-            child: child,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RadarPagination extends StatelessWidget {
-  const _RadarPagination({
-    required this.keyPrefix,
-    required this.itemCount,
-    required this.page,
-    required this.pageSize,
-    required this.onPageChanged,
-  });
-
-  final String keyPrefix;
-  final int itemCount;
-  final int page;
-  final int pageSize;
-  final ValueChanged<int> onPageChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final pageCount = _lastPage(itemCount, pageSize) + 1;
-    final first = itemCount == 0 ? 0 : page * pageSize + 1;
-    final last = ((page + 1) * pageSize).clamp(0, itemCount);
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: context.surfaces.backgroundSecondary,
-          borderRadius: BorderRadius.circular(AppRadius.control),
-          border: Border.all(color: context.surfaces.border),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          child: Row(
-            children: [
-              IconButton(
-                key: ValueKey('$keyPrefix-previous'),
-                tooltip: 'Page précédente',
-                onPressed: page > 0 ? () => onPageChanged(page - 1) : null,
-                icon: const Icon(Icons.chevron_left_rounded),
-              ),
-              Expanded(
-                child: Column(
-                  children: [
-                    Text(
-                      '$first–$last sur $itemCount',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: context.textColors.primary,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    Text(
-                      'Page ${page + 1} sur $pageCount',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: context.textColors.secondary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                key: ValueKey('$keyPrefix-next'),
-                tooltip: 'Page suivante',
-                onPressed: page + 1 < pageCount
-                    ? () => onPageChanged(page + 1)
-                    : null,
-                icon: const Icon(Icons.chevron_right_rounded),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 int _lastPage(int itemCount, int pageSize) =>
@@ -1066,7 +848,7 @@ class _TeamRadarEmptyState extends StatelessWidget {
       ),
       const SizedBox(height: 5),
       Text(
-        'Le Radar équipe attend au moins trois matchs de championnat terminés.',
+        'Le Radar équipe attend au moins cinq matchs de championnat terminés.',
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
           color: context.textColors.secondary,
           height: 1.3,
@@ -1085,121 +867,41 @@ class _HotTeamRow extends StatelessWidget {
   final MatchBoardItem? match;
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      SizedBox(
-        width: 22,
-        child: Text(
-          '$rank',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            color: context.textColors.primary,
-            fontWeight: FontWeight.w900,
+  Widget build(BuildContext context) => LiveFixtureBuilder(
+    fixtureId: match?.fixture.apiFootballFixtureId,
+    builder: (context, state) => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (state?.isLive == true)
+          Align(
+            alignment: Alignment.centerRight,
+            child: LectorLiveBadge(state: state!.temporal),
           ),
-        ),
-      ),
-      SportsAssetBadge(
-        size: 34,
-        imageUrl: entry.profile.logoUrl,
-        fallbackLabel: entry.profile.teamName,
-        borderRadius: 17,
-        contrastPlate: true,
-      ),
-      const SizedBox(width: 8),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              entry.profile.teamName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: context.textColors.primary,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            Text(
-              entry.profile.leagueName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: context.textColors.secondary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-      _TeamFormStrip(
-        matches: entry.profile.activity,
-        onMatchTap: (index) => showTeamFormRadarMatchDetail(
-          context,
-          profile: entry.profile,
-          initialIndex: index,
-        ),
-      ),
-      const SizedBox(width: 8),
-      SizedBox(
-        width: 44,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              '${entry.points}/15',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: context.textColors.primary,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            Text(
-              'série ${entry.unbeatenStreak}',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: context.semantic.success,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      ),
-    ],
-  );
-}
-
-class _TeamFormStrip extends StatelessWidget {
-  const _TeamFormStrip({required this.matches, this.onMatchTap});
-  final List<TeamRecentMatchSnapshot> matches;
-  final ValueChanged<int>? onMatchTap;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      for (final indexed in matches.take(5).indexed) ...[
-        InkWell(
-          onTap: onMatchTap == null ? null : () => onMatchTap!(indexed.$1),
-          borderRadius: BorderRadius.circular(3),
-          child: Container(
-            width: 13,
-            height: 13,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: _colorForResult(context, indexed.$2.result),
-              borderRadius: BorderRadius.circular(3),
-            ),
-          ),
-        ),
-        if (indexed.$1 != matches.take(5).length - 1) const SizedBox(width: 3),
+        _buildRow(context),
       ],
-    ],
+    ),
   );
-
-  Color _colorForResult(BuildContext context, String result) =>
-      switch (result.toUpperCase()) {
-        'W' || 'V' => context.semantic.success,
-        'D' || 'N' => context.textColors.secondary.withValues(alpha: .27),
-        _ => context.semantic.error,
-      };
+  Widget _buildRow(BuildContext context) => LectorRadarTeamRow(
+    rank: rank,
+    name: entry.profile.teamName,
+    logoUrl: entry.profile.logoUrl,
+    competitionName: entry.profile.leagueName,
+    metric: '${entry.points}/15',
+    streakLabel: entry.streakLabel,
+    activity: LectorFormResultStrip(
+      historyColumns: 5,
+      results: entry.profile.activity.map((m) => m.result).toList(),
+      tooltips: [
+        for (final m in entry.profile.activity)
+          '${m.playedAt == null ? '' : DateFormat('dd/MM').format(m.playedAt!.toLocal())} · ${m.venue == RecentMatchVenue.home ? 'Dom.' : 'Ext.'} · ${m.opponentName}${m.goalsFor == null || m.goalsAgainst == null ? '' : ' · ${m.goalsFor}–${m.goalsAgainst}'}',
+      ],
+      onMatchTap: (index) => showTeamFormRadarMatchDetail(
+        context,
+        profile: entry.profile,
+        initialIndex: index,
+      ),
+    ),
+  );
 }
 
 class _RadarEmptyState extends StatelessWidget {
@@ -1228,43 +930,6 @@ class _RadarEmptyState extends StatelessWidget {
           color: context.textColors.secondary,
           height: 1.3,
           fontWeight: FontWeight.w600,
-        ),
-      ),
-    ],
-  );
-}
-
-class _RadarLegend extends StatelessWidget {
-  const _RadarLegend();
-  @override
-  Widget build(BuildContext context) => Wrap(
-    spacing: 10,
-    runSpacing: 7,
-    children: [
-      _LegendItem(marker: _RadarCell.empty(context), label: 'Absent'),
-      _LegendItem(marker: _RadarCell.started(context), label: 'Titulaire'),
-      _LegendItem(marker: _RadarCell.substitute(context), label: 'Entrée'),
-      _LegendItem(marker: _RadarCell.decisive(context, 1), label: '1 action'),
-      _LegendItem(marker: _RadarCell.decisive(context, 2), label: '2+ actions'),
-    ],
-  );
-}
-
-class _LegendItem extends StatelessWidget {
-  const _LegendItem({required this.marker, required this.label});
-  final Widget marker;
-  final String label;
-  @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      SizedBox(width: 16, child: Center(child: marker)),
-      const SizedBox(width: 4),
-      Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: context.textColors.secondary,
-          fontWeight: FontWeight.w800,
         ),
       ),
     ],
@@ -1308,296 +973,27 @@ class _HotPlayerRow extends StatelessWidget {
     final teamLogoUrl =
         entry.profile.teamLogoUrl ??
         _teamLogoForMatch(match, entry.profile.teamId);
-    return Semantics(
-      button: match != null,
-      label: '${entry.profile.playerName}, $recentLine',
-      child: InkWell(
-        onTap: match == null ? null : () => onOpenMatch(match!),
-        borderRadius: BorderRadius.circular(AppRadius.control),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 7),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              SizedBox(
-                width: 22,
-                child: Text(
-                  '$rank',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: context.textColors.primary,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              SportsAssetBadge(
-                size: 38,
-                imageUrl: entry.profile.photoUrl,
-                fallbackLabel: entry.profile.playerName,
-                borderRadius: 19,
-                backgroundColor: AppColors.transparent,
-                contrastPlate: true,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      entry.profile.playerName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: context.textColors.primary,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 1),
-                    Row(
-                      children: [
-                        SportsAssetBadge(
-                          size: 15,
-                          imageUrl: teamLogoUrl,
-                          fallbackLabel: entry.profile.teamName,
-                          borderRadius: 4,
-                          contrastPlate: true,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            entry.profile.teamName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(
-                                  color: context.textColors.secondary,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      recentLine,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: context.semantic.success,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    Text(
-                      stats,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: context.textColors.secondary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              _PlayerActivityMatrix(
-                activity: entry.profile.activity,
-                columnCount: matrixColumns,
-                onMatchTap: (activity) => showPlayerFormRadarMatchDetail(
-                  context,
-                  profile: entry.profile,
-                  activity: entry.profile.activity,
-                  initialFixtureId: activity.fixtureId,
-                ),
-              ),
-            ],
-          ),
+    return LectorRadarPlayerRow(
+      rank: rank,
+      name: entry.profile.playerName,
+      teamName: entry.profile.teamName,
+      photoUrl: entry.profile.photoUrl,
+      teamLogoUrl: teamLogoUrl,
+      recentLine: recentLine,
+      stats: stats,
+      onTap: match == null ? null : () => onOpenMatch(match!),
+      activity: LectorPlayerActivityMatrix(
+        activity: entry.profile.activity.map(footballPlayerActivity).toList(),
+        columnCount: matrixColumns,
+        onMatchTap: (index) => showPlayerFormRadarMatchDetail(
+          context,
+          profile: entry.profile,
+          activity: entry.profile.activity,
+          initialFixtureId: entry.profile.activity[index].fixtureId,
         ),
       ),
     );
   }
-}
-
-class _PlayerActivityMatrix extends StatelessWidget {
-  const _PlayerActivityMatrix({
-    required this.activity,
-    required this.columnCount,
-    this.onMatchTap,
-  });
-  final List<PlayerFormRadarMatchSnapshot> activity;
-  final int columnCount;
-  final ValueChanged<PlayerFormRadarMatchSnapshot>? onMatchTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final historyColumns = _historyColumns(columnCount);
-    final allPrior = activity.length <= PlayerFormRadarRanker.recentWindow
-        ? const <PlayerFormRadarMatchSnapshot>[]
-        : activity.sublist(
-            0,
-            activity.length - PlayerFormRadarRanker.recentWindow,
-          );
-    final prior = allPrior.length <= historyColumns
-        ? allPrior
-        : allPrior.sublist(allPrior.length - historyColumns);
-    final recent = activity.length < PlayerFormRadarRanker.recentWindow
-        ? activity
-        : activity.sublist(
-            activity.length - PlayerFormRadarRanker.recentWindow,
-          );
-    return SizedBox(
-      width: _matrixWidth(columnCount),
-      child: Row(
-        children: [
-          if (historyColumns > 0) ...[
-            SizedBox(
-              width: _cellsWidth(historyColumns),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: _RadarCellStrip(matches: prior, onMatchTap: onMatchTap),
-              ),
-            ),
-            _MatrixDivider(color: context.brand.accent),
-          ],
-          SizedBox(
-            width: _cellsWidth(PlayerFormRadarRanker.recentWindow),
-            child: _RadarCellStrip(matches: recent, onMatchTap: onMatchTap),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RadarCellStrip extends StatelessWidget {
-  const _RadarCellStrip({required this.matches, this.onMatchTap});
-  final List<PlayerFormRadarMatchSnapshot> matches;
-  final ValueChanged<PlayerFormRadarMatchSnapshot>? onMatchTap;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      for (final indexed in matches.indexed) ...[
-        Semantics(
-          button: onMatchTap != null,
-          label: 'Match du ${_radarDateLabel(indexed.$2.playedAt)}',
-          child: InkWell(
-            onTap: onMatchTap == null ? null : () => onMatchTap!(indexed.$2),
-            borderRadius: BorderRadius.circular(3),
-            child: _RadarCell.forMatch(context, indexed.$2),
-          ),
-        ),
-        if (indexed.$1 != matches.length - 1)
-          const SizedBox(width: _radarCellSpacing),
-      ],
-    ],
-  );
-}
-
-class _MatrixDivider extends StatelessWidget {
-  const _MatrixDivider({required this.color});
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.symmetric(horizontal: _radarDividerGap),
-    width: 2,
-    height: 19,
-    color: color,
-  );
-}
-
-const double _radarCellSize = 14;
-const double _radarCellSpacing = 3;
-const double _radarDividerGap = 5;
-
-int _historyColumns(int columnCount) =>
-    (columnCount - PlayerFormRadarRanker.recentWindow).clamp(0, 99);
-
-double _cellsWidth(int count) =>
-    count == 0 ? 0 : count * _radarCellSize + (count - 1) * _radarCellSpacing;
-
-double _matrixWidth(int columnCount) => formRadarMatrixWidth(columnCount);
-
-String? _teamLogoForMatch(MatchBoardItem? match, int teamId) {
-  if (match == null) return null;
-  if (match.homeTeam.apiFootballTeamId == teamId) return match.homeTeam.logoUrl;
-  if (match.awayTeam.apiFootballTeamId == teamId) return match.awayTeam.logoUrl;
-  return null;
-}
-
-class _RadarCell extends StatelessWidget {
-  const _RadarCell._({required this.child});
-  final Widget child;
-
-  factory _RadarCell.forMatch(
-    BuildContext context,
-    PlayerFormRadarMatchSnapshot match,
-  ) {
-    if (!match.appeared) return _RadarCell.empty(context);
-    if (match.isDecisive) {
-      return _RadarCell.decisive(
-        context,
-        match.contributions,
-        substitute: match.substitute,
-      );
-    }
-    return match.substitute
-        ? _RadarCell.substitute(context)
-        : _RadarCell.started(context);
-  }
-  factory _RadarCell.empty(BuildContext context) => _RadarCell._(
-    child: Container(
-      width: _radarCellSize,
-      height: _radarCellSize,
-      decoration: BoxDecoration(
-        border: Border.all(color: context.surfaces.border),
-        borderRadius: BorderRadius.circular(3),
-      ),
-    ),
-  );
-  factory _RadarCell.started(BuildContext context) => _RadarCell._(
-    child: Container(
-      width: _radarCellSize,
-      height: _radarCellSize,
-      decoration: BoxDecoration(
-        color: context.textColors.secondary.withValues(alpha: .27),
-        borderRadius: BorderRadius.circular(3),
-      ),
-    ),
-  );
-  factory _RadarCell.substitute(BuildContext context) => _RadarCell._(
-    child: Align(
-      alignment: Alignment.bottomCenter,
-      child: Container(
-        width: _radarCellSize,
-        height: 6,
-        decoration: BoxDecoration(
-          color: context.semantic.warning,
-          borderRadius: BorderRadius.circular(2),
-        ),
-      ),
-    ),
-  );
-  factory _RadarCell.decisive(
-    BuildContext context,
-    int contributions, {
-    bool substitute = false,
-  }) => _RadarCell._(
-    child: Container(
-      width: _radarCellSize,
-      height: _radarCellSize,
-      decoration: BoxDecoration(
-        color: context.semantic.success.withValues(
-          alpha: contributions > 1 ? 1 : .58,
-        ),
-        borderRadius: BorderRadius.circular(3),
-      ),
-      alignment: Alignment.bottomCenter,
-      child: substitute
-          ? Container(height: 3, color: context.semantic.warning)
-          : null,
-    ),
-  );
-
-  @override
-  Widget build(BuildContext context) => child;
 }
 
 class _TeamRadarMatchesSection extends StatelessWidget {
@@ -1736,37 +1132,13 @@ class _RadarCompetitionHeader extends StatelessWidget {
   const _RadarCompetitionHeader({required this.matches});
   final List<MatchBoardItem> matches;
   @override
-  Widget build(BuildContext context) {
-    final competition = matches.first.competition;
-    return Row(
-      children: [
-        SportsAssetBadge(
-          size: 30,
-          imageUrl: competition.country.flagUrl ?? competition.logoUrl,
-          fallbackLabel: competition.country.name,
-          borderRadius: 5,
-          contrastPlate: true,
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            competition.name,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: context.textColors.primary,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-        Text(
-          '${matches.length} match${matches.length > 1 ? 's' : ''}',
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: context.textColors.secondary,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => LectorCompetitionHeader(
+    name: matches.first.competition.name,
+    count: matches.length,
+    flagUrl: matches.first.competition.country.flagUrl,
+    logoUrl: matches.first.competition.logoUrl,
+    country: matches.first.competition.country.name,
+  );
 }
 
 List<PlayerFormRadarProfile> _profilesForMatches(List<MatchBoardItem> matches) {
@@ -1935,11 +1307,7 @@ TeamFormRadarProfile _teamFixtureProfile({
   required int leagueId,
   required String leagueName,
 }) {
-  final source = profile.activity.length <= TeamFormRadarRanker.window
-      ? profile.activity
-      : profile.activity.sublist(
-          profile.activity.length - TeamFormRadarRanker.window,
-        );
+  final source = profile.activity;
   return TeamFormRadarProfile(
     teamId: teamId,
     teamName: teamName,
@@ -2039,3 +1407,10 @@ List<PlayerFormRadarEntry> _entriesForMatch(
           entry.profile.teamId == match.awayTeam.apiFootballTeamId,
     )
     .toList(growable: false);
+
+String? _teamLogoForMatch(MatchBoardItem? match, int teamId) {
+  if (match == null) return null;
+  if (match.homeTeam.apiFootballTeamId == teamId) return match.homeTeam.logoUrl;
+  if (match.awayTeam.apiFootballTeamId == teamId) return match.awayTeam.logoUrl;
+  return null;
+}

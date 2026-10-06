@@ -1461,6 +1461,7 @@ class ApiFootballMatchAdapter {
     return HeadToHeadFixtureSnapshot(
       competitionId: competitionId,
       competitionName: competitionName,
+      competitionType: _stringValue(league['type']),
       playedAt: playedAt,
       homeTeamId: homeTeamId,
       homeTeamName: homeTeamName,

@@ -76,3 +76,24 @@ Deno.test("selects only eligible historical fixture ids for timeline enrichment"
     throw new Error(`Unexpected timeline fixtures: ${ids.join(", ")}`);
   }
 });
+
+Deno.test("league and cup samples are independent instead of cups starving the league view", () => {
+  const values = [
+    ...Array.from(
+      { length: 3 },
+      (_, i) => meeting({ id: i + 1, date: `2025-01-0${i + 1}T19:00:00Z` }),
+    ),
+    ...Array.from(
+      { length: 7 },
+      (_, i) => ({
+        ...meeting({ id: i + 10, date: `2026-09-${i + 10}T19:00:00Z` }),
+        league: { id: 99, name: "National Cup", type: "Cup" },
+      }),
+    ),
+  ];
+  const selected = eligibleHeadToHeadMeetings(values, reference);
+  if (
+    selected.length !== 9 ||
+    selected.filter((r) => (r.league as { id: number }).id === 99).length !== 6
+  ) throw new Error("Official scopes were mixed or starved");
+});

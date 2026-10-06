@@ -1,3 +1,4 @@
+import { SnapshotCacheBatch } from "../_shared/snapshot_cache_batch.ts";
 import {
   fixtureBodyForDate,
   footballCalendarDays,
@@ -366,6 +367,32 @@ async function collectSnapshotSources({
   serviceRoleKey: string;
   options: SnapshotOptions;
 }): Promise<SourceBuild> {
+  const batch = new SnapshotCacheBatch<CachedRawResponse>((
+    endpoint,
+    filters,
+    field,
+    ids,
+  ) =>
+    cachedResponsesFor({
+      supabaseUrl,
+      serviceRoleKey,
+      endpoint,
+      filters,
+      anyFilter: { field, ids },
+    })
+  );
+  const sourceResponsesFor = (
+    request: Parameters<typeof cachedResponsesFor>[0],
+  ) => {
+    const rows = batch.read(
+      request.endpoint,
+      request.filters,
+      request.exactQuery,
+    );
+    return rows === undefined
+      ? cachedResponsesFor(request)
+      : Promise.resolve(validCachedRows(rows, request.endpoint));
+  };
   const sourceRowsByKey = new Map<string, CachedRawResponse>();
   const rawFixtures: JsonObject[] = [];
   const rawLeagueFixtures: JsonObject[] = [];
@@ -393,7 +420,7 @@ async function collectSnapshotSources({
   };
 
   for (const leagueId of options.leagueIds) {
-    const leagueRows = await cachedResponsesFor({
+    const leagueRows = await sourceResponsesFor({
       supabaseUrl,
       serviceRoleKey,
       endpoint: "/leagues",
@@ -408,7 +435,7 @@ async function collectSnapshotSources({
       leagueRows,
     );
 
-    const standingsRows = await cachedResponsesFor({
+    const standingsRows = await sourceResponsesFor({
       supabaseUrl,
       serviceRoleKey,
       endpoint: "/standings",
@@ -420,7 +447,7 @@ async function collectSnapshotSources({
     addSourceRows(standingsRows);
     rawStandings.push(...flatResponseItems(standingsRows));
 
-    const leagueFixtureRows = await cachedResponsesFor({
+    const leagueFixtureRows = await sourceResponsesFor({
       supabaseUrl,
       serviceRoleKey,
       endpoint: "/fixtures",
@@ -437,7 +464,7 @@ async function collectSnapshotSources({
     const collectedOddsDates = new Set<string>();
     for (const date of dateWindow(options.windowStart, options.windowEnd)) {
       const fixtureRows = usesDatedFixtureSource(date, options.windowStart)
-        ? await cachedResponsesFor({
+        ? await sourceResponsesFor({
           supabaseUrl,
           serviceRoleKey,
           endpoint: "/fixtures",
@@ -476,7 +503,7 @@ async function collectSnapshotSources({
         if (options.bookmakerId !== null) {
           oddsFilters.bookmaker = String(options.bookmakerId);
         }
-        const oddsRows = await cachedResponsesFor({
+        const oddsRows = await sourceResponsesFor({
           supabaseUrl,
           serviceRoleKey,
           endpoint: "/odds",
@@ -502,7 +529,7 @@ async function collectSnapshotSources({
     )
   );
   if (continentalFixtures.length > 0) {
-    const cachedStandingRows = await cachedResponsesFor({
+    const cachedStandingRows = await sourceResponsesFor({
       supabaseUrl,
       serviceRoleKey,
       endpoint: "/standings",
@@ -524,7 +551,7 @@ async function collectSnapshotSources({
       const fixtureDate = stringValue(context.fixture_date);
       if (teamId === null || leagueId === null || season === null) continue;
 
-      const leagueFixtureRows = await cachedResponsesFor({
+      const leagueFixtureRows = await sourceResponsesFor({
         supabaseUrl,
         serviceRoleKey,
         endpoint: "/fixtures",
@@ -538,7 +565,7 @@ async function collectSnapshotSources({
       addSourceRows(leagueFixtureRows);
       rawLeagueFixtures.push(...flatResponseItems(leagueFixtureRows));
 
-      const statisticsRows = await cachedResponsesFor({
+      const statisticsRows = await sourceResponsesFor({
         supabaseUrl,
         serviceRoleKey,
         endpoint: "/teams/statistics",
@@ -551,7 +578,7 @@ async function collectSnapshotSources({
       addSourceRows(statisticsRows);
       rawTeamStatistics.push(...flatResponseItems(statisticsRows));
 
-      const playerRows = await cachedResponsesFor({
+      const playerRows = await sourceResponsesFor({
         supabaseUrl,
         serviceRoleKey,
         endpoint: "/players",
@@ -565,7 +592,7 @@ async function collectSnapshotSources({
       rawPlayerStatistics.push(...flatResponseItems(playerRows));
 
       if (fixtureDate !== null) {
-        const recentRows = await cachedResponsesFor({
+        const recentRows = await sourceResponsesFor({
           supabaseUrl,
           serviceRoleKey,
           endpoint: "/fixtures",
@@ -601,8 +628,28 @@ async function collectSnapshotSources({
     [...rawFixtures, ...scopedLeagueFixtures],
     options,
   );
+  const teamGroups = new Map<
+    string,
+    { leagueId: number; season: number; ids: string[] }
+  >();
   for (const request of teamRequests) {
-    const rows = await cachedResponsesFor({
+    const key = `${request.leagueId}:${request.season}`;
+    const group = teamGroups.get(key) ?? { ...request, ids: [] };
+    group.ids.push(String(request.teamId));
+    teamGroups.set(key, group);
+  }
+  for (const group of teamGroups.values()) {
+    for (const endpoint of ["/players", "/teams/statistics"]) {
+      await batch.prefetch(
+        endpoint,
+        { league: String(group.leagueId), season: String(group.season) },
+        "team",
+        group.ids,
+      );
+    }
+  }
+  for (const request of teamRequests) {
+    const rows = await sourceResponsesFor({
       supabaseUrl,
       serviceRoleKey,
       endpoint: "/players",
@@ -616,7 +663,7 @@ async function collectSnapshotSources({
     rawPlayerStatistics.push(...flatResponseItems(rows));
   }
   for (const request of teamRequests) {
-    const rows = await cachedResponsesFor({
+    const rows = await sourceResponsesFor({
       supabaseUrl,
       serviceRoleKey,
       endpoint: "/teams/statistics",
@@ -632,7 +679,7 @@ async function collectSnapshotSources({
 
   const recentRequests = recentFixtureRequests(rawFixtures, options);
   for (const request of recentRequests) {
-    const rows = await cachedResponsesFor({
+    const rows = await sourceResponsesFor({
       supabaseUrl,
       serviceRoleKey,
       endpoint: "/fixtures",
@@ -670,7 +717,7 @@ async function collectSnapshotSources({
   // Head-to-head data is collected once per fixture pair by the sync worker.
   // The snapshot builder only consumes that cache: it never calls the provider.
   for (const request of headToHeadRequests(rawFixtures)) {
-    const rows = await cachedResponsesFor({
+    const rows = await sourceResponsesFor({
       supabaseUrl,
       serviceRoleKey,
       endpoint: "/fixtures/headtohead",
@@ -727,8 +774,22 @@ async function collectSnapshotSources({
     ...recentFixtureIds,
     ...headToHeadFixtureIds,
   ]);
+  const allPlayerFixtureIds = playerActivityFixtureIds({
+    historicalFixtures: rawLeagueFixtures,
+    upcomingFixtures: rawFixtures,
+  });
+  const detailIds = [...detailedFixtureIds].map(String);
+  for (const endpoint of ["/fixtures/statistics", "/fixtures/events"]) {
+    await batch.prefetch(endpoint, {}, "fixture", detailIds);
+  }
+  await batch.prefetch(
+    "/fixtures/players",
+    {},
+    "fixture",
+    [...new Set([...recentFixtureIds, ...allPlayerFixtureIds])].map(String),
+  );
   for (const fixtureId of detailedFixtureIds) {
-    const rows = await cachedResponsesFor({
+    const rows = await sourceResponsesFor({
       supabaseUrl,
       serviceRoleKey,
       endpoint: "/fixtures/statistics",
@@ -743,7 +804,7 @@ async function collectSnapshotSources({
         statistics: flatResponseItems([row]),
       });
     }
-    const eventRows = await cachedResponsesFor({
+    const eventRows = await sourceResponsesFor({
       supabaseUrl,
       serviceRoleKey,
       endpoint: "/fixtures/events",
@@ -757,7 +818,7 @@ async function collectSnapshotSources({
       });
     }
     if (recentFixtureIds.includes(fixtureId)) {
-      const playerRows = await cachedResponsesFor({
+      const playerRows = await sourceResponsesFor({
         supabaseUrl,
         serviceRoleKey,
         endpoint: "/fixtures/players",
@@ -785,7 +846,7 @@ async function collectSnapshotSources({
   );
   for (const fixtureId of playerFixtureIds) {
     if (existingPlayerFixtureIds.has(fixtureId)) continue;
-    const rows = await cachedResponsesFor({
+    const rows = await sourceResponsesFor({
       supabaseUrl,
       serviceRoleKey,
       endpoint: "/fixtures/players",
@@ -817,7 +878,7 @@ async function collectSnapshotSources({
       .filter((id): id is number => id !== null),
   );
   for (const fixtureId of upcomingFixtureIds) {
-    const rows = await cachedResponsesFor({
+    const rows = await sourceResponsesFor({
       supabaseUrl,
       serviceRoleKey,
       endpoint: "/injuries",
@@ -883,7 +944,7 @@ async function collectSnapshotSources({
   );
   for (const fixtureId of activityFixtureIds) {
     if (knownActivitySheets.has(fixtureId)) continue;
-    const rows = await cachedResponsesFor({
+    const rows = await sourceResponsesFor({
       supabaseUrl,
       serviceRoleKey,
       endpoint: "/fixtures/players",
@@ -1033,6 +1094,7 @@ async function cachedResponsesFor({
   filters,
   exactQuery = false,
   paginatedOdds = false,
+  anyFilter,
 }: {
   supabaseUrl: string;
   serviceRoleKey: string;
@@ -1040,6 +1102,7 @@ async function cachedResponsesFor({
   filters: Record<string, string>;
   exactQuery?: boolean;
   paginatedOdds?: boolean;
+  anyFilter?: { field: string; ids: string[] };
 }): Promise<CachedRawResponse[]> {
   const query = new URLSearchParams();
   query.set(
@@ -1054,31 +1117,33 @@ async function cachedResponsesFor({
     query.set(`query_params->>${key}`, `eq.${value}`);
   }
   query.set("order", "fetched_at.desc");
-
-  const rows = await supabaseFetch({
-    supabaseUrl,
-    serviceRoleKey,
-    path: `/rest/v1/api_football_cached_responses?${query.toString()}`,
-    method: "GET",
-    prefer: "return=representation",
-  });
-
-  const normalizedRows = rows.map(normalizeCachedRow);
-  const errorRows = normalizedRows.filter((row) =>
-    apiFootballErrorMessages(row.response_body).length > 0
-  );
-  if (errorRows.length > 0 && errorRows.length === normalizedRows.length) {
-    const message = apiFootballErrorMessages(errorRows[0].response_body).join(
-      "; ",
-    );
-    throw new Error(
-      `Cached API-Football response for ${endpoint} contains API errors: ${message}`,
+  if (anyFilter) {
+    query.set(
+      `query_params->>${anyFilter.field}`,
+      `in.(${anyFilter.ids.join(",")})`,
     );
   }
+  const rows: unknown[] = [];
+  // Batched player pages can exceed the PostgREST row cap. Read every page.
+  for (let offset = 0;; offset += 500) {
+    if (anyFilter) {
+      query.set("limit", "500");
+      query.set("offset", String(offset));
+    }
+    const page = await supabaseFetch({
+      supabaseUrl,
+      serviceRoleKey,
+      path: `/rest/v1/api_football_cached_responses?${query.toString()}`,
+      method: "GET",
+      prefer: "return=representation",
+    });
+    rows.push(...page);
+    if (!anyFilter || page.length < 500) break;
+  }
 
-  const usableRows = normalizedRows.filter((row) =>
-    apiFootballErrorMessages(row.response_body).length === 0
-  );
+  const normalizedRows = rows.map(normalizeCachedRow);
+  if (anyFilter) return normalizedRows;
+  const usableRows = validCachedRows(normalizedRows, endpoint);
   if (paginatedOdds) return selectCachedOddsPages(usableRows, filters);
   if (!exactQuery) {
     return usableRows;
@@ -1093,6 +1158,27 @@ async function cachedResponsesFor({
       String(queryParams[key] ?? "") === value
     );
   });
+}
+
+function validCachedRows(
+  rows: CachedRawResponse[],
+  endpoint: string,
+): CachedRawResponse[] {
+  const errorRows = rows.filter((row) =>
+    apiFootballErrorMessages(row.response_body).length > 0
+  );
+  if (errorRows.length > 0 && errorRows.length === rows.length) {
+    const message = apiFootballErrorMessages(errorRows[0].response_body).join(
+      "; ",
+    );
+    throw new Error(
+      `Cached API-Football response for ${endpoint} contains API errors: ${message}`,
+    );
+  }
+
+  return rows.filter((row) =>
+    apiFootballErrorMessages(row.response_body).length === 0
+  );
 }
 
 async function findExistingSnapshot({

@@ -1,24 +1,10 @@
 import '../match_board_item.dart';
 import 'tier_parameters.dart';
 
-enum CompetitionFormat {
-  standardRoundRobin,
-  splitLeague,
-  playoffsOnly,
-  aperturaClausura,
-  conference,
-  groupedCompetition,
-  unknown,
-}
+import '../../../../core/domain/structural_tiers/competition_structural_metadata.dart';
+export '../../../../core/domain/structural_tiers/competition_structural_metadata.dart';
 
 enum StructuralSupportStatus { supportedV1, unsupportedV1, unknown }
-
-enum StructuralAnchorSource {
-  tierDefinition,
-  lectorOverride,
-  competitionMetadata,
-  providerDescription,
-}
 
 enum StandingDescriptionMappingTarget {
   podiumAnchor,
@@ -28,23 +14,6 @@ enum StandingDescriptionMappingTarget {
   championshipGroup,
   relegationGroup,
   ignored,
-}
-
-class CompetitionStructuralAnchor {
-  const CompetitionStructuralAnchor({
-    required this.startRank,
-    required this.endRank,
-    required this.source,
-    this.sourceDescription,
-  }) : assert(startRank > 0),
-       assert(endRank >= startRank);
-
-  final int startRank;
-  final int endRank;
-  final StructuralAnchorSource source;
-  final String? sourceDescription;
-
-  bool containsRank(int rank) => rank >= startRank && rank <= endRank;
 }
 
 class StandingDescriptionMapping {

@@ -3,6 +3,11 @@ import '../../../core/widgets/lector_temporal_feed.dart';
 import '../../../core/domain/lector_temporal_state.dart';
 import '../domain/live_match_state.dart';
 import 'widgets/live_match_list_builder.dart';
+import '../../../app/auth/lector_account_sheet.dart';
+import '../../../core/widgets/lector_competition_browser.dart';
+import '../../../core/auth/user_presentation.dart';
+import '../../../core/widgets/lector_workspace_navigation.dart';
+import '../../../core/widgets/lector_workspace_header.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -13,15 +18,11 @@ import '../../../app/deck/lector_deck.dart';
 import '../../../core/auth/supabase_auth_controller.dart';
 import '../../../core/di/service_locator.dart';
 import '../../../core/debug/runtime_personalization_diagnostic.dart';
-import '../../../core/identity/identity_controller.dart';
 import '../../../core/identity/identity_scope.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
-import '../../../core/theme/app_theme_controller.dart';
-import '../../../core/widgets/google_brand_icon.dart';
-import '../../../core/widgets/lector_brand_mark.dart';
 import '../../../core/widgets/lector_responsive_layout.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../onboarding/domain/compiled_decision_profile.dart';
@@ -533,33 +534,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
   }
 
   void _showAccountSheet(BuildContext context) {
-    final controller = getIt.isRegistered<SupabaseAuthController>()
-        ? getIt<SupabaseAuthController>()
-        : null;
-    final identityController = getIt.isRegistered<IdentityController>()
-        ? getIt<IdentityController>()
-        : null;
-
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: false,
-      isScrollControlled: true,
-      backgroundColor: context.surfaces.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 8, 14, 20),
-            child: _HeaderAccountSheet(
-              controller: controller,
-              identityController: identityController,
-            ),
-          ),
-        );
-      },
-    );
+    showLectorAccountSheet(context);
   }
 
   void _openLectorSpace() {
@@ -954,90 +929,7 @@ DateTime _dateOnly(DateTime date) {
   return lectorLocalCalendarDate(date);
 }
 
-String _initialsForUser(User? user) {
-  return _initialsForName(_displayNameForUser(user) ?? user?.email ?? 'LS');
-}
-
-String? _displayNameForUser(User? user) {
-  final metadata = user?.userMetadata;
-  for (final key in ['full_name', 'name', 'display_name']) {
-    final value = metadata?[key]?.toString().trim();
-    if (value != null && value.isNotEmpty) {
-      return value;
-    }
-  }
-  return null;
-}
-
-String _initialsForName(String value) {
-  final parts = value
-      .trim()
-      .split(RegExp(r'\s+|@'))
-      .where((part) => part.isNotEmpty)
-      .toList();
-  if (parts.length >= 2) {
-    return '${parts.first.characters.first}${parts.last.characters.first}'
-        .toUpperCase();
-  }
-  if (parts.isNotEmpty) {
-    return parts.first.characters.take(2).toString().toUpperCase();
-  }
-  return 'LS';
-}
-
-bool _hasGoogleIdentity(User? user) {
-  if (user == null) {
-    return false;
-  }
-  final provider = user.appMetadata['provider']?.toString().toLowerCase();
-  if (provider == 'google') {
-    return true;
-  }
-  return user.identities?.any(
-        (identity) => identity.provider.toLowerCase() == 'google',
-      ) ??
-      false;
-}
-
-String? _validateCredentials(String email, String password) {
-  if (!_looksLikeEmail(email)) {
-    return 'Saisissez une adresse e-mail valide.';
-  }
-  if (password.length < 6) {
-    return 'Le mot de passe doit contenir au moins 6 caractères.';
-  }
-  return null;
-}
-
-bool _looksLikeEmail(String value) {
-  return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value);
-}
-
-String _friendlyAuthError(Object error) {
-  if (error is AuthException) {
-    final message = error.message.toLowerCase();
-    if (message.contains('invalid login') ||
-        message.contains('invalid credentials') ||
-        message.contains('email not confirmed') ||
-        message.contains('password')) {
-      return 'Adresse e-mail ou mot de passe incorrect.';
-    }
-    if (message.contains('user not found') || message.contains('not found')) {
-      return 'Aucun compte ne correspond à cette adresse e-mail.';
-    }
-    if (message.contains('email')) {
-      return 'Vérifiez votre adresse e-mail puis réessayez.';
-    }
-    if (message.contains('network') || message.contains('timeout')) {
-      return 'La connexion réseau semble indisponible. Réessayez dans un instant.';
-    }
-  }
-  if (error is StateError) {
-    return 'Connexion indisponible dans cet environnement. Réessayez plus tard.';
-  }
-  return 'Connexion impossible pour le moment. Réessayez dans un instant.';
-}
-
+String _initialsForUser(User? user) => lectorInitialsForUser(user);
 DateTime _resolvedScoresDate({
   required DateTime selectedDate,
   required List<MatchBoardItem> matches,
@@ -1473,6 +1365,9 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                                                     items,
                                                     phase,
                                                   ) => _TodayCompetitionStoriesSection(
+                                                    forceExpanded:
+                                                        phase ==
+                                                        LectorMatchPhase.live,
                                                     showHeading: false,
                                                     selectedDate:
                                                         widget.selectedDate,
@@ -1507,6 +1402,9 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                                               items,
                                               phase,
                                             ) => _AllMatchesCountrySection(
+                                              forceExpanded:
+                                                  phase ==
+                                                  LectorMatchPhase.live,
                                               showHeading: false,
 
                                               showReadings: widget
@@ -1965,6 +1863,9 @@ class _ForMeReadingCategory {
       'structural_level_gap' ||
       'ranking_superiority' ||
       'ranking_gap' => 'ranking',
+      'winning_streak' ||
+      'home_winning_streak' ||
+      'away_winning_streak' ||
       'positive_streak' ||
       'negative_streak' ||
       'improving_form' ||
@@ -2097,983 +1998,27 @@ class _ScoresRedesignHeader extends StatelessWidget {
         ? getIt<SupabaseAuthController>()
         : null;
 
-    return SafeArea(
-      bottom: false,
-      child: SizedBox(
-        height: 56,
-        child: Row(
-          children: [
-            const LectorBrandMark(size: 34),
-            const Spacer(),
-            const _HeaderThemeToggleButton(),
-            const SizedBox(width: AppSpacing.xs),
-            controller == null
-                ? _HeaderIdentityButton(
-                    icon: Icons.person_outline_rounded,
-                    tooltip: 'Connexion',
-                    onPressed: onOpenProfile,
-                  )
-                : ListenableBuilder(
-                    listenable: controller,
-                    builder: (context, _) {
-                      return _HeaderIdentityButton(
-                        label: controller.isSignedIn
-                            ? _initialsForUser(controller.user)
-                            : null,
-                        icon: controller.isSignedIn
-                            ? null
-                            : Icons.person_outline_rounded,
-                        tooltip: controller.isSignedIn ? 'Compte' : 'Connexion',
-                        onPressed: onOpenProfile,
-                      );
-                    },
-                  ),
-            const SizedBox(width: AppSpacing.xs),
-            IconButton(
-              tooltip: 'Paramètres',
-              onPressed: onOpenTheme,
-              icon: const Icon(Icons.settings_outlined, size: 25),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _HeaderThemeToggleButton extends StatelessWidget {
-  const _HeaderThemeToggleButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<AppThemeVariant>(
-      valueListenable: appThemeController,
-      builder: (context, variant, _) {
-        final isLight = variant.isLight;
-        return IconButton(
-          tooltip: isLight ? 'Passer en thème sombre' : 'Passer en thème clair',
-          onPressed: appThemeController.toggleBrightness,
-          icon: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 180),
-            transitionBuilder: (child, animation) {
-              return FadeTransition(
-                opacity: animation,
-                child: ScaleTransition(scale: animation, child: child),
-              );
-            },
-            child: Icon(
-              isLight ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
-              key: ValueKey(isLight),
-              size: 24,
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _HeaderIdentityButton extends StatelessWidget {
-  const _HeaderIdentityButton({
-    this.label,
-    this.icon,
-    required this.tooltip,
-    required this.onPressed,
-  });
-
-  final String? label;
-  final IconData? icon;
-  final String tooltip;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(AppRadius.chip),
-        child: Container(
-          width: 42,
-          height: 42,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: context.surfaces.backgroundSecondary.withValues(alpha: 0.64),
-            border: Border.all(
-              color: context.brand.accent.withValues(alpha: 0.72),
-            ),
-          ),
-          child: label == null
-              ? Icon(
-                  icon ?? Icons.person_outline_rounded,
-                  color: context.brand.accent,
-                  size: 22,
-                )
-              : Text(
-                  label!,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: context.textColors.primary,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-        ),
-      ),
-    );
-  }
-}
-
-class _HeaderAccountSheet extends StatelessWidget {
-  const _HeaderAccountSheet({
-    required this.controller,
-    required this.identityController,
-  });
-
-  final SupabaseAuthController? controller;
-  final IdentityController? identityController;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: controller ?? Listenable.merge([]),
-      builder: (context, _) {
-        if (controller?.isSignedIn ?? false) {
-          return _ConnectedAccountSheet(
-            controller: controller!,
-            identityController: identityController,
-          );
-        }
-        return _DisconnectedAuthSheet(
-          controller: controller,
-          identityController: identityController,
-        );
-      },
-    );
-  }
-}
-
-class _DisconnectedAuthSheet extends StatefulWidget {
-  const _DisconnectedAuthSheet({
-    required this.controller,
-    required this.identityController,
-  });
-
-  final SupabaseAuthController? controller;
-  final IdentityController? identityController;
-
-  @override
-  State<_DisconnectedAuthSheet> createState() => _DisconnectedAuthSheetState();
-}
-
-class _DisconnectedAuthSheetState extends State<_DisconnectedAuthSheet> {
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  bool _isPasswordVisible = false;
-  bool _isLoading = false;
-  bool _isCreatingAccount = false;
-  String? _errorMessage;
-
-  bool get _isConfigured => widget.controller?.isConfigured ?? false;
-
-  @override
-  void initState() {
-    super.initState();
-    _emailController.addListener(_handleCredentialInputChanged);
-    _passwordController.addListener(_handleCredentialInputChanged);
-  }
-
-  @override
-  void dispose() {
-    _emailController.removeListener(_handleCredentialInputChanged);
-    _passwordController.removeListener(_handleCredentialInputChanged);
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  void _handleCredentialInputChanged() {
-    setState(() {});
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.88,
-      ),
-      child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(0, 0, 0, bottomInset),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _SheetTopBar(onClose: () => Navigator.of(context).pop()),
-            const SizedBox(height: AppSpacing.xs),
-            const _LoginVisualIdentity(),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              _isCreatingAccount ? 'Créer un compte' : 'Se connecter',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: context.textColors.primary,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Accédez à votre compte Lector\net synchronisez vos données.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: context.textColors.secondary,
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            _AuthTextField(
-              controller: _emailController,
-              icon: Icons.mail_outline_rounded,
-              hintText: 'Adresse e-mail',
-              keyboardType: TextInputType.emailAddress,
-              autofillHints: const [AutofillHints.email],
-              enabled: !_isLoading,
-              onChanged: (_) => _clearError(),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            _AuthTextField(
-              controller: _passwordController,
-              icon: Icons.lock_outline_rounded,
-              hintText: 'Mot de passe',
-              obscureText: !_isPasswordVisible,
-              autofillHints: const [AutofillHints.password],
-              enabled: !_isLoading,
-              onChanged: (_) => _clearError(),
-              suffix: IconButton(
-                tooltip: _isPasswordVisible
-                    ? 'Masquer le mot de passe'
-                    : 'Afficher le mot de passe',
-                onPressed: _isLoading
+    return LectorWorkspaceHeader(
+      onOpenSettings: onOpenTheme,
+      identity: controller == null
+          ? LectorIdentityButton(
+              icon: Icons.person_outline_rounded,
+              tooltip: 'Connexion',
+              onPressed: onOpenProfile,
+            )
+          : ListenableBuilder(
+              listenable: controller,
+              builder: (context, _) => LectorIdentityButton(
+                label: controller.isSignedIn
+                    ? _initialsForUser(controller.user)
+                    : null,
+                icon: controller.isSignedIn
                     ? null
-                    : () => setState(() {
-                        _isPasswordVisible = !_isPasswordVisible;
-                      }),
-                icon: Icon(
-                  _isPasswordVisible
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  size: 20,
-                ),
+                    : Icons.person_outline_rounded,
+                tooltip: controller.isSignedIn ? 'Compte' : 'Connexion',
+                onPressed: onOpenProfile,
               ),
             ),
-            if (_errorMessage != null) ...[
-              const SizedBox(height: AppSpacing.sm),
-              _AuthInlineMessage(message: _errorMessage!),
-            ],
-            if (!_isCreatingAccount) ...[
-              const SizedBox(height: AppSpacing.xs),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: _isLoading ? null : _resetPassword,
-                  child: const Text('Mot de passe oublié ?'),
-                ),
-              ),
-            ] else
-              const SizedBox(height: AppSpacing.sm),
-            FilledButton(
-              onPressed: _canSubmit ? _submitPasswordAuth : null,
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(46),
-              ),
-              child: _isLoading
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(
-                      _isCreatingAccount ? 'Créer le compte' : 'Se connecter',
-                    ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            const _AuthDivider(),
-            const SizedBox(height: AppSpacing.md),
-            _GoogleAuthButton(
-              enabled: _isConfigured && !_isLoading,
-              onPressed: _signInWithGoogle,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            _AuthModeSwitch(
-              isCreatingAccount: _isCreatingAccount,
-              onPressed: _isLoading
-                  ? null
-                  : () => setState(() {
-                      _isCreatingAccount = !_isCreatingAccount;
-                      _errorMessage = null;
-                    }),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  bool get _canSubmit {
-    return _isConfigured &&
-        !_isLoading &&
-        _emailController.text.trim().isNotEmpty &&
-        _passwordController.text.isNotEmpty;
-  }
-
-  void _clearError() {
-    if (_errorMessage != null) {
-      setState(() => _errorMessage = null);
-    }
-  }
-
-  Future<void> _submitPasswordAuth() async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
-    final validationError = _validateCredentials(email, password);
-    if (validationError != null) {
-      setState(() => _errorMessage = validationError);
-      return;
-    }
-
-    await _runAuthAction(
-      () {
-        final controller = widget.controller!;
-        if (_isCreatingAccount) {
-          return widget.identityController?.signUpWithPassword(
-                email: email,
-                password: password,
-              ) ??
-              controller.signUpWithPassword(email: email, password: password);
-        }
-        return widget.identityController?.signInWithPassword(
-              email: email,
-              password: password,
-            ) ??
-            controller.signInWithPassword(email: email, password: password);
-      },
-      successMessageWhenStillSignedOut: _isCreatingAccount
-          ? 'Compte créé. Vérifiez votre e-mail si une confirmation est demandée.'
-          : null,
-    );
-  }
-
-  Future<void> _signInWithGoogle() async {
-    await _runAuthAction(
-      () =>
-          widget.identityController?.signInWithGoogle() ??
-          widget.controller!.signInWithGoogle(),
-    );
-  }
-
-  Future<void> _resetPassword() async {
-    final email = _emailController.text.trim();
-    if (!_isConfigured) {
-      setState(() {
-        _errorMessage =
-            'Connexion indisponible dans cet environnement. Réessayez plus tard.';
-      });
-      return;
-    }
-    if (!_looksLikeEmail(email)) {
-      setState(() {
-        _errorMessage =
-            'Saisissez une adresse e-mail valide pour réinitialiser le mot de passe.';
-      });
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-    try {
-      await widget.controller!.resetPasswordForEmail(email);
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Si ce compte existe, un e-mail de réinitialisation a été envoyé.',
-          ),
-        ),
-      );
-    } on Object catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _errorMessage = _friendlyAuthError(error);
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  Future<void> _runAuthAction(
-    Future<void> Function() action, {
-    String? successMessageWhenStillSignedOut,
-  }) async {
-    if (!_isConfigured || _isLoading) {
-      setState(() {
-        _errorMessage =
-            'Connexion indisponible dans cet environnement. Réessayez plus tard.';
-      });
-      return;
-    }
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-    try {
-      await action();
-      if (mounted) {
-        if (successMessageWhenStillSignedOut != null &&
-            !(widget.controller?.isSignedIn ?? false)) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(successMessageWhenStillSignedOut)),
-          );
-          return;
-        }
-        Navigator.of(context).pop();
-      }
-    } on Object catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _errorMessage = _friendlyAuthError(error);
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-}
-
-class _ConnectedAccountSheet extends StatelessWidget {
-  const _ConnectedAccountSheet({
-    required this.controller,
-    required this.identityController,
-  });
-
-  final SupabaseAuthController controller;
-  final IdentityController? identityController;
-
-  @override
-  Widget build(BuildContext context) {
-    final user = controller.user;
-    final name = _displayNameForUser(user);
-    final email = user?.email;
-    final identityLabel = name ?? email ?? 'Compte Lector';
-    final isGoogleAccount = _hasGoogleIdentity(user);
-
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.82,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _SheetTopBar(onClose: () => Navigator.of(context).pop()),
-            const SizedBox(height: AppSpacing.sm),
-            Center(
-              child: _HeaderIdentityButton(
-                label: _initialsForName(identityLabel),
-                tooltip: 'Compte',
-                onPressed: () {},
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              name ?? 'Compte Lector',
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
-            ),
-            if (email != null) ...[
-              const SizedBox(height: 2),
-              Text(
-                email,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: context.textColors.secondary,
-                ),
-              ),
-            ],
-            const SizedBox(height: AppSpacing.md),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: context.surfaces.backgroundSecondary,
-                borderRadius: BorderRadius.circular(AppRadius.input),
-                border: Border.all(color: context.surfaces.border),
-              ),
-              child: Column(
-                children: [
-                  _HeaderAccountRow(
-                    icon: Icons.person_outline_rounded,
-                    title: 'Mon profil',
-                    subtitle: 'Voir et modifier mes informations',
-                    onTap: () => _showUnavailable(
-                      context,
-                      'Aucun écran de profil détaillé n’est encore relié.',
-                    ),
-                  ),
-                  Divider(height: 1, color: context.surfaces.border),
-                  _HeaderAccountRow(
-                    icon: Icons.lock_outline_rounded,
-                    title: 'Sécurité',
-                    subtitle: 'Mot de passe et connexions',
-                    onTap: () => _showUnavailable(
-                      context,
-                      'Aucun écran de sécurité n’est encore relié.',
-                    ),
-                  ),
-                  Divider(height: 1, color: context.surfaces.border),
-                  _HeaderAccountRow(
-                    icon: Icons.devices_outlined,
-                    title: 'Appareils connectés',
-                    subtitle: 'Gérer vos sessions actives',
-                    onTap: () => _showUnavailable(
-                      context,
-                      'Aucun écran de sessions actives n’est encore relié.',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            if (isGoogleAccount) ...[
-              OutlinedButton.icon(
-                onPressed: () async {
-                  await (identityController?.signOut() ??
-                      controller.signOutFromGoogle());
-                  if (context.mounted) {
-                    Navigator.of(context).pop();
-                  }
-                },
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(46),
-                  foregroundColor: context.textColors.primary,
-                  side: BorderSide(color: context.surfaces.border),
-                ),
-                icon: const GoogleBrandIcon(size: 19),
-                label: const Text('Se déconnecter de Google'),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-            ],
-            OutlinedButton.icon(
-              onPressed: () async {
-                await (identityController?.signOut() ?? controller.signOut());
-                if (context.mounted) {
-                  Navigator.of(context).pop();
-                }
-              },
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(46),
-                foregroundColor: context.semantic.error,
-                side: BorderSide(color: context.semantic.error),
-              ),
-              icon: const Icon(Icons.logout_rounded),
-              label: const Text('Se déconnecter de Lector'),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              'Vos préférences et informations seront conservées sur cet appareil.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: context.textColors.secondary,
-                height: 1.35,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showUnavailable(BuildContext context, String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
-}
-
-class _SheetTopBar extends StatelessWidget {
-  const _SheetTopBar({required this.onClose});
-
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 34,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: context.textColors.secondary.withValues(alpha: 0.56),
-              borderRadius: BorderRadius.circular(AppRadius.chip),
-            ),
-            child: const SizedBox(width: 34, height: 4),
-          ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: IconButton(
-              tooltip: 'Fermer',
-              onPressed: onClose,
-              icon: const Icon(Icons.close_rounded, size: 24),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LoginVisualIdentity extends StatelessWidget {
-  const _LoginVisualIdentity();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: SizedBox(
-        width: 122,
-        height: 74,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Positioned(
-              left: 8,
-              child: Container(
-                width: 62,
-                height: 62,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: context.brand.accent.withValues(alpha: 0.10),
-                  border: Border.all(
-                    color: context.brand.accent.withValues(alpha: 0.62),
-                  ),
-                ),
-                child: Icon(
-                  Icons.person_outline_rounded,
-                  color: context.brand.accent,
-                  size: 31,
-                ),
-              ),
-            ),
-            Positioned(
-              right: 4,
-              top: 8,
-              child: Container(
-                width: 58,
-                height: 54,
-                padding: const EdgeInsets.all(AppSpacing.xs),
-                decoration: BoxDecoration(
-                  color: context.surfaces.backgroundSecondary,
-                  borderRadius: BorderRadius.circular(AppRadius.odds),
-                  border: Border.all(color: context.surfaces.border),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const LectorBrandMark(size: 18),
-                    const SizedBox(height: 4),
-                    _AuthVisualLine(width: 28),
-                    const SizedBox(height: 3),
-                    _AuthVisualLine(width: 20),
-                  ],
-                ),
-              ),
-            ),
-            Positioned(
-              right: 12,
-              bottom: 8,
-              child: Container(
-                width: 25,
-                height: 25,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: context.brand.accent,
-                ),
-                child: Icon(
-                  Icons.sync_rounded,
-                  color: context.brand.onAccent,
-                  size: 15,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AuthVisualLine extends StatelessWidget {
-  const _AuthVisualLine({required this.width});
-
-  final double width;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.textColors.secondary.withValues(alpha: 0.26),
-        borderRadius: BorderRadius.circular(AppRadius.chip),
-      ),
-      child: SizedBox(width: width, height: 3),
-    );
-  }
-}
-
-class _AuthTextField extends StatelessWidget {
-  const _AuthTextField({
-    required this.controller,
-    required this.icon,
-    required this.hintText,
-    required this.enabled,
-    this.keyboardType,
-    this.autofillHints,
-    this.obscureText = false,
-    this.suffix,
-    this.onChanged,
-  });
-
-  final TextEditingController controller;
-  final IconData icon;
-  final String hintText;
-  final bool enabled;
-  final TextInputType? keyboardType;
-  final Iterable<String>? autofillHints;
-  final bool obscureText;
-  final Widget? suffix;
-  final ValueChanged<String>? onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      enabled: enabled,
-      keyboardType: keyboardType,
-      autofillHints: autofillHints,
-      obscureText: obscureText,
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        hintText: hintText,
-        prefixIcon: Icon(icon, size: 20),
-        suffixIcon: suffix,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.sm,
-        ),
-      ),
-    );
-  }
-}
-
-class _AuthInlineMessage extends StatelessWidget {
-  const _AuthInlineMessage({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.semantic.error.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(AppRadius.odds),
-        border: Border.all(
-          color: context.semantic.error.withValues(alpha: 0.62),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              Icons.error_outline_rounded,
-              size: 18,
-              color: context.semantic.error,
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
-              child: Text(
-                message,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: context.semantic.error,
-                  height: 1.3,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AuthDivider extends StatelessWidget {
-  const _AuthDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(child: Divider(color: context.surfaces.border)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-          child: Text(
-            'ou',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: context.textColors.secondary,
-            ),
-          ),
-        ),
-        Expanded(child: Divider(color: context.surfaces.border)),
-      ],
-    );
-  }
-}
-
-class _GoogleAuthButton extends StatelessWidget {
-  const _GoogleAuthButton({required this.enabled, required this.onPressed});
-
-  final bool enabled;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton(
-      onPressed: enabled ? onPressed : null,
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size.fromHeight(46),
-        foregroundColor: context.textColors.primary,
-      ),
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          GoogleBrandIcon(size: 19),
-          SizedBox(width: AppSpacing.sm),
-          Text('Continuer avec Google'),
-        ],
-      ),
-    );
-  }
-}
-
-class _AuthModeSwitch extends StatelessWidget {
-  const _AuthModeSwitch({
-    required this.isCreatingAccount,
-    required this.onPressed,
-  });
-
-  final bool isCreatingAccount;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      alignment: WrapAlignment.center,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        Text(
-          isCreatingAccount ? 'Déjà un compte ? ' : 'Pas encore de compte ? ',
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: context.textColors.secondary),
-        ),
-        TextButton(
-          onPressed: onPressed,
-          child: Text(isCreatingAccount ? 'Se connecter' : 'Créer un compte'),
-        ),
-      ],
-    );
-  }
-}
-
-class _HeaderAccountRow extends StatelessWidget {
-  const _HeaderAccountRow({
-    required this.icon,
-    required this.title,
-    this.subtitle,
-    this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.odds),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xs,
-          vertical: AppSpacing.xs,
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 34,
-              height: 34,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: context.surfaces.backgroundSecondary,
-                border: Border.all(color: context.surfaces.border),
-              ),
-              child: Icon(icon, color: context.textColors.primary, size: 19),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle!,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: context.textColors.secondary,
-                        height: 1.2,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 20,
-              color: context.textColors.secondary,
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -3082,154 +2027,13 @@ const _homeNavigationControlHeight = 48.0;
 
 class _ScoresModeControl extends StatelessWidget {
   const _ScoresModeControl({required this.selected, required this.onChanged});
-
   final _ScoresRedesignMode selected;
   final ValueChanged<_ScoresRedesignMode> onChanged;
-
   @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      key: const ValueKey('home-primary-navigation'),
-      height: _homeNavigationControlHeight,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: context.surfaces.backgroundSecondary,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          border: Border.all(color: context.surfaces.border),
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 470;
-            return Row(
-              children: [
-                _ScoresModeTab(
-                  icon: Icons.person_outline_rounded,
-                  label: 'Pour moi',
-                  compact: compact,
-                  isSelected: selected == _ScoresRedesignMode.forMe,
-                  onTap: () => onChanged(_ScoresRedesignMode.forMe),
-                ),
-                _ModeDivider(),
-                _ScoresModeTab(
-                  icon: Icons.bar_chart_rounded,
-                  label: 'Radar',
-                  compact: compact,
-                  isSelected: selected == _ScoresRedesignMode.radar,
-                  onTap: () => onChanged(_ScoresRedesignMode.radar),
-                ),
-                _ModeDivider(),
-                _ScoresModeTab(
-                  icon: Icons.format_list_bulleted_rounded,
-                  label: 'Tous',
-                  compact: compact,
-                  isSelected: selected == _ScoresRedesignMode.all,
-                  onTap: () => onChanged(_ScoresRedesignMode.all),
-                ),
-                _ModeDivider(),
-                _ScoresModeTab(
-                  icon: Icons.auto_awesome_rounded,
-                  label: 'Générateur',
-                  compact: compact,
-                  isSelected: selected == _ScoresRedesignMode.generator,
-                  onTap: () => onChanged(_ScoresRedesignMode.generator),
-                ),
-                _ModeDivider(),
-                _ScoresModeTab(
-                  icon: Icons.insights_outlined,
-                  label: 'Bilan',
-                  compact: compact,
-                  isSelected: selected == _ScoresRedesignMode.bilan,
-                  onTap: () => onChanged(_ScoresRedesignMode.bilan),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _ModeDivider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 28,
-      child: VerticalDivider(color: context.surfaces.border),
-    );
-  }
-}
-
-class _ScoresModeTab extends StatelessWidget {
-  const _ScoresModeTab({
-    required this.icon,
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-    this.compact = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isSelected
-        ? context.brand.accent
-        : context.textColors.secondary;
-
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        child: SizedBox(
-          height: _homeNavigationControlHeight,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (!compact) ...[
-                    Icon(icon, size: 17, color: color),
-                    const SizedBox(width: AppSpacing.xs),
-                  ],
-                  Flexible(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: color,
-                        fontWeight: FontWeight.w900,
-                        fontSize: compact ? 12 : null,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              if (isSelected)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: context.brand.accent,
-                      borderRadius: BorderRadius.circular(AppRadius.chip),
-                    ),
-                    child: const SizedBox(height: 3),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => LectorWorkspaceNavigation(
+    selected: LectorWorkspaceSection.values[selected.index],
+    onChanged: (value) => onChanged(_ScoresRedesignMode.values[value.index]),
+  );
 }
 
 class _ForMeCompactFilterControl extends StatelessWidget {
@@ -3881,10 +2685,11 @@ class _TodayCompetitionStoriesSection extends StatelessWidget {
     required this.isExplorationActive,
     required this.onOpenMatch,
     this.showHeading = true,
+    this.forceExpanded = false,
   });
 
   final DateTime selectedDate;
-  final bool showHeading;
+  final bool showHeading, forceExpanded;
   final List<_ScoresCompetitionGroup> groups;
   final int totalMatchCount;
   final bool isExplorationActive;
@@ -3942,6 +2747,7 @@ class _TodayCompetitionStoriesSection extends StatelessWidget {
           for (final indexed in groups.indexed) ...[
             _ForMeCompetitionStoriesSection(
               group: indexed.$2,
+              forceExpanded: forceExpanded,
               onOpenMatch: onOpenMatch,
             ),
             if (indexed.$1 != groups.length - 1)
@@ -3955,10 +2761,12 @@ class _TodayCompetitionStoriesSection extends StatelessWidget {
 class _ForMeCompetitionStoriesSection extends StatefulWidget {
   const _ForMeCompetitionStoriesSection({
     required this.group,
+    this.forceExpanded = false,
     required this.onOpenMatch,
   });
 
   final _ScoresCompetitionGroup group;
+  final bool forceExpanded;
   final ValueChanged<MatchBoardItem> onOpenMatch;
 
   @override
@@ -3981,6 +2789,7 @@ class _ForMeCompetitionStoriesSectionState
   @override
   Widget build(BuildContext context) {
     final group = widget.group;
+    final expanded = widget.forceExpanded || _isExpanded;
     final matchCount = group.matches.length;
     final firstMatch = group.matches.first;
     final hiddenCount = matchCount - 1;
@@ -3993,8 +2802,8 @@ class _ForMeCompetitionStoriesSectionState
           competition: group.competition,
           firstKickoff: matchFixtureTime(firstMatch.fixture),
           matchCount: matchCount,
-          isExpanded: _isExpanded,
-          onToggle: hasMore
+          isExpanded: expanded,
+          onToggle: hasMore && !widget.forceExpanded
               ? () => setState(() => _isExpanded = !_isExpanded)
               : null,
         ),
@@ -4004,7 +2813,7 @@ class _ForMeCompetitionStoriesSectionState
           onTap: () => widget.onOpenMatch(firstMatch),
           showCompetitionHeader: false,
         ),
-        if (_isExpanded)
+        if (expanded)
           for (final match in group.matches.skip(1)) ...[
             const SizedBox(height: AppSpacing.sm),
             MatchFeedCard(
@@ -4013,7 +2822,7 @@ class _ForMeCompetitionStoriesSectionState
               showCompetitionHeader: false,
             ),
           ],
-        if (hasMore) ...[
+        if (hasMore && !widget.forceExpanded) ...[
           const SizedBox(height: AppSpacing.xs),
           Align(
             alignment: Alignment.centerRight,
@@ -4154,6 +2963,7 @@ String _todayStorySectionTitle(DateTime date) {
 class _AllMatchesCountrySection extends StatelessWidget {
   const _AllMatchesCountrySection({
     this.showHeading = true,
+    this.forceExpanded = false,
     required this.showReadings,
     required this.title,
     required this.emptySubtitle,
@@ -4161,7 +2971,7 @@ class _AllMatchesCountrySection extends StatelessWidget {
     required this.onOpenMatch,
   });
 
-  final bool showHeading;
+  final bool showHeading, forceExpanded;
   final String title;
   final String emptySubtitle;
   final List<_ScoresCompetitionGroup> groups;
@@ -4220,6 +3030,7 @@ class _AllMatchesCountrySection extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             for (final group in topFive) ...[
               _AllMatchesCountryGroup(
+                forceExpanded: forceExpanded,
                 group: group,
                 onOpenMatch: onOpenMatch,
                 showReadings: showReadings,
@@ -4235,6 +3046,7 @@ class _AllMatchesCountrySection extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           for (final group in otherCountries) ...[
             _AllMatchesCountryGroup(
+              forceExpanded: forceExpanded,
               group: group,
               onOpenMatch: onOpenMatch,
               showReadings: showReadings,
@@ -4284,240 +3096,76 @@ class _AllMatchesCountrySectionLabel extends StatelessWidget {
   }
 }
 
-class _AllMatchesCountryGroup extends StatefulWidget {
+class _AllMatchesCountryGroup extends StatelessWidget {
   const _AllMatchesCountryGroup({
     required this.showReadings,
+    this.forceExpanded = false,
     required this.group,
     required this.onOpenMatch,
   });
-
   final _ScoresCountryGroup group;
   final ValueChanged<MatchBoardItem> onOpenMatch;
-  final bool showReadings;
-
+  final bool showReadings, forceExpanded;
   @override
-  State<_AllMatchesCountryGroup> createState() =>
-      _AllMatchesCountryGroupState();
+  Widget build(BuildContext context) => LectorCompetitionGroup(
+    identity: group.country.code,
+    forceExpanded: forceExpanded,
+    name: group.country.name,
+    logoUrl: group.country.flagUrl,
+    isCountry: true,
+    countLabel:
+        '${group.competitions.length} compétition${group.competitions.length > 1 ? 's' : ''}',
+    children: [
+      for (final competition in group.competitions) ...[
+        _DenseCompetitionSection(
+          showReadings: showReadings,
+          group: competition,
+          initiallyExpanded: false,
+          forceExpanded: forceExpanded,
+          onOpenMatch: onOpenMatch,
+        ),
+        if (competition != group.competitions.last)
+          const SizedBox(height: AppSpacing.xs),
+      ],
+    ],
+  );
 }
 
-class _AllMatchesCountryGroupState extends State<_AllMatchesCountryGroup> {
-  bool _isExpanded = false;
-
-  @override
-  void didUpdateWidget(covariant _AllMatchesCountryGroup oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.group.country.code != widget.group.country.code) {
-      _isExpanded = false;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final group = widget.group;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.surfaces.surface.withValues(alpha: 0.58),
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: context.surfaces.border),
-      ),
-      child: Column(
-        children: [
-          Material(
-            color: AppColors.transparent,
-            child: InkWell(
-              onTap: () => setState(() => _isExpanded = !_isExpanded),
-              borderRadius: BorderRadius.circular(AppRadius.card),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 9, 10, 8),
-                child: Row(
-                  children: [
-                    SportsAssetBadge(
-                      size: 26,
-                      imageUrl: group.country.flagUrl,
-                      fallbackLabel: group.country.name,
-                      contrastPlate: true,
-                      icon: Icons.flag_rounded,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        group.country.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                    Text(
-                      '${group.competitions.length} compétition${group.competitions.length > 1 ? 's' : ''}',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: context.textColors.secondary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    AnimatedRotation(
-                      turns: _isExpanded ? 0.5 : 0,
-                      duration: const Duration(milliseconds: 180),
-                      child: Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        color: context.textColors.secondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          AnimatedCrossFade(
-            firstChild: const SizedBox(width: double.infinity),
-            secondChild: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-              child: Column(
-                children: [
-                  for (final competition in group.competitions) ...[
-                    _DenseCompetitionSection(
-                      showReadings: widget.showReadings,
-                      group: competition,
-                      initiallyExpanded: false,
-                      onOpenMatch: widget.onOpenMatch,
-                    ),
-                    if (competition != group.competitions.last)
-                      const SizedBox(height: AppSpacing.xs),
-                  ],
-                ],
-              ),
-            ),
-            crossFadeState: _isExpanded
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
-            duration: const Duration(milliseconds: 180),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DenseCompetitionSection extends StatefulWidget {
+class _DenseCompetitionSection extends StatelessWidget {
   const _DenseCompetitionSection({
     required this.showReadings,
+    this.forceExpanded = false,
     required this.group,
     required this.initiallyExpanded,
     required this.onOpenMatch,
   });
-
   final _ScoresCompetitionGroup group;
-  final bool initiallyExpanded;
+  final bool initiallyExpanded, showReadings, forceExpanded;
   final ValueChanged<MatchBoardItem> onOpenMatch;
-  final bool showReadings;
-
   @override
-  State<_DenseCompetitionSection> createState() =>
-      _DenseCompetitionSectionState();
-}
-
-class _DenseCompetitionSectionState extends State<_DenseCompetitionSection> {
-  late bool _isExpanded = widget.initiallyExpanded;
-
-  @override
-  void didUpdateWidget(covariant _DenseCompetitionSection oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.group.competition.id != widget.group.competition.id ||
-        oldWidget.initiallyExpanded != widget.initiallyExpanded) {
-      _isExpanded = widget.initiallyExpanded;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.surfaces.surface.withValues(alpha: 0.58),
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: context.surfaces.border),
-      ),
-      child: Column(
-        children: [
-          Material(
-            color: AppColors.transparent,
-            child: InkWell(
-              onTap: () => setState(() => _isExpanded = !_isExpanded),
-              borderRadius: BorderRadius.circular(AppRadius.card),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 9, 10, 8),
-                child: Row(
-                  children: [
-                    SportsAssetBadge(
-                      size: 24,
-                      imageUrl: widget.group.competition.logoUrl,
-                      fallbackLabel: widget.group.competition.name,
-                      contrastPlate: true,
-                      icon: Icons.emoji_events_rounded,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        widget.group.competition.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                    Text(
-                      '${widget.group.matches.length} match${widget.group.matches.length > 1 ? 's' : ''}',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: context.textColors.secondary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    AnimatedRotation(
-                      turns: _isExpanded ? 0.5 : 0,
-                      duration: const Duration(milliseconds: 180),
-                      child: Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        color: context.textColors.secondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+  Widget build(BuildContext context) => LectorCompetitionGroup(
+    identity: group.competition.id,
+    name: group.competition.name,
+    logoUrl: group.competition.logoUrl,
+    initiallyExpanded: initiallyExpanded,
+    forceExpanded: forceExpanded,
+    countLabel:
+        '${group.matches.length} match${group.matches.length > 1 ? 's' : ''}',
+    children: [
+      for (final match in group.matches) ...[
+        Divider(height: 1, color: context.surfaces.border),
+        Padding(
+          padding: const EdgeInsets.all(8),
+          child: MatchFeedCard(
+            showCompetitionHeader: false,
+            showReadings: showReadings,
+            match: match,
+            onTap: () => onOpenMatch(match),
           ),
-          AnimatedCrossFade(
-            firstChild: const SizedBox(width: double.infinity),
-            secondChild: Column(
-              children: [
-                for (
-                  var index = 0;
-                  index < widget.group.matches.length;
-                  index++
-                ) ...[
-                  Divider(height: 1, color: context.surfaces.border),
-                  Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: MatchFeedCard(
-                      showCompetitionHeader: false,
-                      showReadings: widget.showReadings,
-                      match: widget.group.matches[index],
-                      onTap: () =>
-                          widget.onOpenMatch(widget.group.matches[index]),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            crossFadeState: _isExpanded
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
-            duration: const Duration(milliseconds: 180),
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ],
+  );
 }
 
 class _ScoresEmptyPanel extends StatelessWidget {

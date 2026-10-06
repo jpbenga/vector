@@ -1,3 +1,4 @@
+import '../../../core/domain/lector_victory_series.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_components.dart';
@@ -46,7 +47,8 @@ class LectorReadingGuidePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final guide = LectorGuideCatalog.readings[readingId];
+    final guide =
+        LectorGuideCatalog.readings[canonicalVenueReadingId(readingId)];
     final label = LectorGuideCatalog.readingLabel(readingId);
     final identity = context.opportunities.readingIdentityForId(readingId);
     final badge = identity.badgeFor(AppReadingBadgeVariant.soft);

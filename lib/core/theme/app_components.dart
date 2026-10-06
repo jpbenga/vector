@@ -906,6 +906,7 @@ class AppOpportunityPalette extends ThemeExtension<AppOpportunityPalette> {
       'frequent_under_25' => Icons.shield_outlined,
       'level_gap' ||
       'ranking_gap' ||
+      'standing_advantage' ||
       'ranking_superiority' ||
       'ranking_inferiority' ||
       'structural_level_gap' ||
@@ -928,10 +929,14 @@ class AppOpportunityPalette extends ThemeExtension<AppOpportunityPalette> {
       'high_shots_on_target' ||
       'frequent_over_25' ||
       'frequent_btts' => Icons.bolt_rounded,
+      'winning_streak' ||
+      'home_winning_streak' ||
+      'away_winning_streak' ||
       'positive_streak' ||
       'strong_recent_form' ||
       'positive_form' ||
       'improving_form' ||
+      'recent_form_advantage' ||
       'form_advantage' ||
       'form_gap' ||
       'team_better_than_results' => Icons.show_chart_rounded,
@@ -985,6 +990,7 @@ class AppOpportunityPalette extends ThemeExtension<AppOpportunityPalette> {
       'frequent_under_25' => closedMatchStyle,
       'level_gap' ||
       'ranking_gap' ||
+      'standing_advantage' ||
       'ranking_superiority' ||
       'ranking_inferiority' ||
       'structural_level_gap' ||
@@ -1012,10 +1018,14 @@ class AppOpportunityPalette extends ThemeExtension<AppOpportunityPalette> {
       'high_shots_on_target' ||
       'frequent_over_25' ||
       'frequent_btts' => prolificAttackStyle,
+      'winning_streak' ||
+      'home_winning_streak' ||
+      'away_winning_streak' ||
       'positive_streak' ||
       'strong_recent_form' ||
       'positive_form' ||
       'improving_form' ||
+      'recent_form_advantage' ||
       'form_advantage' ||
       'form_gap' ||
       'team_better_than_results' => positiveStreakStyle,

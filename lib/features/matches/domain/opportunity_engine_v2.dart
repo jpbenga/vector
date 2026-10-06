@@ -1002,6 +1002,11 @@ class OpportunityEngineV2 {
       'ranking_inferiority' => '$subjectName derrière au classement',
       'venue_strength' => '$subjectName solide dans ce lieu',
       'structural_level_gap' => 'Écart de niveau pour $subjectName',
+      'winning_streak' => 'Série de victoires pour $subjectName',
+      'home_winning_streak' =>
+        'Série de victoires à domicile pour $subjectName',
+      'away_winning_streak' =>
+        'Série de victoires à l’extérieur pour $subjectName',
       'positive_streak' => 'Dynamique positive pour $subjectName',
       'negative_streak' => 'Dynamique négative pour $subjectName',
       'improving_form' => 'Dynamique en hausse pour $subjectName',

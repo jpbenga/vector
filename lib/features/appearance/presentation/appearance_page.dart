@@ -198,13 +198,13 @@ class _AppearancePageState extends State<AppearancePage> {
         const SizedBox(height: 10),
         AppearancePreviewPanel(
           key: const ValueKey('appearance-live-preview'),
-          child: AnimatedSize(
-            alignment: Alignment.topCenter,
-            duration: MediaQuery.disableAnimationsOf(context)
-                ? Duration.zero
-                : const Duration(milliseconds: 180),
-            child: AppearancePreview(kind: _preview),
-          ),
+          child: MediaQuery.disableAnimationsOf(context)
+              ? AppearancePreview(kind: _preview)
+              : AnimatedSize(
+                  alignment: Alignment.topCenter,
+                  duration: const Duration(milliseconds: 180),
+                  child: AppearancePreview(kind: _preview),
+                ),
         ),
         const SizedBox(height: 12),
         SingleChildScrollView(

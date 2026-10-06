@@ -509,6 +509,7 @@ class HeadToHeadFixtureSnapshot {
     required this.homeGoals,
     required this.awayGoals,
     this.fixtureId,
+    this.competitionType,
     this.homeTeamLogoUrl,
     this.awayTeamLogoUrl,
     this.events = const [],
@@ -517,6 +518,7 @@ class HeadToHeadFixtureSnapshot {
   });
 
   final int competitionId;
+  final String? competitionType;
   final String competitionName;
   final DateTime playedAt;
   final int homeTeamId;

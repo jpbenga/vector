@@ -22,7 +22,7 @@ class LectorFormRadarSignalPanel extends StatefulWidget {
 
 class _LectorFormRadarSignalPanelState
     extends State<LectorFormRadarSignalPanel> {
-  static const previewLimit = 4;
+  static const previewLimit = 3;
   bool _expanded = false;
 
   @override

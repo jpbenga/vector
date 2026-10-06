@@ -541,6 +541,9 @@ class _ReadingPreferencesEditorState extends State<_ReadingPreferencesEditor> {
 
 IconData _readingPreferenceIcon(String readingId) {
   return switch (readingId) {
+    'winning_streak' ||
+    'home_winning_streak' ||
+    'away_winning_streak' ||
     'positive_streak' ||
     'improving_form' ||
     'form_gap' => Icons.trending_up_rounded,

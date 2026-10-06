@@ -56,7 +56,11 @@ Deno.serve(async (request) => {
       supabaseUrl,
       name: "publish-reading-announcements",
       secret,
-      payload: { snapshot_id: snapshotId, ops_task_id: payload.ops_task_id, ops_token: payload.ops_token },
+      payload: {
+        snapshot_id: snapshotId,
+        ops_task_id: payload.ops_task_id,
+        ops_token: payload.ops_token,
+      },
     });
     if (booleanValue(publication.ok) !== true) {
       throw new Error(
@@ -113,7 +117,7 @@ Deno.serve(async (request) => {
       supabaseUrl,
       serviceRoleKey,
       path:
-        `/rest/v1/match_reading_announcements?select=fixture_id,reading_id,reading_label,subject_side,subject_team_id,player_id,player_name,evidence,sample_size,announcement_kind,required_reading_ids,outcome_rule&fixture_id=in.(${
+        `/rest/v1/match_reading_announcements?select=fixture_id,engine_version,reading_id,reading_label,subject_side,subject_team_id,player_id,player_name,evidence,sample_size,announcement_kind,required_reading_ids,outcome_rule&fixture_id=in.(${
           fixtureIds.join(",")
         })&order=fixture_id,reading_id`,
       method: "GET",
@@ -121,9 +125,33 @@ Deno.serve(async (request) => {
     // Historical meetings are presented only through the factual TAT
     // timeline. Suppress legacy dominance announcements, including immutable
     // rows published before this presentation rule existed.
-    const presentationAnnouncements = announced.filter((value) =>
-      stringValue(objectValue(value)?.reading_id) !== "head_to_head_dominance"
+    const upcomingIds = new Set(
+      fixtures.filter((r) => {
+        const date = stringValue(objectValue(r.fixture)?.date);
+        return date !== null &&
+          Date.parse(date) > Date.parse(String(snapshot.captured_at));
+      }).map((r) => numberValue(objectValue(r.fixture)?.id)),
     );
+    const venueIds = new Set([
+      "venue_strength",
+      "strong_home_team",
+      "weak_home_team",
+      "strong_away_team",
+      "weak_away_team",
+      "home_away_advantage",
+      "away_home_advantage",
+    ]);
+    const presentationAnnouncements = announced.filter((value) => {
+      const row = objectValue(value), readingId = stringValue(row?.reading_id);
+      if (readingId === "head_to_head_dominance") return false;
+      if (!upcomingIds.has(numberValue(row?.fixture_id))) return true;
+      if (
+        readingId === "home_winning_streak" ||
+        readingId === "away_winning_streak"
+      ) return false;
+      return !venueIds.has(readingId ?? "") ||
+        row?.engine_version === "server_venue_momentum_v2";
+    });
     const computedByFixture = new Map<number, JsonObject[]>();
     for (const value of presentationAnnouncements) {
       const row = objectValue(value);
@@ -193,7 +221,14 @@ Deno.serve(async (request) => {
         fixtures: computedFixtures,
       },
     };
-    await reporter.checkpoint({publishedFixtures: fixtures.length, publishedReadings: announced.length}, {}, true);
+    await reporter.checkpoint(
+      {
+        publishedFixtures: fixtures.length,
+        publishedReadings: announced.length,
+      },
+      {},
+      true,
+    );
     const stored = await supabaseFetch({
       supabaseUrl,
       serviceRoleKey,
@@ -328,7 +363,9 @@ function buildTierSnapshots({
   for (const fixture of fixtures) {
     const league = objectValue(fixture.league);
     const leagueId = league === null ? null : numberValue(league.id);
-    if (league !== null && leagueId !== null && !fixtureLeagueData.has(leagueId)) {
+    if (
+      league !== null && leagueId !== null && !fixtureLeagueData.has(leagueId)
+    ) {
       fixtureLeagueData.set(leagueId, league);
     }
   }
@@ -397,21 +434,33 @@ function buildTierSnapshot({
   const medianPlayed = median(played);
   // From the fifth matchday, publish provisional tiers. A severely uneven
   // table stays hidden rather than pretending the ranking is comparable.
-  if (medianPlayed < 5 || minPlayed < 4 || maxPlayed - minPlayed > Math.max(4, Math.ceil(medianPlayed / 3))) {
+  if (
+    medianPlayed < 5 || minPlayed < 4 ||
+    maxPlayed - minPlayed > Math.max(4, Math.ceil(medianPlayed / 3))
+  ) {
     return null;
   }
   const relegationStart = officialRelegationStart(rows);
   if (relegationStart === null || relegationStart <= 3) return null;
   const middleStart = 4;
   const middleEnd = relegationStart - 1;
-  const middle = rows.filter((row) => row.rank >= middleStart && row.rank <= middleEnd);
+  const middle = rows.filter((row) =>
+    row.rank >= middleStart && row.rank <= middleEnd
+  );
   const points = rows.map((row) => row.points);
-  const gaps = points.slice(0, -1).map((point, index) => point - points[index + 1]);
+  const gaps = points.slice(0, -1).map((point, index) =>
+    point - points[index + 1]
+  );
   const positiveGaps = gaps.filter((gap) => gap > 0);
   const medianGap = median(gaps);
-  const typicalGap = Math.max(1, positiveGaps.length === 0 ? 0 : median(positiveGaps));
+  const typicalGap = Math.max(
+    1,
+    positiveGaps.length === 0 ? 0 : median(positiveGaps),
+  );
   const rawMad = median(gaps.map((gap) => Math.abs(gap - medianGap)));
-  const robustScale = rawMad > 0 ? rawMad * 1.4826 : Math.max(1, typicalGap * 0.5);
+  const robustScale = rawMad > 0
+    ? rawMad * 1.4826
+    : Math.max(1, typicalGap * 0.5);
   const candidates = [] as JsonObject[];
   for (let index = middleStart; index < middleEnd; index += 1) {
     const rawGap = gaps[index - 1];
@@ -419,7 +468,10 @@ function buildTierSnapshot({
     const robustZ = Math.max(0, (rawGap - medianGap) / robustScale);
     const upperCount = index - middleStart + 1;
     const lowerCount = middle.length - upperCount;
-    if (rawGap < 3 || upperCount < 2 || lowerCount < 2 || (ratio < 2 && robustZ < 2.5)) continue;
+    if (
+      rawGap < 3 || upperCount < 2 || lowerCount < 2 ||
+      (ratio < 2 && robustZ < 2.5)
+    ) continue;
     const score = Math.round(Math.min(100, 35 + ratio * 12 + robustZ * 9));
     candidates.push({
       boundary_index: index,
@@ -431,8 +483,12 @@ function buildTierSnapshot({
     });
   }
   const selected = selectTierBoundaries(candidates, middleStart, middleEnd);
-  const selectedIndexes = selected.map((value) => numberValue(value.boundary_index)!).sort((a, b) => a - b);
-  const identity = rows.map((row) => `${row.teamId}:${row.rank}:${row.points}:${row.played}`).join("|");
+  const selectedIndexes = selected.map((value) =>
+    numberValue(value.boundary_index)!
+  ).sort((a, b) => a - b);
+  const identity = rows.map((row) =>
+    `${row.teamId}:${row.rank}:${row.points}:${row.played}`
+  ).join("|");
   const isMature = minPlayed >= 12;
   const assignments = rows.map((row) => ({
     team_id: row.teamId,
@@ -462,24 +518,39 @@ function buildTierSnapshot({
 
 function hasValidRanks(rows: TierRow[]): boolean {
   return rows.every((row, index) => row.rank === index + 1) &&
-    rows.every((row, index) => index === 0 || row.points <= rows[index - 1].points) &&
-    new Set(rows.map((row) => row.group).filter((group) => group !== null)).size <= 1;
+    rows.every((row, index) =>
+      index === 0 || row.points <= rows[index - 1].points
+    ) &&
+    new Set(rows.map((row) => row.group).filter((group) => group !== null))
+        .size <= 1;
 }
 
 function officialRelegationStart(rows: TierRow[]): number | null {
   const last = rows.at(-1)?.description?.toLowerCase() ?? "";
   if (!last.includes("relegation")) return null;
   let index = rows.length - 1;
-  while (index > 0 && (rows[index - 1].description?.toLowerCase() ?? "") === last) index -= 1;
+  while (
+    index > 0 && (rows[index - 1].description?.toLowerCase() ?? "") === last
+  ) index -= 1;
   return rows[index].rank;
 }
 
-function selectTierBoundaries(candidates: JsonObject[], middleStart: number, middleEnd: number): JsonObject[] {
+function selectTierBoundaries(
+  candidates: JsonObject[],
+  middleStart: number,
+  middleEnd: number,
+): JsonObject[] {
   const selected: JsonObject[] = [];
-  for (const candidate of [...candidates].sort((left, right) =>
-    (numberValue(right.score) ?? 0) - (numberValue(left.score) ?? 0))) {
+  for (
+    const candidate of [...candidates].sort((left, right) =>
+      (numberValue(right.score) ?? 0) - (numberValue(left.score) ?? 0)
+    )
+  ) {
     const boundary = numberValue(candidate.boundary_index)!;
-    const indexes = [...selected.map((value) => numberValue(value.boundary_index)!), boundary].sort((a, b) => a - b);
+    const indexes = [
+      ...selected.map((value) => numberValue(value.boundary_index)!),
+      boundary,
+    ].sort((a, b) => a - b);
     const separators = [
       middleStart,
       ...indexes.map((index) => index + 1),
@@ -491,14 +562,23 @@ function selectTierBoundaries(candidates: JsonObject[], middleStart: number, mid
     if (segments.every((size) => size >= 2)) selected.push(candidate);
     if (selected.length === 2) break;
   }
-  return selected.sort((left, right) => (numberValue(left.boundary_index) ?? 0) - (numberValue(right.boundary_index) ?? 0));
+  return selected.sort((left, right) =>
+    (numberValue(left.boundary_index) ?? 0) -
+    (numberValue(right.boundary_index) ?? 0)
+  );
 }
 
-function tierForRank(rank: number, relegationStart: number, boundaries: number[]): string {
+function tierForRank(
+  rank: number,
+  relegationStart: number,
+  boundaries: number[],
+): string {
   if (rank <= 3) return "TIER_1";
   if (rank >= relegationStart) return "TIER_5";
   if (boundaries.length === 0) return "TIER_3";
-  if (boundaries.length === 1) return rank <= boundaries[0] ? "TIER_2" : "TIER_4";
+  if (boundaries.length === 1) {
+    return rank <= boundaries[0] ? "TIER_2" : "TIER_4";
+  }
   if (rank <= boundaries[0]) return "TIER_2";
   if (rank <= boundaries[1]) return "TIER_3";
   return "TIER_4";
@@ -508,7 +588,9 @@ function median(values: number[]): number {
   const sorted = [...values].sort((left, right) => left - right);
   if (sorted.length === 0) return 0;
   const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
+  return sorted.length % 2 === 0
+    ? (sorted[middle - 1] + sorted[middle]) / 2
+    : sorted[middle];
 }
 
 function compactStandings(rows: JsonObject[]): JsonObject[] {
@@ -596,13 +678,27 @@ function compactRecentMatches(rows: JsonObject[]): JsonObject[] {
           },
           statistics: {
             shots_for: numberValue(objectValue(value.statistics)?.shots_for),
-            shots_against: numberValue(objectValue(value.statistics)?.shots_against),
-            shots_on_target_for: numberValue(objectValue(value.statistics)?.shots_on_target_for),
-            shots_on_target_against: numberValue(objectValue(value.statistics)?.shots_on_target_against),
-            expected_goals_for: numberValue(objectValue(value.statistics)?.expected_goals_for),
-            expected_goals_against: numberValue(objectValue(value.statistics)?.expected_goals_against),
-            possession_for: numberValue(objectValue(value.statistics)?.possession_for),
-            possession_against: numberValue(objectValue(value.statistics)?.possession_against),
+            shots_against: numberValue(
+              objectValue(value.statistics)?.shots_against,
+            ),
+            shots_on_target_for: numberValue(
+              objectValue(value.statistics)?.shots_on_target_for,
+            ),
+            shots_on_target_against: numberValue(
+              objectValue(value.statistics)?.shots_on_target_against,
+            ),
+            expected_goals_for: numberValue(
+              objectValue(value.statistics)?.expected_goals_for,
+            ),
+            expected_goals_against: numberValue(
+              objectValue(value.statistics)?.expected_goals_against,
+            ),
+            possession_for: numberValue(
+              objectValue(value.statistics)?.possession_for,
+            ),
+            possession_against: numberValue(
+              objectValue(value.statistics)?.possession_against,
+            ),
           },
           events: objectList(value.events).flatMap((event) => {
             const minute = numberValue(event.minute);
@@ -707,7 +803,8 @@ function compactHeadToHead(rows: JsonObject[]): JsonObject[] {
       const homeGoals = numberValue(goals.home);
       const awayGoals = numberValue(goals.away);
       if (
-        date === null || leagueId === null || homeId === null || awayId === null ||
+        date === null || leagueId === null || homeId === null ||
+        awayId === null ||
         homeGoals === null || awayGoals === null
       ) return [];
       const timeline = objectValue(match.timeline) ?? {};
@@ -724,18 +821,20 @@ function compactHeadToHead(rows: JsonObject[]): JsonObject[] {
           player_name: stringValue(event.player_name),
         }];
       });
-      const timelineStatistics = objectList(timeline.statistics).flatMap((statistic) => {
-        const teamId = numberValue(statistic.team_id);
-        if (teamId === null) return [];
-        return [{
-          team_id: teamId,
-          total_shots: numberValue(statistic.total_shots),
-          shots_on_goal: numberValue(statistic.shots_on_goal),
-          expected_goals: numberValue(statistic.expected_goals),
-          possession: numberValue(statistic.possession),
-          total_passes: numberValue(statistic.total_passes),
-        }];
-      });
+      const timelineStatistics = objectList(timeline.statistics).flatMap(
+        (statistic) => {
+          const teamId = numberValue(statistic.team_id);
+          if (teamId === null) return [];
+          return [{
+            team_id: teamId,
+            total_shots: numberValue(statistic.total_shots),
+            shots_on_goal: numberValue(statistic.shots_on_goal),
+            expected_goals: numberValue(statistic.expected_goals),
+            possession: numberValue(statistic.possession),
+            total_passes: numberValue(statistic.total_passes),
+          }];
+        },
+      );
       return [{
         fixture: { id: numberValue(matchFixture.id), date },
         league: { id: leagueId, name: stringValue(league.name) },

@@ -1,3 +1,5 @@
+import 'package:copilot/core/widgets/lector_player_radar.dart';
+import 'package:copilot/core/widgets/lector_form_radar_signal_panel.dart';
 import 'package:copilot/app/theme/app_theme.dart';
 import 'package:copilot/features/form_radar/domain/player_form_radar.dart';
 import 'package:copilot/features/form_radar/presentation/form_radar_signal_panel.dart';
@@ -7,15 +9,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets(
-    'match preview shows four unique players and expands on request',
+    'match preview shows three unique players and expands on request',
     (tester) async {
       tester.view.physicalSize = const Size(390, 1600);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      final profiles = [
-        for (var id = 0; id < 8; id++) _profile(id: id, name: 'Joueur $id'),
-      ];
+      final profiles = [for (var id = 0; id < 8; id++) _manyPlayerProfile(id)];
       final entries = [
         ...PlayerFormRadarRanker.rank(profiles),
         ...PlayerFormRadarRanker.rank([profiles.first]),
@@ -32,8 +32,9 @@ void main() {
       );
       expect(find.text('8 signaux de forme'), findsOneWidget);
       expect(find.text('Joueur 0'), findsOneWidget);
-      expect(find.text('Joueur 3'), findsOneWidget);
-      expect(find.text('Joueur 4'), findsNothing);
+      expect(find.text('Joueur 2'), findsOneWidget);
+      expect(find.text('Joueur 3'), findsNothing);
+      expect(find.byType(LectorFormRadarSignalRow), findsNWidgets(3));
       expect(find.text('Voir les 8 joueurs'), findsOneWidget);
       await tester.tap(find.text('Voir les 8 joueurs'));
       await tester.pump();
@@ -43,7 +44,8 @@ void main() {
       await tester.ensureVisible(find.text('Réduire la liste'));
       await tester.tap(find.text('Réduire la liste'));
       await tester.pump();
-      expect(find.text('Joueur 4'), findsNothing);
+      expect(find.text('Joueur 3'), findsNothing);
+      expect(find.byType(LectorFormRadarSignalRow), findsNWidgets(3));
       expect(tester.takeException(), isNull);
     },
   );
@@ -65,6 +67,10 @@ void main() {
       ),
     );
 
+    expect(find.byType(LectorPlayerActivityMatrix), findsOneWidget);
+    expect(find.byType(LectorPlayerSignalDescription), findsOneWidget);
+    expect(find.byType(LectorFormRadarSignalPanel), findsOneWidget);
+    expect(find.byType(LectorFormRadarSignalRow), findsOneWidget);
     expect(find.text('Signaux Form Radar'), findsOneWidget);
     expect(find.text('Avant'), findsOneWidget);
     expect(find.text('3 récents'), findsOneWidget);
@@ -73,24 +79,44 @@ void main() {
   });
 }
 
-PlayerFormRadarProfile _profile({int id = 278, String name = 'K. Mbappé'}) =>
-    PlayerFormRadarProfile(
-      playerId: id,
-      playerName: name,
-      teamId: 541,
-      teamName: 'Real Madrid',
-      leagueId: 140,
-      activity: [
-        for (var index = 0; index < 7; index++)
-          PlayerFormRadarMatchSnapshot(
-            fixtureId: index + 1,
-            playedAt: DateTime(2026, 9, index + 1),
-            appeared: true,
-            starter: true,
-            substitute: false,
-            minutes: 90,
-            goals: index >= 4 ? 1 : 0,
-            assists: 0,
-          ),
-      ],
-    );
+PlayerFormRadarProfile _profile() => PlayerFormRadarProfile(
+  playerId: 278,
+  playerName: 'K. Mbappé',
+  teamId: 541,
+  teamName: 'Real Madrid',
+  leagueId: 140,
+  activity: [
+    for (var index = 0; index < 7; index++)
+      PlayerFormRadarMatchSnapshot(
+        fixtureId: index + 1,
+        playedAt: DateTime(2026, 9, index + 1),
+        appeared: true,
+        starter: true,
+        substitute: false,
+        minutes: 90,
+        goals: index >= 4 ? 1 : 0,
+        assists: 0,
+      ),
+  ],
+);
+
+PlayerFormRadarProfile _manyPlayerProfile(int id) => PlayerFormRadarProfile(
+  playerId: id,
+  playerName: 'Joueur $id',
+  teamId: 541,
+  teamName: 'Real Madrid',
+  leagueId: 140,
+  activity: [
+    for (var index = 0; index < 7; index++)
+      PlayerFormRadarMatchSnapshot(
+        fixtureId: index + 1,
+        playedAt: DateTime(2026, 9, index + 1),
+        appeared: true,
+        starter: true,
+        substitute: false,
+        minutes: 90,
+        goals: index >= 4 ? 1 : 0,
+        assists: 0,
+      ),
+  ],
+);

@@ -293,6 +293,9 @@ class FootballReadingCopyCatalog {
     'balanced_hierarchy': 'Hiérarchie proche',
     'ranking_superiority': 'Écart au classement',
     'structural_level_gap': 'Écart de niveau structurel',
+    'winning_streak': 'Série de victoires',
+    'home_winning_streak': 'Série de victoires à domicile',
+    'away_winning_streak': 'Série de victoires à l’extérieur',
     'positive_streak': 'Dynamique positive',
     'negative_streak': 'Dynamique négative',
     'improving_form': 'Dynamique en hausse',
@@ -353,7 +356,10 @@ class FootballReadingCopyCatalog {
   };
 
   static bool _isFormReading(String readingId) {
-    return readingId == 'positive_streak' ||
+    return readingId == 'winning_streak' ||
+        readingId == 'home_winning_streak' ||
+        readingId == 'away_winning_streak' ||
+        readingId == 'positive_streak' ||
         readingId == 'negative_streak' ||
         readingId == 'improving_form' ||
         readingId == 'declining_form' ||

@@ -1,3 +1,5 @@
+import '../../../core/domain/lector_form_reading_policy.dart';
+import '../../../core/domain/lector_victory_series.dart';
 import 'analysis_maturity.dart';
 import 'football_reading.dart';
 import 'match_board_item.dart';
@@ -17,6 +19,7 @@ class FootballAnalyzer {
       ..._hierarchyReadings(match, snapshotTime, reference),
       ..._formReadings(match, snapshotTime),
       ..._formTrendReadings(match, snapshotTime),
+      ..._victorySeriesReadings(match, snapshotTime),
       ..._homeAwayReadings(match, snapshotTime),
       ..._attackReadings(match, snapshotTime, reference),
       ..._defenseReadings(match, snapshotTime, reference),
@@ -1010,9 +1013,9 @@ class FootballAnalyzer {
       final form = recent.map((item) => item.result.toUpperCase()).join('');
       final points = recent.map(_pointsForRecentMatch).toList(growable: false);
       final total = points.fold(0, (sum, value) => sum + value);
-      final hasLoss = points.contains(0);
+      final window = LectorFormWindow(points, maximumPoints: 3);
 
-      if (!hasLoss && total >= 9) {
+      if (window.positive) {
         final strong = total >= 13;
         readings.add(
           _reading(
@@ -1038,7 +1041,7 @@ class FootballAnalyzer {
         );
       }
 
-      if (total <= 4) {
+      if (window.negative) {
         final strong = total <= 2;
         readings.add(
           _reading(
@@ -1085,17 +1088,12 @@ class FootballAnalyzer {
     ]) {
       final recent = entry.matches.take(5).toList(growable: false);
       if (recent.length < 5) continue;
-      final newestAverage =
-          (_pointsForRecentMatch(recent[0]) +
-              _pointsForRecentMatch(recent[1])) /
-          2;
-      final earlierAverage =
-          (_pointsForRecentMatch(recent[2]) +
-              _pointsForRecentMatch(recent[3]) +
-              _pointsForRecentMatch(recent[4])) /
-          3;
-      final value = newestAverage - earlierAverage;
-      if (value.abs() < 1) continue;
+      final window = LectorFormWindow(
+        recent.map(_pointsForRecentMatch).toList(),
+        maximumPoints: 3,
+      );
+      final value = window.trend;
+      if (value.abs() < window.trendThreshold) continue;
       final improving = value > 0;
       final form = recent.map((item) => item.result.toUpperCase()).join('');
       readings.add(
@@ -1121,6 +1119,116 @@ class FootballAnalyzer {
     return readings;
   }
 
+  List<FootballReading> _victorySeriesReadings(
+    MatchBoardItem match,
+    DateTime asOf,
+  ) {
+    final readings = <FootballReading>[];
+    for (final entry in [
+      (
+        team: match.homeTeam,
+        side: ReadingSubjectSide.home,
+        matches: match.analysis.homeRecentLeagueMatches,
+      ),
+      (
+        team: match.awayTeam,
+        side: ReadingSubjectSide.away,
+        matches: match.analysis.awayRecentLeagueMatches,
+      ),
+    ]) {
+      final unique = _seriesHistory(match, asOf, entry.matches);
+      for (final scope in [LectorSeriesScope.overall]) {
+        if (scope == LectorSeriesScope.home &&
+                entry.side != ReadingSubjectSide.home ||
+            scope == LectorSeriesScope.away &&
+                entry.side != ReadingSubjectSide.away) {
+          continue;
+        }
+        final series = LectorVictorySeries.assess(
+          unique,
+          won: (g) => switch (g.result.toUpperCase()) {
+            'W' || 'V' => true,
+            'D' || 'N' || 'L' => false,
+            _ => null,
+          },
+          home: (g) => g.venue == RecentMatchVenue.home,
+          scope: scope,
+        );
+        if (!series.detected) continue;
+        readings.add(
+          _reading(
+            id: scope.readingId,
+            teamId: entry.team.id,
+            side: entry.side,
+            strength: ReadingStrength.moderate,
+            asOf: asOf,
+            sampleSize: series.sample,
+            evidence: [
+              ReadingEvidence(
+                label:
+                    '${entry.team.name} : série ${scope.label}, ${series.label}. ${series.milestone}',
+                kind: ReadingEvidenceKind.form,
+                sourcePath: 'recent_league_matches[].matches',
+                value: {
+                  'scope': scope.name,
+                  'consecutiveWins': series.count,
+                  'exact': series.exact,
+                  'threshold': LectorVictorySeries.threshold,
+                },
+              ),
+            ],
+          ),
+        );
+      }
+    }
+    return readings;
+  }
+
+  List<TeamRecentMatchSnapshot> _seriesHistory(
+    MatchBoardItem match,
+    DateTime asOf,
+    List<TeamRecentMatchSnapshot> matches,
+  ) {
+    final kickoff = match.fixture.kickoff;
+    final cutoff = kickoff != null && kickoff.isBefore(asOf) ? kickoff : asOf;
+    // Legacy histories are supplied newest first. A partially dated history
+    // cannot safely be reordered, so this new detector abstains in that case.
+    final hasDates = matches.any((g) => g.playedAt != null);
+    if (hasDates && matches.any((g) => g.playedAt == null)) return const [];
+    final games = matches
+        .where(
+          (g) =>
+              g.fixtureId?.toString() != match.id &&
+              'api-fixture-${g.fixtureId}' != match.id &&
+              (g.playedAt == null || g.playedAt!.isBefore(cutoff)),
+        )
+        .toList();
+    if (hasDates) games.sort((a, b) => b.playedAt!.compareTo(a.playedAt!));
+    final seen = <String, TeamRecentMatchSnapshot>{};
+    var conflictingHistory = false;
+    final unique = games.where((g) {
+      final key = g.fixtureId != null
+          ? 'id:${g.fixtureId}'
+          : g.playedAt != null
+          ? '${g.playedAt}:${g.opponentName}:${g.venue}'
+          : null;
+      if (key == null) return true;
+      final previous = seen[key];
+      if (previous != null) {
+        if (previous.result.toUpperCase() != g.result.toUpperCase() ||
+            previous.venue != g.venue ||
+            previous.playedAt != g.playedAt) {
+          conflictingHistory = true;
+        }
+        return false;
+      }
+      seen[key] = g;
+      return true;
+    }).toList();
+    if (conflictingHistory) return const [];
+    return unique;
+  }
+
   int _pointsForRecentMatch(TeamRecentMatchSnapshot match) {
     return switch (match.result.toUpperCase()) {
       'W' => 3,
@@ -1130,223 +1238,163 @@ class FootballAnalyzer {
   }
 
   List<FootballReading> _homeAwayReadings(MatchBoardItem match, DateTime asOf) {
-    final home = match.analysis.homeStatistics;
-    final away = match.analysis.awayStatistics;
     final readings = <FootballReading>[];
-
-    final homePlayed = home?.playedHome ?? home?.playedTotal;
-    final homeWins = home?.winsHome ?? home?.winsTotal;
-    final homeLosses = home?.lossesHome ?? home?.lossesTotal;
-    final awayPlayed = away?.playedAway ?? away?.playedTotal;
-    final awayWins = away?.winsAway ?? away?.winsTotal;
-    final awayLosses = away?.lossesAway ?? away?.lossesTotal;
-
-    if (homePlayed != null &&
-        homePlayed > 0 &&
-        homeWins != null &&
-        homeLosses != null &&
-        homeWins > homeLosses) {
-      final rate = homeWins / homePlayed;
-      readings.add(
-        _reading(
-          id: 'strong_home_team',
-          teamId: match.homeTeam.id,
-          side: ReadingSubjectSide.home,
-          strength: ReadingStrength.moderate,
-          asOf: asOf,
-          sampleSize: homePlayed,
-          evidence: [
-            ReadingEvidence(
-              label:
-                  '${match.homeTeam.name} gagne ${_percent(rate)} de ses matchs à domicile.',
-              kind: ReadingEvidenceKind.homeAway,
-              sourcePath: 'teams/statistics.fixtures.wins.home',
-              value: rate,
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (homePlayed != null &&
-        homePlayed > 0 &&
-        homeWins != null &&
-        homeLosses != null &&
-        homeLosses > homeWins) {
-      final rate = homeLosses / homePlayed;
-      readings.add(
-        _reading(
-          id: 'weak_home_team',
-          teamId: match.homeTeam.id,
-          side: ReadingSubjectSide.home,
-          strength: ReadingStrength.moderate,
-          asOf: asOf,
-          sampleSize: homePlayed,
-          evidence: [
-            ReadingEvidence(
-              label:
-                  '${match.homeTeam.name} perd ${_percent(rate)} de ses matchs à domicile.',
-              kind: ReadingEvidenceKind.homeAway,
-              sourcePath: 'teams/statistics.fixtures.loses.home',
-              value: rate,
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (awayPlayed != null &&
-        awayPlayed > 0 &&
-        awayWins != null &&
-        awayLosses != null &&
-        awayWins > awayLosses) {
-      final rate = awayWins / awayPlayed;
-      readings.add(
-        _reading(
-          id: 'strong_away_team',
-          teamId: match.awayTeam.id,
-          side: ReadingSubjectSide.away,
-          strength: ReadingStrength.moderate,
-          asOf: asOf,
-          sampleSize: awayPlayed,
-          evidence: [
-            ReadingEvidence(
-              label:
-                  '${match.awayTeam.name} gagne ${_percent(rate)} de ses déplacements.',
-              kind: ReadingEvidenceKind.homeAway,
-              sourcePath: 'teams/statistics.fixtures.wins.away',
-              value: rate,
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (awayPlayed != null &&
-        awayPlayed > 0 &&
-        awayWins != null &&
-        awayLosses != null &&
-        awayLosses > awayWins) {
-      final rate = awayLosses / awayPlayed;
-      readings.add(
-        _reading(
-          id: 'weak_away_team',
-          teamId: match.awayTeam.id,
-          side: ReadingSubjectSide.away,
-          strength: ReadingStrength.moderate,
-          asOf: asOf,
-          sampleSize: awayPlayed,
-          evidence: [
-            ReadingEvidence(
-              label:
-                  '${match.awayTeam.name} perd ${_percent(rate)} de ses déplacements.',
-              kind: ReadingEvidenceKind.homeAway,
-              sourcePath: 'teams/statistics.fixtures.loses.away',
-              value: rate,
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (readings.any((reading) => reading.id == 'strong_home_team') &&
-        readings.any((reading) => reading.id == 'weak_away_team')) {
-      readings.add(
-        _reading(
-          id: 'home_away_advantage',
-          teamId: match.homeTeam.id,
-          side: ReadingSubjectSide.home,
-          strength: ReadingStrength.moderate,
-          asOf: asOf,
-          sampleSize: _min(homePlayed ?? 0, awayPlayed ?? 0),
-          evidence: [
-            ReadingEvidence(
-              label:
-                  '${match.homeTeam.name} est solide à domicile et ${match.awayTeam.name} fragile à l’extérieur.',
-              kind: ReadingEvidenceKind.homeAway,
-              sourcePath: 'teams/statistics.fixtures.home/away',
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (readings.any((reading) => reading.id == 'strong_away_team') &&
-        readings.any((reading) => reading.id == 'weak_home_team')) {
-      readings.add(
-        _reading(
-          id: 'away_home_advantage',
-          teamId: match.awayTeam.id,
-          side: ReadingSubjectSide.away,
-          strength: ReadingStrength.moderate,
-          asOf: asOf,
-          sampleSize: _min(homePlayed ?? 0, awayPlayed ?? 0),
-          evidence: [
-            ReadingEvidence(
-              label:
-                  '${match.awayTeam.name} est solide à l’extérieur et ${match.homeTeam.name} fragile à domicile.',
-              kind: ReadingEvidenceKind.homeAway,
-              sourcePath: 'teams/statistics.fixtures.home/away',
-            ),
-          ],
-        ),
-      );
-    }
-
+    final homeHistory = _seriesHistory(
+      match,
+      asOf,
+      match.analysis.homeRecentLeagueMatches,
+    );
+    final awayHistory = _seriesHistory(
+      match,
+      asOf,
+      match.analysis.awayRecentLeagueMatches,
+    );
+    LectorVictorySeriesAssessment run(
+      List<TeamRecentMatchSnapshot> games,
+      LectorSeriesScope scope,
+      bool win,
+    ) => LectorResultSeries.assess(
+      games,
+      scope: scope,
+      home: (g) => g.venue == RecentMatchVenue.home,
+      matches: (g) => switch (g.result.toUpperCase()) {
+        'W' || 'V' => win,
+        'L' => !win,
+        'D' || 'N' => false,
+        _ => null,
+      },
+    );
+    final homeWins = run(homeHistory, LectorSeriesScope.home, true);
+    final homeLosses = run(homeHistory, LectorSeriesScope.home, false);
+    final awayWins = run(awayHistory, LectorSeriesScope.away, true);
+    final awayLosses = run(awayHistory, LectorSeriesScope.away, false);
     for (final entry in [
       (
+        id: 'strong_home_team',
         team: match.homeTeam,
         side: ReadingSubjectSide.home,
-        view: ChampionshipStandingView.home,
-        label: 'domicile',
+        scope: LectorSeriesScope.home,
+        win: true,
+        series: homeWins,
       ),
       (
+        id: 'weak_home_team',
+        team: match.homeTeam,
+        side: ReadingSubjectSide.home,
+        scope: LectorSeriesScope.home,
+        win: false,
+        series: homeLosses,
+      ),
+      (
+        id: 'strong_away_team',
         team: match.awayTeam,
         side: ReadingSubjectSide.away,
-        view: ChampionshipStandingView.away,
-        label: 'extérieur',
+        scope: LectorSeriesScope.away,
+        win: true,
+        series: awayWins,
+      ),
+      (
+        id: 'weak_away_team',
+        team: match.awayTeam,
+        side: ReadingSubjectSide.away,
+        scope: LectorSeriesScope.away,
+        win: false,
+        series: awayLosses,
       ),
     ]) {
-      final table = match.analysis.standingsFor(entry.view);
-      final distribution = const ChampionshipContextReferenceBuilder()
-          .distributionForValues(
-            metric: ChampionshipContextMetric.pointsPerGame,
-            values: [
-              for (final row in table)
-                if (row.played != null && row.played! > 0 && row.points != null)
-                  ChampionshipContextValue(
-                    teamId: row.teamId,
-                    teamName: row.teamName,
-                    value: row.points! / row.played!,
-                  ),
-            ],
-          );
-      final apiTeamId = entry.team.apiFootballTeamId;
-      final row = table.where((value) => value.teamId == apiTeamId).firstOrNull;
-      if (apiTeamId == null ||
-          row?.played == null ||
-          row!.points == null ||
-          distribution?.zoneForTeam(apiTeamId)?.side !=
-              ChampionshipContextZoneSide.high) {
-        continue;
-      }
+      if (!entry.series.detected) continue;
       readings.add(
         _reading(
-          id: 'venue_strength',
+          id: entry.id,
           teamId: entry.team.id,
           side: entry.side,
           strength: ReadingStrength.moderate,
           asOf: asOf,
-          sampleSize: row.played!,
+          sampleSize: entry.series.sample,
           evidence: [
             ReadingEvidence(
               label:
-                  '${entry.team.name} appartient à la zone haute du classement ${entry.label} (${row.points} points en ${row.played} matchs).',
+                  '${entry.team.name} : ${entry.series.exact ? "" : "au moins "}${entry.series.count} ${entry.win ? "victoires" : "défaites"} consécutives ${entry.scope.label}.',
               kind: ReadingEvidenceKind.homeAway,
-              sourcePath: 'standings[].${entry.label}.points',
-              value: row.points! / row.played!,
+              sourcePath: 'recent_league_matches[].matches',
+              value: {
+                'scope': entry.scope.name,
+                'consecutiveResults': entry.series.count,
+                'result': entry.win ? 'win' : 'loss',
+                'exact': entry.series.exact,
+                'threshold': 3,
+              },
             ),
           ],
+        ),
+      );
+    }
+    for (final entry in [
+      (
+        id: 'home_away_advantage',
+        team: match.homeTeam,
+        side: ReadingSubjectSide.home,
+        wins: homeWins,
+        losses: awayLosses,
+        place: 'à domicile',
+        opposite: 'à l’extérieur',
+        opponent: match.awayTeam,
+      ),
+      (
+        id: 'away_home_advantage',
+        team: match.awayTeam,
+        side: ReadingSubjectSide.away,
+        wins: awayWins,
+        losses: homeLosses,
+        place: 'à l’extérieur',
+        opposite: 'à domicile',
+        opponent: match.homeTeam,
+      ),
+    ]) {
+      if (!entry.wins.detected || !entry.losses.detected) continue;
+      readings.add(
+        _reading(
+          id: entry.id,
+          teamId: entry.team.id,
+          side: entry.side,
+          strength: ReadingStrength.moderate,
+          asOf: asOf,
+          sampleSize: _min(entry.wins.sample, entry.losses.sample),
+          evidence: [
+            ReadingEvidence(
+              label:
+                  '${entry.team.name} : ${entry.wins.exact ? "" : "au moins "}${entry.wins.count} victoires consécutives ${entry.place} ; ${entry.opponent.name} : ${entry.losses.exact ? "" : "au moins "}${entry.losses.count} défaites consécutives ${entry.opposite}.',
+              kind: ReadingEvidenceKind.homeAway,
+              sourcePath: 'recent_league_matches[].matches',
+              value: {
+                'consecutiveWins': entry.wins.count,
+                'opponentConsecutiveLosses': entry.losses.count,
+                'winsExact': entry.wins.exact,
+                'lossesExact': entry.losses.exact,
+                'threshold': 3,
+              },
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Technical scenario evidence follows the same venue momentum rule.
+    for (final solid
+        in readings
+            .where(
+              (r) => r.id == 'strong_home_team' || r.id == 'strong_away_team',
+            )
+            .toList()) {
+      readings.add(
+        _reading(
+          id: 'venue_strength',
+          teamId: solid.subjectTeamId,
+          side: solid.subjectSide,
+          strength: solid.strength,
+          asOf: asOf,
+          sampleSize: solid.sampleSize,
+          evidence: solid.evidence,
         ),
       );
     }

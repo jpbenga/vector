@@ -1,3 +1,4 @@
+import '../../../core/domain/lector_player_form_policy.dart';
 import '../../matches/domain/match_board_item.dart';
 
 /// The explainable Form Radar ranking.
@@ -33,7 +34,7 @@ class PlayerFormRadarEntry {
 class PlayerFormRadarRanker {
   const PlayerFormRadarRanker._();
 
-  static const recentWindow = 3;
+  static const recentWindow = LectorPlayerFormPolicy.recentWindow;
 
   /// A player must have produced at least two actions in the current window.
   /// This retains super-subs while excluding a single isolated contribution.
@@ -43,14 +44,12 @@ class PlayerFormRadarRanker {
     final entries = <PlayerFormRadarEntry>[];
     for (final profile in latestProfiles(profiles)) {
       if (profile.activity.length < recentWindow) continue;
-      final recent = profile.activity
-          .skip(profile.activity.length - recentWindow)
-          .toList(growable: false);
+      final recent = LectorPlayerFormPolicy.recent(profile.activity);
       final contributions = recent.fold<int>(
         0,
         (total, match) => total + match.contributions,
       );
-      if (contributions < 2) continue;
+      if (contributions < LectorPlayerFormPolicy.minimumContributions) continue;
       entries.add(
         PlayerFormRadarEntry(
           profile: profile,
@@ -149,11 +148,6 @@ class PlayerFormRadarRanker {
   static int _currentDecisiveStreak(
     List<PlayerFormRadarMatchSnapshot> activity,
   ) {
-    var length = 0;
-    for (final match in activity.reversed) {
-      if (!match.isDecisive) break;
-      length += 1;
-    }
-    return length;
+    return LectorPlayerFormPolicy.streak(activity, (match) => match.isDecisive);
   }
 }

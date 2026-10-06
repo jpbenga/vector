@@ -1,3 +1,5 @@
+import 'package:copilot/core/widgets/lector_player_radar.dart';
+import 'package:copilot/core/widgets/lector_radar.dart';
 import 'package:copilot/app/theme/app_theme.dart';
 import 'package:copilot/core/identity/identity_scope.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -61,6 +63,8 @@ void main() {
       }
 
       await render(connected: true, personalized: [profileMatch]);
+      expect(find.byType(LectorRadarPlayerRow), findsOneWidget);
+      expect(find.byType(LectorPlayerActivityMatrix), findsWidgets);
       expect(find.byType(MatchFeedCard), findsOneWidget);
       expect(find.byType(FormRadarSignalPanel), findsOneWidget);
       expect(find.text('Lecture retenue pour mon profil'), findsOneWidget);
@@ -136,6 +140,9 @@ void main() {
     await tester.tap(find.text('Équipes'));
     await tester.pumpAndSettle();
 
+    expect(find.byType(LectorRadarRankingPanel), findsOneWidget);
+    expect(find.byType(LectorRadarTeamRow), findsNWidgets(10));
+    expect(find.byType(LectorFormResultStrip), findsNWidgets(10));
     expect(find.text('Top 50'), findsOneWidget);
     expect(find.text('1–10 sur 50'), findsOneWidget);
     expect(find.text('Équipe 01'), findsOneWidget);

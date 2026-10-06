@@ -1,3 +1,4 @@
+import '../../../../core/widgets/lector_reading_pill.dart';
 import '../../../../core/widgets/lector_live_badge.dart';
 import '../../../../core/domain/lector_temporal_state.dart';
 import '../../../../core/widgets/lector_match_card.dart';
@@ -497,7 +498,7 @@ class _StoryReadingTags extends StatelessWidget {
       runSpacing: 5,
       children: [
         for (final tag in tags)
-          _StoryReadingPill(
+          LectorReadingPill(
             label: tag.label,
             style: context.opportunities.badgeFor(
               tag.id,
@@ -660,50 +661,6 @@ class _StoryTeamLine extends StatelessWidget {
   }
 }
 
-class _StoryReadingPill extends StatelessWidget {
-  const _StoryReadingPill({
-    required this.label,
-    required this.style,
-    required this.icon,
-  });
-
-  final String label;
-  final AppReadingBadgeStyle style;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: style.background,
-        borderRadius: BorderRadius.circular(AppRadius.chip),
-        border: Border.all(color: style.border),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 15, color: style.iconColor),
-            const SizedBox(width: 5),
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: style.foreground,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _StoryMatchResultOdds extends StatelessWidget {
   const _StoryMatchResultOdds({
     required this.matchId,
@@ -780,6 +737,9 @@ String matchReadingLabelForId(String id, {required String fallback}) {
     'ranking_gap' || 'structural_level_gap' => 'Avantage classement',
     'ranking_superiority' => 'Écart au classement',
     'balanced_hierarchy' => 'Hiérarchie équilibrée',
+    'winning_streak' ||
+    'home_winning_streak' ||
+    'away_winning_streak' ||
     'positive_streak' ||
     'improving_form' ||
     'form_advantage' ||

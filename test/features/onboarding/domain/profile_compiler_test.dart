@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 const _canonicalReadingIds = <String>[
   'structural_level_gap',
+  'winning_streak',
   'positive_streak',
   'negative_streak',
   'improving_form',
@@ -50,6 +51,56 @@ const _canonicalScenarioIds = <String>[
 
 void main() {
   group('ProfileCompiler', () {
+    test(
+      'former venue win series select the equivalent solidity exactly once',
+      () {
+        final profile = const ProfileCompiler().compile(
+          const DecisionProfile(
+            onboardingVersion: '3.0',
+            answers: [
+              OnboardingAnswer(
+                questionId: 'readings',
+                orderedOptionIds: [
+                  'home_winning_streak',
+                  'strong_home_team',
+                  'away_winning_streak',
+                ],
+              ),
+            ],
+          ),
+        );
+        expect(
+          profile.readings.values
+              .where((r) => r.enabled)
+              .map((r) => r.id)
+              .toSet(),
+          {'strong_home_team', 'strong_away_team'},
+        );
+        expect(profile.isReadingAllowed('weak_home_team'), false);
+      },
+    );
+
+    test(
+      'new victory series remain opt-in for an existing football selection',
+      () {
+        final compiled = const ProfileCompiler().compile(
+          const DecisionProfile(
+            onboardingVersion: '3.0',
+            answers: [
+              OnboardingAnswer(
+                questionId: 'readings',
+                orderedOptionIds: ['positive_streak'],
+              ),
+            ],
+          ),
+        );
+        expect(compiled.readings['positive_streak']?.enabled, true);
+        for (final id in ['winning_streak']) {
+          expect(compiled.readings[id]?.enabled, false);
+        }
+      },
+    );
+
     test('compiles completed V3 answers into a versioned decision profile', () {
       const sourceProfile = DecisionProfile(
         onboardingVersion: '3.0',
