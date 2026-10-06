@@ -4,6 +4,7 @@ import 'package:copilot/features/hockey/domain/hockey_analysis.dart';
 import 'package:copilot/features/hockey/domain/hockey_reading_engine.dart';
 import 'package:copilot/features/hockey/domain/hockey_rules.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:copilot/features/hockey/domain/hockey_standing_tiers.dart';
 
 SportEntityId id(
   SportEntityKind kind,
@@ -21,17 +22,22 @@ HockeyRecentGame game(
   SportEntityId? league,
   String season = '2026',
   DateTime? completedAt,
+  bool? home = true,
 }) => HockeyRecentGame(
   match: id(SportEntityKind.match, '$index'),
   competition: league ?? competition,
   season: season,
   completedAt: completedAt ?? cutoff.subtract(Duration(days: index + 1)),
   result: result,
+  home: home,
 );
 HockeyTeamContext team(
   String name,
   List<HockeyRecentGame> games, {
   int points = 16,
+  int played = 10,
+  int? tier,
+  int? rank,
   String group = 'league-overall',
   DateTime? standingAt,
 }) => HockeyTeamContext(
@@ -41,7 +47,10 @@ HockeyTeamContext team(
     competition: competition,
     season: '2026',
     comparisonGroup: group,
-    gamesPlayed: 10,
+    gamesPlayed: played,
+    tier: tier ?? (name == 'home' ? 1 : 5),
+    rank: rank ?? (name == 'home' ? 1 : 12),
+    tierVersion: HockeyStandingTiers.version,
     points: points,
     asOf: standingAt ?? cutoff,
   ),
@@ -70,6 +79,274 @@ SportReadingAssessment homeReading(
 ) => readings.firstWhere((r) => r.subject.value == 'home' && r.id == key);
 
 void main() {
+  test(
+    'venue momentum requires both current runs and counts final overtime losses',
+    () {
+      final homeGames = [
+        game(0, HockeyResult.regulationWin),
+        game(1, HockeyResult.regulationLoss, home: false),
+        game(2, HockeyResult.overtimeWin),
+        game(3, HockeyResult.shootoutWin),
+      ];
+      final awayGames = [
+        game(0, HockeyResult.overtimeLoss, home: false),
+        game(1, HockeyResult.regulationWin),
+        game(2, HockeyResult.regulationLoss, home: false),
+        game(3, HockeyResult.shootoutLoss, home: false),
+      ];
+      final values = engine.analyze(
+        context(team('home', homeGames), team('away', awayGames)),
+      );
+      expect(
+        homeReading(values, 'strong_home_team').status,
+        SportReadingStatus.detected,
+      );
+      expect(
+        homeReading(values, 'home_away_advantage').status,
+        SportReadingStatus.detected,
+      );
+      expect(
+        values
+            .firstWhere(
+              (r) => r.subject.value == 'away' && r.id == 'weak_away_team',
+            )
+            .status,
+        SportReadingStatus.detected,
+      );
+      final broken = engine.analyze(
+        context(
+          team('home', homeGames),
+          team('away', [
+            game(0, HockeyResult.regulationWin, home: false),
+            ...awayGames.skip(1),
+          ]),
+        ),
+      );
+      expect(
+        homeReading(broken, 'home_away_advantage').status,
+        SportReadingStatus.notDetected,
+      );
+      final missing = engine.analyze(
+        context(team('home', homeGames), team('away', [])),
+      );
+      expect(
+        homeReading(missing, 'home_away_advantage').status,
+        SportReadingStatus.insufficientData,
+      );
+      final unknownVenue = engine.analyze(
+        context(
+          team('home', [
+            game(0, HockeyResult.regulationWin, home: null),
+            ...homeGames,
+          ]),
+          team('away', awayGames),
+        ),
+      );
+      expect(
+        homeReading(unknownVenue, 'strong_home_team').status,
+        SportReadingStatus.insufficientData,
+      );
+    },
+  );
+  test(
+    'reverse venue advantage and season aggregates cannot override momentum',
+    () {
+      final values = engine.analyze(
+        context(
+          team('home', results(List.filled(3, HockeyResult.regulationLoss))),
+          team('away', [
+            for (var i = 0; i < 3; i++)
+              game(i, HockeyResult.regulationWin, home: false),
+          ]),
+        ),
+      );
+      expect(
+        values
+            .firstWhere(
+              (r) => r.subject.value == 'away' && r.id == 'away_home_advantage',
+            )
+            .status,
+        SportReadingStatus.detected,
+      );
+      expect(
+        homeReading(values, 'home_away_advantage').status,
+        SportReadingStatus.notDetected,
+      );
+      expect(
+        homeReading(values, 'strong_home_team').status,
+        SportReadingStatus.notDetected,
+      );
+    },
+  );
+
+  test('dynamics do not mistake overtime points for final wins', () {
+    final readings = engine.analyze(
+      context(
+        team(
+          'home',
+          results([
+            HockeyResult.overtimeLoss,
+            HockeyResult.regulationWin,
+            HockeyResult.regulationWin,
+            HockeyResult.regulationWin,
+            HockeyResult.regulationWin,
+          ]),
+        ),
+        team(
+          'away',
+          results(List.filled(5, HockeyResult.regulationLoss)),
+          points: 0,
+        ),
+      ),
+    );
+    expect(
+      homeReading(readings, 'positive_streak').status,
+      SportReadingStatus.detected,
+    );
+    expect(
+      homeReading(readings, 'winning_streak').status,
+      SportReadingStatus.notDetected,
+    );
+    expect(
+      readings
+          .singleWhere(
+            (r) => r.subject.value == 'away' && r.id == 'negative_streak',
+          )
+          .status,
+      SportReadingStatus.detected,
+    );
+  });
+  test(
+    'form gap needs nine raw points in both two and three point leagues',
+    () {
+      for (final (rules, homeResults, awayResults) in [
+        (
+          HockeyPointsRules.nhlRegularSeason,
+          List.filled(5, HockeyResult.regulationWin),
+          [
+            HockeyResult.overtimeLoss,
+            ...List.filled(4, HockeyResult.regulationLoss),
+          ],
+        ),
+        (
+          HockeyPointsRules.threePointRegularSeason,
+          [
+            HockeyResult.regulationWin,
+            HockeyResult.regulationWin,
+            HockeyResult.regulationWin,
+            HockeyResult.overtimeWin,
+            HockeyResult.overtimeWin,
+          ],
+          [
+            HockeyResult.regulationWin,
+            HockeyResult.overtimeLoss,
+            ...List.filled(3, HockeyResult.regulationLoss),
+          ],
+        ),
+      ]) {
+        final reading = homeReading(
+          engine.analyze(
+            context(
+              team('home', results(homeResults)),
+              team('away', results(awayResults), points: 4),
+              rules: rules,
+            ),
+          ),
+          'form_gap',
+        );
+        expect(reading.status, SportReadingStatus.detected);
+        expect(reading.evidence['pointsGap'], 9);
+      }
+      final shortGap = homeReading(
+        engine.analyze(
+          context(
+            team('home', results(List.filled(5, HockeyResult.regulationWin))),
+            team(
+              'away',
+              results([
+                HockeyResult.regulationWin,
+                ...List.filled(4, HockeyResult.regulationLoss),
+              ]),
+              points: 2,
+            ),
+          ),
+        ),
+        'form_gap',
+      );
+      expect(shortGap.status, SportReadingStatus.notDetected);
+    },
+  );
+  test('improving form compares latest two to previous three', () {
+    final r = homeReading(
+      engine.analyze(
+        context(
+          team(
+            'home',
+            results([
+              HockeyResult.regulationWin,
+              HockeyResult.regulationWin,
+              ...List.filled(3, HockeyResult.regulationLoss),
+            ]),
+          ),
+          team(
+            'away',
+            results(List.filled(5, HockeyResult.regulationLoss)),
+            points: 0,
+          ),
+        ),
+      ),
+      'improving_form',
+    );
+    expect(r.status, SportReadingStatus.detected);
+    expect(r.evidence['trend'], 2);
+  });
+  test(
+    'series uses full history and three venue wins despite an away loss',
+    () {
+      final long = engine.analyze(
+        context(
+          team(
+            'home',
+            results([
+              ...List.filled(8, HockeyResult.shootoutWin),
+              HockeyResult.overtimeLoss,
+            ]),
+          ),
+          team('away', []),
+        ),
+      );
+      expect(
+        homeReading(long, 'winning_streak').evidence['consecutiveWins'],
+        8,
+      );
+      expect(homeReading(long, 'winning_streak').evidence['exact'], true);
+      final venue = engine.analyze(
+        context(
+          team('home', [
+            game(0, HockeyResult.regulationWin),
+            game(1, HockeyResult.regulationLoss, home: false),
+            game(2, HockeyResult.shootoutWin),
+            game(3, HockeyResult.regulationLoss, home: false),
+            game(4, HockeyResult.overtimeWin),
+          ]),
+          team('away', []),
+        ),
+      );
+      expect(
+        homeReading(venue, 'winning_streak').status,
+        SportReadingStatus.notDetected,
+      );
+      expect(
+        homeReading(venue, 'strong_home_team').status,
+        SportReadingStatus.detected,
+      );
+      expect(
+        homeReading(venue, 'strong_away_team').status,
+        SportReadingStatus.notDetected,
+      );
+    },
+  );
+
   test(
     'standings points follow explicit competition rules, including overtime losses',
     () {
@@ -251,35 +528,44 @@ void main() {
   );
 
   test(
-    'policy thresholds are configurable and exact boundaries are included',
+    'standing advantage requires tiers, five games and comparable samples',
     () {
-      final home = team(
-        'home',
-        results(List.filled(5, HockeyResult.regulationWin)),
-        points: 13,
-      );
-      final away = team(
-        'away',
-        results(List.filled(5, HockeyResult.regulationLoss)),
-        points: 10,
-      );
-      expect(
-        homeReading(
-          engine.analyze(context(home, away)),
-          'standing_advantage',
-        ).status,
-        SportReadingStatus.detected,
-      );
-      const strict = HockeyReadingEngine(
-        policy: HockeyReadingPolicy(standingPercentageGap: .16),
-      );
-      expect(
-        homeReading(
-          strict.analyze(context(home, away)),
-          'standing_advantage',
-        ).status,
-        SportReadingStatus.notDetected,
-      );
+      final games = results(List.filled(5, HockeyResult.regulationWin));
+      for (final (home, away, expected) in [
+        (
+          team('home', games, points: 10, played: 5),
+          team('away', games, points: 4, played: 5),
+          SportReadingStatus.detected,
+        ),
+        (
+          team('home', games),
+          team('away', games, points: 10, tier: 1, rank: 2),
+          SportReadingStatus.notDetected,
+        ),
+        (
+          team('home', games),
+          team('away', games, points: 10, played: 8),
+          SportReadingStatus.insufficientData,
+        ),
+        (
+          team('home', games, points: 8, played: 4),
+          team('away', games, points: 4, played: 5),
+          SportReadingStatus.insufficientData,
+        ),
+        (
+          team('home', games, points: 16),
+          team('away', games, points: 16),
+          SportReadingStatus.notDetected,
+        ),
+      ]) {
+        expect(
+          homeReading(
+            engine.analyze(context(home, away)),
+            'standing_advantage',
+          ).status,
+          expected,
+        );
+      }
     },
   );
 }

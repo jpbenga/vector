@@ -1,8 +1,22 @@
 # Architecture multisport — cadrage et socle du 4 octobre 2026
 
-Statut : implémentation locale sur `codex/multisport-hockey`. La branche reprend
-`main` à `50af53a`, dont le calendrier football de 14 jours. Aucune modification
-de production, aucun collecteur hockey activé en production.
+Statut : implémentation locale sur `codex/multisport-hockey`. La branche a intégré
+`main` à `61503be` (merge `dcbf3cf`), avec le calendrier football de 14 jours et
+les corrections de snapshot/live. Aucun collecteur hockey déployé en production.
+
+**Composants communs et sept ligues :** [audit du 4 octobre](../audits/multisport/2026-10-04-hockey-shared-ui.md).
+
+**Lectures communes et variantes par discipline :** le [cadrage du 5 octobre](multisport-reading-catalog.md)
+classe les 28 lectures football existantes, identifie les candidats hockey et
+précise les contrats et prérequis de données avant leur activation.
+
+**Formats des championnats hockey :** l'[étude des règles par compétition et saison](hockey-competition-rules-study.md)
+analyse les sept ligues, les classements de division/conférence, les oppositions
+entre groupes, les phases et les conditions de comparaison pour les lectures.
+
+**Premières lectures fonctionnelles :** l'[itération du 5 octobre](../audits/multisport/2026-10-05-functional-hockey-readings.md)
+raccorde trois lectures au compact hockey et aux préférences explicites,
+isolées par compte/invité et discipline. Les calculs football restent identiques.
 
 **Étape suivante réalisée :** la [première collecte NHL locale](nhl-first-collection.md)
 relie des réponses API réelles au brut, au compact et à l’affichage. Le raccordement
@@ -82,14 +96,19 @@ volley supplémentaire sans modifier le routeur ou la liste des sports intégré
   leur format actuel. Aucune préférence n’est copiée implicitement entre sports.
 - `SportWorkspaceRegistry` : composition injectable des espaces et des sources.
   La source football est raccordée au loader existant à la demande ; la source
-  hockey renvoie actuellement `notConnected` sans tenter de charger du football.
+  hockey utilise une publication locale validée indépendante du football. Sans
+  source configurée, elle renvoie `notConnected`, sans tenter de charger du football.
 
 ### Limite actuelle à conserver en tête
 
 Le parcours football de production utilise encore ses composants et moteurs
-historiques. Le pont commun est raccordé et testé mais ne remplace pas tous les
-consommateurs football. Les pages, préférences, tickets et bilans hockey ne sont
-pas encore intégrés aux données réelles. Les nouveaux contrats de scores et
+historiques pour les moteurs et profils. Les cartes, le détail, les tables, le
+TAT, les accordéons pays/ligue et les composants de présentation du Radar sont
+maintenant communs. Le calendrier, les classements, la forme et le H2H hockey
+sont raccordés à la collecte locale. Trois lectures personnalisées et leurs
+préférences sont maintenant raccordées, avec persistance locale par utilisateur
+et sport. Leur synchronisation Supabase, les tickets et bilans hockey restent
+à réaliser. Les nouveaux contrats de scores et
 marchés ne sont pas encore des adaptateurs de cotes du fournisseur.
 
 Cette itération sécurise les frontières et la composition ; elle ne prétend pas
@@ -258,3 +277,14 @@ fondation ne les transforme pas en règles sportives validées pour les sept lig
 - `flutter analyze` : aucune anomalie.
 - `dart format --set-exit-if-changed .` : aucune modification attendue.
 - Aucun appel hockey supplémentaire, aucune migration ou mise en production.
+
+### Radar joueurs commun
+
+La présentation joueurs est dans `core/widgets/lector_player_radar.dart` :
+ligne classée, cellules, matrice, période, légende et identité du signal.
+Football et hockey consomment ces classes avec leurs adaptateurs. Le contrat
+`SportPlayerProfile` décrit les contributions factuelles, sans inventer présence
+ou minutes manquantes. Le hockey collecte les événements des trois derniers
+matchs d'équipe dans le cache partagé de l'enrichissement, puis applique son
+ranker dans son module. Le lecteur public valide la couverture, la phase, la
+saison, les identités et la fenêtre avant d'exposer ces profils à l'écran.

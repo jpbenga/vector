@@ -1,3 +1,6 @@
+import '../../domain/lector_temporal_state.dart';
+import 'sport_match_history.dart';
+import 'sport_competition_context.dart';
 import 'sport.dart';
 import 'sport_policy.dart';
 
@@ -54,8 +57,18 @@ class SportFixture {
     required this.status,
     this.calendarDate,
     this.providerStatus,
+    this.period,
+    this.clock,
+    this.capturedAt,
+    this.headToHead,
+    this.matchEvents = const [],
+    this.matchEventsCapturedAt,
     Map<SportScoreScope, SportScore> scores = const {},
-  }) : scores = Map.unmodifiable(scores) {
+    Iterable<SportFormResult> homeForm = const [],
+    Iterable<SportFormResult> awayForm = const [],
+  }) : scores = Map.unmodifiable(scores),
+       homeForm = List.unmodifiable(homeForm),
+       awayForm = List.unmodifiable(awayForm) {
     if (id.kind != SportEntityKind.match ||
         competition.kind != SportEntityKind.competition ||
         home.id.kind != SportEntityKind.team ||
@@ -85,7 +98,34 @@ class SportFixture {
   // Publication calendar day; avoids shifting dates with browser time zones.
   final DateTime? calendarDate;
   final String? providerStatus;
+  final String? period, clock;
+  final DateTime? capturedAt;
+  LectorTemporalState get temporal => LectorTemporalState(
+    phase: switch (status) {
+      SportFixtureStatus.live => LectorMatchPhase.live,
+      SportFixtureStatus.scheduled => LectorMatchPhase.upcoming,
+      SportFixtureStatus.finished => LectorMatchPhase.finished,
+      _ => LectorMatchPhase.other,
+    },
+    period:
+        period ??
+        switch (providerStatus) {
+          'P1' => 'P1',
+          'P2' => 'P2',
+          'P3' => 'P3',
+          'OT' => 'Prol.',
+          'BT' || 'IN1' || 'IN2' => 'Pause',
+          'PT' || 'PEN' => 'TAB',
+          _ => null,
+        },
+    clock: clock,
+    capturedAt: capturedAt,
+  );
+  final SportMatchHistory? headToHead;
+  final List<SportMatchEvent> matchEvents;
+  final DateTime? matchEventsCapturedAt;
   final Map<SportScoreScope, SportScore> scores;
+  final List<SportFormResult> homeForm, awayForm;
   SportId get sport => id.sport;
 
   (SportParticipant, SportParticipant) displayedParticipants(

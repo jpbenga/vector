@@ -1,3 +1,5 @@
+import 'sport_player_activity.dart';
+import 'sport_competition_context.dart';
 import 'sport.dart';
 
 /// Metadata contract for future sport publications. An empty day is valid.
@@ -11,7 +13,13 @@ class SportSnapshot<T> {
     required this.windowEnd,
     required Iterable<T> items,
     required SportId Function(T) sportOf,
-  }) : items = List.unmodifiable(items) {
+    Iterable<SportCompetitionContext> competitions = const [],
+    Iterable<SportPlayerProfile> players = const [],
+    Iterable<SportPlayerRadarCoverage> playerRadarCoverage = const [],
+  }) : items = List.unmodifiable(items),
+       players = List.unmodifiable(players),
+       playerRadarCoverage = List.unmodifiable(playerRadarCoverage),
+       competitions = List.unmodifiable(competitions) {
     if (schemaVersion != 1 || windowEnd.isBefore(windowStart)) {
       throw ArgumentError('Unsupported schema or invalid snapshot window.');
     }
@@ -27,6 +35,9 @@ class SportSnapshot<T> {
   final DateTime windowStart;
   final DateTime windowEnd;
   final List<T> items;
+  final List<SportPlayerProfile> players;
+  final List<SportPlayerRadarCoverage> playerRadarCoverage;
+  final List<SportCompetitionContext> competitions;
 
   bool covers(DateTime date) {
     DateTime day(DateTime value) =>

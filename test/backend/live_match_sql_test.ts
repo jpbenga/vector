@@ -117,13 +117,20 @@ Deno.test("live SQL: lease, public scores, immutable final evaluations, correcti
         "select match_live_publish($1,$2::jsonb,$3::jsonb,$4::int[],2,false)",
         [plan.token, JSON.stringify(states), JSON.stringify(results), checked],
       );
+    await db.exec(await Deno.readTextFile('supabase/migrations/20261004230000_premium_live_statistics.sql'));
+    await db.exec(await Deno.readTextFile('supabase/migrations/20261005003000_persistent_match_statistics.sql'));
     const now = new Date().toISOString();
-    await publish([liveState(fixture(1, "2H", 1, 2), now)]);
+    const stats = [{team: {id: 1}, statistics: [{type: 'Total Shots', value: 0}]}];
+    await publish([liveState({...fixture(1, "2H", 1, 2), statistics: stats}, now)]);
     await db.exec("set role anon");
     let rows = (await db.query<{ states: Record<string, unknown>[] }>(
       "select match_live_for_fixtures(array[1,2]) states",
     )).rows[0].states;
+    assert.deepEqual(rows.find((r) => r.fixture_id === 1)?.statistics, stats, 'anon reads exact current statistics');
+    assert.ok(rows.find((r) => r.fixture_id === 1)?.statistics_captured_at);
     assert.equal(rows.find((r) => r.fixture_id === 1)?.home_goals, 1);
+    assert.equal(rows.find((r) => r.fixture_id === 1)?.halftime_home_goals, 0);
+    assert.equal(rows.find((r) => r.fixture_id === 1)?.halftime_away_goals, 1);
     assert.equal(rows.find((r) => r.fixture_id === 1)?.away_goals, 2);
     assert.equal(
       rows.find((r) => r.fixture_id === 2)?.home_goals,
@@ -160,6 +167,8 @@ Deno.test("live SQL: lease, public scores, immutable final evaluations, correcti
       new Date(Date.now() + 1000).toISOString(),
     );
     await publish([liveState(final, String(result?.captured_at))], [result]);
+    assert.deepEqual((await db.query<{statistics: unknown}>('select statistics from match_live_states where fixture_id=1')).rows[0].statistics, stats,
+      'a score-only update does not erase statistics or invent new values');
     const verdicts = async () =>
       (await db.query<{ reading_id: string; verdict: string }>(
         "select reading_id,verdict from match_reading_bilan where fixture_id=1 order by reading_id",
@@ -212,6 +221,33 @@ Deno.test("live SQL: lease, public scores, immutable final evaluations, correcti
       "confirmed",
     );
     plan = await claim();
+    const finishedAt = new Date(Date.now() + 5000).toISOString();
+    const archivedStats = [{team: {id: 1}, statistics: [{type: 'Total Shots', value: 14}]}];
+    const archivedEvents = [{type: 'Goal', team: {id: 2}, time: {elapsed: 24}, player: {id: 7, name: 'Buteur'}}];
+    const archive = await finalResult({...final, statistics: archivedStats, events: archivedEvents}, finishedAt);
+    await publish([], [archive]);
+    await db.exec("set role anon");
+    let historical = (await db.query<{states: Record<string, unknown>[]}>('select match_live_for_fixtures(array[1]) states')).rows[0].states[0];
+    assert.deepEqual(historical.statistics, archivedStats, 'enriched final snapshot overrides old live cache');
+    assert.deepEqual(historical.events, archivedEvents);
+    assert.equal(historical.statistics_is_final, true);
+    await db.exec('reset role');
+    plan = await claim();
+    await publish([], [await finalResult({...final,score:{halftime:{home:null,away:null}}}, new Date(Date.now()+6000).toISOString())]);
+    await db.exec("delete from match_live_states where fixture_id=1; set role anon");
+    historical = (await db.query<{states: Record<string, unknown>[]}>('select match_live_for_fixtures(array[1]) states')).rows[0].states[0];
+    assert.deepEqual(historical.statistics, archivedStats, 'later score-only final does not erase archived facts');
+    assert.equal(historical.halftime_home_goals, 0, 'score-only final preserves the received halftime score');
+    assert.equal(historical.halftime_away_goals, 1);
+    assert.equal(Date.parse(String(historical.statistics_captured_at)), Date.parse(finishedAt));
+    await db.exec('reset role');
+    plan = await claim();
+    await publish([], [await finalResult(fixture(1,'FT',0,0), new Date(Date.now()+7000).toISOString())]);
+    historical = (await db.query<{states: Record<string, unknown>[]}>('select match_live_for_fixtures(array[1]) states')).rows[0].states[0];
+    assert.equal(historical.statistics, null, 'corrected score cannot reuse statistics from a different final score');
+    plan = await claim();
+    await publish([], [await finalResult(final, new Date(Date.now()+8000).toISOString())]);
+    plan = await claim();
     const expiredToken = plan.token;
     await db.exec(
       "update match_live_configuration set lease_until=now()-interval '1 second',last_started_at=now()-interval '2 minutes'",
@@ -243,6 +279,16 @@ Deno.test("live SQL: lease, public scores, immutable final evaluations, correcti
     )).rows[0].states;
     assert.equal(rows[0].away_goals, 3);
     assert.equal((rows[0].readings as unknown[]).length, 5);
+    await db.exec('reset role; select match_live_set_enabled(true)');
+    plan = await claim();
+    const fourDaysAgo = new Date(Date.now()-4*86400000).toISOString();
+    await publish([], [await finalResult({...fixture(22,'FT',2,1),statistics:archivedStats},fourDaysAgo)]);
+    await db.exec('set role anon');
+    const oldMatch = (await db.query<{states: Record<string,unknown>[]}>('select match_live_for_fixtures(array[22]) states')).rows[0].states[0];
+    assert.deepEqual(oldMatch.statistics, archivedStats, 'a four-day-old match is publicly readable without any live cache');
+    assert.equal(oldMatch.statistics_is_final, true);
+    assert.equal(Date.parse(String(oldMatch.statistics_captured_at)), Date.parse(fourDaysAgo));
+
   } finally {
     await db.close();
   }

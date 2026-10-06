@@ -1,3 +1,4 @@
+import '../../../../core/widgets/lector_live_badge.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -9,8 +10,13 @@ import '../../domain/live_match_state.dart';
 import '../reading_bilan_section.dart';
 
 class LiveMatchStatus extends StatefulWidget {
-  const LiveMatchStatus({required this.state, super.key});
+  const LiveMatchStatus({
+    required this.state,
+    this.showBadge = true,
+    super.key,
+  });
   final LiveMatchState state;
+  final bool showBadge;
   @override
   State<LiveMatchStatus> createState() => _LiveMatchStatusState();
 }
@@ -36,15 +42,6 @@ class _LiveMatchStatusState extends State<LiveMatchStatus> {
     final state = widget.state;
     if (state.capturedAt == null) return const SizedBox.shrink();
     final stale = state.isStale(DateTime.now());
-    final liveLabel = state.status == 'HT'
-        ? 'Mi-temps · En direct'
-        : state.statusLabel;
-    final badgeColor = stale
-        ? context.semantic.warning
-        : context.components.liveBadgeText;
-    final badgeBackground = stale
-        ? context.surfaces.surfaceHover
-        : context.components.liveBadgeBackground;
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Wrap(
@@ -52,41 +49,9 @@ class _LiveMatchStatusState extends State<LiveMatchStatus> {
         runSpacing: 4,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          if (state.isLive)
-            DecoratedBox(
-              key: const ValueKey('live-match-status-badge'),
-              decoration: BoxDecoration(
-                color: badgeBackground,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: badgeColor),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      stale ? Icons.pause_circle_outline_rounded : Icons.circle,
-                      color: badgeColor,
-                      size: 10,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      liveLabel,
-                      style: TextStyle(
-                        color: badgeColor,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else
+          if (state.isLive && widget.showBadge)
+            LectorLiveBadge(state: state.temporal)
+          else if (!state.isLive)
             Text(
               state.statusLabel,
               style: TextStyle(
@@ -120,15 +85,7 @@ class LiveReadingSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!hasReadings && entries.isEmpty) return const SizedBox.shrink();
-    if (!state.isFinal) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 8),
-        child: Text(
-          'Lectures annoncées avant match · bilan au résultat final',
-          style: TextStyle(color: context.textColors.secondary, fontSize: 12),
-        ),
-      );
-    }
+    if (!state.isFinal) return const SizedBox.shrink();
     if (entries.isEmpty) {
       return Padding(
         padding: const EdgeInsets.only(top: 8),

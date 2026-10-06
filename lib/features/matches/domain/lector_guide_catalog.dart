@@ -1,3 +1,4 @@
+import '../../../core/domain/lector_victory_series.dart';
 import '../../onboarding/domain/decision_profile_catalogs.dart';
 import 'football_reading.dart';
 import 'football_scenario.dart';
@@ -24,7 +25,7 @@ class LectorGuideCatalog {
 
   static String readingLabel(String id) =>
       ReadingPreferenceCatalog.values
-          .where((reading) => reading.id == id)
+          .where((reading) => reading.id == canonicalVenueReadingId(id))
           .firstOrNull
           ?.label ??
       _supportLabels[id] ??
@@ -61,6 +62,23 @@ class LectorGuideCatalog {
       counterExample:
           'Le 2e affronte le 3e : même avec un avantage de points, '
           'l’écart de places est insuffisant pour cette lecture.',
+    ),
+    'winning_streak': const LectorReadingGuide(
+      meaning:
+          'Une équipe enchaîne au moins trois victoires tous lieux confondus.',
+      conditions: [
+        'Les résultats sont ordonnés du plus récent au plus ancien dans la même compétition.',
+        'Trois victoires consécutives tous lieux confondus ; un nul ou une défaite dans ce périmètre arrête la série.',
+        'Cinq est un jalon. La série continue à six, sept et plus. Si l’historique ne prouve pas son début, le nombre est indiqué au moins.',
+      ],
+      facts: [
+        'Atlas : quatre victoires consécutives tous lieux confondus.',
+        'La prochaine rencontre peut prolonger cette série jusqu’à cinq.',
+      ],
+      conclusion:
+          'Série détectée dès la troisième victoire ; sa longueur décrit le passé.',
+      counterExample:
+          'Deux victoires suivies d’un nul tous lieux confondus ne constituent pas une série active de trois victoires. La longueur ne suffit pas à calculer un risque de rupture.',
     ),
     'positive_streak': const LectorReadingGuide(
       meaning:
@@ -148,34 +166,30 @@ class LectorGuideCatalog {
     ])
       venue.id: LectorReadingGuide(
         meaning:
-            'Cette lecture regarde le bilan de l’équipe ${venue.place}, '
-            '${venue.strong ? 'où les victoires sont plus nombreuses que les défaites' : 'où les défaites sont plus nombreuses que les victoires'}.',
+            'Cette lecture mesure une série actuelle ${venue.place}, sur les résultats finaux.',
         conditions: [
-          'Un bilan de matchs joués ${venue.place} est disponible.',
-          venue.strong
-              ? 'Le nombre de victoires est supérieur au nombre de défaites.'
-              : 'Le nombre de défaites est supérieur au nombre de victoires.',
+          'Au moins trois ${venue.strong ? "victoires" : "défaites"} consécutives ${venue.place}.',
+          'Un nul ou un résultat opposé sur ce lieu interrompt la série.',
+          'Les matchs sur l’autre lieu ne changent pas cette série.',
         ],
         facts: [
-          'Atlas, sur 8 matchs ${venue.place} : '
-              '${venue.strong ? '5 victoires, 2 nuls, 1 défaite' : '1 victoire, 2 nuls, 5 défaites'}.',
+          'Atlas : quatre ${venue.strong ? "victoires" : "défaites"} consécutives ${venue.place}.',
         ],
         conclusion:
-            'Atlas présente un bilan ${venue.strong ? 'solide' : 'fragile'} ${venue.place}.',
+            'Atlas est ${venue.strong ? "solide" : "fragile"} ${venue.place} sur sa série actuelle.',
         counterExample:
-            '3 victoires, 2 nuls et 3 défaites : le bilan est équilibré. '
-            'Les résultats obtenus sur l’autre lieu ne suffisent pas à établir cette lecture.',
+            'Un bilan de 12 victoires en 20 matchs ne suffit pas : les trois derniers résultats sur ce lieu doivent être consécutifs.',
       ),
     'home_away_advantage': const LectorReadingGuide(
       meaning:
           'La force du recevant à domicile rencontre la fragilité du visiteur à l’extérieur.',
       conditions: [
-        'Le recevant a plus de victoires que de défaites à domicile.',
-        'Le visiteur a plus de défaites que de victoires à l’extérieur.',
+        'Le recevant a au moins trois victoires consécutives à domicile.',
+        'Le visiteur a au moins trois défaites consécutives à l’extérieur.',
       ],
       facts: [
-        'Atlas reçoit : 5 victoires et 1 défaite à domicile.',
-        'Rivage se déplace : 1 victoire et 5 défaites à l’extérieur.',
+        'Atlas reçoit : quatre victoires consécutives à domicile.',
+        'Rivage se déplace : trois défaites consécutives à l’extérieur.',
       ],
       conclusion:
           'Les deux constats convergent en faveur d’Atlas sur le lieu du match.',
@@ -186,12 +200,12 @@ class LectorGuideCatalog {
       meaning:
           'La force du visiteur en déplacement rencontre la fragilité du recevant chez lui.',
       conditions: [
-        'Le visiteur a plus de victoires que de défaites à l’extérieur.',
-        'Le recevant a plus de défaites que de victoires à domicile.',
+        'Le visiteur a au moins trois victoires consécutives à l’extérieur.',
+        'Le recevant a au moins trois défaites consécutives à domicile.',
       ],
       facts: [
-        'Atlas se déplace : 5 victoires et 1 défaite à l’extérieur.',
-        'Rivage reçoit : 1 victoire et 5 défaites à domicile.',
+        'Atlas se déplace : quatre victoires consécutives à l’extérieur.',
+        'Rivage reçoit : trois défaites consécutives à domicile.',
       ],
       conclusion:
           'L’avantage sur le lieu du match concerne ici le visiteur, Atlas.',

@@ -182,6 +182,9 @@ class FootballReading {
       'negative_streak' ||
       'declining_form' ||
       'scoring_difficulty' => CopilotArgumentType.weakRecentForm,
+      'winning_streak' ||
+      'home_winning_streak' ||
+      'away_winning_streak' ||
       'positive_streak' ||
       'improving_form' ||
       'form_advantage' ||
@@ -234,6 +237,9 @@ class FootballReading {
       'tournament_progression' ||
       'demanding_tournament_path' ||
       'favorable_tournament_path' => CopilotArgumentFamily.hierarchy,
+      'winning_streak' ||
+      'home_winning_streak' ||
+      'away_winning_streak' ||
       'positive_streak' ||
       'negative_streak' ||
       'improving_form' ||

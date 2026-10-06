@@ -16,7 +16,7 @@ export function eligibleHeadToHeadMeetings(
     lowerBound.getUTCFullYear() - headToHeadHistoryYears,
   );
 
-  return values
+  const eligible = values
     .filter((value) => {
       const fixture = objectValue(value.fixture) ?? {};
       const league = objectValue(value.league) ?? {};
@@ -32,8 +32,31 @@ export function eligibleHeadToHeadMeetings(
       const leftDate = dateValue((objectValue(left.fixture) ?? {}).date);
       const rightDate = dateValue((objectValue(right.fixture) ?? {}).date);
       return (rightDate?.getTime() ?? 0) - (leftDate?.getTime() ?? 0);
-    })
-    .slice(0, maxHeadToHeadMeetings);
+    });
+  // Each view gets its own bounded sample; recent cups must not hide the
+  // league sample (or the reverse). No additional H2H provider request.
+  const kind = (r: HeadToHeadJson) => {
+    const league = objectValue(r.league) ?? {};
+    const type = stringValue(league.type)?.toLowerCase();
+    const name = stringValue(league.name)?.toLowerCase() ?? "";
+    return type === "cup" || /\bcup\b|coupe|champions/.test(name)
+      ? "cup"
+      : type === "league"
+      ? "league"
+      : "unknown";
+  };
+  const selected = new Set([
+    ...eligible.slice(0, maxHeadToHeadMeetings),
+    ...eligible.filter((r) => kind(r) === "league").slice(
+      0,
+      maxHeadToHeadMeetings,
+    ),
+    ...eligible.filter((r) => kind(r) === "cup").slice(
+      0,
+      maxHeadToHeadMeetings,
+    ),
+  ]);
+  return eligible.filter((r) => selected.has(r));
 }
 
 /// Returns the provider fixture ids whose immutable event timeline must be
@@ -57,7 +80,7 @@ function isFriendlyCompetition(league: HeadToHeadJson): boolean {
     .filter((value): value is string => value !== null)
     .join(" ")
     .toLocaleLowerCase();
-  return label.includes("friendl") || label.includes("amical");
+  return /friendl|amical|pre.?season|exhibition/.test(label);
 }
 
 function objectValue(value: unknown): HeadToHeadJson | null {

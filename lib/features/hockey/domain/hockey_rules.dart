@@ -64,18 +64,18 @@ enum HockeyResult {
 /// Calibrate and approve these thresholds against real hockey data later.
 class HockeyReadingPolicy {
   const HockeyReadingPolicy({
-    this.version = 'hockey-readings-draft-v1',
+    this.version = 'hockey-readings-venue-momentum-v4',
     this.formWindow = 5,
-    this.minimumStandingGames = 10,
-    this.standingPercentageGap = .15,
+    this.minimumStandingGames = 5,
     this.formPercentageGap = .20,
     this.consecutiveWins = 3,
+    this.formGapPoints = 9,
   });
 
   final String version;
   final int formWindow;
   final int minimumStandingGames;
-  final double standingPercentageGap;
   final double formPercentageGap;
   final int consecutiveWins;
+  final int formGapPoints;
 }

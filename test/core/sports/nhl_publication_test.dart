@@ -1,3 +1,5 @@
+import 'package:copilot/core/widgets/lector_match_stats.dart';
+import 'package:copilot/core/widgets/lector_match_insights.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -8,6 +10,9 @@ import 'package:copilot/core/sports/domain/sport_feed_repository.dart';
 import 'package:copilot/core/sports/domain/sport_fixture.dart';
 import 'package:copilot/features/hockey/domain/hockey_module.dart';
 import 'package:copilot/features/hockey/presentation/hockey_workspace.dart';
+import 'package:copilot/core/widgets/lector_match_card.dart';
+import 'package:copilot/core/widgets/lector_match_detail_view.dart';
+import 'package:copilot/core/widgets/lector_match_hero_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -66,7 +71,7 @@ void main() {
 
   for (final width in [360.0, 1100.0]) {
     testWidgets(
-      'real compact NHL displays away-left, home-right and period details at $width',
+      'NHL uses the shared match card and full detail route at $width',
       (tester) async {
         tester.view.physicalSize = Size(width, 950);
         tester.view.devicePixelRatio = 1;
@@ -85,20 +90,96 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
+        expect(find.byType(LectorMatchCard), findsNothing);
+        await tester.tap(find.text('Tous'));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('International'));
+        await tester.tap(find.text('International'));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('NHL'));
+        await tester.tap(find.text('NHL'));
+        await tester.pumpAndSettle();
         expect(find.text('Boston Bruins'), findsOneWidget);
         expect(find.text('Winnipeg Jets'), findsOneWidget);
         expect(
-          tester.getCenter(find.text('Boston Bruins')).dx,
-          lessThan(tester.getCenter(find.text('Winnipeg Jets')).dx),
+          tester.getCenter(find.text('Boston Bruins')).dy,
+          lessThan(tester.getCenter(find.text('Winnipeg Jets')).dy),
         );
-        expect(find.text('4 – 3'), findsOneWidget);
+        expect(find.byType(LectorMatchCard), findsOneWidget);
+        expect(find.text('4'), findsOneWidget);
+        expect(find.text('3'), findsOneWidget);
         expect(find.text('Extérieur'), findsOneWidget);
         expect(find.text('Domicile'), findsOneWidget);
-        await tester.tap(find.text('Détail du match'));
+        await tester.tap(find.byTooltip('Voir l’analyse'));
         await tester.pumpAndSettle();
-        expect(find.text('À 60 minutes'), findsOneWidget);
-        expect(find.text('3 – 3'), findsOneWidget);
-        expect(find.text('Score final'), findsOneWidget);
+        expect(find.byType(LectorMatchDetailView), findsOneWidget);
+        expect(find.byType(BottomSheet), findsNothing);
+        expect(find.byType(LectorMatchHeroView), findsOneWidget);
+        expect(
+          tester
+              .getCenter(
+                find.descendant(
+                  of: find.byType(LectorMatchHeroView),
+                  matching: find.text('Boston Bruins'),
+                ),
+              )
+              .dx,
+          lessThan(
+            tester
+                .getCenter(
+                  find.descendant(
+                    of: find.byType(LectorMatchHeroView),
+                    matching: find.text('Winnipeg Jets'),
+                  ),
+                )
+                .dx,
+          ),
+        );
+        for (final tab in ['Contexte', 'Classement', 'Forme', 'TAT']) {
+          expect(find.text(tab), findsOneWidget);
+        }
+        // Actual period/result facts belong to Stats. Contexte shares the
+        // prematch-keys component with football rather than duplicating scores.
+        final stats = tester.widget<LectorMatchStats>(
+          find.byType(LectorMatchStats),
+        );
+        final regulation = stats.rows.singleWhere(
+          (r) => r.label == 'À 60 minutes',
+        );
+        expect(regulation.first, '3');
+        expect(regulation.second, '3');
+        final finalScore = stats.rows.singleWhere(
+          (r) => r.label == 'Score final',
+        );
+        expect(finalScore.first, '4');
+        expect(finalScore.second, '3');
+        await tester.ensureVisible(find.text('Contexte'));
+        await tester.tap(find.text('Contexte'));
+        await tester.pumpAndSettle();
+        expect(find.byType(LectorMatchContextView), findsOneWidget);
+        expect(find.text('Clés du match'), findsOneWidget);
+        await tester.ensureVisible(find.text('Classement'));
+        await tester.tap(find.text('Classement'));
+        await tester.pumpAndSettle();
+        // This minimal contract contains scores only, with no standing table.
+        expect(
+          find.text('Classement non fourni dans cette publication.'),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('hockey-standing-scope-1')),
+          findsNothing,
+        );
+        await tester.tap(find.text('TAT'));
+        await tester.pumpAndSettle();
+        expect(
+          find.textContaining('ne se sont jamais rencontrées'),
+          findsOneWidget,
+        );
+        await tester.tap(find.byTooltip('Retour'));
+        await tester.pumpAndSettle();
+        expect(find.byType(LectorMatchDetailView), findsNothing);
+        expect(find.byType(LectorMatchCard), findsOneWidget);
         expect(tester.takeException(), isNull);
       },
     );
@@ -120,14 +201,18 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await tester.tap(find.text('Tous'));
+      await tester.pumpAndSettle();
       expect(
-        find.text('Aucune rencontre NHL programmée pour ce jour.'),
+        find.text('Aucune rencontre hockey programmée pour ce jour.'),
         findsOneWidget,
       );
       source.fail = true;
       await tester.tap(find.byKey(const ValueKey('hockey-refresh')));
       await tester.pumpAndSettle();
       expect(find.textContaining('momentanément indisponible'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('hockey-rules')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('hockey-section-1')));
       await tester.pumpAndSettle();
       expect(find.text('Avantage au classement'), findsOneWidget);

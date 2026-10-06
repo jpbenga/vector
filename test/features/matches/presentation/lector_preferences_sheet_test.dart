@@ -76,6 +76,7 @@ void main() {
     expect(saved, isNotNull);
     expect(saved!.optionIdsFor('readings'), [
       'structural_level_gap',
+      'winning_streak',
       'positive_streak',
       'negative_streak',
       'improving_form',

@@ -1,0 +1,2101 @@
+{
+  "source": "var/sports/hockey/published.json",
+  "capturedAt": "2026-10-05T17:08:08.900Z",
+  "policy": "hockey-readings-draft-v1",
+  "leagues": {
+    "35": {
+      "league": "KHL",
+      "fixtures": 83,
+      "fixturesWithReadings": 45,
+      "detected": {
+        "standing_advantage": 25,
+        "recent_form_advantage": 31,
+        "winning_streak": 9
+      }
+    },
+    "10": {
+      "league": "Extraliga",
+      "fixtures": 48,
+      "fixturesWithReadings": 15,
+      "detected": {
+        "standing_advantage": 0,
+        "recent_form_advantage": 14,
+        "winning_streak": 15
+      }
+    },
+    "16": {
+      "league": "Liiga",
+      "fixtures": 53,
+      "fixturesWithReadings": 20,
+      "detected": {
+        "standing_advantage": 8,
+        "recent_form_advantage": 16,
+        "winning_streak": 5
+      }
+    },
+    "47": {
+      "league": "SHL",
+      "fixtures": 45,
+      "fixturesWithReadings": 20,
+      "detected": {
+        "standing_advantage": 0,
+        "recent_form_advantage": 17,
+        "winning_streak": 16
+      }
+    },
+    "18": {
+      "league": "Ligue Magnus",
+      "fixtures": 32,
+      "fixturesWithReadings": 10,
+      "detected": {
+        "standing_advantage": 0,
+        "recent_form_advantage": 9,
+        "winning_streak": 7
+      }
+    },
+    "57": {
+      "league": "NHL",
+      "fixtures": 134,
+      "fixturesWithReadings": 0,
+      "detected": {
+        "standing_advantage": 0,
+        "recent_form_advantage": 0,
+        "winning_streak": 0
+      }
+    },
+    "58": {
+      "league": "AHL",
+      "fixtures": 96,
+      "fixturesWithReadings": 0,
+      "detected": {
+        "standing_advantage": 0,
+        "recent_form_advantage": 0,
+        "winning_streak": 0
+      }
+    }
+  },
+  "examples": [
+    {
+      "matchId": "hockey:api-hockey:match:430526",
+      "date": "2026-10-06T14:00:00.000Z",
+      "league": "KHL",
+      "away": "Avangard Omsk",
+      "home": "Yekaterinburg",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Yekaterinburg",
+          "explanation": "Écart de 20.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430528",
+      "date": "2026-10-06T14:00:00.000Z",
+      "league": "KHL",
+      "away": "Khabarovsk",
+      "home": "Tractor Chelyabinsk",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Tractor Chelyabinsk",
+          "explanation": "Écart de 20.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Tractor Chelyabinsk",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430527",
+      "date": "2026-10-06T16:30:00.000Z",
+      "league": "KHL",
+      "away": "Cherepovets",
+      "home": "SKA St. Petersburg",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "SKA St. Petersburg",
+          "explanation": "Écart de 25.5 points de pourcentage des points disponibles.",
+          "sampleSize": 10
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425797",
+      "date": "2026-10-07T09:00:00.000Z",
+      "league": "Liiga",
+      "away": "Assat",
+      "home": "Jukurit",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Jukurit",
+          "explanation": "Écart de 26.7 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430531",
+      "date": "2026-10-07T12:30:00.000Z",
+      "league": "KHL",
+      "away": "Salavat Ufa",
+      "home": "Novosibirsk",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "Salavat Ufa",
+          "explanation": "Écart de 25.8 points de pourcentage des points disponibles.",
+          "sampleSize": 11
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430530",
+      "date": "2026-10-07T14:00:00.000Z",
+      "league": "KHL",
+      "away": "Vladivostok",
+      "home": "Magnitogorsk",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "Magnitogorsk",
+          "explanation": "Écart de 38.3 points de pourcentage des points disponibles.",
+          "sampleSize": 12
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425796",
+      "date": "2026-10-07T15:30:00.000Z",
+      "league": "Liiga",
+      "away": "Kiekko-Espoo",
+      "home": "Karpat",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Karpat",
+          "explanation": "Écart de 20.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425798",
+      "date": "2026-10-07T15:30:00.000Z",
+      "league": "Liiga",
+      "away": "Ilves",
+      "home": "Vaasan Sport",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Ilves",
+          "explanation": "Écart de 66.7 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Ilves",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430529",
+      "date": "2026-10-07T16:30:00.000Z",
+      "league": "KHL",
+      "away": "Shanghai",
+      "home": "Dynamo Moscow",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Shanghai",
+          "explanation": "Écart de 50.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430532",
+      "date": "2026-10-07T16:30:00.000Z",
+      "league": "KHL",
+      "away": "Spartak Moscow",
+      "home": "Sochi",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "Spartak Moscow",
+          "explanation": "Écart de 31.8 points de pourcentage des points disponibles.",
+          "sampleSize": 12
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430536",
+      "date": "2026-10-08T14:00:00.000Z",
+      "league": "KHL",
+      "away": "Khabarovsk",
+      "home": "Tractor Chelyabinsk",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Tractor Chelyabinsk",
+          "explanation": "Écart de 20.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Tractor Chelyabinsk",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:431087",
+      "date": "2026-10-08T16:10:00.000Z",
+      "league": "KHL",
+      "away": "SKA St. Petersburg",
+      "home": "Dinamo Minsk",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "SKA St. Petersburg",
+          "explanation": "Écart de 25.5 points de pourcentage des points disponibles.",
+          "sampleSize": 10
+        },
+        {
+          "id": "recent_form_advantage",
+          "team": "SKA St. Petersburg",
+          "explanation": "Écart de 30.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430533",
+      "date": "2026-10-08T16:30:00.000Z",
+      "league": "KHL",
+      "away": "Cherepovets",
+      "home": "Nizhny Novgorod",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "Nizhny Novgorod",
+          "explanation": "Écart de 18.2 points de pourcentage des points disponibles.",
+          "sampleSize": 11
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430534",
+      "date": "2026-10-08T16:30:00.000Z",
+      "league": "KHL",
+      "away": "Avangard Omsk",
+      "home": "Niznekamsk",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "Niznekamsk",
+          "explanation": "Écart de 19.2 points de pourcentage des points disponibles.",
+          "sampleSize": 13
+        },
+        {
+          "id": "recent_form_advantage",
+          "team": "Niznekamsk",
+          "explanation": "Écart de 30.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425244",
+      "date": "2026-10-08T17:00:00.000Z",
+      "league": "SHL",
+      "away": "Farjestad",
+      "home": "Skellefteå",
+      "readings": [
+        {
+          "id": "winning_streak",
+          "team": "Skellefteå",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        },
+        {
+          "id": "recent_form_advantage",
+          "team": "Farjestad",
+          "explanation": "Écart de 26.7 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Farjestad",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425245",
+      "date": "2026-10-08T17:00:00.000Z",
+      "league": "SHL",
+      "away": "Linkoping",
+      "home": "Vaxjo",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Vaxjo",
+          "explanation": "Écart de 33.3 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425246",
+      "date": "2026-10-08T17:00:00.000Z",
+      "league": "SHL",
+      "away": "Frölunda",
+      "home": "Timrå",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Frölunda",
+          "explanation": "Écart de 80.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Frölunda",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425247",
+      "date": "2026-10-08T17:00:00.000Z",
+      "league": "SHL",
+      "away": "HV 71",
+      "home": "Rögle",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Rögle",
+          "explanation": "Écart de 26.7 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425248",
+      "date": "2026-10-08T17:00:00.000Z",
+      "league": "SHL",
+      "away": "IF Bjorkloven",
+      "home": "Brynas",
+      "readings": [
+        {
+          "id": "winning_streak",
+          "team": "IF Bjorkloven",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425250",
+      "date": "2026-10-08T17:00:00.000Z",
+      "league": "SHL",
+      "away": "Orebro",
+      "home": "Djurgarden",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Orebro",
+          "explanation": "Écart de 33.3 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430538",
+      "date": "2026-10-09T14:00:00.000Z",
+      "league": "KHL",
+      "away": "Salavat Ufa",
+      "home": "Magnitogorsk",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "Magnitogorsk",
+          "explanation": "Écart de 20.1 points de pourcentage des points disponibles.",
+          "sampleSize": 12
+        },
+        {
+          "id": "recent_form_advantage",
+          "team": "Magnitogorsk",
+          "explanation": "Écart de 20.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:426312",
+      "date": "2026-10-09T15:00:00.000Z",
+      "league": "Extraliga",
+      "away": "Mountfield HK",
+      "home": "Trinec",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Trinec",
+          "explanation": "Écart de 33.3 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Trinec",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Mountfield HK",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425802",
+      "date": "2026-10-09T15:30:00.000Z",
+      "league": "Liiga",
+      "away": "Hameenlinna",
+      "home": "Assat",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "Assat",
+          "explanation": "Écart de 16.7 points de pourcentage des points disponibles.",
+          "sampleSize": 10
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425803",
+      "date": "2026-10-09T15:30:00.000Z",
+      "league": "Liiga",
+      "away": "Lukko",
+      "home": "Ilves",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Ilves",
+          "explanation": "Écart de 20.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Ilves",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425804",
+      "date": "2026-10-09T15:30:00.000Z",
+      "league": "Liiga",
+      "away": "Jukurit",
+      "home": "KooKoo",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "Jukurit",
+          "explanation": "Écart de 63.3 points de pourcentage des points disponibles.",
+          "sampleSize": 11
+        },
+        {
+          "id": "recent_form_advantage",
+          "team": "Jukurit",
+          "explanation": "Écart de 66.7 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425805",
+      "date": "2026-10-09T15:30:00.000Z",
+      "league": "Liiga",
+      "away": "Karpat",
+      "home": "Pelicans",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Karpat",
+          "explanation": "Écart de 26.7 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425806",
+      "date": "2026-10-09T15:30:00.000Z",
+      "league": "Liiga",
+      "away": "Vaasan Sport",
+      "home": "TPS Turku",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "TPS Turku",
+          "explanation": "Écart de 16.7 points de pourcentage des points disponibles.",
+          "sampleSize": 10
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:426314",
+      "date": "2026-10-09T15:30:00.000Z",
+      "league": "Extraliga",
+      "away": "Pardubice",
+      "home": "Vitkovice",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Pardubice",
+          "explanation": "Écart de 53.3 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Pardubice",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:426316",
+      "date": "2026-10-09T16:00:00.000Z",
+      "league": "Extraliga",
+      "away": "Mlada Boleslav",
+      "home": "Kladno",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Kladno",
+          "explanation": "Écart de 20.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:426318",
+      "date": "2026-10-09T16:00:00.000Z",
+      "league": "Extraliga",
+      "away": "Karlovy Vary",
+      "home": "Liberec",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Karlovy Vary",
+          "explanation": "Écart de 33.3 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Karlovy Vary",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430537",
+      "date": "2026-10-09T16:30:00.000Z",
+      "league": "KHL",
+      "away": "Spartak Moscow",
+      "home": "Sochi",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "Spartak Moscow",
+          "explanation": "Écart de 31.8 points de pourcentage des points disponibles.",
+          "sampleSize": 12
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430539",
+      "date": "2026-10-09T16:30:00.000Z",
+      "league": "KHL",
+      "away": "CSKA Moscow",
+      "home": "Dynamo Moscow",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "CSKA Moscow",
+          "explanation": "Écart de 28.8 points de pourcentage des points disponibles.",
+          "sampleSize": 12
+        },
+        {
+          "id": "recent_form_advantage",
+          "team": "CSKA Moscow",
+          "explanation": "Écart de 60.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "CSKA Moscow",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:431195",
+      "date": "2026-10-09T18:00:00.000Z",
+      "league": "Ligue Magnus",
+      "away": "Angers",
+      "home": "Nice",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Angers",
+          "explanation": "Écart de 26.7 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:431196",
+      "date": "2026-10-09T18:00:00.000Z",
+      "league": "Ligue Magnus",
+      "away": "Chamonix Mont-Blanc",
+      "home": "Rouen",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Rouen",
+          "explanation": "Écart de 33.3 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Rouen",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:431194",
+      "date": "2026-10-09T18:30:00.000Z",
+      "league": "Ligue Magnus",
+      "away": "Gap",
+      "home": "Marseille",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Marseille",
+          "explanation": "Écart de 46.7 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Marseille",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430544",
+      "date": "2026-10-10T07:00:00.000Z",
+      "league": "KHL",
+      "away": "Lada",
+      "home": "Vladivostok",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Vladivostok",
+          "explanation": "Écart de 50.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430543",
+      "date": "2026-10-10T11:00:00.000Z",
+      "league": "KHL",
+      "away": "Novosibirsk",
+      "home": "Tractor Chelyabinsk",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "Tractor Chelyabinsk",
+          "explanation": "Écart de 16.7 points de pourcentage des points disponibles.",
+          "sampleSize": 10
+        },
+        {
+          "id": "recent_form_advantage",
+          "team": "Tractor Chelyabinsk",
+          "explanation": "Écart de 50.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Tractor Chelyabinsk",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425251",
+      "date": "2026-10-10T13:15:00.000Z",
+      "league": "SHL",
+      "away": "Malmo",
+      "home": "Farjestad",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Farjestad",
+          "explanation": "Écart de 40.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Farjestad",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425252",
+      "date": "2026-10-10T13:15:00.000Z",
+      "league": "SHL",
+      "away": "Brynas",
+      "home": "HV 71",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Brynas",
+          "explanation": "Écart de 33.3 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425253",
+      "date": "2026-10-10T13:15:00.000Z",
+      "league": "SHL",
+      "away": "Timrå",
+      "home": "Luleå",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Luleå",
+          "explanation": "Écart de 26.7 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425809",
+      "date": "2026-10-10T14:00:00.000Z",
+      "league": "Liiga",
+      "away": "KooKoo",
+      "home": "Hameenlinna",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "Hameenlinna",
+          "explanation": "Écart de 40.0 points de pourcentage des points disponibles.",
+          "sampleSize": 10
+        },
+        {
+          "id": "recent_form_advantage",
+          "team": "Hameenlinna",
+          "explanation": "Écart de 46.7 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425810",
+      "date": "2026-10-10T14:00:00.000Z",
+      "league": "Liiga",
+      "away": "Ilves",
+      "home": "Jokerit",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Ilves",
+          "explanation": "Écart de 73.3 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Ilves",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430540",
+      "date": "2026-10-10T14:00:00.000Z",
+      "league": "KHL",
+      "away": "Cherepovets",
+      "home": "Bars Kazan",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Cherepovets",
+          "explanation": "Écart de 30.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430542",
+      "date": "2026-10-10T14:00:00.000Z",
+      "league": "KHL",
+      "away": "Dinamo Minsk",
+      "home": "Lokomotiv Yaroslavl",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "Lokomotiv Yaroslavl",
+          "explanation": "Écart de 20.5 points de pourcentage des points disponibles.",
+          "sampleSize": 12
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425254",
+      "date": "2026-10-10T16:00:00.000Z",
+      "league": "SHL",
+      "away": "Rögle",
+      "home": "Skellefteå",
+      "readings": [
+        {
+          "id": "winning_streak",
+          "team": "Skellefteå",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425256",
+      "date": "2026-10-10T16:00:00.000Z",
+      "league": "SHL",
+      "away": "Frölunda",
+      "home": "IF Bjorkloven",
+      "readings": [
+        {
+          "id": "winning_streak",
+          "team": "IF Bjorkloven",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        },
+        {
+          "id": "recent_form_advantage",
+          "team": "Frölunda",
+          "explanation": "Écart de 20.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Frölunda",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:431197",
+      "date": "2026-10-10T16:30:00.000Z",
+      "league": "Ligue Magnus",
+      "away": "Grenoble",
+      "home": "Bordeaux",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Grenoble",
+          "explanation": "Écart de 66.7 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430545",
+      "date": "2026-10-11T14:00:00.000Z",
+      "league": "KHL",
+      "away": "SKA St. Petersburg",
+      "home": "Dynamo Moscow",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "SKA St. Petersburg",
+          "explanation": "Écart de 33.8 points de pourcentage des points disponibles.",
+          "sampleSize": 10
+        },
+        {
+          "id": "recent_form_advantage",
+          "team": "SKA St. Petersburg",
+          "explanation": "Écart de 40.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:426319",
+      "date": "2026-10-11T15:00:00.000Z",
+      "league": "Extraliga",
+      "away": "Kladno",
+      "home": "Karlovy Vary",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Karlovy Vary",
+          "explanation": "Écart de 53.3 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Karlovy Vary",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:426322",
+      "date": "2026-10-11T15:00:00.000Z",
+      "league": "Extraliga",
+      "away": "Olomouc",
+      "home": "Mountfield HK",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Mountfield HK",
+          "explanation": "Écart de 46.7 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Mountfield HK",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:426323",
+      "date": "2026-10-11T16:30:00.000Z",
+      "league": "Extraliga",
+      "away": "Trinec",
+      "home": "Pardubice",
+      "readings": [
+        {
+          "id": "winning_streak",
+          "team": "Pardubice",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Trinec",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430549",
+      "date": "2026-10-12T09:00:00.000Z",
+      "league": "KHL",
+      "away": "Lada",
+      "home": "Khabarovsk",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Khabarovsk",
+          "explanation": "Écart de 60.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430547",
+      "date": "2026-10-12T11:30:00.000Z",
+      "league": "KHL",
+      "away": "Niznekamsk",
+      "home": "Salavat Ufa",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Niznekamsk",
+          "explanation": "Écart de 30.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430550",
+      "date": "2026-10-12T14:30:00.000Z",
+      "league": "KHL",
+      "away": "Novosibirsk",
+      "home": "Barys Astana",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "Barys Astana",
+          "explanation": "Écart de 25.0 points de pourcentage des points disponibles.",
+          "sampleSize": 12
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430551",
+      "date": "2026-10-12T16:00:00.000Z",
+      "league": "KHL",
+      "away": "Sochi",
+      "home": "Bars Kazan",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Bars Kazan",
+          "explanation": "Écart de 40.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430546",
+      "date": "2026-10-12T16:30:00.000Z",
+      "league": "KHL",
+      "away": "Dinamo Minsk",
+      "home": "Shanghai",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Shanghai",
+          "explanation": "Écart de 40.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430548",
+      "date": "2026-10-12T16:30:00.000Z",
+      "league": "KHL",
+      "away": "Magnitogorsk",
+      "home": "Nizhny Novgorod",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Nizhny Novgorod",
+          "explanation": "Écart de 20.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:431318",
+      "date": "2026-10-12T18:00:00.000Z",
+      "league": "Ligue Magnus",
+      "away": "Angers",
+      "home": "Rouen",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Rouen",
+          "explanation": "Écart de 33.3 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Rouen",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430552",
+      "date": "2026-10-13T16:00:00.000Z",
+      "league": "KHL",
+      "away": "SKA St. Petersburg",
+      "home": "Cherepovets",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "SKA St. Petersburg",
+          "explanation": "Écart de 25.5 points de pourcentage des points disponibles.",
+          "sampleSize": 10
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430556",
+      "date": "2026-10-14T09:00:00.000Z",
+      "league": "KHL",
+      "away": "Spartak Moscow",
+      "home": "Khabarovsk",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Khabarovsk",
+          "explanation": "Écart de 40.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430558",
+      "date": "2026-10-14T14:00:00.000Z",
+      "league": "KHL",
+      "away": "Novosibirsk",
+      "home": "Salavat Ufa",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "Salavat Ufa",
+          "explanation": "Écart de 25.8 points de pourcentage des points disponibles.",
+          "sampleSize": 11
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430553",
+      "date": "2026-10-14T14:30:00.000Z",
+      "league": "KHL",
+      "away": "Yekaterinburg",
+      "home": "Barys Astana",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Yekaterinburg",
+          "explanation": "Écart de 20.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425816",
+      "date": "2026-10-14T15:30:00.000Z",
+      "league": "Liiga",
+      "away": "Lukko",
+      "home": "JYP",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Lukko",
+          "explanation": "Écart de 20.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430554",
+      "date": "2026-10-14T16:30:00.000Z",
+      "league": "KHL",
+      "away": "Dynamo Moscow",
+      "home": "CSKA Moscow",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "CSKA Moscow",
+          "explanation": "Écart de 28.8 points de pourcentage des points disponibles.",
+          "sampleSize": 12
+        },
+        {
+          "id": "recent_form_advantage",
+          "team": "CSKA Moscow",
+          "explanation": "Écart de 60.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "CSKA Moscow",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430559",
+      "date": "2026-10-14T16:30:00.000Z",
+      "league": "KHL",
+      "away": "Tractor Chelyabinsk",
+      "home": "Shanghai",
+      "readings": [
+        {
+          "id": "winning_streak",
+          "team": "Tractor Chelyabinsk",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430560",
+      "date": "2026-10-15T15:00:00.000Z",
+      "league": "KHL",
+      "away": "SKA St. Petersburg",
+      "home": "Lada",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "SKA St. Petersburg",
+          "explanation": "Écart de 59.2 points de pourcentage des points disponibles.",
+          "sampleSize": 10
+        },
+        {
+          "id": "recent_form_advantage",
+          "team": "SKA St. Petersburg",
+          "explanation": "Écart de 80.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425817",
+      "date": "2026-10-15T15:30:00.000Z",
+      "league": "Liiga",
+      "away": "Hameenlinna",
+      "home": "SaiPa",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "SaiPa",
+          "explanation": "Écart de 23.3 points de pourcentage des points disponibles.",
+          "sampleSize": 10
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425818",
+      "date": "2026-10-15T15:30:00.000Z",
+      "league": "Liiga",
+      "away": "KooKoo",
+      "home": "Vaasan Sport",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "Vaasan Sport",
+          "explanation": "Écart de 30.0 points de pourcentage des points disponibles.",
+          "sampleSize": 10
+        },
+        {
+          "id": "recent_form_advantage",
+          "team": "Vaasan Sport",
+          "explanation": "Écart de 33.3 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:426327",
+      "date": "2026-10-15T15:30:00.000Z",
+      "league": "Extraliga",
+      "away": "Mountfield HK",
+      "home": "Litvinov",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Mountfield HK",
+          "explanation": "Écart de 46.7 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Mountfield HK",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430561",
+      "date": "2026-10-15T16:00:00.000Z",
+      "league": "KHL",
+      "away": "Lokomotiv Yaroslavl",
+      "home": "Cherepovets",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Cherepovets",
+          "explanation": "Écart de 30.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "standing_advantage",
+          "team": "Lokomotiv Yaroslavl",
+          "explanation": "Écart de 20.5 points de pourcentage des points disponibles.",
+          "sampleSize": 12
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425258",
+      "date": "2026-10-15T17:00:00.000Z",
+      "league": "SHL",
+      "away": "Djurgarden",
+      "home": "Brynas",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Brynas",
+          "explanation": "Écart de 40.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425259",
+      "date": "2026-10-15T17:00:00.000Z",
+      "league": "SHL",
+      "away": "Rögle",
+      "home": "IF Bjorkloven",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "IF Bjorkloven",
+          "explanation": "Écart de 20.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "IF Bjorkloven",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425260",
+      "date": "2026-10-15T17:00:00.000Z",
+      "league": "SHL",
+      "away": "Frölunda",
+      "home": "Linkoping",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Frölunda",
+          "explanation": "Écart de 66.7 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Frölunda",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425263",
+      "date": "2026-10-15T17:00:00.000Z",
+      "league": "SHL",
+      "away": "Skellefteå",
+      "home": "Vaxjo",
+      "readings": [
+        {
+          "id": "winning_streak",
+          "team": "Skellefteå",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425264",
+      "date": "2026-10-15T17:00:00.000Z",
+      "league": "SHL",
+      "away": "Luleå",
+      "home": "Farjestad",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Farjestad",
+          "explanation": "Écart de 46.7 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Farjestad",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:431354",
+      "date": "2026-10-15T18:00:00.000Z",
+      "league": "Ligue Magnus",
+      "away": "Marseille",
+      "home": "Rouen",
+      "readings": [
+        {
+          "id": "winning_streak",
+          "team": "Rouen",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Marseille",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430566",
+      "date": "2026-10-16T09:30:00.000Z",
+      "league": "KHL",
+      "away": "Spartak Moscow",
+      "home": "Vladivostok",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Vladivostok",
+          "explanation": "Écart de 30.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430562",
+      "date": "2026-10-16T13:30:00.000Z",
+      "league": "KHL",
+      "away": "Yekaterinburg",
+      "home": "Avangard Omsk",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Yekaterinburg",
+          "explanation": "Écart de 20.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:426326",
+      "date": "2026-10-16T15:00:00.000Z",
+      "league": "Extraliga",
+      "away": "Mlada Boleslav",
+      "home": "Trinec",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Trinec",
+          "explanation": "Écart de 93.3 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Trinec",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425819",
+      "date": "2026-10-16T15:30:00.000Z",
+      "league": "Liiga",
+      "away": "Ilves",
+      "home": "Hameenlinna",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Ilves",
+          "explanation": "Écart de 53.3 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Ilves",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425820",
+      "date": "2026-10-16T15:30:00.000Z",
+      "league": "Liiga",
+      "away": "Assat",
+      "home": "Jokerit",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "Assat",
+          "explanation": "Écart de 35.8 points de pourcentage des points disponibles.",
+          "sampleSize": 10
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425822",
+      "date": "2026-10-16T15:30:00.000Z",
+      "league": "Liiga",
+      "away": "Lukko",
+      "home": "Tappara",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Lukko",
+          "explanation": "Écart de 26.7 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:426330",
+      "date": "2026-10-16T16:00:00.000Z",
+      "league": "Extraliga",
+      "away": "Kometa Brno",
+      "home": "Kladno",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Kometa Brno",
+          "explanation": "Écart de 26.7 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:426332",
+      "date": "2026-10-16T16:00:00.000Z",
+      "league": "Extraliga",
+      "away": "Karlovy Vary",
+      "home": "Olomouc",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Karlovy Vary",
+          "explanation": "Écart de 60.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Karlovy Vary",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430564",
+      "date": "2026-10-16T16:00:00.000Z",
+      "league": "KHL",
+      "away": "Tractor Chelyabinsk",
+      "home": "Niznekamsk",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "Niznekamsk",
+          "explanation": "Écart de 19.2 points de pourcentage des points disponibles.",
+          "sampleSize": 13
+        },
+        {
+          "id": "winning_streak",
+          "team": "Tractor Chelyabinsk",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430635",
+      "date": "2026-10-16T16:00:00.000Z",
+      "league": "KHL",
+      "away": "Dynamo Moscow",
+      "home": "Nizhny Novgorod",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "Nizhny Novgorod",
+          "explanation": "Écart de 26.6 points de pourcentage des points disponibles.",
+          "sampleSize": 11
+        },
+        {
+          "id": "recent_form_advantage",
+          "team": "Nizhny Novgorod",
+          "explanation": "Écart de 40.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430565",
+      "date": "2026-10-16T16:30:00.000Z",
+      "league": "KHL",
+      "away": "Bars Kazan",
+      "home": "Shanghai",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Shanghai",
+          "explanation": "Écart de 30.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:431202",
+      "date": "2026-10-16T18:00:00.000Z",
+      "league": "Ligue Magnus",
+      "away": "Bordeaux",
+      "home": "Gap",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Gap",
+          "explanation": "Écart de 20.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:431198",
+      "date": "2026-10-16T18:15:00.000Z",
+      "league": "Ligue Magnus",
+      "away": "Marseille",
+      "home": "Amiens",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Marseille",
+          "explanation": "Écart de 53.3 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Marseille",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:431203",
+      "date": "2026-10-16T18:15:00.000Z",
+      "league": "Ligue Magnus",
+      "away": "Nice",
+      "home": "Grenoble",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Grenoble",
+          "explanation": "Écart de 46.7 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:431201",
+      "date": "2026-10-16T18:30:00.000Z",
+      "league": "Ligue Magnus",
+      "away": "Rouen",
+      "home": "Cergy-Pontoise",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Rouen",
+          "explanation": "Écart de 73.3 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Rouen",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430567",
+      "date": "2026-10-17T07:00:00.000Z",
+      "league": "KHL",
+      "away": "Salavat Ufa",
+      "home": "Khabarovsk",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Khabarovsk",
+          "explanation": "Écart de 20.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430568",
+      "date": "2026-10-17T10:30:00.000Z",
+      "league": "KHL",
+      "away": "Barys Astana",
+      "home": "Novosibirsk",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "Barys Astana",
+          "explanation": "Écart de 25.0 points de pourcentage des points disponibles.",
+          "sampleSize": 12
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425267",
+      "date": "2026-10-17T13:15:00.000Z",
+      "league": "SHL",
+      "away": "Farjestad",
+      "home": "Linkoping",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Farjestad",
+          "explanation": "Écart de 60.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Farjestad",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425268",
+      "date": "2026-10-17T13:15:00.000Z",
+      "league": "SHL",
+      "away": "Malmo",
+      "home": "Djurgarden",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Malmo",
+          "explanation": "Écart de 26.7 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425270",
+      "date": "2026-10-17T13:15:00.000Z",
+      "league": "SHL",
+      "away": "Skellefteå",
+      "home": "Frölunda",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Frölunda",
+          "explanation": "Écart de 33.3 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Frölunda",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Skellefteå",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425826",
+      "date": "2026-10-17T14:00:00.000Z",
+      "league": "Liiga",
+      "away": "Jokerit",
+      "home": "Ilves",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Ilves",
+          "explanation": "Écart de 73.3 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Ilves",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425828",
+      "date": "2026-10-17T14:00:00.000Z",
+      "league": "Liiga",
+      "away": "KooKoo",
+      "home": "Karpat",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "Karpat",
+          "explanation": "Écart de 53.3 points de pourcentage des points disponibles.",
+          "sampleSize": 10
+        },
+        {
+          "id": "recent_form_advantage",
+          "team": "Karpat",
+          "explanation": "Écart de 66.7 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425829",
+      "date": "2026-10-17T14:00:00.000Z",
+      "league": "Liiga",
+      "away": "Kiekko-Espoo",
+      "home": "Lukko",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Lukko",
+          "explanation": "Écart de 33.3 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425830",
+      "date": "2026-10-17T14:00:00.000Z",
+      "league": "Liiga",
+      "away": "IFK Helsinki",
+      "home": "SaiPa",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "SaiPa",
+          "explanation": "Écart de 20.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430569",
+      "date": "2026-10-17T14:00:00.000Z",
+      "league": "KHL",
+      "away": "Lokomotiv Yaroslavl",
+      "home": "Sochi",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "Lokomotiv Yaroslavl",
+          "explanation": "Écart de 56.8 points de pourcentage des points disponibles.",
+          "sampleSize": 12
+        },
+        {
+          "id": "recent_form_advantage",
+          "team": "Lokomotiv Yaroslavl",
+          "explanation": "Écart de 40.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:425269",
+      "date": "2026-10-17T16:00:00.000Z",
+      "league": "SHL",
+      "away": "IF Bjorkloven",
+      "home": "Timrå",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "IF Bjorkloven",
+          "explanation": "Écart de 60.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "IF Bjorkloven",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430573",
+      "date": "2026-10-18T11:00:00.000Z",
+      "league": "KHL",
+      "away": "Niznekamsk",
+      "home": "CSKA Moscow",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "CSKA Moscow",
+          "explanation": "Écart de 30.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "CSKA Moscow",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430574",
+      "date": "2026-10-18T11:00:00.000Z",
+      "league": "KHL",
+      "away": "Tractor Chelyabinsk",
+      "home": "Avangard Omsk",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Tractor Chelyabinsk",
+          "explanation": "Écart de 40.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Tractor Chelyabinsk",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430570",
+      "date": "2026-10-18T11:30:00.000Z",
+      "league": "KHL",
+      "away": "Yekaterinburg",
+      "home": "Magnitogorsk",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "Magnitogorsk",
+          "explanation": "Écart de 29.2 points de pourcentage des points disponibles.",
+          "sampleSize": 12
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:430571",
+      "date": "2026-10-18T13:00:00.000Z",
+      "league": "KHL",
+      "away": "Dynamo Moscow",
+      "home": "Lada",
+      "readings": [
+        {
+          "id": "standing_advantage",
+          "team": "Dynamo Moscow",
+          "explanation": "Écart de 25.3 points de pourcentage des points disponibles.",
+          "sampleSize": 13
+        },
+        {
+          "id": "recent_form_advantage",
+          "team": "Dynamo Moscow",
+          "explanation": "Écart de 40.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:426334",
+      "date": "2026-10-18T14:00:00.000Z",
+      "league": "Extraliga",
+      "away": "Mountfield HK",
+      "home": "Mlada Boleslav",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Mountfield HK",
+          "explanation": "Écart de 60.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Mountfield HK",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:426335",
+      "date": "2026-10-18T14:00:00.000Z",
+      "league": "Extraliga",
+      "away": "Trinec",
+      "home": "Sparta Prague",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Trinec",
+          "explanation": "Écart de 60.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Trinec",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:426339",
+      "date": "2026-10-18T15:00:00.000Z",
+      "league": "Extraliga",
+      "away": "Pardubice",
+      "home": "Olomouc",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Pardubice",
+          "explanation": "Écart de 80.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Pardubice",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    },
+    {
+      "matchId": "hockey:api-hockey:match:426333",
+      "date": "2026-10-18T15:30:00.000Z",
+      "league": "Extraliga",
+      "away": "Karlovy Vary",
+      "home": "Litvinov",
+      "readings": [
+        {
+          "id": "recent_form_advantage",
+          "team": "Karlovy Vary",
+          "explanation": "Écart de 60.0 points de pourcentage sur les 5 derniers matchs.",
+          "sampleSize": 5
+        },
+        {
+          "id": "winning_streak",
+          "team": "Karlovy Vary",
+          "explanation": "Les 3 derniers matchs sont des victoires, prolongations et tirs au but inclus.",
+          "sampleSize": 5
+        }
+      ]
+    }
+  ]
+}

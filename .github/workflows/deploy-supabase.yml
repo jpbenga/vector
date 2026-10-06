@@ -1,0 +1,48 @@
+name: Deploy Supabase football
+
+on:
+  workflow_dispatch:
+    inputs:
+      function:
+        description: Football function to deploy from tested main
+        required: true
+        default: sync-live-matches
+        type: choice
+        options:
+          - sync-live-matches
+          - api-football-sync
+          - build-match-feed-snapshot
+          - analyze-match-feed-snapshot
+          - publish-reading-announcements
+          - daily-football-sync
+          - ops-worker
+          - sync-match-results
+          - admin-ops
+          - all-football
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: supabase-football-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Deploy tested football functions without local keychain
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          DEPLOY_FUNCTION: ${{ inputs.function }}
+        run: python3 tool/deploy_supabase_remote.py

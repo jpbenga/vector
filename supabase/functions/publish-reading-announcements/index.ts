@@ -1,3 +1,9 @@
+import {
+  assessResultSeries,
+  assessVictorySeries,
+  footballSeriesHistory,
+  type SeriesScope,
+} from "../_shared/victory_series_policy.ts";
 import { fixturesEligibleForAnnouncements } from "../_shared/football_calendar_policy.ts";
 import { assessFormGap } from "../_shared/form_gap_policy.ts";
 import { assessStructuralGap } from "../_shared/structural_gap_policy.ts";
@@ -147,7 +153,10 @@ Deno.serve(async (request) => {
       objectList(raw.recent_league_matches),
     );
     const teamStatistics = objectList(raw.team_statistics);
-    const venueProfiles = venueProfilesByTeam(teamStatistics);
+    const venueProfiles = venueProfilesByTeam(
+      objectList(raw.recent_league_matches),
+      capturedAt,
+    );
     const performanceProfiles = performanceProfilesByTeam(teamStatistics);
     const expectedGoals = expectedGoalProfiles(objectList(raw.expected_goals));
     const standings = standingsByTeam(objectList(raw.standings));
@@ -223,6 +232,12 @@ Deno.serve(async (request) => {
     const baseAnnouncements = [
       ...goalAnnouncements,
       ...levelFormVenueAnnouncements,
+      ...victorySeriesAnnouncementRows({
+        snapshotId,
+        capturedAt,
+        fixtures,
+        histories: objectList(raw.recent_league_matches),
+      }),
       ...attackDefenseAnnouncements,
       ...playerAnnouncements,
       ...timingAnnouncements,
@@ -391,33 +406,29 @@ function recentFormsByTeam(rows: JsonObject[]): Map<string, RecentForm> {
   return result;
 }
 
-function venueProfilesByTeam(rows: JsonObject[]): Map<string, VenueProfile> {
+// Counts current runs from chronological, competition-scoped history. Season
+// totals must never be used as a fallback when recent results are missing.
+function venueProfilesByTeam(
+  rows: JsonObject[],
+  cutoff: Date,
+): Map<string, VenueProfile> {
   const result = new Map<string, VenueProfile>();
   for (const row of rows) {
-    const leagueId = numberValue((objectValue(row.league) ?? {}).id);
-    const teamId = numberValue((objectValue(row.team) ?? {}).id);
-    const fixtures = objectValue(row.fixtures) ?? {};
-    const played = objectValue(fixtures.played) ?? {};
-    const wins = objectValue(fixtures.wins) ?? {};
-    const losses = objectValue(fixtures.loses) ?? {};
-    const homePlayed = numberValue(played.home);
-    const homeWins = numberValue(wins.home);
-    const homeLosses = numberValue(losses.home);
-    const awayPlayed = numberValue(played.away);
-    const awayWins = numberValue(wins.away);
-    const awayLosses = numberValue(losses.away);
-    if (
-      leagueId === null || teamId === null || homePlayed === null ||
-      homeWins === null || homeLosses === null || awayPlayed === null ||
-      awayWins === null || awayLosses === null
-    ) continue;
+    const leagueId = numberValue(objectValue(row.league)?.id),
+      teamId = numberValue(objectValue(row.team)?.id);
+    if (leagueId === null || teamId === null) continue;
+    const games = footballSeriesHistory(objectList(row.matches), cutoff, -1);
+    const hw = assessVictorySeries(games, "home"),
+      aw = assessVictorySeries(games, "away");
+    const hl = assessResultSeries(games, (g) => g.lost ?? null, "home"),
+      al = assessResultSeries(games, (g) => g.lost ?? null, "away");
     result.set(`${leagueId}:${teamId}`, {
-      homePlayed,
-      homeWins,
-      homeLosses,
-      awayPlayed,
-      awayWins,
-      awayLosses,
+      homePlayed: Math.max(hw.sample, hl.sample),
+      homeWins: hw.count,
+      homeLosses: hl.count,
+      awayPlayed: Math.max(aw.sample, al.sample),
+      awayWins: aw.count,
+      awayLosses: al.count,
     });
   }
   return result;
@@ -1971,13 +1982,17 @@ function scenarioSupportAnnouncementRows({
       evidence: string,
     ) =>
       rows.push({
-        announcement_key: `${fixtureId}:${id}:${side}:api-team-${teamId}:2`,
+        announcement_key: `${fixtureId}:${id}:${side}:api-team-${teamId}:${
+          id === "venue_strength" ? "venue-momentum-v2" : "2"
+        }`,
         fixture_id: fixtureId,
         source_snapshot_id: snapshotId,
         league_id: leagueId,
         kickoff_at: kickoffAt.toISOString(),
         announced_at: capturedAt.toISOString(),
-        engine_version: "server_scenario_support_v1",
+        engine_version: id === "venue_strength"
+          ? "server_venue_momentum_v2"
+          : "server_scenario_support_v1",
         reading_id: id,
         reading_label: label,
         subject_side: side,
@@ -1990,7 +2005,7 @@ function scenarioSupportAnnouncementRows({
         }],
         sample_size: 5,
         outcome_rule: null,
-        rule_version: 1,
+        rule_version: id === "venue_strength" ? 2 : 1,
       });
     const homeStanding = standings.get(`${leagueId}:${homeId}`);
     const awayStanding = standings.get(`${leagueId}:${awayId}`);
@@ -2078,7 +2093,9 @@ function scenarioSupportAnnouncementRows({
             "Avantage sur le lieu",
             subject.side,
             subject.teamId,
-            `${teamName(subject.team)} présente un bilan solide sur ce lieu.`,
+            `${
+              teamName(subject.team)
+            } enchaîne au moins trois victoires consécutives sur ce lieu.`,
           );
         }
       }
@@ -2262,9 +2279,11 @@ function levelFormVenueAnnouncementRows({
           label: "Avantage domicile / extérieur",
           subject: subjects[0],
           sampleSize: Math.min(homeVenue.homePlayed, awayVenue.awayPlayed),
-          evidence: `${teamName(home)} est solide à domicile et ${
+          evidence: `${
+            teamName(home)
+          } : au moins ${homeVenue.homeWins} victoires consécutives à domicile ; ${
             teamName(away)
-          } fragile à l’extérieur.`,
+          } : au moins ${awayVenue.awayLosses} défaites consécutives à l’extérieur.`,
         }));
       }
       if (
@@ -2285,10 +2304,100 @@ function levelFormVenueAnnouncementRows({
           label: "Avantage extérieur / domicile",
           subject: subjects[1],
           sampleSize: Math.min(homeVenue.homePlayed, awayVenue.awayPlayed),
-          evidence: `${teamName(away)} est solide à l’extérieur et ${
+          evidence: `${
+            teamName(away)
+          } : au moins ${awayVenue.awayWins} victoires consécutives à l’extérieur ; ${
             teamName(home)
-          } fragile à domicile.`,
+          } : au moins ${homeVenue.homeLosses} défaites consécutives à domicile.`,
         }));
+      }
+    }
+  }
+  return rows;
+}
+
+function victorySeriesAnnouncementRows(
+  { snapshotId, capturedAt, fixtures, histories }: {
+    snapshotId: string;
+    capturedAt: Date;
+    fixtures: JsonObject[];
+    histories: JsonObject[];
+  },
+): JsonObject[] {
+  const byTeam = new Map<string, JsonObject[]>();
+  for (const row of histories) {
+    const leagueId = numberValue(objectValue(row.league)?.id),
+      teamId = numberValue(objectValue(row.team)?.id);
+    if (leagueId !== null && teamId !== null) {
+      byTeam.set(`${leagueId}:${teamId}`, objectList(row.matches));
+    }
+  }
+  const rows: JsonObject[] = [];
+  const seen = new Set<number>();
+  for (const row of fixtures) {
+    const f = objectValue(row.fixture) ?? {},
+      leagueId = numberValue(objectValue(row.league)?.id);
+    const fixtureId = numberValue(f.id),
+      kickoffAt = dateValue(f.date),
+      teams = objectValue(row.teams) ?? {};
+    if (
+      fixtureId === null || seen.has(fixtureId) || leagueId === null ||
+      kickoffAt === null || kickoffAt <= capturedAt
+    ) continue;
+    seen.add(fixtureId);
+    for (const side of ["home", "away"] as const) {
+      const team = objectValue(teams[side]) ?? {},
+        teamId = numberValue(team.id);
+      if (teamId === null) continue;
+      const games = footballSeriesHistory(
+        byTeam.get(`${leagueId}:${teamId}`) ?? [],
+        capturedAt,
+        fixtureId,
+      );
+      for (
+        const [scope, readingId, label, place] of [
+          [
+            "overall",
+            "winning_streak",
+            "Série de victoires",
+            "tous lieux confondus",
+          ],
+        ] as const
+      ) {
+        const series = assessVictorySeries(games, scope as SeriesScope);
+        if (!series.detected) continue;
+        const announcement = directionAnnouncement({
+          snapshotId,
+          capturedAt,
+          fixtureId,
+          kickoffAt,
+          leagueId,
+          subject: { side, team, teamId },
+          readingId,
+          label,
+          sampleSize: series.sample,
+          evidence: `${teamName(team)} : ${
+            series.exact ? "" : "au moins "
+          }${series.count} victoires consécutives ${place}. ${
+            series.count === 3
+              ? "Une quatrième victoire en jeu."
+              : series.count === 4
+              ? "Une cinquième victoire en jeu."
+              : series.count === 5
+              ? "Le jalon des cinq victoires est atteint."
+              : "La série se prolonge au-delà de cinq victoires."
+          }`,
+        });
+        announcement.engine_version = "server_victory_series_v1";
+        const evidence = objectList(announcement.evidence);
+        evidence[0].value = {
+          scope,
+          consecutiveWins: series.count,
+          exact: series.exact,
+          threshold: 3,
+        };
+        announcement.evidence = evidence;
+        rows.push(announcement);
       }
     }
   }
@@ -2415,10 +2524,10 @@ function venueAnnouncementRows({
       readingId: isHome ? "strong_home_team" : "strong_away_team",
       label: isHome ? "Solide à domicile" : "Solide à l’extérieur",
       sampleSize: played,
-      evidence: `${teamName(subject.team)} gagne ${
-        Math.round(wins / played * 100)
-      }% de ses matchs à ${place}.`,
-      outcomeRule: "team_not_lose",
+      evidence: `${
+        teamName(subject.team)
+      } : au moins ${wins} victoires consécutives à ${place}.`,
+      outcomeRule: "team_win",
     }));
   }
   if (isWeak(played, wins, losses)) {
@@ -2432,11 +2541,23 @@ function venueAnnouncementRows({
       readingId: isHome ? "weak_home_team" : "weak_away_team",
       label: isHome ? "Fragile à domicile" : "Fragile à l’extérieur",
       sampleSize: played,
-      evidence: `${teamName(subject.team)} perd ${
-        Math.round(losses / played * 100)
-      }% de ses matchs à ${place}.`,
+      evidence: `${
+        teamName(subject.team)
+      } : au moins ${losses} défaites consécutives à ${place}.`,
       outcomeRule: "team_loss",
     }));
+  }
+  for (const row of rows) {
+    const strong = String(row.reading_id).startsWith("strong_");
+    const evidence = objectList(row.evidence);
+    evidence[0].value = {
+      scope: subject.side,
+      result: strong ? "win" : "loss",
+      consecutiveResults: strong ? wins : losses,
+      threshold: 3,
+      minimumCount: true,
+    };
+    row.evidence = evidence;
   }
   return rows;
 }
@@ -2468,6 +2589,15 @@ function directionAnnouncement({
   outcomeRule?: string;
   announcementVariant?: string;
 }): JsonObject {
+  const venueMomentum = [
+    "strong_home_team",
+    "weak_home_team",
+    "strong_away_team",
+    "weak_away_team",
+    "home_away_advantage",
+    "away_home_advantage",
+  ].includes(readingId);
+  if (venueMomentum) announcementVariant = "venue-momentum-v2";
   const subjectTeamId = `api-team-${subject.teamId}`;
   return {
     announcement_key:
@@ -2477,7 +2607,9 @@ function directionAnnouncement({
     league_id: leagueId,
     kickoff_at: kickoffAt.toISOString(),
     announced_at: capturedAt.toISOString(),
-    engine_version: "server_level_form_venue_v1",
+    engine_version: venueMomentum
+      ? "server_venue_momentum_v2"
+      : "server_level_form_venue_v1",
     reading_id: readingId,
     reading_label: label,
     subject_side: subject.side,
@@ -2490,7 +2622,7 @@ function directionAnnouncement({
     }],
     sample_size: sampleSize,
     outcome_rule: outcomeRule,
-    rule_version: 1,
+    rule_version: venueMomentum ? 2 : 1,
   };
 }
 
@@ -2498,12 +2630,12 @@ function pointsForResult(result: string): number {
   return result === "W" ? 3 : result === "D" ? 1 : 0;
 }
 
-function isStrong(played: number, wins: number, losses: number): boolean {
-  return played > 0 && wins > losses;
+function isStrong(played: number, wins: number, _losses: number): boolean {
+  return played >= 3 && wins >= 3;
 }
 
-function isWeak(played: number, wins: number, losses: number): boolean {
-  return played > 0 && losses > wins;
+function isWeak(played: number, _wins: number, losses: number): boolean {
+  return played >= 3 && losses >= 3;
 }
 
 function teamName(team: JsonObject): string {

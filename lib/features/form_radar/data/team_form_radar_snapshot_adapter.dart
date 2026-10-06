@@ -2,7 +2,7 @@ import '../../matches/domain/match_board_item.dart';
 import '../domain/team_form_radar.dart';
 
 /// Builds one team ranking profile from every competition present in the
-/// snapshot. A team keeps its five most recent completed matches across those
+/// snapshot. A team keeps its completed match history across those
 /// competitions, so an empty daily fixture window does not remove it.
 class TeamFormRadarSnapshotAdapter {
   const TeamFormRadarSnapshotAdapter();
@@ -91,9 +91,6 @@ class _TeamFormAccumulator {
             right.playedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
         return leftDate.compareTo(rightDate);
       });
-    final activity = ordered.length <= TeamFormRadarRanker.window
-        ? ordered
-        : ordered.sublist(ordered.length - TeamFormRadarRanker.window);
     final primary = competitions.entries.first;
     return TeamFormRadarProfile(
       teamId: teamId,
@@ -104,7 +101,7 @@ class _TeamFormAccumulator {
           ? primary.value
           : 'Toutes compétitions',
       competitionNames: Map.unmodifiable(competitions),
-      activity: List.unmodifiable(activity),
+      activity: List.unmodifiable(ordered),
     );
   }
 }

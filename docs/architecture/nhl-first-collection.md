@@ -7,7 +7,7 @@ matchs NHL sans modifier la collecte football en production.
 
 ```bash
 cd /Users/chloe/Documents/Codex/2026-09-16/c-2/lector-api-football-orchestration
-bash tool/run_multisport_local.sh 8099 release
+SPORT_PREVIEW_PORT=8110 bash tool/run_multisport_local.sh 8191 release
 ```
 
 Le script lit le `.env` existant :
@@ -17,22 +17,35 @@ Le script lit le `.env` existant :
   l'abonnement Hockey utilise la même clé API-Sports.
 - La clé fournisseur reste dans le processus Deno, jamais dans Flutter.
 
-Le script collecte d'abord la NHL, ouvre le serveur compact sur
-`127.0.0.1:8100`, puis démarre Chrome sur `localhost:8099`. Laisser ce terminal
-ouvert pendant l'essai. `Ctrl+C` arrête l'application et le serveur hockey.
-Les ports peuvent être modifiés :
+Le script vérifie les ports avant tout appel fournisseur. S’il existe déjà une
+source hockey sur `127.0.0.1:8110`, il vérifie qu’elle sert exactement la publication
+compacte de ce projet et la réutilise **sans nouvelle collecte**. Sinon, il démarre
+la collecte des sept ligues et attend sa publication avant d’ouvrir Flutter.
 
-```bash
-SPORT_PREVIEW_PORT=8190 bash tool/run_multisport_local.sh 8191 release
-```
+Chrome utilise `http://localhost:8191/`. Cette adresse est autorisée dans les
+retours OAuth Supabase ; `APP_PUBLIC_URL` est fixé à cette même origine locale.
+Un autre port d’application doit également être autorisé dans Supabase avant
+un test Google. Les anciens lancements sur 8189 ne sont pas couverts par
+l’autorisation ajoutée pour 8191.
+
+Laisser le terminal ouvert. `q` quitte Flutter. Le script arrête uniquement le
+collecteur qu’il a créé ; une source déjà existante est conservée. Si le port
+8191 est occupé, le script indique le conflit avant toute collecte. Arrêter son
+ancien lancement avant de réessayer ; aucun processus n’est supprimé automatiquement.
 
 Choisir Hockey dans le sélecteur de sport, ou ouvrir
-`http://localhost:8099/sports/hockey`. Le sélecteur permet de revenir au football.
+`http://localhost:8191/sports/hockey`. Le sélecteur permet de revenir au football.
 Les flèches de date parcourent les jours ; toucher une carte ouvre le détail.
 Le bouton d'actualisation **relit le compact** : il ne lance pas un appel
 fournisseur depuis le navigateur.
 
-## Données et coût de cette étape
+## Historique de la première collecte NHL
+
+Les chiffres ci-dessous décrivent la première étape, limitée à la NHL.
+La collecte locale actuelle couvre sept ligues et enrichit les équipes, confrontations
+et joueurs ; voir les rapports dans `docs/audits/multisport/`.
+
+### Données et coût de la première étape
 
 1. `/leagues?id=57` résout la saison NHL déclarée courante par le fournisseur.
 2. `/games?league=57&season=<saison>&timezone=Europe/Paris` récupère le calendrier

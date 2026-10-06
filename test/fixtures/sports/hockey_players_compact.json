@@ -1,0 +1,5042 @@
+{
+  "schemaVersion": 1,
+  "sport": "hockey",
+  "provider": "api-hockey",
+  "competitionId": "multi",
+  "season": "multi",
+  "capturedAt": "2026-10-04T18:49:48.033Z",
+  "windowStart": "2026-09-27",
+  "windowEnd": "2026-10-17",
+  "timezone": "Europe/Paris",
+  "collectionId": "279a8960-aae4-4f71-957f-2963ee491c1f",
+  "items": [
+    {
+      "id": "430525",
+      "competitionId": "35",
+      "competitionName": "KHL",
+      "season": "2026",
+      "home": {
+        "id": "1487",
+        "name": "Magnitogorsk",
+        "logoUrl": "https://media.api-sports.io/hockey/teams/1487.png"
+      },
+      "away": {
+        "id": "831",
+        "name": "Vladivostok",
+        "logoUrl": "https://media.api-sports.io/hockey/teams/831.png"
+      },
+      "startsAt": "2026-10-05T14:00:00.000Z",
+      "calendarDate": "2026-10-05",
+      "status": "scheduled",
+      "providerStatus": "NS",
+      "scores": {},
+      "recentForm": {
+        "home": [
+          {
+            "id": "430472",
+            "startsAt": "2026-09-23T14:00:00.000Z",
+            "opponent": "Salavat Ufa",
+            "home": false,
+            "scored": 4,
+            "conceded": 3,
+            "outcome": "win",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "430485",
+            "startsAt": "2026-09-26T11:30:00.000Z",
+            "opponent": "Bars Kazan",
+            "home": true,
+            "scored": 2,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "430493",
+            "startsAt": "2026-09-28T13:30:00.000Z",
+            "opponent": "Avangard Omsk",
+            "home": false,
+            "scored": 5,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "430500",
+            "startsAt": "2026-09-30T16:30:00.000Z",
+            "opponent": "Shanghai",
+            "home": false,
+            "scored": 1,
+            "conceded": 4,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "430511",
+            "startsAt": "2026-10-02T16:30:00.000Z",
+            "opponent": "Spartak Moscow",
+            "home": false,
+            "scored": 2,
+            "conceded": 0,
+            "outcome": "win",
+            "providerStatus": "FT"
+          }
+        ],
+        "away": [
+          {
+            "id": "430466",
+            "startsAt": "2026-09-21T09:30:00.000Z",
+            "opponent": "CSKA Moscow",
+            "home": true,
+            "scored": 3,
+            "conceded": 4,
+            "outcome": "loss",
+            "providerStatus": "AP"
+          },
+          {
+            "id": "430470",
+            "startsAt": "2026-09-23T09:30:00.000Z",
+            "opponent": "Lokomotiv Yaroslavl",
+            "home": true,
+            "scored": 1,
+            "conceded": 2,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "430490",
+            "startsAt": "2026-09-27T09:00:00.000Z",
+            "opponent": "Niznekamsk",
+            "home": true,
+            "scored": 3,
+            "conceded": 5,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "430505",
+            "startsAt": "2026-10-01T16:30:00.000Z",
+            "opponent": "Cherepovets",
+            "home": false,
+            "scored": 4,
+            "conceded": 3,
+            "outcome": "win",
+            "providerStatus": "AP"
+          },
+          {
+            "id": "430514",
+            "startsAt": "2026-10-03T14:00:00.000Z",
+            "opponent": "SKA St. Petersburg",
+            "home": false,
+            "scored": 5,
+            "conceded": 6,
+            "outcome": "loss",
+            "providerStatus": "AP"
+          }
+        ]
+      }
+    }
+  ],
+  "competitions": [
+    {
+      "id": "35",
+      "name": "KHL",
+      "season": "2026",
+      "logoUrl": "https://media.api-sports.io/hockey/leagues/35.png",
+      "country": "Russia",
+      "countryCode": "RU",
+      "countryFlagUrl": "https://media.api-sports.io/flags/ru.svg",
+      "formPhaseVerified": true,
+      "tables": [
+        {
+          "stage": "KHL - Regular Season",
+          "group": "Western Conference",
+          "rows": [
+            {
+              "team": {
+                "id": "377",
+                "name": "Lokomotiv Yaroslavl",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/377.png"
+              },
+              "rank": 1,
+              "played": 12,
+              "points": 18,
+              "wins": 8,
+              "overtimeWins": 1,
+              "losses": 3,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "430470",
+                  "startsAt": "2026-09-23T09:30:00.000Z",
+                  "opponent": "Vladivostok",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430481",
+                  "startsAt": "2026-09-25T09:00:00.000Z",
+                  "opponent": "Khabarovsk",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430489",
+                  "startsAt": "2026-09-27T10:30:00.000Z",
+                  "opponent": "Novosibirsk",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430499",
+                  "startsAt": "2026-09-30T16:30:00.000Z",
+                  "opponent": "Novosibirsk",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430515",
+                  "startsAt": "2026-10-03T14:10:00.000Z",
+                  "opponent": "Dinamo Minsk",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "371",
+                "name": "CSKA Moscow",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/371.png"
+              },
+              "rank": 2,
+              "played": 12,
+              "points": 18,
+              "wins": 7,
+              "overtimeWins": 2,
+              "losses": 3,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "430471",
+                  "startsAt": "2026-09-23T09:00:00.000Z",
+                  "opponent": "Khabarovsk",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430479",
+                  "startsAt": "2026-09-25T15:00:00.000Z",
+                  "opponent": "Lada",
+                  "home": false,
+                  "scored": 5,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430496",
+                  "startsAt": "2026-09-29T16:30:00.000Z",
+                  "opponent": "SKA St. Petersburg",
+                  "home": true,
+                  "scored": 6,
+                  "conceded": 5,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430506",
+                  "startsAt": "2026-10-01T16:30:00.000Z",
+                  "opponent": "Dinamo Minsk",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430517",
+                  "startsAt": "2026-10-03T14:00:00.000Z",
+                  "opponent": "Dynamo Moscow",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "AP"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "379",
+                "name": "Nizhny Novgorod",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/379.png"
+              },
+              "rank": 3,
+              "played": 11,
+              "points": 16,
+              "wins": 7,
+              "overtimeWins": 1,
+              "losses": 3,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "430468",
+                  "startsAt": "2026-09-22T16:30:00.000Z",
+                  "opponent": "Avangard Omsk",
+                  "home": true,
+                  "scored": 5,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430476",
+                  "startsAt": "2026-09-24T16:00:00.000Z",
+                  "opponent": "Sochi",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430491",
+                  "startsAt": "2026-09-28T16:30:00.000Z",
+                  "opponent": "Salavat Ufa",
+                  "home": true,
+                  "scored": 0,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430504",
+                  "startsAt": "2026-10-01T16:30:00.000Z",
+                  "opponent": "Dynamo Moscow",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430513",
+                  "startsAt": "2026-10-03T16:30:00.000Z",
+                  "opponent": "Sochi",
+                  "home": false,
+                  "scored": 6,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "382",
+                "name": "SKA St. Petersburg",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/382.png"
+              },
+              "rank": 4,
+              "played": 10,
+              "points": 16,
+              "wins": 5,
+              "overtimeWins": 3,
+              "losses": 2,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "430446",
+                  "startsAt": "2026-09-15T16:30:00.000Z",
+                  "opponent": "Shanghai",
+                  "home": true,
+                  "scored": 7,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430480",
+                  "startsAt": "2026-09-25T14:00:00.000Z",
+                  "opponent": "Tractor Chelyabinsk",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430488",
+                  "startsAt": "2026-09-27T12:00:00.000Z",
+                  "opponent": "Barys Astana",
+                  "home": false,
+                  "scored": 5,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430496",
+                  "startsAt": "2026-09-29T16:30:00.000Z",
+                  "opponent": "CSKA Moscow",
+                  "home": false,
+                  "scored": 5,
+                  "conceded": 6,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430514",
+                  "startsAt": "2026-10-03T14:00:00.000Z",
+                  "opponent": "Vladivostok",
+                  "home": true,
+                  "scored": 6,
+                  "conceded": 5,
+                  "outcome": "win",
+                  "providerStatus": "AP"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "376",
+                "name": "Shanghai",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/376.png"
+              },
+              "rank": 5,
+              "played": 9,
+              "points": 13,
+              "wins": 4,
+              "overtimeWins": 2,
+              "losses": 2,
+              "overtimeLosses": 1,
+              "form": [
+                {
+                  "id": "430469",
+                  "startsAt": "2026-09-22T16:30:00.000Z",
+                  "opponent": "Yekaterinburg",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430486",
+                  "startsAt": "2026-09-26T14:00:00.000Z",
+                  "opponent": "Dinamo Minsk",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430492",
+                  "startsAt": "2026-09-28T16:30:00.000Z",
+                  "opponent": "Sochi",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430500",
+                  "startsAt": "2026-09-30T16:30:00.000Z",
+                  "opponent": "Magnitogorsk",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430516",
+                  "startsAt": "2026-10-03T14:00:00.000Z",
+                  "opponent": "Cherepovets",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 2,
+                  "outcome": "loss",
+                  "providerStatus": "AOT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "372",
+                "name": "Cherepovets",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/372.png"
+              },
+              "rank": 6,
+              "played": 11,
+              "points": 12,
+              "wins": 4,
+              "overtimeWins": 1,
+              "losses": 4,
+              "overtimeLosses": 2,
+              "form": [
+                {
+                  "id": "430465",
+                  "startsAt": "2026-09-21T09:00:00.000Z",
+                  "opponent": "Khabarovsk",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430474",
+                  "startsAt": "2026-09-24T16:00:00.000Z",
+                  "opponent": "Yekaterinburg",
+                  "home": true,
+                  "scored": 5,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430483",
+                  "startsAt": "2026-09-26T14:00:00.000Z",
+                  "opponent": "Sochi",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430505",
+                  "startsAt": "2026-10-01T16:30:00.000Z",
+                  "opponent": "Vladivostok",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "AP"
+                },
+                {
+                  "id": "430516",
+                  "startsAt": "2026-10-03T14:00:00.000Z",
+                  "opponent": "Shanghai",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "AOT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "16",
+                "name": "Dinamo Minsk",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/16.png"
+              },
+              "rank": 7,
+              "played": 11,
+              "points": 12,
+              "wins": 4,
+              "overtimeWins": 0,
+              "losses": 3,
+              "overtimeLosses": 4,
+              "form": [
+                {
+                  "id": "430475",
+                  "startsAt": "2026-09-24T16:30:00.000Z",
+                  "opponent": "Dynamo Moscow",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "AOT"
+                },
+                {
+                  "id": "430486",
+                  "startsAt": "2026-09-26T14:00:00.000Z",
+                  "opponent": "Shanghai",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 2,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430494",
+                  "startsAt": "2026-09-28T16:10:00.000Z",
+                  "opponent": "Lada",
+                  "home": true,
+                  "scored": 5,
+                  "conceded": 4,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430506",
+                  "startsAt": "2026-10-01T16:30:00.000Z",
+                  "opponent": "CSKA Moscow",
+                  "home": true,
+                  "scored": 1,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430515",
+                  "startsAt": "2026-10-03T14:10:00.000Z",
+                  "opponent": "Lokomotiv Yaroslavl",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "1485",
+                "name": "Dynamo Moscow",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/1485.png"
+              },
+              "rank": 8,
+              "played": 13,
+              "points": 12,
+              "wins": 2,
+              "overtimeWins": 3,
+              "losses": 6,
+              "overtimeLosses": 2,
+              "form": [
+                {
+                  "id": "430475",
+                  "startsAt": "2026-09-24T16:30:00.000Z",
+                  "opponent": "Dinamo Minsk",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "AOT"
+                },
+                {
+                  "id": "430484",
+                  "startsAt": "2026-09-26T14:00:00.000Z",
+                  "opponent": "Salavat Ufa",
+                  "home": true,
+                  "scored": 1,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430495",
+                  "startsAt": "2026-09-28T16:30:00.000Z",
+                  "opponent": "Tractor Chelyabinsk",
+                  "home": true,
+                  "scored": 1,
+                  "conceded": 2,
+                  "outcome": "loss",
+                  "providerStatus": "AOT"
+                },
+                {
+                  "id": "430504",
+                  "startsAt": "2026-10-01T16:30:00.000Z",
+                  "opponent": "Nizhny Novgorod",
+                  "home": true,
+                  "scored": 1,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430517",
+                  "startsAt": "2026-10-03T14:00:00.000Z",
+                  "opponent": "CSKA Moscow",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "AP"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "386",
+                "name": "Spartak Moscow",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/386.png"
+              },
+              "rank": 9,
+              "played": 11,
+              "points": 11,
+              "wins": 5,
+              "overtimeWins": 0,
+              "losses": 5,
+              "overtimeLosses": 1,
+              "form": [
+                {
+                  "id": "430478",
+                  "startsAt": "2026-09-24T16:30:00.000Z",
+                  "opponent": "Avangard Omsk",
+                  "home": true,
+                  "scored": 1,
+                  "conceded": 2,
+                  "outcome": "loss",
+                  "providerStatus": "AOT"
+                },
+                {
+                  "id": "430487",
+                  "startsAt": "2026-09-26T14:00:00.000Z",
+                  "opponent": "Yekaterinburg",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430502",
+                  "startsAt": "2026-09-30T16:30:00.000Z",
+                  "opponent": "Tractor Chelyabinsk",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430511",
+                  "startsAt": "2026-10-02T16:30:00.000Z",
+                  "opponent": "Magnitogorsk",
+                  "home": true,
+                  "scored": 0,
+                  "conceded": 2,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430519",
+                  "startsAt": "2026-10-04T14:00:00.000Z",
+                  "opponent": "Barys Astana",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "AP"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "451",
+                "name": "Lada",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/451.png"
+              },
+              "rank": 10,
+              "played": 12,
+              "points": 5,
+              "wins": 1,
+              "overtimeWins": 0,
+              "losses": 8,
+              "overtimeLosses": 3,
+              "form": [
+                {
+                  "id": "430473",
+                  "startsAt": "2026-09-23T16:30:00.000Z",
+                  "opponent": "Niznekamsk",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 7,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430479",
+                  "startsAt": "2026-09-25T15:00:00.000Z",
+                  "opponent": "CSKA Moscow",
+                  "home": true,
+                  "scored": 0,
+                  "conceded": 5,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430494",
+                  "startsAt": "2026-09-28T16:10:00.000Z",
+                  "opponent": "Dinamo Minsk",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 5,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430503",
+                  "startsAt": "2026-09-30T14:00:00.000Z",
+                  "opponent": "Yekaterinburg",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430507",
+                  "startsAt": "2026-10-02T13:30:00.000Z",
+                  "opponent": "Avangard Omsk",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "385",
+                "name": "Sochi",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/385.png"
+              },
+              "rank": 11,
+              "played": 11,
+              "points": 4,
+              "wins": 2,
+              "overtimeWins": 0,
+              "losses": 9,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "430476",
+                  "startsAt": "2026-09-24T16:00:00.000Z",
+                  "opponent": "Nizhny Novgorod",
+                  "home": false,
+                  "scored": 0,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430483",
+                  "startsAt": "2026-09-26T14:00:00.000Z",
+                  "opponent": "Cherepovets",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430492",
+                  "startsAt": "2026-09-28T16:30:00.000Z",
+                  "opponent": "Shanghai",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430501",
+                  "startsAt": "2026-09-30T16:30:00.000Z",
+                  "opponent": "Salavat Ufa",
+                  "home": true,
+                  "scored": 6,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430513",
+                  "startsAt": "2026-10-03T16:30:00.000Z",
+                  "opponent": "Nizhny Novgorod",
+                  "home": true,
+                  "scored": 0,
+                  "conceded": 6,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "KHL - Regular Season",
+          "group": "Eastern Conference",
+          "rows": [
+            {
+              "team": {
+                "id": "1487",
+                "name": "Magnitogorsk",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/1487.png"
+              },
+              "rank": 1,
+              "played": 12,
+              "points": 19,
+              "wins": 7,
+              "overtimeWins": 2,
+              "losses": 2,
+              "overtimeLosses": 1,
+              "form": [
+                {
+                  "id": "430472",
+                  "startsAt": "2026-09-23T14:00:00.000Z",
+                  "opponent": "Salavat Ufa",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430485",
+                  "startsAt": "2026-09-26T11:30:00.000Z",
+                  "opponent": "Bars Kazan",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430493",
+                  "startsAt": "2026-09-28T13:30:00.000Z",
+                  "opponent": "Avangard Omsk",
+                  "home": false,
+                  "scored": 5,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430500",
+                  "startsAt": "2026-09-30T16:30:00.000Z",
+                  "opponent": "Shanghai",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430511",
+                  "startsAt": "2026-10-02T16:30:00.000Z",
+                  "opponent": "Spartak Moscow",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "380",
+                "name": "Niznekamsk",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/380.png"
+              },
+              "rank": 2,
+              "played": 13,
+              "points": 18,
+              "wins": 8,
+              "overtimeWins": 0,
+              "losses": 3,
+              "overtimeLosses": 2,
+              "form": [
+                {
+                  "id": "430482",
+                  "startsAt": "2026-09-26T08:00:00.000Z",
+                  "opponent": "Barys Astana",
+                  "home": false,
+                  "scored": 6,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430490",
+                  "startsAt": "2026-09-27T09:00:00.000Z",
+                  "opponent": "Vladivostok",
+                  "home": false,
+                  "scored": 5,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430497",
+                  "startsAt": "2026-09-29T09:00:00.000Z",
+                  "opponent": "Khabarovsk",
+                  "home": false,
+                  "scored": 0,
+                  "conceded": 1,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430509",
+                  "startsAt": "2026-10-02T16:00:00.000Z",
+                  "opponent": "Barys Astana",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 5,
+                  "outcome": "loss",
+                  "providerStatus": "AOT"
+                },
+                {
+                  "id": "430518",
+                  "startsAt": "2026-10-04T11:00:00.000Z",
+                  "opponent": "Novosibirsk",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "369",
+                "name": "Bars Kazan",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/369.png"
+              },
+              "rank": 3,
+              "played": 12,
+              "points": 15,
+              "wins": 3,
+              "overtimeWins": 4,
+              "losses": 4,
+              "overtimeLosses": 1,
+              "form": [
+                {
+                  "id": "430464",
+                  "startsAt": "2026-09-21T16:00:00.000Z",
+                  "opponent": "Lada",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "AOT"
+                },
+                {
+                  "id": "430477",
+                  "startsAt": "2026-09-24T12:30:00.000Z",
+                  "opponent": "Novosibirsk",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "AP"
+                },
+                {
+                  "id": "430485",
+                  "startsAt": "2026-09-26T11:30:00.000Z",
+                  "opponent": "Magnitogorsk",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 2,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430498",
+                  "startsAt": "2026-09-30T16:00:00.000Z",
+                  "opponent": "Barys Astana",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430508",
+                  "startsAt": "2026-10-02T16:00:00.000Z",
+                  "opponent": "Tractor Chelyabinsk",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "383",
+                "name": "Salavat Ufa",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/383.png"
+              },
+              "rank": 4,
+              "played": 11,
+              "points": 13,
+              "wins": 6,
+              "overtimeWins": 0,
+              "losses": 4,
+              "overtimeLosses": 1,
+              "form": [
+                {
+                  "id": "430472",
+                  "startsAt": "2026-09-23T14:00:00.000Z",
+                  "opponent": "Magnitogorsk",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430484",
+                  "startsAt": "2026-09-26T14:00:00.000Z",
+                  "opponent": "Dynamo Moscow",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430491",
+                  "startsAt": "2026-09-28T16:30:00.000Z",
+                  "opponent": "Nizhny Novgorod",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430501",
+                  "startsAt": "2026-09-30T16:30:00.000Z",
+                  "opponent": "Sochi",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 6,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430510",
+                  "startsAt": "2026-10-02T14:00:00.000Z",
+                  "opponent": "Novosibirsk",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "370",
+                "name": "Barys Astana",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/370.png"
+              },
+              "rank": 5,
+              "played": 11,
+              "points": 12,
+              "wins": 5,
+              "overtimeWins": 1,
+              "losses": 5,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "430482",
+                  "startsAt": "2026-09-26T08:00:00.000Z",
+                  "opponent": "Niznekamsk",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 6,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430488",
+                  "startsAt": "2026-09-27T12:00:00.000Z",
+                  "opponent": "SKA St. Petersburg",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 5,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430498",
+                  "startsAt": "2026-09-30T16:00:00.000Z",
+                  "opponent": "Bars Kazan",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430509",
+                  "startsAt": "2026-10-02T16:00:00.000Z",
+                  "opponent": "Niznekamsk",
+                  "home": false,
+                  "scored": 5,
+                  "conceded": 4,
+                  "outcome": "win",
+                  "providerStatus": "AOT"
+                },
+                {
+                  "id": "430519",
+                  "startsAt": "2026-10-04T14:00:00.000Z",
+                  "opponent": "Spartak Moscow",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "AP"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "388",
+                "name": "Yekaterinburg",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/388.png"
+              },
+              "rank": 6,
+              "played": 12,
+              "points": 12,
+              "wins": 5,
+              "overtimeWins": 0,
+              "losses": 5,
+              "overtimeLosses": 2,
+              "form": [
+                {
+                  "id": "430474",
+                  "startsAt": "2026-09-24T16:00:00.000Z",
+                  "opponent": "Cherepovets",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 5,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430487",
+                  "startsAt": "2026-09-26T14:00:00.000Z",
+                  "opponent": "Spartak Moscow",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430503",
+                  "startsAt": "2026-09-30T14:00:00.000Z",
+                  "opponent": "Lada",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430512",
+                  "startsAt": "2026-10-02T14:00:00.000Z",
+                  "opponent": "Khabarovsk",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430520",
+                  "startsAt": "2026-10-04T11:30:00.000Z",
+                  "opponent": "Khabarovsk",
+                  "home": true,
+                  "scored": 0,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "1486",
+                "name": "Khabarovsk",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/1486.png"
+              },
+              "rank": 7,
+              "played": 11,
+              "points": 11,
+              "wins": 5,
+              "overtimeWins": 0,
+              "losses": 5,
+              "overtimeLosses": 1,
+              "form": [
+                {
+                  "id": "430471",
+                  "startsAt": "2026-09-23T09:00:00.000Z",
+                  "opponent": "CSKA Moscow",
+                  "home": true,
+                  "scored": 0,
+                  "conceded": 2,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430481",
+                  "startsAt": "2026-09-25T09:00:00.000Z",
+                  "opponent": "Lokomotiv Yaroslavl",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430497",
+                  "startsAt": "2026-09-29T09:00:00.000Z",
+                  "opponent": "Niznekamsk",
+                  "home": true,
+                  "scored": 1,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430512",
+                  "startsAt": "2026-10-02T14:00:00.000Z",
+                  "opponent": "Yekaterinburg",
+                  "home": false,
+                  "scored": 0,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430520",
+                  "startsAt": "2026-10-04T11:30:00.000Z",
+                  "opponent": "Yekaterinburg",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "387",
+                "name": "Tractor Chelyabinsk",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/387.png"
+              },
+              "rank": 8,
+              "played": 10,
+              "points": 10,
+              "wins": 3,
+              "overtimeWins": 2,
+              "losses": 5,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "430458",
+                  "startsAt": "2026-09-20T11:00:00.000Z",
+                  "opponent": "Avangard Omsk",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430480",
+                  "startsAt": "2026-09-25T14:00:00.000Z",
+                  "opponent": "SKA St. Petersburg",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430495",
+                  "startsAt": "2026-09-28T16:30:00.000Z",
+                  "opponent": "Dynamo Moscow",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "AOT"
+                },
+                {
+                  "id": "430502",
+                  "startsAt": "2026-09-30T16:30:00.000Z",
+                  "opponent": "Spartak Moscow",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430508",
+                  "startsAt": "2026-10-02T16:00:00.000Z",
+                  "opponent": "Bars Kazan",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "368",
+                "name": "Avangard Omsk",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/368.png"
+              },
+              "rank": 9,
+              "played": 10,
+              "points": 10,
+              "wins": 2,
+              "overtimeWins": 3,
+              "losses": 5,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "430458",
+                  "startsAt": "2026-09-20T11:00:00.000Z",
+                  "opponent": "Tractor Chelyabinsk",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 2,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430468",
+                  "startsAt": "2026-09-22T16:30:00.000Z",
+                  "opponent": "Nizhny Novgorod",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 5,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430478",
+                  "startsAt": "2026-09-24T16:30:00.000Z",
+                  "opponent": "Spartak Moscow",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "AOT"
+                },
+                {
+                  "id": "430493",
+                  "startsAt": "2026-09-28T13:30:00.000Z",
+                  "opponent": "Magnitogorsk",
+                  "home": true,
+                  "scored": 1,
+                  "conceded": 5,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430507",
+                  "startsAt": "2026-10-02T13:30:00.000Z",
+                  "opponent": "Lada",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "831",
+                "name": "Vladivostok",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/831.png"
+              },
+              "rank": 10,
+              "played": 11,
+              "points": 9,
+              "wins": 2,
+              "overtimeWins": 1,
+              "losses": 5,
+              "overtimeLosses": 3,
+              "form": [
+                {
+                  "id": "430466",
+                  "startsAt": "2026-09-21T09:30:00.000Z",
+                  "opponent": "CSKA Moscow",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "AP"
+                },
+                {
+                  "id": "430470",
+                  "startsAt": "2026-09-23T09:30:00.000Z",
+                  "opponent": "Lokomotiv Yaroslavl",
+                  "home": true,
+                  "scored": 1,
+                  "conceded": 2,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430490",
+                  "startsAt": "2026-09-27T09:00:00.000Z",
+                  "opponent": "Niznekamsk",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 5,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430505",
+                  "startsAt": "2026-10-01T16:30:00.000Z",
+                  "opponent": "Cherepovets",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "AP"
+                },
+                {
+                  "id": "430514",
+                  "startsAt": "2026-10-03T14:00:00.000Z",
+                  "opponent": "SKA St. Petersburg",
+                  "home": false,
+                  "scored": 5,
+                  "conceded": 6,
+                  "outcome": "loss",
+                  "providerStatus": "AP"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "1488",
+                "name": "Novosibirsk",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/1488.png"
+              },
+              "rank": 11,
+              "played": 12,
+              "points": 8,
+              "wins": 3,
+              "overtimeWins": 0,
+              "losses": 7,
+              "overtimeLosses": 2,
+              "form": [
+                {
+                  "id": "430477",
+                  "startsAt": "2026-09-24T12:30:00.000Z",
+                  "opponent": "Bars Kazan",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "AP"
+                },
+                {
+                  "id": "430489",
+                  "startsAt": "2026-09-27T10:30:00.000Z",
+                  "opponent": "Lokomotiv Yaroslavl",
+                  "home": true,
+                  "scored": 1,
+                  "conceded": 2,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430499",
+                  "startsAt": "2026-09-30T16:30:00.000Z",
+                  "opponent": "Lokomotiv Yaroslavl",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430510",
+                  "startsAt": "2026-10-02T14:00:00.000Z",
+                  "opponent": "Salavat Ufa",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430518",
+                  "startsAt": "2026-10-04T11:00:00.000Z",
+                  "opponent": "Niznekamsk",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "KHL - Regular Season",
+          "group": "Bobrov Division",
+          "rows": [
+            {
+              "team": {
+                "id": "379",
+                "name": "Nizhny Novgorod",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/379.png"
+              },
+              "rank": 1,
+              "played": 11,
+              "points": 16,
+              "wins": 7,
+              "overtimeWins": 1,
+              "losses": 3,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "430468",
+                  "startsAt": "2026-09-22T16:30:00.000Z",
+                  "opponent": "Avangard Omsk",
+                  "home": true,
+                  "scored": 5,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430476",
+                  "startsAt": "2026-09-24T16:00:00.000Z",
+                  "opponent": "Sochi",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430491",
+                  "startsAt": "2026-09-28T16:30:00.000Z",
+                  "opponent": "Salavat Ufa",
+                  "home": true,
+                  "scored": 0,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430504",
+                  "startsAt": "2026-10-01T16:30:00.000Z",
+                  "opponent": "Dynamo Moscow",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430513",
+                  "startsAt": "2026-10-03T16:30:00.000Z",
+                  "opponent": "Sochi",
+                  "home": false,
+                  "scored": 6,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "382",
+                "name": "SKA St. Petersburg",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/382.png"
+              },
+              "rank": 2,
+              "played": 10,
+              "points": 16,
+              "wins": 5,
+              "overtimeWins": 3,
+              "losses": 2,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "430446",
+                  "startsAt": "2026-09-15T16:30:00.000Z",
+                  "opponent": "Shanghai",
+                  "home": true,
+                  "scored": 7,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430480",
+                  "startsAt": "2026-09-25T14:00:00.000Z",
+                  "opponent": "Tractor Chelyabinsk",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430488",
+                  "startsAt": "2026-09-27T12:00:00.000Z",
+                  "opponent": "Barys Astana",
+                  "home": false,
+                  "scored": 5,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430496",
+                  "startsAt": "2026-09-29T16:30:00.000Z",
+                  "opponent": "CSKA Moscow",
+                  "home": false,
+                  "scored": 5,
+                  "conceded": 6,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430514",
+                  "startsAt": "2026-10-03T14:00:00.000Z",
+                  "opponent": "Vladivostok",
+                  "home": true,
+                  "scored": 6,
+                  "conceded": 5,
+                  "outcome": "win",
+                  "providerStatus": "AP"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "386",
+                "name": "Spartak Moscow",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/386.png"
+              },
+              "rank": 3,
+              "played": 11,
+              "points": 11,
+              "wins": 5,
+              "overtimeWins": 0,
+              "losses": 5,
+              "overtimeLosses": 1,
+              "form": [
+                {
+                  "id": "430478",
+                  "startsAt": "2026-09-24T16:30:00.000Z",
+                  "opponent": "Avangard Omsk",
+                  "home": true,
+                  "scored": 1,
+                  "conceded": 2,
+                  "outcome": "loss",
+                  "providerStatus": "AOT"
+                },
+                {
+                  "id": "430487",
+                  "startsAt": "2026-09-26T14:00:00.000Z",
+                  "opponent": "Yekaterinburg",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430502",
+                  "startsAt": "2026-09-30T16:30:00.000Z",
+                  "opponent": "Tractor Chelyabinsk",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430511",
+                  "startsAt": "2026-10-02T16:30:00.000Z",
+                  "opponent": "Magnitogorsk",
+                  "home": true,
+                  "scored": 0,
+                  "conceded": 2,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430519",
+                  "startsAt": "2026-10-04T14:00:00.000Z",
+                  "opponent": "Barys Astana",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "AP"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "451",
+                "name": "Lada",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/451.png"
+              },
+              "rank": 4,
+              "played": 12,
+              "points": 5,
+              "wins": 1,
+              "overtimeWins": 0,
+              "losses": 8,
+              "overtimeLosses": 3,
+              "form": [
+                {
+                  "id": "430473",
+                  "startsAt": "2026-09-23T16:30:00.000Z",
+                  "opponent": "Niznekamsk",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 7,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430479",
+                  "startsAt": "2026-09-25T15:00:00.000Z",
+                  "opponent": "CSKA Moscow",
+                  "home": true,
+                  "scored": 0,
+                  "conceded": 5,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430494",
+                  "startsAt": "2026-09-28T16:10:00.000Z",
+                  "opponent": "Dinamo Minsk",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 5,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430503",
+                  "startsAt": "2026-09-30T14:00:00.000Z",
+                  "opponent": "Yekaterinburg",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430507",
+                  "startsAt": "2026-10-02T13:30:00.000Z",
+                  "opponent": "Avangard Omsk",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "385",
+                "name": "Sochi",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/385.png"
+              },
+              "rank": 5,
+              "played": 11,
+              "points": 4,
+              "wins": 2,
+              "overtimeWins": 0,
+              "losses": 9,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "430476",
+                  "startsAt": "2026-09-24T16:00:00.000Z",
+                  "opponent": "Nizhny Novgorod",
+                  "home": false,
+                  "scored": 0,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430483",
+                  "startsAt": "2026-09-26T14:00:00.000Z",
+                  "opponent": "Cherepovets",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430492",
+                  "startsAt": "2026-09-28T16:30:00.000Z",
+                  "opponent": "Shanghai",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430501",
+                  "startsAt": "2026-09-30T16:30:00.000Z",
+                  "opponent": "Salavat Ufa",
+                  "home": true,
+                  "scored": 6,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430513",
+                  "startsAt": "2026-10-03T16:30:00.000Z",
+                  "opponent": "Nizhny Novgorod",
+                  "home": true,
+                  "scored": 0,
+                  "conceded": 6,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "KHL - Regular Season",
+          "group": "Tarasov Division",
+          "rows": [
+            {
+              "team": {
+                "id": "377",
+                "name": "Lokomotiv Yaroslavl",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/377.png"
+              },
+              "rank": 1,
+              "played": 12,
+              "points": 18,
+              "wins": 8,
+              "overtimeWins": 1,
+              "losses": 3,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "430470",
+                  "startsAt": "2026-09-23T09:30:00.000Z",
+                  "opponent": "Vladivostok",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430481",
+                  "startsAt": "2026-09-25T09:00:00.000Z",
+                  "opponent": "Khabarovsk",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430489",
+                  "startsAt": "2026-09-27T10:30:00.000Z",
+                  "opponent": "Novosibirsk",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430499",
+                  "startsAt": "2026-09-30T16:30:00.000Z",
+                  "opponent": "Novosibirsk",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430515",
+                  "startsAt": "2026-10-03T14:10:00.000Z",
+                  "opponent": "Dinamo Minsk",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "371",
+                "name": "CSKA Moscow",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/371.png"
+              },
+              "rank": 2,
+              "played": 12,
+              "points": 18,
+              "wins": 7,
+              "overtimeWins": 2,
+              "losses": 3,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "430471",
+                  "startsAt": "2026-09-23T09:00:00.000Z",
+                  "opponent": "Khabarovsk",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430479",
+                  "startsAt": "2026-09-25T15:00:00.000Z",
+                  "opponent": "Lada",
+                  "home": false,
+                  "scored": 5,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430496",
+                  "startsAt": "2026-09-29T16:30:00.000Z",
+                  "opponent": "SKA St. Petersburg",
+                  "home": true,
+                  "scored": 6,
+                  "conceded": 5,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430506",
+                  "startsAt": "2026-10-01T16:30:00.000Z",
+                  "opponent": "Dinamo Minsk",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430517",
+                  "startsAt": "2026-10-03T14:00:00.000Z",
+                  "opponent": "Dynamo Moscow",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "AP"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "376",
+                "name": "Shanghai",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/376.png"
+              },
+              "rank": 3,
+              "played": 9,
+              "points": 13,
+              "wins": 4,
+              "overtimeWins": 2,
+              "losses": 2,
+              "overtimeLosses": 1,
+              "form": [
+                {
+                  "id": "430469",
+                  "startsAt": "2026-09-22T16:30:00.000Z",
+                  "opponent": "Yekaterinburg",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430486",
+                  "startsAt": "2026-09-26T14:00:00.000Z",
+                  "opponent": "Dinamo Minsk",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430492",
+                  "startsAt": "2026-09-28T16:30:00.000Z",
+                  "opponent": "Sochi",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430500",
+                  "startsAt": "2026-09-30T16:30:00.000Z",
+                  "opponent": "Magnitogorsk",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430516",
+                  "startsAt": "2026-10-03T14:00:00.000Z",
+                  "opponent": "Cherepovets",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 2,
+                  "outcome": "loss",
+                  "providerStatus": "AOT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "372",
+                "name": "Cherepovets",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/372.png"
+              },
+              "rank": 4,
+              "played": 11,
+              "points": 12,
+              "wins": 4,
+              "overtimeWins": 1,
+              "losses": 4,
+              "overtimeLosses": 2,
+              "form": [
+                {
+                  "id": "430465",
+                  "startsAt": "2026-09-21T09:00:00.000Z",
+                  "opponent": "Khabarovsk",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430474",
+                  "startsAt": "2026-09-24T16:00:00.000Z",
+                  "opponent": "Yekaterinburg",
+                  "home": true,
+                  "scored": 5,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430483",
+                  "startsAt": "2026-09-26T14:00:00.000Z",
+                  "opponent": "Sochi",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430505",
+                  "startsAt": "2026-10-01T16:30:00.000Z",
+                  "opponent": "Vladivostok",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "AP"
+                },
+                {
+                  "id": "430516",
+                  "startsAt": "2026-10-03T14:00:00.000Z",
+                  "opponent": "Shanghai",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "AOT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "16",
+                "name": "Dinamo Minsk",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/16.png"
+              },
+              "rank": 5,
+              "played": 11,
+              "points": 12,
+              "wins": 4,
+              "overtimeWins": 0,
+              "losses": 3,
+              "overtimeLosses": 4,
+              "form": [
+                {
+                  "id": "430475",
+                  "startsAt": "2026-09-24T16:30:00.000Z",
+                  "opponent": "Dynamo Moscow",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "AOT"
+                },
+                {
+                  "id": "430486",
+                  "startsAt": "2026-09-26T14:00:00.000Z",
+                  "opponent": "Shanghai",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 2,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430494",
+                  "startsAt": "2026-09-28T16:10:00.000Z",
+                  "opponent": "Lada",
+                  "home": true,
+                  "scored": 5,
+                  "conceded": 4,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430506",
+                  "startsAt": "2026-10-01T16:30:00.000Z",
+                  "opponent": "CSKA Moscow",
+                  "home": true,
+                  "scored": 1,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430515",
+                  "startsAt": "2026-10-03T14:10:00.000Z",
+                  "opponent": "Lokomotiv Yaroslavl",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "1485",
+                "name": "Dynamo Moscow",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/1485.png"
+              },
+              "rank": 6,
+              "played": 13,
+              "points": 12,
+              "wins": 2,
+              "overtimeWins": 3,
+              "losses": 6,
+              "overtimeLosses": 2,
+              "form": [
+                {
+                  "id": "430475",
+                  "startsAt": "2026-09-24T16:30:00.000Z",
+                  "opponent": "Dinamo Minsk",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "AOT"
+                },
+                {
+                  "id": "430484",
+                  "startsAt": "2026-09-26T14:00:00.000Z",
+                  "opponent": "Salavat Ufa",
+                  "home": true,
+                  "scored": 1,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430495",
+                  "startsAt": "2026-09-28T16:30:00.000Z",
+                  "opponent": "Tractor Chelyabinsk",
+                  "home": true,
+                  "scored": 1,
+                  "conceded": 2,
+                  "outcome": "loss",
+                  "providerStatus": "AOT"
+                },
+                {
+                  "id": "430504",
+                  "startsAt": "2026-10-01T16:30:00.000Z",
+                  "opponent": "Nizhny Novgorod",
+                  "home": true,
+                  "scored": 1,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430517",
+                  "startsAt": "2026-10-03T14:00:00.000Z",
+                  "opponent": "CSKA Moscow",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "AP"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "KHL - Regular Season",
+          "group": "Kharlamov Division",
+          "rows": [
+            {
+              "team": {
+                "id": "1487",
+                "name": "Magnitogorsk",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/1487.png"
+              },
+              "rank": 1,
+              "played": 12,
+              "points": 19,
+              "wins": 7,
+              "overtimeWins": 2,
+              "losses": 2,
+              "overtimeLosses": 1,
+              "form": [
+                {
+                  "id": "430472",
+                  "startsAt": "2026-09-23T14:00:00.000Z",
+                  "opponent": "Salavat Ufa",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430485",
+                  "startsAt": "2026-09-26T11:30:00.000Z",
+                  "opponent": "Bars Kazan",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430493",
+                  "startsAt": "2026-09-28T13:30:00.000Z",
+                  "opponent": "Avangard Omsk",
+                  "home": false,
+                  "scored": 5,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430500",
+                  "startsAt": "2026-09-30T16:30:00.000Z",
+                  "opponent": "Shanghai",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430511",
+                  "startsAt": "2026-10-02T16:30:00.000Z",
+                  "opponent": "Spartak Moscow",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "380",
+                "name": "Niznekamsk",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/380.png"
+              },
+              "rank": 2,
+              "played": 13,
+              "points": 18,
+              "wins": 8,
+              "overtimeWins": 0,
+              "losses": 3,
+              "overtimeLosses": 2,
+              "form": [
+                {
+                  "id": "430482",
+                  "startsAt": "2026-09-26T08:00:00.000Z",
+                  "opponent": "Barys Astana",
+                  "home": false,
+                  "scored": 6,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430490",
+                  "startsAt": "2026-09-27T09:00:00.000Z",
+                  "opponent": "Vladivostok",
+                  "home": false,
+                  "scored": 5,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430497",
+                  "startsAt": "2026-09-29T09:00:00.000Z",
+                  "opponent": "Khabarovsk",
+                  "home": false,
+                  "scored": 0,
+                  "conceded": 1,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430509",
+                  "startsAt": "2026-10-02T16:00:00.000Z",
+                  "opponent": "Barys Astana",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 5,
+                  "outcome": "loss",
+                  "providerStatus": "AOT"
+                },
+                {
+                  "id": "430518",
+                  "startsAt": "2026-10-04T11:00:00.000Z",
+                  "opponent": "Novosibirsk",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "369",
+                "name": "Bars Kazan",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/369.png"
+              },
+              "rank": 3,
+              "played": 12,
+              "points": 15,
+              "wins": 3,
+              "overtimeWins": 4,
+              "losses": 4,
+              "overtimeLosses": 1,
+              "form": [
+                {
+                  "id": "430464",
+                  "startsAt": "2026-09-21T16:00:00.000Z",
+                  "opponent": "Lada",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "AOT"
+                },
+                {
+                  "id": "430477",
+                  "startsAt": "2026-09-24T12:30:00.000Z",
+                  "opponent": "Novosibirsk",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "AP"
+                },
+                {
+                  "id": "430485",
+                  "startsAt": "2026-09-26T11:30:00.000Z",
+                  "opponent": "Magnitogorsk",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 2,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430498",
+                  "startsAt": "2026-09-30T16:00:00.000Z",
+                  "opponent": "Barys Astana",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430508",
+                  "startsAt": "2026-10-02T16:00:00.000Z",
+                  "opponent": "Tractor Chelyabinsk",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "388",
+                "name": "Yekaterinburg",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/388.png"
+              },
+              "rank": 4,
+              "played": 12,
+              "points": 12,
+              "wins": 5,
+              "overtimeWins": 0,
+              "losses": 5,
+              "overtimeLosses": 2,
+              "form": [
+                {
+                  "id": "430474",
+                  "startsAt": "2026-09-24T16:00:00.000Z",
+                  "opponent": "Cherepovets",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 5,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430487",
+                  "startsAt": "2026-09-26T14:00:00.000Z",
+                  "opponent": "Spartak Moscow",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430503",
+                  "startsAt": "2026-09-30T14:00:00.000Z",
+                  "opponent": "Lada",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430512",
+                  "startsAt": "2026-10-02T14:00:00.000Z",
+                  "opponent": "Khabarovsk",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430520",
+                  "startsAt": "2026-10-04T11:30:00.000Z",
+                  "opponent": "Khabarovsk",
+                  "home": true,
+                  "scored": 0,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "387",
+                "name": "Tractor Chelyabinsk",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/387.png"
+              },
+              "rank": 5,
+              "played": 10,
+              "points": 10,
+              "wins": 3,
+              "overtimeWins": 2,
+              "losses": 5,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "430458",
+                  "startsAt": "2026-09-20T11:00:00.000Z",
+                  "opponent": "Avangard Omsk",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430480",
+                  "startsAt": "2026-09-25T14:00:00.000Z",
+                  "opponent": "SKA St. Petersburg",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430495",
+                  "startsAt": "2026-09-28T16:30:00.000Z",
+                  "opponent": "Dynamo Moscow",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "AOT"
+                },
+                {
+                  "id": "430502",
+                  "startsAt": "2026-09-30T16:30:00.000Z",
+                  "opponent": "Spartak Moscow",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430508",
+                  "startsAt": "2026-10-02T16:00:00.000Z",
+                  "opponent": "Bars Kazan",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "KHL - Regular Season",
+          "group": "Chernyshev Division",
+          "rows": [
+            {
+              "team": {
+                "id": "383",
+                "name": "Salavat Ufa",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/383.png"
+              },
+              "rank": 1,
+              "played": 11,
+              "points": 13,
+              "wins": 6,
+              "overtimeWins": 0,
+              "losses": 4,
+              "overtimeLosses": 1,
+              "form": [
+                {
+                  "id": "430472",
+                  "startsAt": "2026-09-23T14:00:00.000Z",
+                  "opponent": "Magnitogorsk",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430484",
+                  "startsAt": "2026-09-26T14:00:00.000Z",
+                  "opponent": "Dynamo Moscow",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430491",
+                  "startsAt": "2026-09-28T16:30:00.000Z",
+                  "opponent": "Nizhny Novgorod",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430501",
+                  "startsAt": "2026-09-30T16:30:00.000Z",
+                  "opponent": "Sochi",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 6,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430510",
+                  "startsAt": "2026-10-02T14:00:00.000Z",
+                  "opponent": "Novosibirsk",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "370",
+                "name": "Barys Astana",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/370.png"
+              },
+              "rank": 2,
+              "played": 11,
+              "points": 12,
+              "wins": 5,
+              "overtimeWins": 1,
+              "losses": 5,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "430482",
+                  "startsAt": "2026-09-26T08:00:00.000Z",
+                  "opponent": "Niznekamsk",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 6,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430488",
+                  "startsAt": "2026-09-27T12:00:00.000Z",
+                  "opponent": "SKA St. Petersburg",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 5,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430498",
+                  "startsAt": "2026-09-30T16:00:00.000Z",
+                  "opponent": "Bars Kazan",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430509",
+                  "startsAt": "2026-10-02T16:00:00.000Z",
+                  "opponent": "Niznekamsk",
+                  "home": false,
+                  "scored": 5,
+                  "conceded": 4,
+                  "outcome": "win",
+                  "providerStatus": "AOT"
+                },
+                {
+                  "id": "430519",
+                  "startsAt": "2026-10-04T14:00:00.000Z",
+                  "opponent": "Spartak Moscow",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "AP"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "1486",
+                "name": "Khabarovsk",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/1486.png"
+              },
+              "rank": 3,
+              "played": 11,
+              "points": 11,
+              "wins": 5,
+              "overtimeWins": 0,
+              "losses": 5,
+              "overtimeLosses": 1,
+              "form": [
+                {
+                  "id": "430471",
+                  "startsAt": "2026-09-23T09:00:00.000Z",
+                  "opponent": "CSKA Moscow",
+                  "home": true,
+                  "scored": 0,
+                  "conceded": 2,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430481",
+                  "startsAt": "2026-09-25T09:00:00.000Z",
+                  "opponent": "Lokomotiv Yaroslavl",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430497",
+                  "startsAt": "2026-09-29T09:00:00.000Z",
+                  "opponent": "Niznekamsk",
+                  "home": true,
+                  "scored": 1,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430512",
+                  "startsAt": "2026-10-02T14:00:00.000Z",
+                  "opponent": "Yekaterinburg",
+                  "home": false,
+                  "scored": 0,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430520",
+                  "startsAt": "2026-10-04T11:30:00.000Z",
+                  "opponent": "Yekaterinburg",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "368",
+                "name": "Avangard Omsk",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/368.png"
+              },
+              "rank": 4,
+              "played": 10,
+              "points": 10,
+              "wins": 2,
+              "overtimeWins": 3,
+              "losses": 5,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "430458",
+                  "startsAt": "2026-09-20T11:00:00.000Z",
+                  "opponent": "Tractor Chelyabinsk",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 2,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430468",
+                  "startsAt": "2026-09-22T16:30:00.000Z",
+                  "opponent": "Nizhny Novgorod",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 5,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430478",
+                  "startsAt": "2026-09-24T16:30:00.000Z",
+                  "opponent": "Spartak Moscow",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "AOT"
+                },
+                {
+                  "id": "430493",
+                  "startsAt": "2026-09-28T13:30:00.000Z",
+                  "opponent": "Magnitogorsk",
+                  "home": true,
+                  "scored": 1,
+                  "conceded": 5,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430507",
+                  "startsAt": "2026-10-02T13:30:00.000Z",
+                  "opponent": "Lada",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "831",
+                "name": "Vladivostok",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/831.png"
+              },
+              "rank": 5,
+              "played": 11,
+              "points": 9,
+              "wins": 2,
+              "overtimeWins": 1,
+              "losses": 5,
+              "overtimeLosses": 3,
+              "form": [
+                {
+                  "id": "430466",
+                  "startsAt": "2026-09-21T09:30:00.000Z",
+                  "opponent": "CSKA Moscow",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "AP"
+                },
+                {
+                  "id": "430470",
+                  "startsAt": "2026-09-23T09:30:00.000Z",
+                  "opponent": "Lokomotiv Yaroslavl",
+                  "home": true,
+                  "scored": 1,
+                  "conceded": 2,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430490",
+                  "startsAt": "2026-09-27T09:00:00.000Z",
+                  "opponent": "Niznekamsk",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 5,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430505",
+                  "startsAt": "2026-10-01T16:30:00.000Z",
+                  "opponent": "Cherepovets",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "AP"
+                },
+                {
+                  "id": "430514",
+                  "startsAt": "2026-10-03T14:00:00.000Z",
+                  "opponent": "SKA St. Petersburg",
+                  "home": false,
+                  "scored": 5,
+                  "conceded": 6,
+                  "outcome": "loss",
+                  "providerStatus": "AP"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "1488",
+                "name": "Novosibirsk",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/1488.png"
+              },
+              "rank": 6,
+              "played": 12,
+              "points": 8,
+              "wins": 3,
+              "overtimeWins": 0,
+              "losses": 7,
+              "overtimeLosses": 2,
+              "form": [
+                {
+                  "id": "430477",
+                  "startsAt": "2026-09-24T12:30:00.000Z",
+                  "opponent": "Bars Kazan",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "AP"
+                },
+                {
+                  "id": "430489",
+                  "startsAt": "2026-09-27T10:30:00.000Z",
+                  "opponent": "Lokomotiv Yaroslavl",
+                  "home": true,
+                  "scored": 1,
+                  "conceded": 2,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430499",
+                  "startsAt": "2026-09-30T16:30:00.000Z",
+                  "opponent": "Lokomotiv Yaroslavl",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430510",
+                  "startsAt": "2026-10-02T14:00:00.000Z",
+                  "opponent": "Salavat Ufa",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430518",
+                  "startsAt": "2026-10-04T11:00:00.000Z",
+                  "opponent": "Niznekamsk",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "venueStandings": {
+        "home": [
+          {
+            "team": {
+              "id": "382",
+              "name": "SKA St. Petersburg",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/382.png"
+            },
+            "rank": 1,
+            "played": 5,
+            "wins": 5,
+            "losses": 0,
+            "goalsFor": 24,
+            "goalsAgainst": 14
+          },
+          {
+            "team": {
+              "id": "376",
+              "name": "Shanghai",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/376.png"
+            },
+            "rank": 2,
+            "played": 4,
+            "wins": 4,
+            "losses": 0,
+            "goalsFor": 13,
+            "goalsAgainst": 5
+          },
+          {
+            "team": {
+              "id": "377",
+              "name": "Lokomotiv Yaroslavl",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/377.png"
+            },
+            "rank": 3,
+            "played": 6,
+            "wins": 5,
+            "losses": 1,
+            "goalsFor": 15,
+            "goalsAgainst": 10
+          },
+          {
+            "team": {
+              "id": "1487",
+              "name": "Magnitogorsk",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/1487.png"
+            },
+            "rank": 4,
+            "played": 6,
+            "wins": 5,
+            "losses": 1,
+            "goalsFor": 19,
+            "goalsAgainst": 9
+          },
+          {
+            "team": {
+              "id": "369",
+              "name": "Bars Kazan",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/369.png"
+            },
+            "rank": 5,
+            "played": 7,
+            "wins": 5,
+            "losses": 2,
+            "goalsFor": 19,
+            "goalsAgainst": 13
+          },
+          {
+            "team": {
+              "id": "380",
+              "name": "Niznekamsk",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/380.png"
+            },
+            "rank": 6,
+            "played": 7,
+            "wins": 5,
+            "losses": 2,
+            "goalsFor": 28,
+            "goalsAgainst": 18
+          },
+          {
+            "team": {
+              "id": "368",
+              "name": "Avangard Omsk",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/368.png"
+            },
+            "rank": 7,
+            "played": 6,
+            "wins": 4,
+            "losses": 2,
+            "goalsFor": 15,
+            "goalsAgainst": 15
+          },
+          {
+            "team": {
+              "id": "1486",
+              "name": "Khabarovsk",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/1486.png"
+            },
+            "rank": 8,
+            "played": 5,
+            "wins": 3,
+            "losses": 2,
+            "goalsFor": 9,
+            "goalsAgainst": 7
+          },
+          {
+            "team": {
+              "id": "379",
+              "name": "Nizhny Novgorod",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/379.png"
+            },
+            "rank": 9,
+            "played": 5,
+            "wins": 3,
+            "losses": 2,
+            "goalsFor": 13,
+            "goalsAgainst": 9
+          },
+          {
+            "team": {
+              "id": "388",
+              "name": "Yekaterinburg",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/388.png"
+            },
+            "rank": 10,
+            "played": 5,
+            "wins": 3,
+            "losses": 2,
+            "goalsFor": 11,
+            "goalsAgainst": 9
+          },
+          {
+            "team": {
+              "id": "372",
+              "name": "Cherepovets",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/372.png"
+            },
+            "rank": 11,
+            "played": 7,
+            "wins": 4,
+            "losses": 3,
+            "goalsFor": 16,
+            "goalsAgainst": 13
+          },
+          {
+            "team": {
+              "id": "16",
+              "name": "Dinamo Minsk",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/16.png"
+            },
+            "rank": 12,
+            "played": 7,
+            "wins": 4,
+            "losses": 3,
+            "goalsFor": 25,
+            "goalsAgainst": 23
+          },
+          {
+            "team": {
+              "id": "371",
+              "name": "CSKA Moscow",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/371.png"
+            },
+            "rank": 13,
+            "played": 6,
+            "wins": 3,
+            "losses": 3,
+            "goalsFor": 19,
+            "goalsAgainst": 18
+          },
+          {
+            "team": {
+              "id": "1485",
+              "name": "Dynamo Moscow",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/1485.png"
+            },
+            "rank": 14,
+            "played": 7,
+            "wins": 3,
+            "losses": 4,
+            "goalsFor": 13,
+            "goalsAgainst": 18
+          },
+          {
+            "team": {
+              "id": "370",
+              "name": "Barys Astana",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/370.png"
+            },
+            "rank": 15,
+            "played": 5,
+            "wins": 2,
+            "losses": 3,
+            "goalsFor": 22,
+            "goalsAgainst": 21
+          },
+          {
+            "team": {
+              "id": "383",
+              "name": "Salavat Ufa",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/383.png"
+            },
+            "rank": 16,
+            "played": 5,
+            "wins": 2,
+            "losses": 3,
+            "goalsFor": 13,
+            "goalsAgainst": 13
+          },
+          {
+            "team": {
+              "id": "385",
+              "name": "Sochi",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/385.png"
+            },
+            "rank": 17,
+            "played": 6,
+            "wins": 2,
+            "losses": 4,
+            "goalsFor": 10,
+            "goalsAgainst": 21
+          },
+          {
+            "team": {
+              "id": "386",
+              "name": "Spartak Moscow",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/386.png"
+            },
+            "rank": 18,
+            "played": 7,
+            "wins": 2,
+            "losses": 5,
+            "goalsFor": 16,
+            "goalsAgainst": 14
+          },
+          {
+            "team": {
+              "id": "451",
+              "name": "Lada",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/451.png"
+            },
+            "rank": 19,
+            "played": 4,
+            "wins": 1,
+            "losses": 3,
+            "goalsFor": 6,
+            "goalsAgainst": 20
+          },
+          {
+            "team": {
+              "id": "387",
+              "name": "Tractor Chelyabinsk",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/387.png"
+            },
+            "rank": 20,
+            "played": 4,
+            "wins": 1,
+            "losses": 3,
+            "goalsFor": 7,
+            "goalsAgainst": 12
+          },
+          {
+            "team": {
+              "id": "1488",
+              "name": "Novosibirsk",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/1488.png"
+            },
+            "rank": 21,
+            "played": 5,
+            "wins": 1,
+            "losses": 4,
+            "goalsFor": 7,
+            "goalsAgainst": 13
+          },
+          {
+            "team": {
+              "id": "831",
+              "name": "Vladivostok",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/831.png"
+            },
+            "rank": 22,
+            "played": 5,
+            "wins": 1,
+            "losses": 4,
+            "goalsFor": 11,
+            "goalsAgainst": 14
+          }
+        ],
+        "away": [
+          {
+            "team": {
+              "id": "371",
+              "name": "CSKA Moscow",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/371.png"
+            },
+            "rank": 1,
+            "played": 6,
+            "wins": 6,
+            "losses": 0,
+            "goalsFor": 22,
+            "goalsAgainst": 6
+          },
+          {
+            "team": {
+              "id": "379",
+              "name": "Nizhny Novgorod",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/379.png"
+            },
+            "rank": 2,
+            "played": 6,
+            "wins": 5,
+            "losses": 1,
+            "goalsFor": 21,
+            "goalsAgainst": 9
+          },
+          {
+            "team": {
+              "id": "386",
+              "name": "Spartak Moscow",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/386.png"
+            },
+            "rank": 3,
+            "played": 4,
+            "wins": 3,
+            "losses": 1,
+            "goalsFor": 10,
+            "goalsAgainst": 8
+          },
+          {
+            "team": {
+              "id": "370",
+              "name": "Barys Astana",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/370.png"
+            },
+            "rank": 4,
+            "played": 6,
+            "wins": 4,
+            "losses": 2,
+            "goalsFor": 21,
+            "goalsAgainst": 12
+          },
+          {
+            "team": {
+              "id": "377",
+              "name": "Lokomotiv Yaroslavl",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/377.png"
+            },
+            "rank": 5,
+            "played": 6,
+            "wins": 4,
+            "losses": 2,
+            "goalsFor": 15,
+            "goalsAgainst": 12
+          },
+          {
+            "team": {
+              "id": "1487",
+              "name": "Magnitogorsk",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/1487.png"
+            },
+            "rank": 6,
+            "played": 6,
+            "wins": 4,
+            "losses": 2,
+            "goalsFor": 17,
+            "goalsAgainst": 13
+          },
+          {
+            "team": {
+              "id": "383",
+              "name": "Salavat Ufa",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/383.png"
+            },
+            "rank": 7,
+            "played": 6,
+            "wins": 4,
+            "losses": 2,
+            "goalsFor": 22,
+            "goalsAgainst": 17
+          },
+          {
+            "team": {
+              "id": "387",
+              "name": "Tractor Chelyabinsk",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/387.png"
+            },
+            "rank": 8,
+            "played": 6,
+            "wins": 4,
+            "losses": 2,
+            "goalsFor": 15,
+            "goalsAgainst": 15
+          },
+          {
+            "team": {
+              "id": "382",
+              "name": "SKA St. Petersburg",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/382.png"
+            },
+            "rank": 9,
+            "played": 5,
+            "wins": 3,
+            "losses": 2,
+            "goalsFor": 16,
+            "goalsAgainst": 15
+          },
+          {
+            "team": {
+              "id": "380",
+              "name": "Niznekamsk",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/380.png"
+            },
+            "rank": 10,
+            "played": 6,
+            "wins": 3,
+            "losses": 3,
+            "goalsFor": 16,
+            "goalsAgainst": 15
+          },
+          {
+            "team": {
+              "id": "369",
+              "name": "Bars Kazan",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/369.png"
+            },
+            "rank": 11,
+            "played": 5,
+            "wins": 2,
+            "losses": 3,
+            "goalsFor": 12,
+            "goalsAgainst": 13
+          },
+          {
+            "team": {
+              "id": "376",
+              "name": "Shanghai",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/376.png"
+            },
+            "rank": 12,
+            "played": 5,
+            "wins": 2,
+            "losses": 3,
+            "goalsFor": 13,
+            "goalsAgainst": 19
+          },
+          {
+            "team": {
+              "id": "1485",
+              "name": "Dynamo Moscow",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/1485.png"
+            },
+            "rank": 13,
+            "played": 6,
+            "wins": 2,
+            "losses": 4,
+            "goalsFor": 12,
+            "goalsAgainst": 17
+          },
+          {
+            "team": {
+              "id": "1486",
+              "name": "Khabarovsk",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/1486.png"
+            },
+            "rank": 14,
+            "played": 6,
+            "wins": 2,
+            "losses": 4,
+            "goalsFor": 9,
+            "goalsAgainst": 12
+          },
+          {
+            "team": {
+              "id": "831",
+              "name": "Vladivostok",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/831.png"
+            },
+            "rank": 15,
+            "played": 6,
+            "wins": 2,
+            "losses": 4,
+            "goalsFor": 15,
+            "goalsAgainst": 17
+          },
+          {
+            "team": {
+              "id": "1488",
+              "name": "Novosibirsk",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/1488.png"
+            },
+            "rank": 16,
+            "played": 7,
+            "wins": 2,
+            "losses": 5,
+            "goalsFor": 17,
+            "goalsAgainst": 24
+          },
+          {
+            "team": {
+              "id": "388",
+              "name": "Yekaterinburg",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/388.png"
+            },
+            "rank": 17,
+            "played": 7,
+            "wins": 2,
+            "losses": 5,
+            "goalsFor": 19,
+            "goalsAgainst": 23
+          },
+          {
+            "team": {
+              "id": "368",
+              "name": "Avangard Omsk",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/368.png"
+            },
+            "rank": 18,
+            "played": 4,
+            "wins": 1,
+            "losses": 3,
+            "goalsFor": 5,
+            "goalsAgainst": 10
+          },
+          {
+            "team": {
+              "id": "372",
+              "name": "Cherepovets",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/372.png"
+            },
+            "rank": 19,
+            "played": 4,
+            "wins": 1,
+            "losses": 3,
+            "goalsFor": 5,
+            "goalsAgainst": 13
+          },
+          {
+            "team": {
+              "id": "451",
+              "name": "Lada",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/451.png"
+            },
+            "rank": 20,
+            "played": 8,
+            "wins": 0,
+            "losses": 8,
+            "goalsFor": 15,
+            "goalsAgainst": 29
+          },
+          {
+            "team": {
+              "id": "385",
+              "name": "Sochi",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/385.png"
+            },
+            "rank": 21,
+            "played": 5,
+            "wins": 0,
+            "losses": 5,
+            "goalsFor": 4,
+            "goalsAgainst": 19
+          },
+          {
+            "team": {
+              "id": "16",
+              "name": "Dinamo Minsk",
+              "logoUrl": "https://media.api-sports.io/hockey/teams/16.png"
+            },
+            "rank": 22,
+            "played": 4,
+            "wins": 0,
+            "losses": 4,
+            "goalsFor": 8,
+            "goalsAgainst": 13
+          }
+        ],
+        "collectedAt": "2026-10-04T18:49:48.033Z",
+        "unavailableTeams": []
+      }
+    }
+  ],
+  "baseCapturedAt": "2026-10-04T18:33:07.969Z",
+  "playerRadar": {
+    "profiles": [
+      {
+        "id": "event-name:35:2026:377:G.%20Fiore",
+        "name": "G. Fiore",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "377",
+          "name": "Lokomotiv Yaroslavl",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/377.png"
+        },
+        "activity": [
+          {
+            "id": "430489",
+            "startsAt": "2026-09-27T10:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": false,
+            "scored": 2,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 1,
+            "assists": 0
+          },
+          {
+            "id": "430499",
+            "startsAt": "2026-09-30T16:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": true,
+            "scored": 3,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 1
+          },
+          {
+            "id": "430515",
+            "startsAt": "2026-10-03T14:10:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 3,
+            "conceded": 4,
+            "outcome": "loss",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:377:M.%20Kotkov",
+        "name": "M. Kotkov",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "377",
+          "name": "Lokomotiv Yaroslavl",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/377.png"
+        },
+        "activity": [
+          {
+            "id": "430489",
+            "startsAt": "2026-09-27T10:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": false,
+            "scored": 2,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 1
+          },
+          {
+            "id": "430499",
+            "startsAt": "2026-09-30T16:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": true,
+            "scored": 3,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430515",
+            "startsAt": "2026-10-03T14:10:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 3,
+            "conceded": 4,
+            "outcome": "loss",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:377:G.%20Ivanov",
+        "name": "G. Ivanov",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "377",
+          "name": "Lokomotiv Yaroslavl",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/377.png"
+        },
+        "activity": [
+          {
+            "id": "430489",
+            "startsAt": "2026-09-27T10:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": false,
+            "scored": 2,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 1
+          },
+          {
+            "id": "430499",
+            "startsAt": "2026-09-30T16:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": true,
+            "scored": 3,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 1
+          },
+          {
+            "id": "430515",
+            "startsAt": "2026-10-03T14:10:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 3,
+            "conceded": 4,
+            "outcome": "loss",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:377:N.%20Kiryanov",
+        "name": "N. Kiryanov",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "377",
+          "name": "Lokomotiv Yaroslavl",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/377.png"
+        },
+        "activity": [
+          {
+            "id": "430489",
+            "startsAt": "2026-09-27T10:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": false,
+            "scored": 2,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 1,
+            "assists": 0
+          },
+          {
+            "id": "430499",
+            "startsAt": "2026-09-30T16:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": true,
+            "scored": 3,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430515",
+            "startsAt": "2026-10-03T14:10:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 3,
+            "conceded": 4,
+            "outcome": "loss",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 1
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:377:A.%20Yelesin",
+        "name": "A. Yelesin",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "377",
+          "name": "Lokomotiv Yaroslavl",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/377.png"
+        },
+        "activity": [
+          {
+            "id": "430489",
+            "startsAt": "2026-09-27T10:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": false,
+            "scored": 2,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 1
+          },
+          {
+            "id": "430499",
+            "startsAt": "2026-09-30T16:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": true,
+            "scored": 3,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430515",
+            "startsAt": "2026-10-03T14:10:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 3,
+            "conceded": 4,
+            "outcome": "loss",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:377:A.%20Bereglazov",
+        "name": "A. Bereglazov",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "377",
+          "name": "Lokomotiv Yaroslavl",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/377.png"
+        },
+        "activity": [
+          {
+            "id": "430489",
+            "startsAt": "2026-09-27T10:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": false,
+            "scored": 2,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 1
+          },
+          {
+            "id": "430499",
+            "startsAt": "2026-09-30T16:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": true,
+            "scored": 3,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430515",
+            "startsAt": "2026-10-03T14:10:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 3,
+            "conceded": 4,
+            "outcome": "loss",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:377:R.%20Rafikov",
+        "name": "R. Rafikov",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "377",
+          "name": "Lokomotiv Yaroslavl",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/377.png"
+        },
+        "activity": [
+          {
+            "id": "430489",
+            "startsAt": "2026-09-27T10:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": false,
+            "scored": 2,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430499",
+            "startsAt": "2026-09-30T16:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": true,
+            "scored": 3,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 1,
+            "assists": 0
+          },
+          {
+            "id": "430515",
+            "startsAt": "2026-10-03T14:10:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 3,
+            "conceded": 4,
+            "outcome": "loss",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 1
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:377:A.%20Radulov",
+        "name": "A. Radulov",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "377",
+          "name": "Lokomotiv Yaroslavl",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/377.png"
+        },
+        "activity": [
+          {
+            "id": "430489",
+            "startsAt": "2026-09-27T10:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": false,
+            "scored": 2,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430499",
+            "startsAt": "2026-09-30T16:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": true,
+            "scored": 3,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 1,
+            "assists": 1
+          },
+          {
+            "id": "430515",
+            "startsAt": "2026-10-03T14:10:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 3,
+            "conceded": 4,
+            "outcome": "loss",
+            "providerStatus": "FT",
+            "goals": 1,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:377:Y.%20Surin",
+        "name": "Y. Surin",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "377",
+          "name": "Lokomotiv Yaroslavl",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/377.png"
+        },
+        "activity": [
+          {
+            "id": "430489",
+            "startsAt": "2026-09-27T10:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": false,
+            "scored": 2,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430499",
+            "startsAt": "2026-09-30T16:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": true,
+            "scored": 3,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 1
+          },
+          {
+            "id": "430515",
+            "startsAt": "2026-10-03T14:10:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 3,
+            "conceded": 4,
+            "outcome": "loss",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:377:A.%20Kuzin",
+        "name": "A. Kuzin",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "377",
+          "name": "Lokomotiv Yaroslavl",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/377.png"
+        },
+        "activity": [
+          {
+            "id": "430489",
+            "startsAt": "2026-09-27T10:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": false,
+            "scored": 2,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430499",
+            "startsAt": "2026-09-30T16:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": true,
+            "scored": 3,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 1,
+            "assists": 0
+          },
+          {
+            "id": "430515",
+            "startsAt": "2026-10-03T14:10:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 3,
+            "conceded": 4,
+            "outcome": "loss",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 1
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:377:A.%20Kayumov",
+        "name": "A. Kayumov",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "377",
+          "name": "Lokomotiv Yaroslavl",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/377.png"
+        },
+        "activity": [
+          {
+            "id": "430489",
+            "startsAt": "2026-09-27T10:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": false,
+            "scored": 2,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430499",
+            "startsAt": "2026-09-30T16:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": true,
+            "scored": 3,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430515",
+            "startsAt": "2026-10-03T14:10:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 3,
+            "conceded": 4,
+            "outcome": "loss",
+            "providerStatus": "FT",
+            "goals": 1,
+            "assists": 1
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:377:N.%20Cherepanov",
+        "name": "N. Cherepanov",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "377",
+          "name": "Lokomotiv Yaroslavl",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/377.png"
+        },
+        "activity": [
+          {
+            "id": "430489",
+            "startsAt": "2026-09-27T10:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": false,
+            "scored": 2,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430499",
+            "startsAt": "2026-09-30T16:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": true,
+            "scored": 3,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430515",
+            "startsAt": "2026-10-03T14:10:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 3,
+            "conceded": 4,
+            "outcome": "loss",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 1
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:377:M.%20Shalunov",
+        "name": "M. Shalunov",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "377",
+          "name": "Lokomotiv Yaroslavl",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/377.png"
+        },
+        "activity": [
+          {
+            "id": "430489",
+            "startsAt": "2026-09-27T10:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": false,
+            "scored": 2,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430499",
+            "startsAt": "2026-09-30T16:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": true,
+            "scored": 3,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430515",
+            "startsAt": "2026-10-03T14:10:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 3,
+            "conceded": 4,
+            "outcome": "loss",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 1
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:377:A.%20Pustovoy",
+        "name": "A. Pustovoy",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "377",
+          "name": "Lokomotiv Yaroslavl",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/377.png"
+        },
+        "activity": [
+          {
+            "id": "430489",
+            "startsAt": "2026-09-27T10:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": false,
+            "scored": 2,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430499",
+            "startsAt": "2026-09-30T16:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": true,
+            "scored": 3,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430515",
+            "startsAt": "2026-10-03T14:10:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 3,
+            "conceded": 4,
+            "outcome": "loss",
+            "providerStatus": "FT",
+            "goals": 1,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:371:P.%20Karnaukhov",
+        "name": "P. Karnaukhov",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "371",
+          "name": "CSKA Moscow",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/371.png"
+        },
+        "activity": [
+          {
+            "id": "430496",
+            "startsAt": "2026-09-29T16:30:00.000Z",
+            "opponent": "SKA St. Petersburg",
+            "home": true,
+            "scored": 6,
+            "conceded": 5,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 3,
+            "assists": 0
+          },
+          {
+            "id": "430506",
+            "startsAt": "2026-10-01T16:30:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 4,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 1
+          },
+          {
+            "id": "430517",
+            "startsAt": "2026-10-03T14:00:00.000Z",
+            "opponent": "Dynamo Moscow",
+            "home": true,
+            "scored": 4,
+            "conceded": 3,
+            "outcome": "win",
+            "providerStatus": "AP",
+            "goals": 0,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:371:K.%20Kostin",
+        "name": "K. Kostin",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "371",
+          "name": "CSKA Moscow",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/371.png"
+        },
+        "activity": [
+          {
+            "id": "430496",
+            "startsAt": "2026-09-29T16:30:00.000Z",
+            "opponent": "SKA St. Petersburg",
+            "home": true,
+            "scored": 6,
+            "conceded": 5,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 2
+          },
+          {
+            "id": "430506",
+            "startsAt": "2026-10-01T16:30:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 4,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430517",
+            "startsAt": "2026-10-03T14:00:00.000Z",
+            "opponent": "Dynamo Moscow",
+            "home": true,
+            "scored": 4,
+            "conceded": 3,
+            "outcome": "win",
+            "providerStatus": "AP",
+            "goals": 0,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:371:N.%20Nesterov",
+        "name": "N. Nesterov",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "371",
+          "name": "CSKA Moscow",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/371.png"
+        },
+        "activity": [
+          {
+            "id": "430496",
+            "startsAt": "2026-09-29T16:30:00.000Z",
+            "opponent": "SKA St. Petersburg",
+            "home": true,
+            "scored": 6,
+            "conceded": 5,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 2
+          },
+          {
+            "id": "430506",
+            "startsAt": "2026-10-01T16:30:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 4,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430517",
+            "startsAt": "2026-10-03T14:00:00.000Z",
+            "opponent": "Dynamo Moscow",
+            "home": true,
+            "scored": 4,
+            "conceded": 3,
+            "outcome": "win",
+            "providerStatus": "AP",
+            "goals": 0,
+            "assists": 1
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:371:N.%20Kovalenko",
+        "name": "N. Kovalenko",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "371",
+          "name": "CSKA Moscow",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/371.png"
+        },
+        "activity": [
+          {
+            "id": "430496",
+            "startsAt": "2026-09-29T16:30:00.000Z",
+            "opponent": "SKA St. Petersburg",
+            "home": true,
+            "scored": 6,
+            "conceded": 5,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 2,
+            "assists": 0
+          },
+          {
+            "id": "430506",
+            "startsAt": "2026-10-01T16:30:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 4,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430517",
+            "startsAt": "2026-10-03T14:00:00.000Z",
+            "opponent": "Dynamo Moscow",
+            "home": true,
+            "scored": 4,
+            "conceded": 3,
+            "outcome": "win",
+            "providerStatus": "AP",
+            "goals": 0,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:371:D.%20Gurianov",
+        "name": "D. Gurianov",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "371",
+          "name": "CSKA Moscow",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/371.png"
+        },
+        "activity": [
+          {
+            "id": "430496",
+            "startsAt": "2026-09-29T16:30:00.000Z",
+            "opponent": "SKA St. Petersburg",
+            "home": true,
+            "scored": 6,
+            "conceded": 5,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 2
+          },
+          {
+            "id": "430506",
+            "startsAt": "2026-10-01T16:30:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 4,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430517",
+            "startsAt": "2026-10-03T14:00:00.000Z",
+            "opponent": "Dynamo Moscow",
+            "home": true,
+            "scored": 4,
+            "conceded": 3,
+            "outcome": "win",
+            "providerStatus": "AP",
+            "goals": 0,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:371:I.%20Drozdov",
+        "name": "I. Drozdov",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "371",
+          "name": "CSKA Moscow",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/371.png"
+        },
+        "activity": [
+          {
+            "id": "430496",
+            "startsAt": "2026-09-29T16:30:00.000Z",
+            "opponent": "SKA St. Petersburg",
+            "home": true,
+            "scored": 6,
+            "conceded": 5,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 3
+          },
+          {
+            "id": "430506",
+            "startsAt": "2026-10-01T16:30:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 4,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 1,
+            "assists": 0
+          },
+          {
+            "id": "430517",
+            "startsAt": "2026-10-03T14:00:00.000Z",
+            "opponent": "Dynamo Moscow",
+            "home": true,
+            "scored": 4,
+            "conceded": 3,
+            "outcome": "win",
+            "providerStatus": "AP",
+            "goals": 0,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:371:Y.%20Zamula",
+        "name": "Y. Zamula",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "371",
+          "name": "CSKA Moscow",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/371.png"
+        },
+        "activity": [
+          {
+            "id": "430496",
+            "startsAt": "2026-09-29T16:30:00.000Z",
+            "opponent": "SKA St. Petersburg",
+            "home": true,
+            "scored": 6,
+            "conceded": 5,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 1
+          },
+          {
+            "id": "430506",
+            "startsAt": "2026-10-01T16:30:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 4,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 1
+          },
+          {
+            "id": "430517",
+            "startsAt": "2026-10-03T14:00:00.000Z",
+            "opponent": "Dynamo Moscow",
+            "home": true,
+            "scored": 4,
+            "conceded": 3,
+            "outcome": "win",
+            "providerStatus": "AP",
+            "goals": 0,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:371:D.%20Buchelnikov",
+        "name": "D. Buchelnikov",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "371",
+          "name": "CSKA Moscow",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/371.png"
+        },
+        "activity": [
+          {
+            "id": "430496",
+            "startsAt": "2026-09-29T16:30:00.000Z",
+            "opponent": "SKA St. Petersburg",
+            "home": true,
+            "scored": 6,
+            "conceded": 5,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 1,
+            "assists": 0
+          },
+          {
+            "id": "430506",
+            "startsAt": "2026-10-01T16:30:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 4,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430517",
+            "startsAt": "2026-10-03T14:00:00.000Z",
+            "opponent": "Dynamo Moscow",
+            "home": true,
+            "scored": 4,
+            "conceded": 3,
+            "outcome": "win",
+            "providerStatus": "AP",
+            "goals": 1,
+            "assists": 1
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:371:M.%20Khairullin",
+        "name": "M. Khairullin",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "371",
+          "name": "CSKA Moscow",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/371.png"
+        },
+        "activity": [
+          {
+            "id": "430496",
+            "startsAt": "2026-09-29T16:30:00.000Z",
+            "opponent": "SKA St. Petersburg",
+            "home": true,
+            "scored": 6,
+            "conceded": 5,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430506",
+            "startsAt": "2026-10-01T16:30:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 4,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 2,
+            "assists": 0
+          },
+          {
+            "id": "430517",
+            "startsAt": "2026-10-03T14:00:00.000Z",
+            "opponent": "Dynamo Moscow",
+            "home": true,
+            "scored": 4,
+            "conceded": 3,
+            "outcome": "win",
+            "providerStatus": "AP",
+            "goals": 1,
+            "assists": 0
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:371:D.%20Barach",
+        "name": "D. Barach",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "371",
+          "name": "CSKA Moscow",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/371.png"
+        },
+        "activity": [
+          {
+            "id": "430496",
+            "startsAt": "2026-09-29T16:30:00.000Z",
+            "opponent": "SKA St. Petersburg",
+            "home": true,
+            "scored": 6,
+            "conceded": 5,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430506",
+            "startsAt": "2026-10-01T16:30:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 4,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 1
+          },
+          {
+            "id": "430517",
+            "startsAt": "2026-10-03T14:00:00.000Z",
+            "opponent": "Dynamo Moscow",
+            "home": true,
+            "scored": 4,
+            "conceded": 3,
+            "outcome": "win",
+            "providerStatus": "AP",
+            "goals": 0,
+            "assists": 1
+          }
+        ]
+      },
+      {
+        "id": "event-name:35:2026:371:R.%20Hamilton",
+        "name": "R. Hamilton",
+        "identitySource": "event-name",
+        "competitionId": "35",
+        "season": "2026",
+        "team": {
+          "id": "371",
+          "name": "CSKA Moscow",
+          "logoUrl": "https://media.api-sports.io/hockey/teams/371.png"
+        },
+        "activity": [
+          {
+            "id": "430496",
+            "startsAt": "2026-09-29T16:30:00.000Z",
+            "opponent": "SKA St. Petersburg",
+            "home": true,
+            "scored": 6,
+            "conceded": 5,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 0,
+            "assists": 0
+          },
+          {
+            "id": "430506",
+            "startsAt": "2026-10-01T16:30:00.000Z",
+            "opponent": "Dinamo Minsk",
+            "home": false,
+            "scored": 4,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT",
+            "goals": 1,
+            "assists": 1
+          },
+          {
+            "id": "430517",
+            "startsAt": "2026-10-03T14:00:00.000Z",
+            "opponent": "Dynamo Moscow",
+            "home": true,
+            "scored": 4,
+            "conceded": 3,
+            "outcome": "win",
+            "providerStatus": "AP",
+            "goals": 0,
+            "assists": 0
+          }
+        ]
+      }
+    ],
+    "coverage": [
+      {
+        "competitionId": "35",
+        "teamId": "377",
+        "status": "complete"
+      },
+      {
+        "competitionId": "35",
+        "teamId": "371",
+        "status": "complete"
+      },
+      {
+        "competitionId": "35",
+        "teamId": "379",
+        "status": "complete"
+      },
+      {
+        "competitionId": "35",
+        "teamId": "382",
+        "status": "complete"
+      },
+      {
+        "competitionId": "35",
+        "teamId": "376",
+        "status": "complete"
+      },
+      {
+        "competitionId": "35",
+        "teamId": "372",
+        "status": "complete"
+      },
+      {
+        "competitionId": "35",
+        "teamId": "16",
+        "status": "complete"
+      },
+      {
+        "competitionId": "35",
+        "teamId": "1485",
+        "status": "complete"
+      },
+      {
+        "competitionId": "35",
+        "teamId": "386",
+        "status": "complete"
+      },
+      {
+        "competitionId": "35",
+        "teamId": "451",
+        "status": "complete"
+      },
+      {
+        "competitionId": "35",
+        "teamId": "385",
+        "status": "complete"
+      },
+      {
+        "competitionId": "35",
+        "teamId": "1487",
+        "status": "complete"
+      },
+      {
+        "competitionId": "35",
+        "teamId": "380",
+        "status": "complete"
+      },
+      {
+        "competitionId": "35",
+        "teamId": "369",
+        "status": "complete"
+      },
+      {
+        "competitionId": "35",
+        "teamId": "383",
+        "status": "complete"
+      },
+      {
+        "competitionId": "35",
+        "teamId": "370",
+        "status": "complete"
+      },
+      {
+        "competitionId": "35",
+        "teamId": "388",
+        "status": "complete"
+      },
+      {
+        "competitionId": "35",
+        "teamId": "1486",
+        "status": "complete"
+      },
+      {
+        "competitionId": "35",
+        "teamId": "387",
+        "status": "complete"
+      },
+      {
+        "competitionId": "35",
+        "teamId": "368",
+        "status": "complete"
+      },
+      {
+        "competitionId": "35",
+        "teamId": "831",
+        "status": "complete"
+      },
+      {
+        "competitionId": "35",
+        "teamId": "1488",
+        "status": "complete"
+      }
+    ]
+  }
+}

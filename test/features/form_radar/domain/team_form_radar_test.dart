@@ -3,6 +3,22 @@ import 'package:copilot/features/matches/domain/match_board_item.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('radar distinguishes three wins from a five-game unbeaten run', () {
+    final ranked = TeamFormRadarRanker.rank([
+      _team('Série', ['L', 'D', 'W', 'W', 'W']),
+      _team('Invaincu', ['W', 'D', 'W', 'D', 'W']),
+    ]);
+    final hot = ranked.singleWhere((r) => r.profile.teamName == 'Série');
+    expect(hot.victorySeries.count, 3);
+    expect(hot.victorySeries.exact, true);
+    expect(hot.streakLabel, contains('En série'));
+    final unbeaten = ranked.singleWhere(
+      (r) => r.profile.teamName == 'Invaincu',
+    );
+    expect(unbeaten.victorySeries.detected, false);
+    expect(unbeaten.streakLabel, 'Invaincu · 5');
+  });
+
   test('ranks teams by five-match points before recent form', () {
     final ranked = TeamFormRadarRanker.rank([
       _team('Régulière', ['W', 'D', 'W', 'D', 'W']),

@@ -7,6 +7,95 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('FootballAnalyzer', () {
+    test(
+      'victory series starts at three and distinguishes home, away and draws',
+      () {
+        List<TeamRecentMatchSnapshot> history(int count) => [
+          for (var i = 0; i < count; i++)
+            TeamRecentMatchSnapshot(
+              opponentName: 'Team $i',
+              venue: RecentMatchVenue.home,
+              result: 'W',
+            ),
+          const TeamRecentMatchSnapshot(
+            opponentName: 'Breaker',
+            venue: RecentMatchVenue.home,
+            result: 'D',
+          ),
+        ];
+        for (final count in [2, 3, 5, 8]) {
+          final result = const FootballAnalyzer().analyze(
+            _match(
+              homeRecentLeagueMatches: history(count),
+              awayRecentLeagueMatches: const [],
+            ),
+          );
+          expect(
+            result.has('winning_streak', subjectTeamId: 'home'),
+            count >= 3,
+          );
+          expect(
+            result.has('strong_home_team', subjectTeamId: 'home'),
+            count >= 3,
+          );
+          expect(result.has('strong_away_team', subjectTeamId: 'home'), false);
+          if (count >= 3) {
+            final evidence =
+                result.readings
+                        .firstWhere((r) => r.id == 'winning_streak')
+                        .evidence
+                        .first
+                        .value
+                    as Map;
+            expect(evidence['consecutiveWins'], count);
+            expect(evidence['exact'], true);
+          }
+        }
+      },
+    );
+    test('series excludes future games and duplicate ids before sorting', () {
+      final games = [
+        for (var i = 0; i < 3; i++)
+          TeamRecentMatchSnapshot(
+            fixtureId: i + 100,
+            opponentName: 'Team $i',
+            venue: RecentMatchVenue.away,
+            result: 'W',
+            playedAt: DateTime.utc(2026, 7, 25 + i),
+          ),
+        TeamRecentMatchSnapshot(
+          fixtureId: 100,
+          opponentName: 'Team 0',
+          venue: RecentMatchVenue.away,
+          result: 'W',
+          playedAt: DateTime.utc(2026, 7, 25),
+        ),
+        TeamRecentMatchSnapshot(
+          fixtureId: 999,
+          opponentName: 'Future',
+          venue: RecentMatchVenue.away,
+          result: 'L',
+          playedAt: DateTime.utc(2026, 8),
+        ),
+      ];
+      final analysis = const FootballAnalyzer().analyze(
+        _match(
+          homeRecentLeagueMatches: const [],
+          awayRecentLeagueMatches: games,
+        ),
+      );
+      expect(analysis.has('strong_away_team', subjectTeamId: 'away'), true);
+      final evidence =
+          analysis.readings
+                  .firstWhere((r) => r.id == 'winning_streak')
+                  .evidence
+                  .first
+                  .value
+              as Map;
+      expect(evidence['consecutiveWins'], 3);
+      expect(evidence['exact'], false);
+    });
+
     test('produces independent readings without selecting a market', () {
       final analysis = const FootballAnalyzer().analyze(_match());
 
@@ -335,32 +424,86 @@ void main() {
       );
     });
 
-    test('separates home and away venue advantages', () {
-      final analysis = const FootballAnalyzer().analyze(
-        _match(
-          homeStatistics: const TeamStatisticsSnapshot(
-            teamId: 10,
-            teamName: 'Home',
-            playedHome: 5,
-            winsHome: 4,
-            lossesHome: 0,
+    test(
+      'separates current venue advantages, ignores season aggregates and draws',
+      () {
+        List<TeamRecentMatchSnapshot> games(
+          String result,
+          RecentMatchVenue place,
+        ) => [
+          for (var i = 0; i < 3; i++)
+            TeamRecentMatchSnapshot(
+              opponentName: 'Team $i',
+              venue: place,
+              result: result,
+            ),
+        ];
+        final home = games('W', RecentMatchVenue.home),
+            away = games('L', RecentMatchVenue.away);
+        final result = const FootballAnalyzer().analyze(
+          _match(
+            homeRecentLeagueMatches: [
+              home[0],
+              const TeamRecentMatchSnapshot(
+                opponentName: 'Other venue',
+                venue: RecentMatchVenue.away,
+                result: 'L',
+              ),
+              ...home.skip(1),
+            ],
+            awayRecentLeagueMatches: away,
           ),
-          awayStatistics: const TeamStatisticsSnapshot(
-            teamId: 11,
-            teamName: 'Away',
-            playedAway: 5,
-            winsAway: 1,
-            lossesAway: 4,
+        );
+        expect(result.has('home_away_advantage', subjectTeamId: 'home'), true);
+        expect(result.has('weak_away_team', subjectTeamId: 'away'), true);
+        expect(result.has('away_home_advantage'), false);
+        final draw = const FootballAnalyzer().analyze(
+          _match(
+            homeRecentLeagueMatches: home,
+            awayRecentLeagueMatches: [
+              const TeamRecentMatchSnapshot(
+                opponentName: 'Draw',
+                venue: RecentMatchVenue.away,
+                result: 'D',
+              ),
+              ...away,
+            ],
           ),
-        ),
-      );
-
-      expect(
-        analysis.has('home_away_advantage', subjectTeamId: 'home'),
-        isTrue,
-      );
-      expect(analysis.has('away_home_advantage'), isFalse);
-    });
+        );
+        expect(draw.has('weak_away_team'), false);
+        expect(draw.has('home_away_advantage'), false);
+        final totalsOnly = const FootballAnalyzer().analyze(
+          _match(
+            homeRecentLeagueMatches: [],
+            awayRecentLeagueMatches: [],
+            homeStatistics: const TeamStatisticsSnapshot(
+              teamId: 10,
+              teamName: 'Home',
+              playedHome: 20,
+              winsHome: 12,
+              lossesHome: 3,
+            ),
+            awayStatistics: const TeamStatisticsSnapshot(
+              teamId: 11,
+              teamName: 'Away',
+              playedAway: 20,
+              winsAway: 2,
+              lossesAway: 15,
+            ),
+          ),
+        );
+        expect(totalsOnly.has('strong_home_team'), false);
+        expect(totalsOnly.has('weak_away_team'), false);
+        expect(totalsOnly.has('home_away_advantage'), false);
+        final reverse = const FootballAnalyzer().analyze(
+          _match(
+            homeRecentLeagueMatches: games('L', RecentMatchVenue.home),
+            awayRecentLeagueMatches: games('W', RecentMatchVenue.away),
+          ),
+        );
+        expect(reverse.has('away_home_advantage', subjectTeamId: 'away'), true);
+      },
+    );
 
     test('produces symmetric half readings relative to the league', () {
       TeamStatisticsSnapshot statistics({

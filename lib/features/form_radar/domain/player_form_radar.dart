@@ -1,3 +1,4 @@
+import '../../../core/domain/lector_player_form_policy.dart';
 import '../../matches/domain/match_board_item.dart';
 
 /// The explainable Form Radar ranking.
@@ -33,7 +34,7 @@ class PlayerFormRadarEntry {
 class PlayerFormRadarRanker {
   const PlayerFormRadarRanker._();
 
-  static const recentWindow = 3;
+  static const recentWindow = LectorPlayerFormPolicy.recentWindow;
 
   /// A player must have produced at least two actions in the current window.
   /// This retains super-subs while excluding a single isolated contribution.
@@ -41,16 +42,14 @@ class PlayerFormRadarRanker {
     Iterable<PlayerFormRadarProfile> profiles,
   ) {
     final entries = <PlayerFormRadarEntry>[];
-    for (final profile in profiles) {
+    for (final profile in latestProfiles(profiles)) {
       if (profile.activity.length < recentWindow) continue;
-      final recent = profile.activity
-          .skip(profile.activity.length - recentWindow)
-          .toList(growable: false);
+      final recent = LectorPlayerFormPolicy.recent(profile.activity);
       final contributions = recent.fold<int>(
         0,
         (total, match) => total + match.contributions,
       );
-      if (contributions < 2) continue;
+      if (contributions < LectorPlayerFormPolicy.minimumContributions) continue;
       entries.add(
         PlayerFormRadarEntry(
           profile: profile,
@@ -86,14 +85,69 @@ class PlayerFormRadarRanker {
     return List.unmodifiable(entries);
   }
 
+  /// Competition snapshots may repeat a player for the same team. Select
+  /// current evidence before detecting form, so an old hot window cannot
+  /// replace a newer window in which the player has cooled down. Club and
+  /// national-team profiles remain independent because their team IDs differ.
+  static List<PlayerFormRadarProfile> latestProfiles(
+    Iterable<PlayerFormRadarProfile> profiles, {
+    Map<int, DateTime> latestTeamMatchDates = const {},
+  }) {
+    final candidates = profiles.toList(growable: false);
+    final teamDates = Map<int, DateTime>.of(latestTeamMatchDates);
+    for (final profile in candidates) {
+      final date = _lastMatchDate(profile);
+      final current = teamDates[profile.teamId];
+      if (date != null && (current == null || date.isAfter(current))) {
+        teamDates[profile.teamId] = date;
+      }
+    }
+    final latest = <(int, int), PlayerFormRadarProfile>{};
+    for (final profile in candidates) {
+      final date = _lastMatchDate(profile);
+      final teamDate = teamDates[profile.teamId];
+      // A player absent from the current sample must not reappear solely
+      // because an older competition still carries a hot profile for them.
+      if (teamDate != null && (date == null || date.isBefore(teamDate))) {
+        continue;
+      }
+      final key = (profile.teamId, profile.playerId);
+      final previous = latest[key];
+      if (previous == null || _compareEvidence(profile, previous) > 0) {
+        latest[key] = profile;
+      }
+    }
+    return List.unmodifiable(latest.values);
+  }
+
+  static int _compareEvidence(
+    PlayerFormRadarProfile left,
+    PlayerFormRadarProfile right,
+  ) {
+    final leftDate = _lastMatchDate(left);
+    final rightDate = _lastMatchDate(right);
+    if (leftDate == null && rightDate != null) return -1;
+    if (leftDate != null && rightDate == null) return 1;
+    if (leftDate != null && rightDate != null) {
+      final recency = leftDate.compareTo(rightDate);
+      if (recency != 0) return recency;
+    }
+    final history = left.activity.length.compareTo(right.activity.length);
+    if (history != 0) return history;
+    return right.leagueId.compareTo(left.leagueId);
+  }
+
+  static DateTime? _lastMatchDate(PlayerFormRadarProfile profile) => profile
+      .activity
+      .map((match) => match.playedAt)
+      .fold<DateTime?>(
+        null,
+        (last, date) => last == null || date.isAfter(last) ? date : last,
+      );
+
   static int _currentDecisiveStreak(
     List<PlayerFormRadarMatchSnapshot> activity,
   ) {
-    var length = 0;
-    for (final match in activity.reversed) {
-      if (!match.isDecisive) break;
-      length += 1;
-    }
-    return length;
+    return LectorPlayerFormPolicy.streak(activity, (match) => match.isDecisive);
   }
 }

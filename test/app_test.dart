@@ -65,10 +65,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('À suivre aujourd’hui'), findsOneWidget);
+    expect(find.text('Personnalisez votre Lector'), findsOneWidget);
     expect(find.text('Générateur'), findsOneWidget);
     expect(find.text('Live'), findsNothing);
-    expect(find.text('À suivre aujourd’hui'), findsOneWidget);
+    await tester.tap(find.text('Découvrir tous les matchs'));
+    await tester.pumpAndSettle();
+    expect(find.text('Tous les matchs'), findsOneWidget);
+    expect(find.byKey(const ValueKey('temporal-filter-all')), findsOneWidget);
     expect(find.text('Onboarding'), findsNothing);
   });
 
@@ -95,7 +98,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('À suivre aujourd’hui'), findsOneWidget);
+    expect(find.text('Personnalisez votre Lector'), findsOneWidget);
 
     await tester.tap(find.text('Tous'));
     await tester.pumpAndSettle();

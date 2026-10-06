@@ -13,6 +13,125 @@ import 'package:intl/date_symbol_data_local.dart';
 
 void main() {
   setUpAll(() => initializeDateFormatting('fr'));
+  for (final width in [360.0, 1100.0]) {
+    testWidgets('sport menu stays anchored and routes at $width', (
+      tester,
+    ) async {
+      tester.view.physicalSize = Size(width, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final registry = SportWorkspaceRegistry([
+        for (final entry in SportWorkspaceRegistry.defaults.entries)
+          SportWorkspaceRegistration(
+            definition: entry.definition,
+            icon: entry.icon,
+            builder: (_) => Text('Content ${entry.definition.sport.label}'),
+          ),
+      ]);
+      final router = createAppRouter(
+        const AppConfig(
+          environment: AppEnvironment.development,
+          supabaseUrl: null,
+          supabaseAnonKey: null,
+        ),
+        sports: registry,
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(
+        MaterialApp.router(theme: AppTheme.dark, routerConfig: router),
+      );
+      await tester.pumpAndSettle();
+      final trigger = find.byKey(const ValueKey('sport-selector'));
+      final triggerRect = tester.getRect(trigger);
+      await tester.tap(trigger);
+      await tester.pumpAndSettle();
+      final football = find.byKey(const ValueKey('sport-option:football'));
+      final hockey = find.byKey(const ValueKey('sport-option:hockey'));
+      expect(tester.getRect(football).top, greaterThan(triggerRect.bottom));
+      expect(tester.getSize(football).width, 236);
+      expect(tester.getSize(football).height, 52);
+      expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+      expect(
+        find.descendant(
+          of: football,
+          matching: find.byIcon(Icons.check_rounded),
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('En préparation'), findsNothing);
+      expect(find.textContaining('À venir'), findsNothing);
+      expect(find.text('Basket'), findsNothing);
+      await tester.tap(hockey);
+      await tester.pumpAndSettle();
+      expect(find.text('Content Hockey'), findsOneWidget);
+      expect(router.routeInformationProvider.value.uri.path, '/sports/hockey');
+      await tester.tap(trigger);
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(of: hockey, matching: find.byIcon(Icons.check_rounded)),
+        findsOneWidget,
+      );
+      await tester.tap(football);
+      await tester.pumpAndSettle();
+      expect(router.routeInformationProvider.value.uri.path, '/');
+      expect(find.text('Content Football'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('the sport menu scrolls when more disciplines become available', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final registry = SportWorkspaceRegistry([
+      for (final entry in SportWorkspaceRegistry.defaults.entries)
+        SportWorkspaceRegistration(
+          definition: entry.definition,
+          icon: entry.icon,
+          builder: (_) => Text('Content ${entry.definition.sport.label}'),
+        ),
+      for (var i = 1; i <= 10; i++)
+        SportWorkspaceRegistration(
+          definition: SportModuleDefinition(
+            sport: SportId('discipline-$i', 'Discipline $i'),
+            stage: SportModuleStage.active,
+            capabilities: const {},
+          ),
+          icon: Icons.sports,
+          builder: (_) => Text('Content discipline $i'),
+        ),
+    ]);
+    final router = createAppRouter(
+      const AppConfig(
+        environment: AppEnvironment.development,
+        supabaseUrl: null,
+        supabaseAnonKey: null,
+      ),
+      sports: registry,
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      MaterialApp.router(theme: AppTheme.dark, routerConfig: router),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('sport-selector')));
+    await tester.pumpAndSettle();
+    final lastSport = find.byKey(const ValueKey('sport-option:discipline-10'));
+    await tester.ensureVisible(lastSport);
+    await tester.pumpAndSettle();
+    await tester.tap(lastSport);
+    await tester.pumpAndSettle();
+    expect(
+      router.routeInformationProvider.value.uri.path,
+      '/sports/discipline-10',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'hockey workspace explains draft readings without loading football',
     (tester) async {
@@ -34,23 +153,35 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byType(HockeyWorkspace), findsOneWidget);
+      expect(find.text('Personnalisez votre Lector'), findsOneWidget);
+      await tester.tap(find.text('Tous'));
+      await tester.pumpAndSettle();
       expect(find.text('Aucune rencontre hockey chargée'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('hockey-rules')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('hockey-section-1')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Avantage au classement'));
       await tester.pumpAndSettle();
       expect(find.text('Exemple illustratif'), findsOneWidget);
-      expect(find.textContaining('16 points sur 20'), findsOneWidget);
+      expect(
+        find.textContaining('Le premier est T1, le dernier T5'),
+        findsOneWidget,
+      );
       await tester.ensureVisible(
         find.byKey(const ValueKey('hockey-section-2')),
       );
       await tester.tap(find.byKey(const ValueKey('hockey-section-2')));
       await tester.pumpAndSettle();
       expect(find.text('Avantages convergents'), findsOneWidget);
+      router.pop();
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('sport-selector')));
       await tester.pumpAndSettle();
       expect(find.text('Football'), findsOneWidget);
-      expect(find.text('Basket · À venir'), findsOneWidget);
+      expect(find.text('Basket · À venir'), findsNothing);
+      expect(find.text('Hockey · En préparation'), findsNothing);
+      expect(find.byIcon(Icons.check_rounded), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );

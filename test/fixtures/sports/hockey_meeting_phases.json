@@ -1,0 +1,98 @@
+[
+  {
+    "date": "2026-09-22T23:00:00Z",
+    "expected": "excluded",
+    "id": "57",
+    "name": "NHL",
+    "phase": null,
+    "declared": "league"
+  },
+  {
+    "date": "2025-09-21T23:00:00Z",
+    "expected": "excluded",
+    "id": "57",
+    "name": "NHL",
+    "phase": null,
+    "declared": "league"
+  },
+  {
+    "date": "2026-09-30T02:00:00Z",
+    "expected": "league",
+    "id": "57",
+    "name": "NHL",
+    "phase": null,
+    "declared": "unknown"
+  },
+  {
+    "date": "2024-10-05T23:00:00Z",
+    "expected": "unknown",
+    "id": "57",
+    "name": "NHL",
+    "phase": null,
+    "declared": "unknown"
+  },
+  {
+    "date": "2024-10-09T02:00:00Z",
+    "expected": "league",
+    "id": "57",
+    "name": "NHL",
+    "phase": null,
+    "declared": "unknown"
+  },
+  {
+    "date": "2025-03-17T23:00:00Z",
+    "expected": "league",
+    "id": "57",
+    "name": "NHL",
+    "phase": null,
+    "declared": "unknown"
+  },
+  {
+    "date": "2025-05-01T23:00:00Z",
+    "expected": "unknown",
+    "id": "57",
+    "name": "NHL",
+    "phase": null,
+    "declared": "league"
+  },
+  {
+    "date": "2025-05-01T23:00:00Z",
+    "expected": "cup",
+    "id": "57",
+    "name": "NHL",
+    "phase": "Playoffs",
+    "declared": "unknown"
+  },
+  {
+    "date": "2026-09-30T23:00:00Z",
+    "expected": "excluded",
+    "id": "57",
+    "name": "NHL Pre-Season",
+    "phase": null,
+    "declared": "unknown"
+  },
+  {
+    "date": "2026-09-25T23:00:00Z",
+    "expected": "unknown",
+    "id": "35",
+    "name": "KHL",
+    "phase": null,
+    "declared": "league"
+  },
+  {
+    "date": "2026-09-25T23:00:00Z",
+    "expected": "league",
+    "id": "35",
+    "name": "KHL",
+    "phase": "Regular Season",
+    "declared": "unknown"
+  },
+  {
+    "date": "2026-09-25T23:00:00Z",
+    "expected": "cup",
+    "id": "99",
+    "name": "Champions Hockey League",
+    "phase": null,
+    "declared": "unknown"
+  }
+]

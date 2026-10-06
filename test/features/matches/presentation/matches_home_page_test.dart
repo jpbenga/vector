@@ -1,3 +1,4 @@
+import 'package:copilot/core/widgets/lector_standing_table.dart';
 import 'package:copilot/core/auth/supabase_auth_controller.dart';
 import 'package:copilot/core/config/app_config.dart';
 import 'package:copilot/core/config/app_environment.dart';
@@ -33,7 +34,99 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
+  testWidgets(
+    'anonymous For me invites personalization while public matches stay accessible',
+    (tester) async {
+      await _pumpPage(
+        tester,
+        identityScope: const IdentityScope.guest('anonymous-live'),
+        repository: _FakeMatchFeedRepository(
+          opportunities: const [],
+          matches: [_match()],
+        ),
+      );
+      expect(find.text('Personnalisez votre Lector'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('for-me-compact-filter-control')),
+        findsNothing,
+      );
+      await tester.tap(find.text('Découvrir tous les matchs'));
+      await tester.pumpAndSettle();
+      expect(find.text('Personnalisez votre Lector'), findsNothing);
+      expect(find.byKey(const ValueKey('temporal-filter-all')), findsOneWidget);
+    },
+  );
+
   group('MatchesHomePage redesign', () {
+    for (final mode in ['Pour moi', 'Tous']) {
+      testWidgets('Live shows every football match expanded in $mode', (
+        tester,
+      ) async {
+        final fixtures = [
+          for (var i = 0; i < 4; i++)
+            _match(
+              id: 'live-expanded-$i',
+              homeName: 'Live FC $i',
+              awayName: 'Opponent $i',
+              competitionId: i == 2 ? '135' : '61',
+              competitionName: i == 2 ? 'Serie A' : 'Ligue 1',
+              countryCode: i == 2 ? 'IT' : 'FR',
+              countryName: i == 2 ? 'Italie' : 'France',
+              status: i == 3 ? FixtureStatus.scheduled : FixtureStatus.live,
+              kickoff: _relativeKickoff(0, hour: 20),
+            ).copyWith(
+              signals: [
+                MatchSignal(
+                  id: 'fragile_defense',
+                  title: 'Défense fragile',
+                  summary: 'Défense fragile détectée.',
+                  proofs: const ['Preuve'],
+                ),
+              ],
+            ),
+        ];
+        await _pumpPage(
+          tester,
+          viewSize: const Size(390, 2500),
+          profile: _completedProfile().withOptionIds('readings', [
+            'fragile_defense',
+          ]),
+          repository: _FakeMatchFeedRepository(
+            opportunities: const [],
+            matches: fixtures,
+            personalizedMatches: fixtures,
+          ),
+        );
+        if (mode == 'Tous') {
+          await tester.tap(find.text('Tous').first);
+          await tester.pumpAndSettle();
+        }
+        await tester.ensureVisible(
+          find.byKey(const ValueKey('temporal-filter-live')),
+        );
+        await tester.tap(find.byKey(const ValueKey('temporal-filter-live')));
+        await tester.pumpAndSettle();
+        for (var i = 0; i < 3; i++) {
+          expect(find.text('Live FC $i'), findsOneWidget);
+        }
+        expect(find.text('Live FC 3'), findsNothing);
+        expect(find.byType(MatchFeedCard), findsNWidgets(3));
+        expect(
+          find.byKey(const ValueKey('for-me-competition-toggle-61')),
+          findsNothing,
+        );
+        if (mode == 'Tous') {
+          // Headers cannot hide live matches again.
+          await tester.tap(find.text('France'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Ligue 1'));
+          await tester.pumpAndSettle();
+          expect(find.byType(MatchFeedCard), findsNWidgets(3));
+        }
+        expect(tester.takeException(), isNull);
+      });
+    }
+
     testWidgets('displays covered fixtures collected before midnight', (
       tester,
     ) async {
@@ -88,6 +181,10 @@ void main() {
         repositoryForDateLoader: (date) => loader.load(now: date),
       );
       await tester.tap(find.text('Tous'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('France'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ligue 1'));
       await tester.pumpAndSettle();
       expect(find.text('Publication FC'), findsOneWidget);
       expect(find.text('Minuit FC'), findsOneWidget);
@@ -161,12 +258,22 @@ void main() {
 
       await tester.tap(find.text('Tous'));
       await tester.pumpAndSettle();
+      await tester.tap(find.text('France'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ligue 1'));
+      await tester.pumpAndSettle();
       expect(find.text('Today FC'), findsOneWidget);
 
+      await tester.ensureVisible(find.text(_calendarLabel(nextDay)));
+      await tester.pumpAndSettle();
       await tester.tap(find.text(_calendarLabel(nextDay)));
       await tester.pumpAndSettle();
 
       expect(requestedDates, [today, nextDay]);
+      await tester.tap(find.text('France'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ligue 1'));
+      await tester.pumpAndSettle();
       expect(find.text('Tomorrow FC'), findsOneWidget);
       expect(find.text('Today FC'), findsNothing);
     });
@@ -500,13 +607,19 @@ void main() {
 
       expect(find.text('Tous les matchs'), findsOneWidget);
       expect(find.text('À suivre aujourd’hui'), findsNothing);
-      expect(find.text('Premier League'), findsOneWidget);
+      expect(find.text('France'), findsOneWidget);
+      expect(find.text('Premier League'), findsNothing);
+      expect(find.byType(MatchFeedCard), findsNothing);
       for (final crossFade in tester.widgetList<AnimatedCrossFade>(
         find.byType(AnimatedCrossFade),
       )) {
         expect(crossFade.crossFadeState, CrossFadeState.showFirst);
       }
 
+      await tester.tap(find.text('France'));
+      await tester.pumpAndSettle();
+      expect(find.text('Premier League'), findsOneWidget);
+      expect(find.byType(MatchFeedCard), findsNothing);
       await tester.tap(find.text('Premier League'));
       await tester.pumpAndSettle();
 
@@ -548,6 +661,8 @@ void main() {
         );
 
         await tester.tap(find.text('Tous'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('France'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Championship'));
         await tester.pumpAndSettle();
@@ -604,6 +719,8 @@ void main() {
         expect(find.byType(MatchFeedCard), findsOneWidget);
         expect(find.text('Lecture du profil connecté'), findsOneWidget);
         await tester.tap(find.text('Tous'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('France'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Championship'));
         await tester.pumpAndSettle();
@@ -2400,6 +2517,10 @@ void main() {
     testWidgets(
       'renders actual dynamic tier ids and official zones in one standings view',
       (tester) async {
+        tester.view.physicalSize = const Size(360, 1400);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
         await _pumpPage(
           tester,
           repository: _FakeMatchFeedRepository(
@@ -2425,6 +2546,12 @@ void main() {
         await tester.tap(find.text('Classement'));
         await tester.pumpAndSettle();
 
+        expect(
+          find.byType(LectorStandingPanel<ChampionshipStandingView>),
+          findsOneWidget,
+        );
+        expect(find.byType(LectorStandingDataTable), findsOneWidget);
+        expect(find.byType(LectorStandingLegend), findsOneWidget);
         expect(find.text('Lecture du classement'), findsOneWidget);
         expect(find.text('Enjeux officiels'), findsOneWidget);
         expect(find.text('Tiers Lector · provisoires'), findsOneWidget);
@@ -3122,7 +3249,7 @@ class _MidnightSnapshotDataSource implements MatchFeedSnapshotRemoteDataSource {
 Future<void> _pumpPage(
   WidgetTester tester, {
   DecisionProfile? profile,
-  IdentityScope identityScope = const IdentityScope.guest('test-guest'),
+  IdentityScope identityScope = const IdentityScope.account('test-account'),
   MatchFeedRepository? repository,
   Future<MatchFeedRepository> Function(DateTime date)? repositoryForDateLoader,
   List<TicketStrategy> strategies = const [],

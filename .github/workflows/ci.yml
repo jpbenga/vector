@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - codex/multisport-hockey
 
 jobs:
   flutter:
@@ -48,8 +49,12 @@ jobs:
       - name: Test Supabase reading policies
         run: >-
           deno test
+          --allow-read=test/fixtures/sports/hockey_meeting_phases.json
           --allow-env=SUPABASE_SERVICE_ROLE_KEY,SUPABASE_URL,API_FOOTBALL_KEY,API_FOOTBALL_SYNC_SECRET,API_FOOTBALL_BASE_URL,API_FOOTBALL_REQUEST_DELAY_MS
           supabase/functions/_shared
 
       - name: Test Bilan SQL migration
-        run: deno test --node-modules-dir=none --no-lock --allow-read test/backend/reading_bilan_sql_test.ts test/backend/live_match_sql_test.ts test/backend/sport_feed_sql_test.ts
+        run: deno test --node-modules-dir=none --no-lock --allow-read test/backend/reading_bilan_sql_test.ts test/backend/live_match_sql_test.ts test/backend/sport_feed_sql_test.ts test/backend/hockey_live_sql_test.ts
+
+      - name: Test remote deployment guards
+        run: python3 -m unittest discover -s tool/tests -p test_deploy_supabase_remote.py

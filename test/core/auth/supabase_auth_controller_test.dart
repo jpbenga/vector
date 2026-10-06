@@ -3,6 +3,16 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('SupabaseAuthController OAuth redirect', () {
+    test('returns to the hockey workspace on the same local preview port', () {
+      final redirect = buildOAuthRedirectUrl(
+        configuredUrl: Uri.parse('http://localhost:8191/'),
+        currentUrl: Uri.parse('http://localhost:8191/sports/hockey'),
+      );
+
+      expect(redirect.toString(), 'http://localhost:8191/sports/hockey');
+      expect(redirect.origin, 'http://localhost:8191');
+    });
+
     test('keeps the current web path when APP_PUBLIC_URL is configured', () {
       final redirect = buildOAuthRedirectUrl(
         configuredUrl: Uri.parse('https://lector-sports.vercel.app/'),

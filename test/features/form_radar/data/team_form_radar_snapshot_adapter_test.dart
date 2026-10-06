@@ -36,6 +36,35 @@ void main() {
     expect(team.activity.map((match) => match.fixtureId), [1, 2, 3, 4, 5]);
     expect(TeamFormRadarRanker.rank(profiles).single.points, 15);
   });
+  test('preserves deduplicated prior results for sixth-match tie breaking', () {
+    Map<String, Object?> row(int teamId, String name, String sixth) {
+      final row = _recentRow(
+        leagueId: 1,
+        leagueName: 'Ligue',
+        fixtureIds: List.generate(10, (i) => teamId * 100 + i),
+        dates: List.generate(
+          10,
+          (i) => DateTime.utc(2026, 9, i + 1).toIso8601String(),
+        ),
+      );
+      (row['team'] as Map)['id'] = teamId;
+      (row['team'] as Map)['name'] = name;
+      final matches = row['matches'] as List;
+      (matches[4] as Map)['result'] = sixth;
+      matches.add(matches[4]);
+      return row;
+    }
+
+    final profiles = const TeamFormRadarSnapshotAdapter().fromSnapshot({
+      'raw': {
+        'recent_league_matches': [row(1, 'Alpha', 'L'), row(2, 'Zulu', 'W')],
+      },
+    });
+    expect(profiles.every((p) => p.activity.length == 10), isTrue);
+    final ranked = TeamFormRadarRanker.rank(profiles);
+    expect(ranked.map((e) => e.profile.teamName), ['Zulu', 'Alpha']);
+    expect(ranked.map((e) => e.points), [15, 15]);
+  });
 }
 
 Map<String, Object?> _recentRow({

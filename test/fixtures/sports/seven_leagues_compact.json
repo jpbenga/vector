@@ -1,0 +1,1990 @@
+{
+  "schemaVersion": 1,
+  "sport": "hockey",
+  "provider": "api-hockey",
+  "competitionId": "multi",
+  "season": "multi",
+  "capturedAt": "2026-10-04T11:37:43.467Z",
+  "windowStart": "2026-09-27",
+  "windowEnd": "2026-10-17",
+  "timezone": "Europe/Paris",
+  "collectionId": "f332850b-4a72-48a0-ab0e-2a6cacd915ff",
+  "items": [
+    {
+      "id": "444591",
+      "competitionId": "57",
+      "competitionName": "NHL",
+      "season": "2026",
+      "home": {
+        "id": "684",
+        "name": "Florida Panthers",
+        "logoUrl": "https://media.api-sports.io/hockey/teams/684.png"
+      },
+      "away": {
+        "id": "699",
+        "name": "Tampa Bay Lightning",
+        "logoUrl": "https://media.api-sports.io/hockey/teams/699.png"
+      },
+      "startsAt": "2026-09-26T22:00:00.000Z",
+      "calendarDate": "2026-09-27",
+      "status": "finished",
+      "providerStatus": "AP",
+      "scores": {
+        "final": {
+          "home": 2,
+          "away": 3
+        },
+        "first": {
+          "home": 1,
+          "away": 1
+        },
+        "second": {
+          "home": 1,
+          "away": 0
+        },
+        "third": {
+          "home": 0,
+          "away": 1
+        },
+        "overtime": {
+          "home": 0,
+          "away": 0
+        },
+        "penalties": {
+          "home": 1,
+          "away": 2
+        },
+        "regulation": {
+          "home": 2,
+          "away": 2
+        }
+      },
+      "recentForm": {
+        "home": [],
+        "away": []
+      }
+    },
+    {
+      "id": "434628",
+      "competitionId": "58",
+      "competitionName": "AHL",
+      "season": "2026",
+      "home": {
+        "id": "609",
+        "name": "Cleveland Monsters",
+        "logoUrl": "https://media.api-sports.io/hockey/teams/609.png"
+      },
+      "away": {
+        "id": "611",
+        "name": "Grand Rapids Griffins",
+        "logoUrl": "https://media.api-sports.io/hockey/teams/611.png"
+      },
+      "startsAt": "2026-10-02T23:00:00.000Z",
+      "calendarDate": "2026-10-03",
+      "status": "finished",
+      "providerStatus": "FT",
+      "scores": {
+        "final": {
+          "home": 2,
+          "away": 5
+        },
+        "first": {
+          "home": 1,
+          "away": 2
+        },
+        "second": {
+          "home": 1,
+          "away": 1
+        },
+        "third": {
+          "home": 0,
+          "away": 2
+        },
+        "regulation": {
+          "home": 2,
+          "away": 5
+        }
+      },
+      "recentForm": {
+        "home": [],
+        "away": []
+      }
+    },
+    {
+      "id": "430490",
+      "competitionId": "35",
+      "competitionName": "KHL",
+      "season": "2026",
+      "home": {
+        "id": "831",
+        "name": "Vladivostok",
+        "logoUrl": "https://media.api-sports.io/hockey/teams/831.png"
+      },
+      "away": {
+        "id": "380",
+        "name": "Niznekamsk",
+        "logoUrl": "https://media.api-sports.io/hockey/teams/380.png"
+      },
+      "startsAt": "2026-09-27T09:00:00.000Z",
+      "calendarDate": "2026-09-27",
+      "status": "finished",
+      "providerStatus": "FT",
+      "scores": {
+        "final": {
+          "home": 3,
+          "away": 5
+        },
+        "first": {
+          "home": 2,
+          "away": 0
+        },
+        "second": {
+          "home": 0,
+          "away": 3
+        },
+        "third": {
+          "home": 1,
+          "away": 2
+        },
+        "regulation": {
+          "home": 3,
+          "away": 5
+        }
+      },
+      "recentForm": {
+        "home": [
+          {
+            "id": "430434",
+            "startsAt": "2026-09-13T14:00:00.000Z",
+            "opponent": "Niznekamsk",
+            "home": false,
+            "scored": 1,
+            "conceded": 2,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "430447",
+            "startsAt": "2026-09-17T09:30:00.000Z",
+            "opponent": "Dynamo Moscow",
+            "home": true,
+            "scored": 2,
+            "conceded": 3,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "430457",
+            "startsAt": "2026-09-19T07:00:00.000Z",
+            "opponent": "Cherepovets",
+            "home": true,
+            "scored": 2,
+            "conceded": 0,
+            "outcome": "win",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "430466",
+            "startsAt": "2026-09-21T09:30:00.000Z",
+            "opponent": "CSKA Moscow",
+            "home": true,
+            "scored": 3,
+            "conceded": 4,
+            "outcome": "loss",
+            "providerStatus": "AP"
+          },
+          {
+            "id": "430470",
+            "startsAt": "2026-09-23T09:30:00.000Z",
+            "opponent": "Lokomotiv Yaroslavl",
+            "home": true,
+            "scored": 1,
+            "conceded": 2,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          }
+        ],
+        "away": [
+          {
+            "id": "430443",
+            "startsAt": "2026-09-16T12:30:00.000Z",
+            "opponent": "Novosibirsk",
+            "home": false,
+            "scored": 3,
+            "conceded": 0,
+            "outcome": "win",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "430448",
+            "startsAt": "2026-09-18T14:00:00.000Z",
+            "opponent": "Salavat Ufa",
+            "home": false,
+            "scored": 0,
+            "conceded": 2,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "430461",
+            "startsAt": "2026-09-20T11:30:00.000Z",
+            "opponent": "Magnitogorsk",
+            "home": false,
+            "scored": 2,
+            "conceded": 6,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "430473",
+            "startsAt": "2026-09-23T16:30:00.000Z",
+            "opponent": "Lada",
+            "home": true,
+            "scored": 7,
+            "conceded": 3,
+            "outcome": "win",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "430482",
+            "startsAt": "2026-09-26T08:00:00.000Z",
+            "opponent": "Barys Astana",
+            "home": false,
+            "scored": 6,
+            "conceded": 3,
+            "outcome": "win",
+            "providerStatus": "FT"
+          }
+        ]
+      }
+    },
+    {
+      "id": "426284",
+      "competitionId": "10",
+      "competitionName": "Extraliga",
+      "season": "2026",
+      "home": {
+        "id": "144",
+        "name": "Kladno",
+        "logoUrl": "https://media.api-sports.io/hockey/teams/144.png"
+      },
+      "away": {
+        "id": "131",
+        "name": "Olomouc",
+        "logoUrl": "https://media.api-sports.io/hockey/teams/131.png"
+      },
+      "startsAt": "2026-09-27T14:00:00.000Z",
+      "calendarDate": "2026-09-27",
+      "status": "finished",
+      "providerStatus": "FT",
+      "scores": {
+        "final": {
+          "home": 1,
+          "away": 4
+        },
+        "first": {
+          "home": 0,
+          "away": 1
+        },
+        "second": {
+          "home": 0,
+          "away": 1
+        },
+        "third": {
+          "home": 1,
+          "away": 2
+        },
+        "regulation": {
+          "home": 1,
+          "away": 4
+        }
+      },
+      "recentForm": {
+        "home": [
+          {
+            "id": "426258",
+            "startsAt": "2026-09-16T15:30:00.000Z",
+            "opponent": "Vitkovice",
+            "home": false,
+            "scored": 4,
+            "conceded": 3,
+            "outcome": "win",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "426269",
+            "startsAt": "2026-09-18T16:00:00.000Z",
+            "opponent": "Sparta Prague",
+            "home": true,
+            "scored": 3,
+            "conceded": 2,
+            "outcome": "win",
+            "providerStatus": "AP"
+          },
+          {
+            "id": "426270",
+            "startsAt": "2026-09-20T15:00:00.000Z",
+            "opponent": "Liberec",
+            "home": false,
+            "scored": 3,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "426281",
+            "startsAt": "2026-09-25T16:00:00.000Z",
+            "opponent": "Plzen",
+            "home": true,
+            "scored": 3,
+            "conceded": 4,
+            "outcome": "loss",
+            "providerStatus": "AOT"
+          }
+        ],
+        "away": [
+          {
+            "id": "426262",
+            "startsAt": "2026-09-16T16:00:00.000Z",
+            "opponent": "Sparta Prague",
+            "home": true,
+            "scored": 2,
+            "conceded": 5,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "426266",
+            "startsAt": "2026-09-18T16:00:00.000Z",
+            "opponent": "Plzen",
+            "home": true,
+            "scored": 3,
+            "conceded": 2,
+            "outcome": "win",
+            "providerStatus": "AOT"
+          },
+          {
+            "id": "426273",
+            "startsAt": "2026-09-20T15:00:00.000Z",
+            "opponent": "Ceske Budejovice",
+            "home": false,
+            "scored": 2,
+            "conceded": 3,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "426283",
+            "startsAt": "2026-09-25T16:00:00.000Z",
+            "opponent": "Kometa Brno",
+            "home": true,
+            "scored": 2,
+            "conceded": 4,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          }
+        ]
+      }
+    },
+    {
+      "id": "431172",
+      "competitionId": "18",
+      "competitionName": "Ligue Magnus",
+      "season": "2026",
+      "home": {
+        "id": "236",
+        "name": "Cergy-Pontoise",
+        "logoUrl": "https://media.api-sports.io/hockey/teams/236.png"
+      },
+      "away": {
+        "id": "232",
+        "name": "Angers",
+        "logoUrl": "https://media.api-sports.io/hockey/teams/232.png"
+      },
+      "startsAt": "2026-09-27T13:00:00.000Z",
+      "calendarDate": "2026-09-27",
+      "status": "finished",
+      "providerStatus": "FT",
+      "scores": {
+        "final": {
+          "home": 3,
+          "away": 6
+        },
+        "first": {
+          "home": 1,
+          "away": 1
+        },
+        "second": {
+          "home": 1,
+          "away": 2
+        },
+        "third": {
+          "home": 1,
+          "away": 3
+        },
+        "regulation": {
+          "home": 3,
+          "away": 6
+        }
+      },
+      "recentForm": {
+        "home": [
+          {
+            "id": "431146",
+            "startsAt": "2026-09-15T18:30:00.000Z",
+            "opponent": "Marseille",
+            "home": true,
+            "scored": 1,
+            "conceded": 3,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "431151",
+            "startsAt": "2026-09-18T18:15:00.000Z",
+            "opponent": "Bordeaux",
+            "home": false,
+            "scored": 1,
+            "conceded": 3,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "431156",
+            "startsAt": "2026-09-22T18:30:00.000Z",
+            "opponent": "Nice",
+            "home": true,
+            "scored": 6,
+            "conceded": 5,
+            "outcome": "win",
+            "providerStatus": "AOT"
+          },
+          {
+            "id": "431165",
+            "startsAt": "2026-09-25T18:05:00.000Z",
+            "opponent": "Chamonix Mont-Blanc",
+            "home": false,
+            "scored": 4,
+            "conceded": 6,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          }
+        ],
+        "away": [
+          {
+            "id": "431148",
+            "startsAt": "2026-09-15T18:15:00.000Z",
+            "opponent": "Grenoble",
+            "home": false,
+            "scored": 1,
+            "conceded": 4,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "431150",
+            "startsAt": "2026-09-18T18:30:00.000Z",
+            "opponent": "Gap",
+            "home": true,
+            "scored": 5,
+            "conceded": 2,
+            "outcome": "win",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "431161",
+            "startsAt": "2026-09-22T18:15:00.000Z",
+            "opponent": "Amiens",
+            "home": false,
+            "scored": 3,
+            "conceded": 2,
+            "outcome": "win",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "431167",
+            "startsAt": "2026-09-25T18:30:00.000Z",
+            "opponent": "Anglet",
+            "home": true,
+            "scored": 6,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT"
+          }
+        ]
+      }
+    },
+    {
+      "id": "425777",
+      "competitionId": "16",
+      "competitionName": "Liiga",
+      "season": "2026",
+      "home": {
+        "id": "171",
+        "name": "Ilves",
+        "logoUrl": "https://media.api-sports.io/hockey/teams/171.png"
+      },
+      "away": {
+        "id": "180",
+        "name": "TPS Turku",
+        "logoUrl": "https://media.api-sports.io/hockey/teams/180.png"
+      },
+      "startsAt": "2026-09-27T12:00:00.000Z",
+      "calendarDate": "2026-09-27",
+      "status": "finished",
+      "providerStatus": "FT",
+      "scores": {
+        "final": {
+          "home": 3,
+          "away": 2
+        },
+        "first": {
+          "home": 0,
+          "away": 0
+        },
+        "second": {
+          "home": 1,
+          "away": 1
+        },
+        "third": {
+          "home": 2,
+          "away": 1
+        },
+        "regulation": {
+          "home": 3,
+          "away": 2
+        }
+      },
+      "recentForm": {
+        "home": [
+          {
+            "id": "425723",
+            "startsAt": "2026-09-04T16:00:00.000Z",
+            "opponent": "Assat",
+            "home": false,
+            "scored": 1,
+            "conceded": 5,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "425729",
+            "startsAt": "2026-09-08T15:30:00.000Z",
+            "opponent": "Hameenlinna",
+            "home": false,
+            "scored": 4,
+            "conceded": 0,
+            "outcome": "win",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "425742",
+            "startsAt": "2026-09-16T15:30:00.000Z",
+            "opponent": "Karpat",
+            "home": false,
+            "scored": 4,
+            "conceded": 3,
+            "outcome": "win",
+            "providerStatus": "AOT"
+          },
+          {
+            "id": "425747",
+            "startsAt": "2026-09-18T15:30:00.000Z",
+            "opponent": "KalPa",
+            "home": false,
+            "scored": 2,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "425767",
+            "startsAt": "2026-09-25T15:30:00.000Z",
+            "opponent": "KooKoo",
+            "home": true,
+            "scored": 6,
+            "conceded": 0,
+            "outcome": "win",
+            "providerStatus": "FT"
+          }
+        ],
+        "away": [
+          {
+            "id": "425731",
+            "startsAt": "2026-09-09T15:30:00.000Z",
+            "opponent": "Vaasan Sport",
+            "home": false,
+            "scored": 1,
+            "conceded": 2,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "425740",
+            "startsAt": "2026-09-15T15:30:00.000Z",
+            "opponent": "Jukurit",
+            "home": true,
+            "scored": 1,
+            "conceded": 4,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "425746",
+            "startsAt": "2026-09-17T15:30:00.000Z",
+            "opponent": "Tappara",
+            "home": true,
+            "scored": 4,
+            "conceded": 0,
+            "outcome": "win",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "425752",
+            "startsAt": "2026-09-19T14:00:00.000Z",
+            "opponent": "Hameenlinna",
+            "home": false,
+            "scored": 1,
+            "conceded": 3,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "425769",
+            "startsAt": "2026-09-25T16:30:00.000Z",
+            "opponent": "Jokerit",
+            "home": false,
+            "scored": 2,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT"
+          }
+        ]
+      }
+    },
+    {
+      "id": "425227",
+      "competitionId": "47",
+      "competitionName": "SHL",
+      "season": "2026",
+      "home": {
+        "id": "531",
+        "name": "Brynas",
+        "logoUrl": "https://media.api-sports.io/hockey/teams/531.png"
+      },
+      "away": {
+        "id": "525",
+        "name": "Timrå",
+        "logoUrl": "https://media.api-sports.io/hockey/teams/525.png"
+      },
+      "startsAt": "2026-09-29T17:00:00.000Z",
+      "calendarDate": "2026-09-29",
+      "status": "finished",
+      "providerStatus": "FT",
+      "scores": {
+        "final": {
+          "home": 1,
+          "away": 0
+        },
+        "first": {
+          "home": 1,
+          "away": 0
+        },
+        "second": {
+          "home": 0,
+          "away": 0
+        },
+        "third": {
+          "home": 0,
+          "away": 0
+        },
+        "regulation": {
+          "home": 1,
+          "away": 0
+        }
+      },
+      "recentForm": {
+        "home": [
+          {
+            "id": "425208",
+            "startsAt": "2026-09-19T13:15:00.000Z",
+            "opponent": "Skellefteå",
+            "home": false,
+            "scored": 2,
+            "conceded": 7,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "425212",
+            "startsAt": "2026-09-22T17:00:00.000Z",
+            "opponent": "Linkoping",
+            "home": false,
+            "scored": 9,
+            "conceded": 2,
+            "outcome": "win",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "425220",
+            "startsAt": "2026-09-26T13:15:00.000Z",
+            "opponent": "Luleå",
+            "home": true,
+            "scored": 4,
+            "conceded": 2,
+            "outcome": "win",
+            "providerStatus": "FT"
+          }
+        ],
+        "away": [
+          {
+            "id": "425205",
+            "startsAt": "2026-09-19T13:15:00.000Z",
+            "opponent": "Linkoping",
+            "home": false,
+            "scored": 2,
+            "conceded": 3,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "425214",
+            "startsAt": "2026-09-22T17:00:00.000Z",
+            "opponent": "Orebro",
+            "home": true,
+            "scored": 1,
+            "conceded": 5,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "425224",
+            "startsAt": "2026-09-26T16:00:00.000Z",
+            "opponent": "Djurgarden",
+            "home": true,
+            "scored": 3,
+            "conceded": 2,
+            "outcome": "win",
+            "providerStatus": "AOT"
+          }
+        ]
+      }
+    }
+  ],
+  "competitions": [
+    {
+      "id": "57",
+      "name": "NHL",
+      "season": "2026",
+      "logoUrl": "https://media.api-sports.io/hockey/leagues/57.png",
+      "country": "USA",
+      "formPhaseVerified": false,
+      "tables": [
+        {
+          "stage": "NHL - Regular Season",
+          "group": "Western Conference",
+          "rows": [
+            {
+              "team": {
+                "id": "683",
+                "name": "Edmonton Oilers",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/683.png"
+              },
+              "rank": 1,
+              "played": 3,
+              "points": 5,
+              "wins": 2,
+              "overtimeWins": 0,
+              "losses": 0,
+              "overtimeLosses": 1,
+              "form": []
+            },
+            {
+              "team": {
+                "id": "679",
+                "name": "Colorado Avalanche",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/679.png"
+              },
+              "rank": 2,
+              "played": 2,
+              "points": 4,
+              "wins": 2,
+              "overtimeWins": 0,
+              "losses": 0,
+              "overtimeLosses": 0,
+              "form": []
+            },
+            {
+              "team": {
+                "id": "2483",
+                "name": "Utah Mammoth",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/2483.png"
+              },
+              "rank": 3,
+              "played": 2,
+              "points": 4,
+              "wins": 2,
+              "overtimeWins": 0,
+              "losses": 0,
+              "overtimeLosses": 0,
+              "form": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "58",
+      "name": "AHL",
+      "season": "2026",
+      "logoUrl": "https://media.api-sports.io/hockey/leagues/58.png",
+      "country": "USA",
+      "formPhaseVerified": true,
+      "tables": [
+        {
+          "stage": "AHL - Regular Season",
+          "group": "Atlantic Division",
+          "rows": [
+            {
+              "team": {
+                "id": "612",
+                "name": "Hartford Wolf Pack",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/612.png"
+              },
+              "rank": 1,
+              "played": 1,
+              "points": 2,
+              "wins": 1,
+              "overtimeWins": 0,
+              "losses": 0,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "434641",
+                  "startsAt": "2026-10-03T23:05:00.000Z",
+                  "opponent": "Lehigh Valley Phantoms",
+                  "home": false,
+                  "scored": 5,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "607",
+                "name": "Charlotte Checkers",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/607.png"
+              },
+              "rank": 2,
+              "played": 1,
+              "points": 2,
+              "wins": 1,
+              "overtimeWins": 0,
+              "losses": 0,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "434637",
+                  "startsAt": "2026-10-03T22:00:00.000Z",
+                  "opponent": "Hershey Bears",
+                  "home": false,
+                  "scored": 5,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "626",
+                "name": "Springfield Thunderbirds",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/626.png"
+              },
+              "rank": 3,
+              "played": 1,
+              "points": 2,
+              "wins": 0,
+              "overtimeWins": 1,
+              "losses": 0,
+              "overtimeLosses": 0,
+              "form": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "35",
+      "name": "KHL",
+      "season": "2026",
+      "logoUrl": "https://media.api-sports.io/hockey/leagues/35.png",
+      "country": "Russia",
+      "formPhaseVerified": true,
+      "tables": [
+        {
+          "stage": "KHL - Regular Season",
+          "group": "Western Conference",
+          "rows": [
+            {
+              "team": {
+                "id": "377",
+                "name": "Lokomotiv Yaroslavl",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/377.png"
+              },
+              "rank": 1,
+              "played": 12,
+              "points": 18,
+              "wins": 8,
+              "overtimeWins": 1,
+              "losses": 3,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "430470",
+                  "startsAt": "2026-09-23T09:30:00.000Z",
+                  "opponent": "Vladivostok",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430481",
+                  "startsAt": "2026-09-25T09:00:00.000Z",
+                  "opponent": "Khabarovsk",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430489",
+                  "startsAt": "2026-09-27T10:30:00.000Z",
+                  "opponent": "Novosibirsk",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430499",
+                  "startsAt": "2026-09-30T16:30:00.000Z",
+                  "opponent": "Novosibirsk",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430515",
+                  "startsAt": "2026-10-03T14:10:00.000Z",
+                  "opponent": "Dinamo Minsk",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "371",
+                "name": "CSKA Moscow",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/371.png"
+              },
+              "rank": 2,
+              "played": 12,
+              "points": 18,
+              "wins": 7,
+              "overtimeWins": 2,
+              "losses": 3,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "430471",
+                  "startsAt": "2026-09-23T09:00:00.000Z",
+                  "opponent": "Khabarovsk",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430479",
+                  "startsAt": "2026-09-25T15:00:00.000Z",
+                  "opponent": "Lada",
+                  "home": false,
+                  "scored": 5,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430496",
+                  "startsAt": "2026-09-29T16:30:00.000Z",
+                  "opponent": "SKA St. Petersburg",
+                  "home": true,
+                  "scored": 6,
+                  "conceded": 5,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430506",
+                  "startsAt": "2026-10-01T16:30:00.000Z",
+                  "opponent": "Dinamo Minsk",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430517",
+                  "startsAt": "2026-10-03T14:00:00.000Z",
+                  "opponent": "Dynamo Moscow",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "AP"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "379",
+                "name": "Nizhny Novgorod",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/379.png"
+              },
+              "rank": 3,
+              "played": 11,
+              "points": 16,
+              "wins": 7,
+              "overtimeWins": 1,
+              "losses": 3,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "430468",
+                  "startsAt": "2026-09-22T16:30:00.000Z",
+                  "opponent": "Avangard Omsk",
+                  "home": true,
+                  "scored": 5,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430476",
+                  "startsAt": "2026-09-24T16:00:00.000Z",
+                  "opponent": "Sochi",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430491",
+                  "startsAt": "2026-09-28T16:30:00.000Z",
+                  "opponent": "Salavat Ufa",
+                  "home": true,
+                  "scored": 0,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430504",
+                  "startsAt": "2026-10-01T16:30:00.000Z",
+                  "opponent": "Dynamo Moscow",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "430513",
+                  "startsAt": "2026-10-03T16:30:00.000Z",
+                  "opponent": "Sochi",
+                  "home": false,
+                  "scored": 6,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "name": "Extraliga",
+      "season": "2026",
+      "logoUrl": "https://media.api-sports.io/hockey/leagues/10.png",
+      "country": "Czech-Republic",
+      "formPhaseVerified": true,
+      "tables": [
+        {
+          "stage": "Extraliga - Regular Season",
+          "group": "Classement général",
+          "rows": [
+            {
+              "team": {
+                "id": "135",
+                "name": "Trinec",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/135.png"
+              },
+              "rank": 1,
+              "played": 6,
+              "points": 18,
+              "wins": 6,
+              "overtimeWins": 0,
+              "losses": 0,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "426272",
+                  "startsAt": "2026-09-19T16:00:00.000Z",
+                  "opponent": "Plzen",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "426277",
+                  "startsAt": "2026-09-25T15:00:00.000Z",
+                  "opponent": "Vitkovice",
+                  "home": true,
+                  "scored": 8,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "426285",
+                  "startsAt": "2026-09-27T14:30:00.000Z",
+                  "opponent": "Liberec",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "426291",
+                  "startsAt": "2026-09-29T15:00:00.000Z",
+                  "opponent": "Kladno",
+                  "home": true,
+                  "scored": 6,
+                  "conceded": 4,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "426298",
+                  "startsAt": "2026-10-02T15:00:00.000Z",
+                  "opponent": "Litvinov",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "132",
+                "name": "Pardubice",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/132.png"
+              },
+              "rank": 2,
+              "played": 7,
+              "points": 15,
+              "wins": 5,
+              "overtimeWins": 0,
+              "losses": 2,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "426331",
+                  "startsAt": "2026-09-22T16:00:00.000Z",
+                  "opponent": "Liberec",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 5,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "426278",
+                  "startsAt": "2026-09-25T15:30:00.000Z",
+                  "opponent": "Mlada Boleslav",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "426289",
+                  "startsAt": "2026-09-27T15:00:00.000Z",
+                  "opponent": "Kometa Brno",
+                  "home": false,
+                  "scored": 5,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "426297",
+                  "startsAt": "2026-09-29T16:00:00.000Z",
+                  "opponent": "Ceske Budejovice",
+                  "home": true,
+                  "scored": 5,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "426299",
+                  "startsAt": "2026-10-02T16:00:00.000Z",
+                  "opponent": "Plzen",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "133",
+                "name": "Plzen",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/133.png"
+              },
+              "rank": 3,
+              "played": 6,
+              "points": 11,
+              "wins": 2,
+              "overtimeWins": 2,
+              "losses": 1,
+              "overtimeLosses": 1,
+              "form": [
+                {
+                  "id": "426272",
+                  "startsAt": "2026-09-19T16:00:00.000Z",
+                  "opponent": "Trinec",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "426281",
+                  "startsAt": "2026-09-25T16:00:00.000Z",
+                  "opponent": "Kladno",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "AOT"
+                },
+                {
+                  "id": "426287",
+                  "startsAt": "2026-09-27T14:30:00.000Z",
+                  "opponent": "Mountfield HK",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "426293",
+                  "startsAt": "2026-09-29T15:30:00.000Z",
+                  "opponent": "Mlada Boleslav",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "426299",
+                  "startsAt": "2026-10-02T16:00:00.000Z",
+                  "opponent": "Pardubice",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "18",
+      "name": "Ligue Magnus",
+      "season": "2026",
+      "logoUrl": "https://media.api-sports.io/hockey/leagues/18.png",
+      "country": "France",
+      "formPhaseVerified": true,
+      "tables": [
+        {
+          "stage": "Ligue Magnus - Regular Season",
+          "group": "Classement général",
+          "rows": [
+            {
+              "team": {
+                "id": "239",
+                "name": "Grenoble",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/239.png"
+              },
+              "rank": 1,
+              "played": 7,
+              "points": 18,
+              "wins": 6,
+              "overtimeWins": 0,
+              "losses": 1,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "431158",
+                  "startsAt": "2026-09-22T18:00:00.000Z",
+                  "opponent": "Gap",
+                  "home": false,
+                  "scored": 7,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "431162",
+                  "startsAt": "2026-09-25T18:30:00.000Z",
+                  "opponent": "Amiens",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "431169",
+                  "startsAt": "2026-09-27T17:00:00.000Z",
+                  "opponent": "Anglet",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "431177",
+                  "startsAt": "2026-09-29T18:15:00.000Z",
+                  "opponent": "Cergy-Pontoise",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "431182",
+                  "startsAt": "2026-10-02T18:00:00.000Z",
+                  "opponent": "Briancon",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "967",
+                "name": "Marseille",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/967.png"
+              },
+              "rank": 2,
+              "played": 7,
+              "points": 17,
+              "wins": 5,
+              "overtimeWins": 1,
+              "losses": 1,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "431157",
+                  "startsAt": "2026-09-22T18:15:00.000Z",
+                  "opponent": "Rouen",
+                  "home": true,
+                  "scored": 5,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "431166",
+                  "startsAt": "2026-09-25T18:15:00.000Z",
+                  "opponent": "Bordeaux",
+                  "home": false,
+                  "scored": 5,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "431173",
+                  "startsAt": "2026-09-27T16:30:00.000Z",
+                  "opponent": "Nice",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "431176",
+                  "startsAt": "2026-09-29T18:05:00.000Z",
+                  "opponent": "Chamonix Mont-Blanc",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "AOT"
+                },
+                {
+                  "id": "431184",
+                  "startsAt": "2026-10-02T18:15:00.000Z",
+                  "opponent": "Angers",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "242",
+                "name": "Rouen",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/242.png"
+              },
+              "rank": 3,
+              "played": 7,
+              "points": 15,
+              "wins": 5,
+              "overtimeWins": 0,
+              "losses": 2,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "431157",
+                  "startsAt": "2026-09-22T18:15:00.000Z",
+                  "opponent": "Marseille",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 5,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "431164",
+                  "startsAt": "2026-09-25T18:00:00.000Z",
+                  "opponent": "Gap",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "431170",
+                  "startsAt": "2026-09-27T16:30:00.000Z",
+                  "opponent": "Bordeaux",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "431175",
+                  "startsAt": "2026-09-29T18:00:00.000Z",
+                  "opponent": "Amiens",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "431185",
+                  "startsAt": "2026-10-02T18:00:00.000Z",
+                  "opponent": "Nice",
+                  "home": false,
+                  "scored": 5,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "16",
+      "name": "Liiga",
+      "season": "2026",
+      "logoUrl": "https://media.api-sports.io/hockey/leagues/16.png",
+      "country": "Finland",
+      "formPhaseVerified": true,
+      "tables": [
+        {
+          "stage": "Liiga - Regular Season",
+          "group": "Classement général",
+          "rows": [
+            {
+              "team": {
+                "id": "171",
+                "name": "Ilves",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/171.png"
+              },
+              "rank": 1,
+              "played": 9,
+              "points": 23,
+              "wins": 7,
+              "overtimeWins": 1,
+              "losses": 1,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "425747",
+                  "startsAt": "2026-09-18T15:30:00.000Z",
+                  "opponent": "KalPa",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "425767",
+                  "startsAt": "2026-09-25T15:30:00.000Z",
+                  "opponent": "KooKoo",
+                  "home": true,
+                  "scored": 6,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "425777",
+                  "startsAt": "2026-09-27T12:00:00.000Z",
+                  "opponent": "TPS Turku",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "425778",
+                  "startsAt": "2026-09-29T15:30:00.000Z",
+                  "opponent": "Jukurit",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "425788",
+                  "startsAt": "2026-10-03T14:00:00.000Z",
+                  "opponent": "Kiekko-Espoo",
+                  "home": true,
+                  "scored": 6,
+                  "conceded": 4,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "173",
+                "name": "Jukurit",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/173.png"
+              },
+              "rank": 2,
+              "played": 11,
+              "points": 22,
+              "wins": 6,
+              "overtimeWins": 2,
+              "losses": 3,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "425748",
+                  "startsAt": "2026-09-18T15:30:00.000Z",
+                  "opponent": "Pelicans",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "425768",
+                  "startsAt": "2026-09-25T15:30:00.000Z",
+                  "opponent": "Kiekko-Espoo",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "AOT"
+                },
+                {
+                  "id": "425773",
+                  "startsAt": "2026-09-26T14:00:00.000Z",
+                  "opponent": "KooKoo",
+                  "home": false,
+                  "scored": 5,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "425778",
+                  "startsAt": "2026-09-29T15:30:00.000Z",
+                  "opponent": "Ilves",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "425789",
+                  "startsAt": "2026-10-03T14:00:00.000Z",
+                  "opponent": "KalPa",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "AOT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "179",
+                "name": "SaiPa",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/179.png"
+              },
+              "rank": 3,
+              "played": 10,
+              "points": 20,
+              "wins": 5,
+              "overtimeWins": 2,
+              "losses": 2,
+              "overtimeLosses": 1,
+              "form": [
+                {
+                  "id": "425765",
+                  "startsAt": "2026-09-25T15:30:00.000Z",
+                  "opponent": "Assat",
+                  "home": false,
+                  "scored": 5,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "425775",
+                  "startsAt": "2026-09-26T14:00:00.000Z",
+                  "opponent": "Tappara",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "425782",
+                  "startsAt": "2026-09-30T15:30:00.000Z",
+                  "opponent": "Karpat",
+                  "home": false,
+                  "scored": 1,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "425785",
+                  "startsAt": "2026-10-02T15:30:00.000Z",
+                  "opponent": "KalPa",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 4,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "425792",
+                  "startsAt": "2026-10-03T14:00:00.000Z",
+                  "opponent": "Jokerit",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "47",
+      "name": "SHL",
+      "season": "2026",
+      "logoUrl": "https://media.api-sports.io/hockey/leagues/47.png",
+      "country": "Sweden",
+      "formPhaseVerified": true,
+      "tables": [
+        {
+          "stage": "SHL - Regular Season",
+          "group": "Classement général",
+          "rows": [
+            {
+              "team": {
+                "id": "534",
+                "name": "Frolunda",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/534.png"
+              },
+              "rank": 1,
+              "played": 5,
+              "points": 14,
+              "wins": 4,
+              "overtimeWins": 1,
+              "losses": 0,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "425213",
+                  "startsAt": "2026-09-22T17:00:00.000Z",
+                  "opponent": "Farjestad",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "AP"
+                },
+                {
+                  "id": "425218",
+                  "startsAt": "2026-09-24T17:00:00.000Z",
+                  "opponent": "Luleå",
+                  "home": false,
+                  "scored": 7,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "425225",
+                  "startsAt": "2026-09-26T16:00:00.000Z",
+                  "opponent": "Malmo",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "425235",
+                  "startsAt": "2026-10-01T17:00:00.000Z",
+                  "opponent": "Brynas",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "425237",
+                  "startsAt": "2026-10-03T13:15:00.000Z",
+                  "opponent": "Djurgarden",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "1523",
+                "name": "Farjestad",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/1523.png"
+              },
+              "rank": 2,
+              "played": 5,
+              "points": 13,
+              "wins": 4,
+              "overtimeWins": 0,
+              "losses": 0,
+              "overtimeLosses": 1,
+              "form": [
+                {
+                  "id": "425213",
+                  "startsAt": "2026-09-22T17:00:00.000Z",
+                  "opponent": "Frölunda",
+                  "home": false,
+                  "scored": 2,
+                  "conceded": 3,
+                  "outcome": "loss",
+                  "providerStatus": "AP"
+                },
+                {
+                  "id": "425216",
+                  "startsAt": "2026-09-24T17:00:00.000Z",
+                  "opponent": "Rögle",
+                  "home": true,
+                  "scored": 2,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "425221",
+                  "startsAt": "2026-09-26T13:15:00.000Z",
+                  "opponent": "IF Bjorkloven",
+                  "home": false,
+                  "scored": 5,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "425236",
+                  "startsAt": "2026-10-01T17:00:00.000Z",
+                  "opponent": "Djurgarden",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 0,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "425241",
+                  "startsAt": "2026-10-03T16:00:00.000Z",
+                  "opponent": "HV 71",
+                  "home": true,
+                  "scored": 3,
+                  "conceded": 1,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            },
+            {
+              "team": {
+                "id": "520",
+                "name": "IF Bjorkloven",
+                "logoUrl": "https://media.api-sports.io/hockey/teams/520.png"
+              },
+              "rank": 3,
+              "played": 5,
+              "points": 11,
+              "wins": 3,
+              "overtimeWins": 1,
+              "losses": 1,
+              "overtimeLosses": 0,
+              "form": [
+                {
+                  "id": "425219",
+                  "startsAt": "2026-09-24T17:00:00.000Z",
+                  "opponent": "Orebro",
+                  "home": false,
+                  "scored": 4,
+                  "conceded": 3,
+                  "outcome": "win",
+                  "providerStatus": "AOT"
+                },
+                {
+                  "id": "425221",
+                  "startsAt": "2026-09-26T13:15:00.000Z",
+                  "opponent": "Farjestad",
+                  "home": true,
+                  "scored": 0,
+                  "conceded": 5,
+                  "outcome": "loss",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "425228",
+                  "startsAt": "2026-09-29T17:00:00.000Z",
+                  "opponent": "HV 71",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "425233",
+                  "startsAt": "2026-10-01T17:00:00.000Z",
+                  "opponent": "Vaxjo",
+                  "home": true,
+                  "scored": 4,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                },
+                {
+                  "id": "425242",
+                  "startsAt": "2026-10-03T16:00:00.000Z",
+                  "opponent": "Linkoping",
+                  "home": false,
+                  "scored": 3,
+                  "conceded": 2,
+                  "outcome": "win",
+                  "providerStatus": "FT"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -11,6 +11,7 @@ import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme_controller.dart';
 import '../../../core/widgets/lector_brand_mark.dart';
+import '../../../core/widgets/lector_space_widgets.dart';
 import '../../../core/widgets/lector_responsive_layout.dart';
 import '../../onboarding/domain/decision_profile.dart';
 import '../../onboarding/domain/decision_profile_catalogs.dart';
@@ -81,7 +82,7 @@ class _LectorSpacePageState extends State<LectorSpacePage> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(14, 6, 14, 20),
                 children: [
-                  _LectorSpaceHeader(
+                  LectorSpaceHeader(
                     onSettings: () => _openAppPreferences(context),
                   ),
                   const SizedBox(height: AppSpacing.xs),
@@ -109,7 +110,7 @@ class _LectorSpacePageState extends State<LectorSpacePage> {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
-                  _SectionHeading(
+                  LectorSpaceSectionHeading(
                     title: 'Personnaliser Lector',
                     subtitle:
                         'Choisissez votre apparence et les informations que vous souhaitez suivre.',
@@ -117,7 +118,7 @@ class _LectorSpacePageState extends State<LectorSpacePage> {
                   const SizedBox(height: AppSpacing.xs),
                   LectorAdaptiveCards(
                     children: [
-                      _SpaceActionCard(
+                      LectorSpaceActionCard(
                         icon: Icons.palette_outlined,
                         title: 'Apparence',
                         subtitle:
@@ -126,7 +127,7 @@ class _LectorSpacePageState extends State<LectorSpacePage> {
                         color: context.brand.accent,
                         onTap: () => _openAppPreferences(context),
                       ),
-                      _SpaceActionCard(
+                      LectorSpaceActionCard(
                         icon: Icons.emoji_events_outlined,
                         title: 'Mes compétitions',
                         subtitle:
@@ -135,7 +136,7 @@ class _LectorSpacePageState extends State<LectorSpacePage> {
                         color: context.brand.accent,
                         onTap: () => _openCompetitions(context),
                       ),
-                      _SpaceActionCard(
+                      LectorSpaceActionCard(
                         icon: Icons.auto_graph_rounded,
                         title: 'Mes lectures',
                         subtitle:
@@ -144,7 +145,7 @@ class _LectorSpacePageState extends State<LectorSpacePage> {
                         color: context.semantic.info,
                         onTap: () => _openReadings(context),
                       ),
-                      _SpaceActionCard(
+                      LectorSpaceActionCard(
                         icon: Icons.my_location_rounded,
                         title: 'Mes scénarios',
                         subtitle:
@@ -153,7 +154,7 @@ class _LectorSpacePageState extends State<LectorSpacePage> {
                         color: context.opportunities.levelGap,
                         onTap: () => _openScenarios(context),
                       ),
-                      _SpaceActionCard(
+                      LectorSpaceActionCard(
                         icon: Icons.sports_score_outlined,
                         title: 'Mes marchés',
                         subtitle:
@@ -162,7 +163,7 @@ class _LectorSpacePageState extends State<LectorSpacePage> {
                         color: context.semantic.success,
                         onTap: () => _openMarkets(context),
                       ),
-                      _SpaceActionCard(
+                      LectorSpaceActionCard(
                         icon: Icons.confirmation_number_outlined,
                         title: 'Mes stratégies',
                         subtitle:
@@ -174,7 +175,7 @@ class _LectorSpacePageState extends State<LectorSpacePage> {
                     ],
                   ),
                   const SizedBox(height: AppSpacing.lg),
-                  const _SectionHeading(title: 'Mon compte'),
+                  const LectorSpaceSectionHeading(title: 'Mon compte'),
                   const SizedBox(height: AppSpacing.xs),
                   _GroupedActionList(
                     children: [
@@ -313,46 +314,6 @@ class _LectorSpacePageState extends State<LectorSpacePage> {
   }
 }
 
-class _LectorSpaceHeader extends StatelessWidget {
-  const _LectorSpaceHeader({required this.onSettings});
-
-  final VoidCallback onSettings;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 42,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: IconButton(
-              tooltip: 'Retour',
-              onPressed: () => Navigator.of(context).pop(),
-              icon: const Icon(Icons.chevron_left_rounded, size: 26),
-            ),
-          ),
-          Text(
-            'Mon espace',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
-          ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: IconButton(
-              tooltip: 'Préférences',
-              onPressed: onSettings,
-              icon: const Icon(Icons.settings_outlined, size: 22),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ProfileCard extends StatelessWidget {
   const _ProfileCard({
     required this.user,
@@ -377,7 +338,7 @@ class _ProfileCard extends StatelessWidget {
     final name = _displayName(user);
     final email = user?.email;
 
-    return _LectorCard(
+    return LectorSpaceCard(
       padding: const EdgeInsets.all(AppSpacing.sm),
       child: Column(
         children: [
@@ -541,137 +502,6 @@ class _SubscriptionBadge extends StatelessWidget {
   }
 }
 
-class _SectionHeading extends StatelessWidget {
-  const _SectionHeading({required this.title, this.subtitle});
-
-  final String title;
-  final String? subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: Theme.of(
-            context,
-          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
-        ),
-        if (subtitle != null) ...[
-          const SizedBox(height: AppSpacing.xxs),
-          Text(
-            subtitle!,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: context.textColors.secondary,
-              height: 1.3,
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _SpaceActionCard extends StatelessWidget {
-  const _SpaceActionCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.count,
-    required this.color,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final int count;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return _LectorCard(
-      onTap: onTap,
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(AppRadius.control),
-            ),
-            child: Icon(icon, color: color, size: 22),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  subtitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.textColors.secondary,
-                    height: 1.24,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          _CountBadge(count: count, color: color),
-          Icon(
-            Icons.chevron_right_rounded,
-            color: context.textColors.secondary,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CountBadge extends StatelessWidget {
-  const _CountBadge({required this.count, required this.color});
-
-  final int count;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        shape: BoxShape.circle,
-      ),
-      child: SizedBox.square(
-        dimension: 26,
-        child: Center(
-          child: Text(
-            '$count',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _GroupedActionList extends StatelessWidget {
   const _GroupedActionList({required this.children});
 
@@ -679,7 +509,7 @@ class _GroupedActionList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _LectorCard(
+    return LectorSpaceCard(
       padding: EdgeInsets.zero,
       child: Column(
         children: [
@@ -741,44 +571,6 @@ class _CompactSpaceRow extends StatelessWidget {
               Icon(Icons.chevron_right_rounded, color: foreground),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LectorCard extends StatelessWidget {
-  const _LectorCard({
-    required this.child,
-    this.padding = const EdgeInsets.all(14),
-    this.onTap,
-  });
-
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final content = Padding(padding: padding, child: child);
-    final decoration = BoxDecoration(
-      color: context.surfaces.surface.withValues(alpha: 0.72),
-      borderRadius: BorderRadius.circular(AppRadius.card),
-      border: Border.all(color: context.surfaces.border),
-    );
-
-    if (onTap == null) {
-      return DecoratedBox(decoration: decoration, child: content);
-    }
-
-    return Material(
-      color: AppColors.transparent,
-      child: Ink(
-        decoration: decoration,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          child: content,
         ),
       ),
     );

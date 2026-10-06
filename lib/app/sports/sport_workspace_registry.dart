@@ -1,3 +1,4 @@
+import '../../core/sports/data/sport_live_repository.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/sports/domain/sport.dart';
@@ -56,11 +57,24 @@ class SportWorkspaceRegistry {
         },
         builder: switch (module.sport.key) {
           'football' => (_) => const CopilotFlowPage(),
-          'hockey' => (_) => HockeyWorkspace(repository: _hockeyFeed()),
+          'hockey' => (_) => HockeyWorkspace(
+            repository: _hockeyFeed(),
+            liveRepository: _hockeyLive(),
+          ),
           _ => (_) => PlannedSportWorkspace(sport: module.sport),
         },
       ),
   ]);
+
+  static SportLiveRepository? _hockeyLive() {
+    final config = getIt.isRegistered<AppConfig>() ? getIt<AppConfig>() : null;
+    return config?.isSupabaseConfigured == true
+        ? SupabaseSportLiveRepository(
+            projectUrl: config!.supabaseUrl!,
+            publicKey: config.supabaseAnonKey!,
+          )
+        : null;
+  }
 
   static SportFeedRepository _hockeyFeed() {
     final config = getIt.isRegistered<AppConfig>() ? getIt<AppConfig>() : null;

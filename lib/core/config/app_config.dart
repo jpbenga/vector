@@ -39,19 +39,26 @@ class AppConfig {
     );
 
     const sportFeedBaseUrlValue = String.fromEnvironment('SPORT_FEED_BASE_URL');
+    const hostedSportDemo = bool.fromEnvironment('SPORT_FEED_DEMO');
     final environment = AppEnvironment.parse(environmentValue);
-    final sportFeedBaseUrl = _parseOptionalUri(
+    final configuredSportFeedBaseUrl = _parseOptionalUri(
       'SPORT_FEED_BASE_URL',
       sportFeedBaseUrlValue,
     );
-    if (sportFeedBaseUrl != null &&
+    if (configuredSportFeedBaseUrl != null &&
         (environment == AppEnvironment.production ||
-            sportFeedBaseUrl.scheme != 'http' ||
-            !['localhost', '127.0.0.1'].contains(sportFeedBaseUrl.host))) {
+            configuredSportFeedBaseUrl.scheme != 'http' ||
+            ![
+              'localhost',
+              '127.0.0.1',
+            ].contains(configuredSportFeedBaseUrl.host))) {
       throw StateError(
         'The sport preview server is restricted to local development.',
       );
     }
+    final sportFeedBaseUrl = hostedSportDemo
+        ? hostedSportDemoBaseUrl(environment: environment, currentUrl: Uri.base)
+        : configuredSportFeedBaseUrl;
     final supabaseUrl = _parseSupabaseUrl(supabaseUrlValue);
     final appPublicUrl = _parseOptionalUri('APP_PUBLIC_URL', appPublicUrlValue);
     final supabaseAnonKey = supabaseAnonKeyValue.isEmpty
@@ -75,6 +82,29 @@ class AppConfig {
     }
 
     return config;
+  }
+
+  /// A hosted demo reads only the compact served by its own website. It cannot
+  /// redirect readers to a different data host or replace a production feed.
+  static Uri hostedSportDemoBaseUrl({
+    required AppEnvironment environment,
+    required Uri currentUrl,
+  }) {
+    final localHttp =
+        currentUrl.scheme == 'http' &&
+        ['localhost', '127.0.0.1'].contains(currentUrl.host);
+    if (environment != AppEnvironment.staging ||
+        currentUrl.host.isEmpty ||
+        currentUrl.userInfo.isNotEmpty ||
+        (currentUrl.scheme != 'https' && !localHttp)) {
+      throw StateError('Hosted sport demos require a staging web origin.');
+    }
+    return Uri(
+      scheme: currentUrl.scheme,
+      host: currentUrl.host,
+      port: currentUrl.hasPort ? currentUrl.port : null,
+      path: '/',
+    );
   }
 
   static Uri? _parseOptionalUri(String name, String value) {

@@ -1,3 +1,4 @@
+import '../../../core/domain/lector_victory_series.dart';
 import '../../matches/domain/football_scenario.dart';
 
 enum ProfileConfigurationState { notStarted, inProgress, completed }
@@ -830,6 +831,13 @@ class ReadingPreferenceCatalog {
           'Une différence de niveau est confirmée par le contexte du championnat.',
     ),
     ReadingPreferenceDefinition(
+      id: 'winning_streak',
+      label: 'Série de victoires',
+      description:
+          'Au moins trois victoires consécutives tous lieux confondus, comptées au-delà de cinq.',
+    ),
+
+    ReadingPreferenceDefinition(
       id: 'positive_streak',
       label: 'Dynamique positive',
       description: 'Une équipe enchaîne des résultats favorables.',
@@ -858,22 +866,22 @@ class ReadingPreferenceCatalog {
     ReadingPreferenceDefinition(
       id: 'strong_home_team',
       label: 'Solide à domicile',
-      description: 'Une équipe se distingue dans ses matchs à domicile.',
+      description: 'Au moins trois victoires consécutives à domicile.',
     ),
     ReadingPreferenceDefinition(
       id: 'weak_home_team',
       label: 'Fragile à domicile',
-      description: 'Une équipe rencontre des difficultés à domicile.',
+      description: 'Au moins trois défaites consécutives à domicile.',
     ),
     ReadingPreferenceDefinition(
       id: 'strong_away_team',
       label: 'Solide à l’extérieur',
-      description: 'Une équipe se distingue dans ses matchs à l’extérieur.',
+      description: 'Au moins trois victoires consécutives à l’extérieur.',
     ),
     ReadingPreferenceDefinition(
       id: 'weak_away_team',
       label: 'Fragile à l’extérieur',
-      description: 'Une équipe rencontre des difficultés à l’extérieur.',
+      description: 'Au moins trois défaites consécutives à l’extérieur.',
     ),
     ReadingPreferenceDefinition(
       id: 'home_away_advantage',
@@ -983,12 +991,15 @@ class ReadingPreferenceCatalog {
     return ids.isEmpty ? null : ids.first;
   }
 
-  /// A user preference matches only the same canonical reading id.
+  /// A user preference matches the canonical id, including the two former
+  /// venue win-series names now merged into venue solidity.
   ///
   /// Technical evidence and scenario support must never be promoted into a
   /// different user-facing reading at this boundary.
   static Set<String> preferenceIdsForReading(String readingId) =>
-      contains(readingId) ? {readingId} : const {};
+      contains(canonicalVenueReadingId(readingId))
+      ? {canonicalVenueReadingId(readingId)}
+      : const {};
 
   static Set<String> normalizeSelectionIds(Iterable<String> readingIds) => {
     for (final readingId in readingIds) ?preferenceIdForReading(readingId),
@@ -1020,6 +1031,7 @@ class ReadingPreferenceCategoryCatalog {
       readingIds: [
         'structural_level_gap',
         'positive_streak',
+        'winning_streak',
         'negative_streak',
         'improving_form',
         'declining_form',
