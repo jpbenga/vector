@@ -49,7 +49,7 @@ jobs:
       - name: Test Supabase reading policies
         run: >-
           deno test
-          --allow-read=test/fixtures/sports/hockey_meeting_phases.json
+          --allow-read=test/fixtures/sports/hockey_meeting_phases.json,lib/features/matches/domain/odds_normalization.dart
           --allow-env=FEED_DELIVERY_ENABLED,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_URL,API_FOOTBALL_KEY,API_FOOTBALL_SYNC_SECRET,API_FOOTBALL_BASE_URL,API_FOOTBALL_REQUEST_DELAY_MS
           supabase/functions/_shared
 

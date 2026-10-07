@@ -152,7 +152,7 @@ void main() {
         'state': {
           'id': oldId,
           'revision': 1,
-          'tickets': [],
+          'tickets': <Object?>[],
           'pending': null,
           'messages': [
             {'role': 'assistant', 'text': 'private-old-account'},
