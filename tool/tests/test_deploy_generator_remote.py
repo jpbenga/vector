@@ -29,6 +29,11 @@ class GeneratorDeploymentTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module.require_ci([{**good,"head_sha":"old"}],"abc")
 
+    def test_sql_diagnostics_never_echo_arbitrary_errors_or_values(self):
+        self.assertEqual(module.sql_diagnostic('{"message":"relation \\"public.sport_feed_publications\\" does not exist"}'), ': relation "public.sport_feed_publications" does not exist')
+        self.assertEqual(module.sql_diagnostic('{"message":"duplicate key contains sk-secret-test"}'), '')
+        self.assertEqual(module.sql_diagnostic('sk-secret-test'), '')
+
 
 if __name__ == "__main__":
     unittest.main()

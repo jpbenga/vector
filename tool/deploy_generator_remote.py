@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import urllib.error
 import urllib.request
@@ -11,6 +12,16 @@ PROJECT = "ednvvxxvlawaagjyshkj"
 VERSION = "20261008120000"
 MIGRATION = Path("supabase/migrations/20261008120000_lector_generator.sql")
 MODELS = {"gpt-4.1-mini-2025-04-14", "gpt-4.1-nano-2025-04-14"}
+
+
+def sql_diagnostic(body):
+    """Print only known SQL identifiers; never raw responses, rows or queries."""
+    try:
+        message = str(json.loads(body).get("message", ""))
+    except (ValueError, AttributeError):
+        return ""
+    match = re.search(r'(?:relation|column|function) "[A-Za-z0-9_.]+" does not exist', message)
+    return ": " + match.group(0) if match else ""
 
 
 def request(url, token, body=None):
@@ -22,7 +33,8 @@ def request(url, token, body=None):
             return json.loads(data) if data else None
     except urllib.error.HTTPError as error:
         # Responses to secret installation may contain secrets: never print them.
-        raise RuntimeError(f"Remote request failed (HTTP {error.code})") from None
+        detail = sql_diagnostic(error.read()) if url.endswith("/database/query") else ""
+        raise RuntimeError(f"Remote request failed (HTTP {error.code}){detail}") from None
 
 
 def validate_environment(env):
@@ -47,6 +59,8 @@ def main():
     base = f"https://api.supabase.com/v1/projects/{PROJECT}"
     def query(sql, read_only=False):
         return request(base + "/database/query", token, {"query": sql, "read_only": read_only})
+    dependencies = query("select to_regclass('public.match_feed_analysis_snapshots') is not null as football_analysis, to_regclass('public.sport_feed_publications') is not null as hockey_publication", True)
+    print(json.dumps({"generator_source_tables": dependencies}))
     sql = MIGRATION.read_text()
     prior = query(f"select statements from supabase_migrations.schema_migrations where version='{VERSION}'", True)
     if prior:
