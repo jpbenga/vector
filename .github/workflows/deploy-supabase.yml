@@ -61,7 +61,8 @@ jobs:
           ref: ${{ github.sha }}
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # A fixed release avoids the unauthenticated "latest" lookup limit.
+          version: '2.120.0'
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
