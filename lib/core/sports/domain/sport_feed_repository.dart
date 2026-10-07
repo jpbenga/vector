@@ -29,9 +29,28 @@ abstract interface class SportFeedRepository {
   Future<SportFeedResult> load(DateTime selectedDate);
 }
 
+abstract interface class RefreshableSportFeedRepository
+    implements SportFeedRepository {
+  Future<SportFeedResult> refresh(DateTime selectedDate);
+}
+
+abstract interface class ProgressiveSportFeedRepository
+    implements RefreshableSportFeedRepository {
+  Future<SportFeedResult> loadRadar(DateTime selectedDate);
+  Future<SportFeedResult> loadMatch(DateTime selectedDate, String matchId);
+}
+
+abstract interface class PreloadingSportFeedRepository
+    implements SportFeedRepository {
+  SportFeedResult? peek(DateTime date, {bool radar = false});
+  void prefetch(DateTime date);
+  void cancelPrefetch();
+}
+
 /// One shared boundary for every adapter. Freshness uses the real clock;
 /// selecting J+13 does not age a snapshot by thirteen days.
-class ValidatedSportFeedRepository implements SportFeedRepository {
+class ValidatedSportFeedRepository
+    implements ProgressiveSportFeedRepository, PreloadingSportFeedRepository {
   ValidatedSportFeedRepository({
     required this.delegate,
     required this.policy,
@@ -44,8 +63,69 @@ class ValidatedSportFeedRepository implements SportFeedRepository {
   SportId get sport => delegate.sport;
 
   @override
+  SportFeedResult? peek(DateTime date, {bool radar = false}) {
+    final source = delegate;
+    if (source is! PreloadingSportFeedRepository) return null;
+    final cached = source.peek(date, radar: radar);
+    if (cached == null) return null;
+    final validated = _validate(cached, date);
+    return validated.isAvailable ? validated : null;
+  }
+
+  @override
+  void cancelPrefetch() {
+    final source = delegate;
+    if (source is PreloadingSportFeedRepository) source.cancelPrefetch();
+  }
+
+  @override
+  void prefetch(DateTime date) {
+    final source = delegate;
+    if (source is PreloadingSportFeedRepository) source.prefetch(date);
+  }
+
+  @override
   Future<SportFeedResult> load(DateTime selectedDate) async {
-    final result = await delegate.load(selectedDate);
+    return _validate(await delegate.load(selectedDate), selectedDate);
+  }
+
+  @override
+  Future<SportFeedResult> refresh(DateTime selectedDate) async {
+    final source = delegate;
+    return _validate(
+      await (source is RefreshableSportFeedRepository
+          ? source.refresh(selectedDate)
+          : source.load(selectedDate)),
+      selectedDate,
+    );
+  }
+
+  @override
+  Future<SportFeedResult> loadRadar(DateTime selectedDate) async {
+    final source = delegate;
+    return _validate(
+      await (source is ProgressiveSportFeedRepository
+          ? source.loadRadar(selectedDate)
+          : source.load(selectedDate)),
+      selectedDate,
+    );
+  }
+
+  @override
+  Future<SportFeedResult> loadMatch(
+    DateTime selectedDate,
+    String matchId,
+  ) async {
+    final source = delegate;
+    return _validate(
+      await (source is ProgressiveSportFeedRepository
+          ? source.loadMatch(selectedDate, matchId)
+          : source.load(selectedDate)),
+      selectedDate,
+    );
+  }
+
+  SportFeedResult _validate(SportFeedResult result, DateTime selectedDate) {
     final snapshot = result.snapshot;
     if (snapshot == null) return result;
     if (snapshot.sport != sport ||

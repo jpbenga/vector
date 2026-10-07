@@ -35,6 +35,32 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
   testWidgets(
+    'a first transient failure offers retry instead of an empty calendar',
+    (tester) async {
+      var calls = 0;
+      await _pumpPage(
+        tester,
+        repositoryForDateLoader: (date) async {
+          calls++;
+          return calls == 1
+              ? EmptyMatchFeedRepository(
+                  date: date,
+                  reason: 'Connexion interrompue',
+                  temporaryFailure: true,
+                )
+              : DemoMatchFeedRepository();
+        },
+      );
+      expect(find.text('Impossible de charger les rencontres'), findsOneWidget);
+      await tester.tap(find.text('Réessayer'));
+      await tester.pumpAndSettle();
+      expect(calls, 2);
+      expect(find.text('Impossible de charger les rencontres'), findsNothing);
+      expect(find.text('Tous'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'anonymous For me invites personalization while public matches stay accessible',
     (tester) async {
       await _pumpPage(

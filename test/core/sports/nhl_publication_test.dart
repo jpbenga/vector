@@ -21,8 +21,10 @@ class _Source implements SportPublicationSource {
   _Source(this.payload);
   Map<String, dynamic>? payload;
   bool fail = false;
+  int calls = 0;
   @override
   Future<Map<String, dynamic>?> read(SportId sport) async {
+    calls++;
     if (fail) throw StateError('Network offline');
     return payload;
   }
@@ -39,6 +41,41 @@ SportFeedRepository _repository(_Source source) => ValidatedSportFeedRepository(
 
 void main() {
   setUpAll(() => initializeDateFormatting('fr'));
+  test(
+    'hockey reuses its calendar and validates retained data on failure',
+    () async {
+      var now = DateTime.utc(2026, 10, 4, 10);
+      final source = _Source(fixture());
+      final repository = ValidatedSportFeedRepository(
+        delegate: PublishedSportFeedRepository(
+          sport: SportId.hockey,
+          source: source,
+          clock: () => now,
+        ),
+        policy: HockeyModule.definition.dataPolicy,
+        clock: () => now,
+      );
+      final first = await repository.load(DateTime(2026, 10, 4));
+      final next = await repository.load(DateTime(2026, 10, 5));
+      expect(identical(first.snapshot, next.snapshot), isTrue);
+      expect(source.calls, 1);
+      now = now.add(const Duration(minutes: 3));
+      source.fail = true;
+      expect(
+        (await repository.load(DateTime(2026, 10, 5))).isAvailable,
+        isTrue,
+      );
+      expect(
+        (await repository.load(DateTime(2026, 10, 18))).unavailableReason,
+        SportFeedUnavailableReason.outsideWindow,
+      );
+      now = now.add(const Duration(days: 10));
+      expect(
+        (await repository.load(DateTime(2026, 10, 5))).unavailableReason,
+        SportFeedUnavailableReason.stale,
+      );
+    },
+  );
   test(
     'backend public contract loads day fourteen and preserves regulation and final scores',
     () async {
@@ -210,7 +247,11 @@ void main() {
       source.fail = true;
       await tester.tap(find.byKey(const ValueKey('hockey-refresh')));
       await tester.pumpAndSettle();
-      expect(find.textContaining('momentanément indisponible'), findsOneWidget);
+      expect(
+        find.text('Aucune rencontre hockey programmée pour ce jour.'),
+        findsOneWidget,
+      );
+      expect(source.calls, 2);
       await tester.tap(find.byKey(const ValueKey('hockey-rules')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('hockey-section-1')));

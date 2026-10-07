@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:copilot/app/theme/app_theme.dart';
 import 'package:copilot/features/matches/data/supabase_match_feed_snapshot_repository.dart';
 import 'package:copilot/features/matches/data/match_feed_repository.dart';
@@ -7,6 +11,75 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test(
+    'public reader downloads an immutable payload once and rejects partial responses',
+    () async {
+      var payloadCalls = 0;
+      var selectedId = 'snapshot-1';
+      var omitPayload = false;
+      final client = SupabaseClient(
+        'https://example.test',
+        'public-key',
+        httpClient: MockClient((request) async {
+          final metadata = {
+            'id': selectedId,
+            'scope': 'league',
+            'league_ids': [61],
+          };
+          if (request.url.queryParameters['select']!.contains('payload')) {
+            payloadCalls++;
+            await Future<void>.delayed(const Duration(milliseconds: 1));
+            return http.Response(
+              jsonEncode(
+                omitPayload
+                    ? []
+                    : [
+                        {
+                          ...metadata,
+                          'payload': {
+                            'schema_version': 1,
+                            'league_ids': [61],
+                            'captured_at': '2026-08-08T08:00:00Z',
+                            'window_start': '2026-08-08',
+                            'window_end': '2026-08-09',
+                            'raw': {'fixtures': <Object>[]},
+                            'computed': {'fixtures': <Object>[]},
+                          },
+                        },
+                      ],
+              ),
+              200,
+              request: request,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          return http.Response(
+            jsonEncode([metadata]),
+            200,
+            request: request,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      );
+      addTearDown(client.dispose);
+      final reader = SupabaseMatchFeedSnapshotRepository(client);
+      final results = await Future.wait([
+        reader.loadLatestForDate(DateTime(2026, 8, 8)),
+        reader.loadLatestForDate(DateTime(2026, 8, 9)),
+      ]);
+      expect(payloadCalls, 1);
+      expect(identical(results[0], results[1]), isTrue);
+      await reader.loadLatestForDate(DateTime(2026, 8, 8));
+      expect(payloadCalls, 1);
+      selectedId = 'snapshot-2';
+      omitPayload = true;
+      await expectLater(
+        reader.loadLatestForDate(DateTime(2026, 8, 8)),
+        throwsStateError,
+      );
+    },
+  );
+
   test('selects only the newest metadata row for each league', () {
     final ids = selectMatchFeedSnapshotRowIds([
       {

@@ -1,3 +1,9 @@
+import '../../../core/widgets/lector_deferred_content.dart';
+import '../../generator/presentation/lector_generator_page.dart';
+import '../../generator/domain/generator_context.dart';
+import '../../onboarding/data/saved_decision_profile_store.dart';
+import '../../onboarding/domain/profile_compiler.dart';
+import '../../../app/sports/generator_match_navigation.dart';
 import '../../../core/sports/data/sport_live_repository.dart';
 import '../../../core/widgets/lector_personalize_invitation.dart';
 import '../../../core/identity/identity_controller.dart';
@@ -114,6 +120,10 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
 
   @override
   void dispose() {
+    final repository = widget.repository;
+    if (repository is PreloadingSportFeedRepository) {
+      repository.cancelPrefetch();
+    }
     _preferenceRequest++;
     _live?.removeListener(_liveChanged);
     _live?.dispose();
@@ -221,15 +231,39 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
     _load();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool force = false}) async {
     final generation = ++_request;
+    final repository = widget.repository;
+    final cached = !force && repository is PreloadingSportFeedRepository
+        ? repository.peek(
+            _date,
+            radar: _section == LectorWorkspaceSection.radar,
+          )
+        : null;
+    if (cached != null) {
+      setState(() {
+        _feed = cached;
+        _loading = false;
+        _failed = false;
+        _page = 0;
+      });
+      _live?.watch(_dayMatches);
+    }
     setState(() {
-      _loading = true;
+      _loading = cached == null;
       _failed = false;
     });
     try {
+      final refreshed = force && repository is RefreshableSportFeedRepository
+          ? await repository.refresh(_date)
+          : null;
       final result =
-          await widget.repository?.load(_date) ??
+          await (_section == LectorWorkspaceSection.radar &&
+                  repository is ProgressiveSportFeedRepository
+              ? repository.loadRadar(_date)
+              : refreshed != null
+              ? Future.value(refreshed)
+              : repository?.load(_date)) ??
           const SportFeedResult.unavailable(
             SportFeedUnavailableReason.notConnected,
           );
@@ -241,6 +275,9 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
       });
       // Score updates do not recompute or replace prematch evidence.
       _live?.watch(_dayMatches);
+      if (repository is PreloadingSportFeedRepository) {
+        repository.prefetch(_date);
+      }
     } catch (_) {
       if (!mounted || generation != _request) return;
       setState(() {
@@ -318,10 +355,13 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
               const SizedBox(height: 8),
               LectorWorkspaceNavigation(
                 selected: _section,
-                onChanged: (value) => setState(() {
-                  _section = value;
-                  _page = 0;
-                }),
+                onChanged: (value) {
+                  setState(() {
+                    _section = value;
+                    _page = 0;
+                  });
+                  _load();
+                },
               ),
               const SizedBox(height: 8),
               Row(
@@ -356,7 +396,7 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
                   IconButton(
                     key: const ValueKey('hockey-refresh'),
                     tooltip: 'Relire la publication',
-                    onPressed: _loading ? null : _load,
+                    onPressed: _loading ? null : () => _load(force: true),
                     icon: const Icon(Icons.refresh_rounded),
                   ),
                 ],
@@ -407,6 +447,34 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
               ],
               if (_section == LectorWorkspaceSection.forMe)
                 _forMe(context, auth)
+              else if (_section == LectorWorkspaceSection.generator &&
+                  const bool.fromEnvironment('LECTOR_GENERATOR_UI'))
+                LectorGeneratorPage(
+                  date: _date,
+                  scope: _scope ?? const IdentityScope.guest('unresolved'),
+                  embedded: true,
+                  configurationKey: _preferences.toJson().toString(),
+                  loadContext: () async {
+                    final scope = _scope;
+                    final profile = scope == null
+                        ? null
+                        : await const SavedDecisionProfileStore().load(
+                            scope: scope,
+                          );
+                    return GeneratorContext(
+                      origin: 'profile',
+                      preferences: {
+                        'hockey': GeneratorContext.hockey(_preferences),
+                        if (profile != null)
+                          'football': GeneratorContext.football(
+                            const ProfileCompiler().compile(profile),
+                          ),
+                      },
+                    );
+                  },
+                  onPreferences: _openSpace,
+                  onOpenMatch: (pick) => openGeneratorMatch(context, pick),
+                )
               else if (_section == LectorWorkspaceSection.generator ||
                   _section == LectorWorkspaceSection.bilan)
                 _notice(
@@ -562,13 +630,31 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
       ),
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => HockeyMatchDetailPage(
-            fixture: fixture,
-            liveController: _live,
-            readings: assessments,
-            competition: _competitions
-                .where((c) => c.id == fixture.competition)
-                .firstOrNull,
+          builder: (_) => LectorDeferredContent<SportFeedResult>(
+            title: '${fixture.away.name} · ${fixture.home.name}',
+            load: () async {
+              final repository = widget.repository;
+              final result = repository is ProgressiveSportFeedRepository
+                  ? await repository.loadMatch(_date, fixture.id.value)
+                  : _feed!;
+              if (result.snapshot?.items.any((f) => f.id == fixture.id) !=
+                  true) {
+                throw StateError('Détails du match indisponibles');
+              }
+              return result;
+            },
+            builder: (_, full) => HockeyMatchDetailPage(
+              fixture:
+                  full.snapshot?.items
+                      .where((f) => f.id == fixture.id)
+                      .firstOrNull ??
+                  fixture,
+              liveController: _live,
+              readings: assessments,
+              competition: (full.snapshot?.competitions ?? _competitions)
+                  .where((c) => c.id == fixture.competition)
+                  .firstOrNull,
+            ),
           ),
         ),
       ),

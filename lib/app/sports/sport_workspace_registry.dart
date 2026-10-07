@@ -1,3 +1,4 @@
+import '../../core/data/published_feed_delivery.dart';
 import '../../core/sports/data/sport_live_repository.dart';
 import 'package:flutter/material.dart';
 
@@ -76,12 +77,28 @@ class SportWorkspaceRegistry {
         : null;
   }
 
+  static AppConfig? _feedConfig;
+  static SportFeedRepository? _retainedHockeyFeed;
+
   static SportFeedRepository _hockeyFeed() {
     final config = getIt.isRegistered<AppConfig>() ? getIt<AppConfig>() : null;
+    if (identical(config, _feedConfig) && _retainedHockeyFeed != null) {
+      return _retainedHockeyFeed!;
+    }
+    _feedConfig = config;
     final url = config?.sportFeedBaseUrl;
-    return ValidatedSportFeedRepository(
+    return _retainedHockeyFeed = ValidatedSportFeedRepository(
       delegate: PublishedSportFeedRepository(
         sport: SportId.hockey,
+        delivery:
+            config?.isSupabaseConfigured == true &&
+                (url == null || config?.feedDeliveryBaseUrl != null)
+            ? PublishedFeedDelivery(
+                projectUrl: config!.supabaseUrl!,
+                publicKey: config.supabaseAnonKey!,
+                hostedBaseUrl: config.feedDeliveryBaseUrl,
+              )
+            : null,
         source: url != null
             ? HttpSportPublicationSource(url)
             : config?.isSupabaseConfigured == true

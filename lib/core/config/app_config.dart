@@ -10,6 +10,7 @@ class AppConfig {
     this.appPublicUrl,
     this.matchFeedSource = 'auto',
     this.sportFeedBaseUrl,
+    this.feedDeliveryBaseUrl,
   });
 
   final AppEnvironment environment;
@@ -18,6 +19,7 @@ class AppConfig {
   final Uri? appPublicUrl;
   final String matchFeedSource;
   final Uri? sportFeedBaseUrl;
+  final Uri? feedDeliveryBaseUrl;
 
   bool get isSupabaseConfigured {
     return supabaseUrl != null &&
@@ -40,6 +42,7 @@ class AppConfig {
 
     const sportFeedBaseUrlValue = String.fromEnvironment('SPORT_FEED_BASE_URL');
     const hostedSportDemo = bool.fromEnvironment('SPORT_FEED_DEMO');
+    const hostedDeliveryDemo = bool.fromEnvironment('FEED_DELIVERY_DEMO');
     final environment = AppEnvironment.parse(environmentValue);
     final configuredSportFeedBaseUrl = _parseOptionalUri(
       'SPORT_FEED_BASE_URL',
@@ -72,6 +75,12 @@ class AppConfig {
       appPublicUrl: appPublicUrl,
       matchFeedSource: matchFeedSourceValue,
       sportFeedBaseUrl: sportFeedBaseUrl,
+      feedDeliveryBaseUrl: hostedDeliveryDemo
+          ? hostedSportDemoBaseUrl(
+              environment: environment,
+              currentUrl: Uri.base,
+            )
+          : null,
     );
 
     if (environment == AppEnvironment.production &&

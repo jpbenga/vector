@@ -1,3 +1,4 @@
+import { publishDeliveryPart } from "../_shared/delivery/feed_delivery_store.ts";
 import { OpsReporter } from "../_shared/ops_runtime.ts";
 type JsonObject = Record<string, unknown>;
 
@@ -32,16 +33,33 @@ Deno.serve(async (request) => {
     const supabaseUrl = requiredEnv("SUPABASE_URL");
     const serviceRoleKey = requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
 
+    const deliveryEnabled = Deno.env.get("FEED_DELIVERY_ENABLED") === "true";
+    const existingFields = deliveryEnabled
+      ? "id,scope_key,captured_at,as_of,window_start,window_end,payload"
+      : "id";
     const existing = await supabaseFetch({
       supabaseUrl,
       serviceRoleKey,
       path:
-        `/rest/v1/match_feed_analysis_snapshots?select=id&source_snapshot_id=eq.${
+        `/rest/v1/match_feed_analysis_snapshots?select=${existingFields}&source_snapshot_id=eq.${
           encodeURIComponent(snapshotId)
         }&limit=1`,
       method: "GET",
     });
     if (existing.length > 0) {
+      if (deliveryEnabled) {
+        const row = objectValue(existing[0])!;
+        await publishDeliveryPart({
+          sport: "football",
+          sourceId: String(row.id),
+          scopeKey: String(row.scope_key),
+          capturedAt: String(row.captured_at),
+          asOf: String(row.as_of),
+          windowStart: String(row.window_start),
+          windowEnd: String(row.window_end),
+          payload: objectValue(row.payload)!,
+        });
+      }
       return respond({
         ok: true,
         reused: true,
@@ -262,6 +280,19 @@ Deno.serve(async (request) => {
       }],
       prefer: "return=representation",
     });
+    // This is enabled only after the delivery migration and its backfill.
+    if (deliveryEnabled) {
+      await publishDeliveryPart({
+        sport: "football",
+        sourceId: String(objectValue(stored[0])?.id),
+        scopeKey: String(snapshot.scope_key ?? "global"),
+        capturedAt: String(snapshot.captured_at),
+        asOf: String(snapshot.as_of ?? snapshot.captured_at),
+        windowStart: String(snapshot.window_start),
+        windowEnd: String(snapshot.window_end),
+        payload: compactPayload,
+      });
+    }
     return respond({
       ok: true,
       reused: false,

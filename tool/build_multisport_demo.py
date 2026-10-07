@@ -1,11 +1,15 @@
 """Build the real multisport app with a public, self-contained hockey compact."""
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 PUBLICATION = ROOT / 'var/sports/hockey/published.json'
 OUTPUT = ROOT / 'build/multisport-demo'
+REUSE_DELIVERY = '--reuse-delivery' in sys.argv
+if REUSE_DELIVERY and not (OUTPUT / 'delivery/metrics.json').exists():
+    raise SystemExit('Aucun flux de démo existant à réutiliser')
 
 values = {}
 for line in (ROOT / '.env').read_text().splitlines():
@@ -26,15 +30,26 @@ subprocess.run([
     'flutter', 'build', 'web', '--release', '--no-wasm-dry-run',
     '--target=lib/main.dart', '--output=' + str(OUTPUT),
     '--dart-define=APP_ENV=staging', '--dart-define=SPORT_FEED_DEMO=true',
-    '--dart-define=MATCH_FEED_SOURCE=auto',
+    '--dart-define=MATCH_FEED_SOURCE=auto', '--dart-define=FEED_DELIVERY_DEMO=true',
+    '--dart-define=LECTOR_GENERATOR_UI=true',
     '--dart-define=SUPABASE_URL=' + values['SUPABASE_URL'],
     '--dart-define=SUPABASE_ANON_KEY=' + values['SUPABASE_ANON_KEY'],
 ], cwd=ROOT, check=True)
+if not REUSE_DELIVERY:
+    sources = Path('/private/tmp/lector-public-delivery-sources.json')
+    if not sources.exists():
+        raise SystemExit('Export public manquant : exécuter tool/fetch_public_delivery_sources.py')
+    subprocess.run(['deno', 'run', '--allow-read', '--allow-write',
+        str(ROOT / 'tool/build_feed_delivery_demo.ts'), str(sources), str(PUBLICATION), str(OUTPUT)],
+        cwd=ROOT, check=True)
+elif not (OUTPUT / 'delivery/metrics.json').exists():
+    raise SystemExit('Les fichiers de livraison de la démo ont disparu')
 (OUTPUT / 'data').mkdir(exist_ok=True)
 (OUTPUT / 'data/hockey-feed.json').write_text(json.dumps(payload, separators=(',', ':')))
 (OUTPUT / 'vercel.json').write_text(json.dumps({
     'buildCommand': None, 'installCommand': None, 'outputDirectory': '.',
     'rewrites': [
+        {'source': '/delivery/:path*', 'destination': '/delivery/:path*'},
         {'source': '/sports/hockey/feed', 'destination': '/data/hockey-feed.json'},
         {'source': '/(.*)', 'destination': '/index.html'},
     ],

@@ -1,3 +1,4 @@
+import { publishDeliveryPart } from "../_shared/delivery/feed_delivery_store.ts";
 import { collectNhl, object } from "../_shared/sports/hockey_feed.ts";
 import { SupabaseSportStore } from "../_shared/sports/sport_store.ts";
 
@@ -59,6 +60,18 @@ Deno.serve(async (request) => {
       new Date(String(plan.started_at)),
       runId,
     );
+    if (Deno.env.get("FEED_DELIVERY_ENABLED") === "true") {
+      await publishDeliveryPart({
+        sport: "hockey",
+        sourceId: runId,
+        scopeKey: "hockey",
+        capturedAt: publication.capturedAt,
+        asOf: publication.capturedAt,
+        windowStart: publication.windowStart,
+        windowEnd: publication.windowEnd,
+        payload: publication as unknown as Record<string, unknown>,
+      });
+    }
     return Response.json({
       ok: true,
       runId,

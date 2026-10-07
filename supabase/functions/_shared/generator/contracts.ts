@@ -1,0 +1,266 @@
+/** The model expresses intent only. Prices, evidence and tickets are server facts. */
+export type Sport = "football" | "hockey";
+export type Json = Record<string, unknown>;
+export const obj = (v: unknown): Json =>
+  v && typeof v === "object" && !Array.isArray(v) ? v as Json : {};
+export const rows = (v: unknown): Json[] => Array.isArray(v) ? v.map(obj) : [];
+export const strings = (v: unknown): string[] =>
+  Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+export interface Preferences {
+  competitions: string[];
+  readings: string[];
+  markets: string[];
+  scenarios?: string[];
+}
+export interface Context {
+  origin: "profile" | "explorer";
+  scope: "discovery" | "strict";
+  timezone: string;
+  budget: number;
+  preferences: Partial<Record<Sport, Preferences>>;
+}
+export interface Target {
+  stake: number | null;
+  minimum: number | null;
+  maximum: number | null;
+  kind: "total" | "net" | "unspecified";
+}
+export interface Intent {
+  action:
+    | "generate"
+    | "replace"
+    | "remove"
+    | "restore"
+    | "explain"
+    | "explore"
+    | "clarify"
+    | "unsupported";
+  date: string;
+  sports: Sport[];
+  tickets: Target[];
+  diversify: boolean;
+  requireEachSport: boolean;
+  ticketIndex: number | null;
+  selectionIndex: number | null;
+  marketIds: string[];
+  message: string;
+}
+export interface Evidence {
+  id: string;
+  label: string;
+  family: string;
+  source: "reading" | "radar" | "scenario";
+  subject: string;
+  sample: number;
+  asOf: string;
+  text: string;
+}
+export interface Candidate {
+  id: string;
+  matchId: string;
+  sport: Sport;
+  competitionId: string;
+  competition: string;
+  home: string;
+  away: string;
+  homeLogo?: string;
+  awayLogo?: string;
+  teams: string[];
+  kickoff: string;
+  marketId: string;
+  market: string;
+  selection: string;
+  odds: number;
+  oddsAt: string;
+  bookmaker: string;
+  snapshotId: string;
+  evidence: Evidence[];
+  warnings: string[];
+  discovery: boolean;
+}
+export interface Catalog {
+  candidates: Candidate[];
+  matchCount: number;
+  radarCount: number;
+  missing: string[];
+  sources: string[];
+  signals: Evidence[];
+}
+export interface Ticket {
+  id: string;
+  number: number;
+  stake: number;
+  picks: Candidate[];
+  totalOdds: number;
+  returnTotal: number;
+  netProfit: number;
+  target: Target;
+  context: Context;
+  warnings: string[];
+}
+export interface State {
+  id: string;
+  revision: number;
+  context: Context;
+  intent: Intent | null;
+  tickets: Ticket[];
+  versions: Ticket[][];
+  pending: Ticket[] | null;
+  messages: { role: "user" | "assistant"; text: string }[];
+  saved: boolean;
+  updatedAt: string;
+  catalog?: Pick<
+    Catalog,
+    "matchCount" | "radarCount" | "missing" | "sources" | "signals"
+  >;
+}
+export function contextFrom(value: unknown): Context {
+  const c = obj(value), preferences: Context["preferences"] = {};
+  for (const sport of ["football", "hockey"] as const) {
+    const p = obj(obj(c.preferences)[sport]);
+    if (Object.keys(p).length) {
+      preferences[sport] = {
+        competitions: strings(p.competitions).slice(0, 150),
+        readings: strings(p.readings).slice(0, 80),
+        markets: strings(p.markets).slice(0, 30),
+        scenarios: strings(p.scenarios).slice(0, 30),
+      };
+    }
+  }
+  const budget = Number(c.budget);
+  if (!Number.isFinite(budget) || budget < 0 || budget > 1000) {
+    throw new Error("Budget invalide (0 à 1 000 €).");
+  }
+  const timezone = String(c.timezone || "Europe/Paris");
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: timezone }).format();
+  } catch {
+    throw new Error("Fuseau horaire invalide.");
+  }
+  return {
+    origin: c.origin === "explorer" ? "explorer" : "profile",
+    scope: c.scope === "strict" ? "strict" : "discovery",
+    timezone,
+    budget,
+    preferences,
+  };
+}
+export function calendarDay(instant: string | Date, timezone: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(instant));
+  return ["year", "month", "day"].map((k) =>
+    parts.find((p) => p.type === k)!.value
+  ).join("-");
+}
+/** Validate provider output again: structured output is not an authorization. */
+export function intentFrom(value: unknown): Intent {
+  const v = obj(value);
+  const actions = [
+    "generate",
+    "replace",
+    "remove",
+    "restore",
+    "explain",
+    "explore",
+    "clarify",
+    "unsupported",
+  ];
+  const keys = [
+    "action",
+    "date",
+    "sports",
+    "tickets",
+    "diversify",
+    "requireEachSport",
+    "ticketIndex",
+    "selectionIndex",
+    "marketIds",
+    "message",
+  ];
+  const index = (x: unknown) =>
+    x === null || (Number.isInteger(x) && Number(x) >= 0 && Number(x) < 30);
+  if (
+    Object.keys(v).length !== keys.length || !keys.every((k) => k in v) ||
+    !actions.includes(String(v.action)) || typeof v.date !== "string" ||
+    v.date.length > 10 ||
+    !Array.isArray(v.sports) || v.sports.length > 2 ||
+    v.sports.some((x) => !["football", "hockey"].includes(x)) ||
+    !Array.isArray(v.tickets) || v.tickets.length > 4 ||
+    typeof v.diversify !== "boolean" ||
+    typeof v.requireEachSport !== "boolean" ||
+    !index(v.ticketIndex) || !index(v.selectionIndex) ||
+    !Array.isArray(v.marketIds) ||
+    v.marketIds.length > 30 ||
+    v.marketIds.some((x) => typeof x !== "string" || x.length > 80) ||
+    typeof v.message !== "string" || v.message.length > 1000
+  ) throw new Error("Intention IA invalide.");
+  for (const target of v.tickets) {
+    const t = obj(target);
+    if (
+      Object.keys(t).length !== 4 ||
+      !["total", "net", "unspecified"].includes(String(t.kind)) ||
+      !["stake", "minimum", "maximum"].every((k) =>
+        k in t &&
+        (t[k] === null || (typeof t[k] === "number" && Number.isFinite(t[k])))
+      )
+    ) {
+      throw new Error("Intention IA invalide.");
+    }
+  }
+  return v as unknown as Intent;
+}
+export function validateIntent(
+  i: Intent,
+  context: Context,
+  now: Date,
+): string | null {
+  if (["clarify", "unsupported", "explain", "restore"].includes(i.action)) {
+    return null;
+  }
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(i.date) ||
+    !Number.isFinite(Date.parse(i.date)) ||
+    new Date(i.date).toISOString().slice(0, 10) !== i.date
+  ) return "Précisez une date valide.";
+  const today = calendarDay(now, context.timezone);
+  const last = new Date(`${today}T12:00:00Z`);
+  last.setUTCDate(last.getUTCDate() + 13);
+  if (i.date < today || i.date > last.toISOString().slice(0, 10)) {
+    return "La préparation avant match couvre aujourd’hui et les 13 jours suivants.";
+  }
+  if (
+    !i.sports.length ||
+    i.sports.some((s) => !["football", "hockey"].includes(s))
+  ) return "Choisissez un sport disponible dans Lector.";
+  if (i.action !== "generate") return null;
+  if (!i.tickets.length || i.tickets.length > 4) {
+    return "Précisez entre un et quatre tickets.";
+  }
+  let budget = 0;
+  for (const t of i.tickets) {
+    if (t.stake === null || !Number.isFinite(t.stake) || t.stake <= 0) {
+      return "Quelle mise souhaitez-vous prévoir pour chaque composition ?";
+    }
+    budget += t.stake;
+    if (Math.abs(t.stake * 100 - Math.round(t.stake * 100)) > 0.000001) {
+      return "Précisez une mise en euros et centimes.";
+    }
+    if (
+      (t.minimum !== null || t.maximum !== null) && t.kind === "unspecified"
+    ) {
+      return "L’objectif désigne-t-il le retour total, mise comprise, ou le bénéfice net ?";
+    }
+    if (
+      [t.minimum, t.maximum].some((v) =>
+        v !== null && (!Number.isFinite(v) || v < 0)
+      ) || (t.minimum !== null && t.maximum !== null && t.maximum < t.minimum)
+    ) return "Précisez un intervalle de retour cohérent.";
+  }
+  return budget > context.budget + 0.001
+    ? "Les mises dépassent votre plafond. Réduisez-les ou demandez moins de compositions."
+    : null;
+}

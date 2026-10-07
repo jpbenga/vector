@@ -619,6 +619,74 @@ void main() {
   });
 
   group('MatchFeedRepositoryLoader', () {
+    test(
+      'retains a valid calendar on failure without leaking into historical days',
+      () async {
+        var current = DateTime(2026, 8, 12, 12);
+        final remote = _FakeRemoteSnapshotDataSource(
+          latestForDate: _snapshot(
+            capturedAt: '2026-08-12T08:00:00Z',
+            windowStart: '2026-08-12',
+            windowEnd: '2026-08-25',
+          ),
+        );
+        final config = AppConfig(
+          environment: AppEnvironment.development,
+          supabaseUrl: Uri.parse('https://example.test'),
+          supabaseAnonKey: 'anon-key',
+          matchFeedSource: 'auto',
+        );
+        final loader = MatchFeedRepositoryLoader(
+          config: config,
+          supabaseInitializer: SupabaseInitializer(config),
+          remoteDataSource: remote,
+          clock: () => current,
+        );
+        final initial = await loader.load(now: current);
+        expect(initial, isA<SnapshotMatchFeedRepository>());
+        expect(identical(initial, await loader.load(now: current)), isTrue);
+        expect(remote.latestForDateCalls, 1);
+        current = current.add(const Duration(minutes: 3));
+        remote.throwsOnLatestForDate = true;
+        expect(identical(initial, await loader.load(now: current)), isTrue);
+        expect(
+          identical(initial, await loader.load(now: DateTime(2026, 8, 13))),
+          isTrue,
+        );
+        expect(
+          await loader.load(now: DateTime(2026, 8, 11)),
+          isA<EmptyMatchFeedRepository>(),
+        );
+        current = current.add(const Duration(days: 2));
+        expect(
+          await loader.load(now: current),
+          isA<EmptyMatchFeedRepository>(),
+        );
+      },
+    );
+
+    test(
+      'historical snapshots are validated against their own calendar day',
+      () async {
+        final remote = _FakeRemoteSnapshotDataSource(
+          latestForDate: _snapshot(
+            capturedAt: '2026-08-08T08:00:00Z',
+            windowStart: '2026-08-08',
+            windowEnd: '2026-08-09',
+          ),
+        );
+        final loader = _loader(
+          source: 'auto',
+          configuredSupabase: true,
+          remoteDataSource: remote,
+        );
+        expect(
+          await loader.load(now: DateTime(2026, 8, 8)),
+          isA<SnapshotMatchFeedRepository>(),
+        );
+      },
+    );
+
     test('loads yesterday’s covered fixtures after midnight', () async {
       final remote = _FakeRemoteSnapshotDataSource(
         latestForDate: _snapshot(
@@ -1174,7 +1242,7 @@ class _FakeRemoteSnapshotDataSource
   });
 
   final Map<String, Object?>? latestForDate;
-  final bool throwsOnLatestForDate;
+  bool throwsOnLatestForDate;
   int latestForDateCalls = 0;
 
   @override

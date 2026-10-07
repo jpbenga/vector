@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../../core/data/published_feed_delivery.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -8,12 +9,59 @@ abstract interface class MatchFeedSnapshotRemoteDataSource {
 
 class SupabaseMatchFeedSnapshotRepository
     implements MatchFeedSnapshotRemoteDataSource {
-  const SupabaseMatchFeedSnapshotRepository(this._client);
+  SupabaseMatchFeedSnapshotRepository(this._client, {this.delivery});
+  final PublishedFeedDelivery? delivery;
+  final _delivered = <String, Map<String, Object?>>{};
+  String? _radarSelection;
+  Map<String, Object?>? _radarPayload;
+
+  Future<Map<String, Object?>?> loadDetails(
+    DateTime date,
+    String matchId,
+  ) async {
+    final overview = _delivered[PublishedFeedDelivery.dateKey(date)];
+    return overview == null ? null : delivery?.detail(overview, matchId);
+  }
+
+  Future<Map<String, Object?>?> loadRadar(DateTime date) async {
+    final overview = _delivered[PublishedFeedDelivery.dateKey(date)];
+    if (overview == null || delivery == null) return null;
+    final descriptor = overview['delivery'];
+    final signature = jsonEncode(
+      descriptor is Map ? descriptor['radarPaths'] : null,
+    );
+    if (signature == _radarSelection && _radarPayload != null) {
+      return _radarPayload;
+    }
+    final merged = mergeMatchFeedSnapshotPayloads(
+      await delivery!.radar(overview),
+    );
+    if (merged != null) {
+      _radarSelection = signature;
+      _radarPayload = merged;
+    }
+    return merged;
+  }
+
+  final _payloadRows = <String, Object?>{};
+  String? _selection;
+  Map<String, Object?>? _merged;
+  final _pendingSelections = <String, Future<Map<String, Object?>?>>{};
 
   final SupabaseClient _client;
 
   @override
   Future<Map<String, Object?>?> loadLatestForDate(DateTime date) async {
+    final overview = await delivery?.loadDay('football', date);
+    if (overview != null) {
+      final key = PublishedFeedDelivery.dateKey(date);
+      _delivered.remove(key);
+      _delivered[key] = overview;
+      while (_delivered.length > 24) {
+        _delivered.remove(_delivered.keys.first);
+      }
+      return overview;
+    }
     return _withSessionRecovery(() => _loadLatestForDate(date));
   }
 
@@ -42,15 +90,14 @@ class SupabaseMatchFeedSnapshotRepository
     // across every configured competition. Keep the date-covered rows first
     // for the fixture feed, then add the newest known snapshot of leagues that
     // have no fixture in this calendar window.
-    final coveredRows = await request
-        .order('as_of', ascending: false)
-        .limit(500);
-    final latestRows = await _client
+    final coveredRequest = request.order('as_of', ascending: false).limit(500);
+    final latestRequest = _client
         .from('match_feed_analysis_snapshots')
         .select('id,scope,league_ids')
         .order('as_of', ascending: false)
         .limit(500);
-    return _loadSelectedPayloads([...coveredRows, ...latestRows]);
+    final pages = await Future.wait([coveredRequest, latestRequest]);
+    return _loadSelectedPayloads([...pages[0], ...pages[1]]);
   }
 
   Future<T> _withSessionRecovery<T>(Future<T> Function() request) async {
@@ -77,10 +124,9 @@ class SupabaseMatchFeedSnapshotRepository
     try {
       await _client.auth.refreshSession();
     } on Object {
-      // Snapshot reads are also available to anonymous users. A session that
-      // cannot be refreshed must not prevent the application from reading the
-      // current public feed with the anonymous key.
-      await _client.auth.signOut();
+      // A transient refresh failure must never sign out the account. The
+      // application's public reader uses an independent anonymous client.
+      rethrow;
     }
   }
 
@@ -92,17 +138,34 @@ class SupabaseMatchFeedSnapshotRepository
     Iterable<Object?> metadataRows,
   ) async {
     final ids = selectMatchFeedSnapshotRowIds(metadataRows);
-    if (ids.isEmpty) {
-      return null;
+    if (ids.isEmpty) return null;
+    final selection = ids.join(',');
+    if (_selection == selection && _merged != null) return _merged;
+    final existing = _pendingSelections[selection];
+    if (existing != null) return existing;
+    final request = _fetchSelectedPayloads(ids, selection);
+    _pendingSelections[selection] = request;
+    try {
+      return await request;
+    } finally {
+      _pendingSelections.remove(selection);
     }
+  }
 
+  Future<Map<String, Object?>?> _fetchSelectedPayloads(
+    List<String> ids,
+    String selection,
+  ) async {
+    final missingIds = ids
+        .where((id) => !_payloadRows.containsKey(id))
+        .toList();
     const chunkSize = 5;
     const concurrentChunks = 3;
     final chunks = <List<String>>[
-      for (var start = 0; start < ids.length; start += chunkSize)
-        ids.skip(start).take(chunkSize).toList(growable: false),
+      for (var start = 0; start < missingIds.length; start += chunkSize)
+        missingIds.skip(start).take(chunkSize).toList(growable: false),
     ];
-    final rowsById = <String, Object?>{};
+    final rowsById = <String, Object?>{..._payloadRows};
 
     for (var start = 0; start < chunks.length; start += concurrentChunks) {
       final pages = await Future.wait(
@@ -126,9 +189,16 @@ class SupabaseMatchFeedSnapshotRepository
       }
     }
 
-    return mergeMatchFeedSnapshotRows(
-      ids.map((id) => rowsById[id]).whereType<Object>(),
-    );
+    if (ids.any((id) => _payloadFromRow(rowsById[id]) == null)) {
+      throw StateError('Incomplete snapshot payload response');
+    }
+    final merged = mergeMatchFeedSnapshotRows(ids.map((id) => rowsById[id]));
+    _payloadRows.clear();
+    // Retain only this selection, bounding memory independently of calendar use.
+    _payloadRows.addEntries(ids.map((id) => MapEntry(id, rowsById[id])));
+    _selection = selection;
+    _merged = merged;
+    return merged;
   }
 }
 

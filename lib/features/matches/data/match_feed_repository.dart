@@ -542,15 +542,18 @@ class UnavailableMatchFeedRepository implements MatchFeedRepository {
 /// remain usable when no snapshot has been published for the chosen day while
 /// ensuring that an older snapshot is never substituted for it.
 class EmptyMatchFeedRepository implements MatchFeedRepository {
-  EmptyMatchFeedRepository({required DateTime date, required this.reason})
-    : snapshotMetadata = MatchFeedSnapshotMetadata(
-        source: 'supabase-empty-day',
-        capturedAt: null,
-        timezone: 'Europe/Paris',
-        matchCount: 0,
-        windowStart: _dateOnly(date),
-        windowEnd: _dateOnly(date),
-      );
+  EmptyMatchFeedRepository({
+    required DateTime date,
+    required this.reason,
+    this.temporaryFailure = false,
+  }) : snapshotMetadata = MatchFeedSnapshotMetadata(
+         source: 'supabase-empty-day',
+         capturedAt: null,
+         timezone: 'Europe/Paris',
+         matchCount: 0,
+         windowStart: _dateOnly(date),
+         windowEnd: _dateOnly(date),
+       );
 
   @override
   MatchDataSourceMode get mode => MatchDataSourceMode.snapshot;
@@ -559,6 +562,7 @@ class EmptyMatchFeedRepository implements MatchFeedRepository {
   final MatchFeedSnapshotMetadata snapshotMetadata;
 
   final String reason;
+  final bool temporaryFailure;
 
   @override
   List<MatchBoardItem> allMatches() => const [];
