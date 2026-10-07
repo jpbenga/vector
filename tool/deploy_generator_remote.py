@@ -70,6 +70,8 @@ def main():
         if "$lector_generator_sql$" in sql:
             raise ValueError("Unexpected SQL delimiter.")
         query("begin;\n" + sql + f"\ninsert into supabase_migrations.schema_migrations(version,name,statements) values('{VERSION}','lector_generator',array[$lector_generator_sql${sql}$lector_generator_sql$]);\ncommit;")
+    source_check = query("select jsonb_array_length(public.lector_generator_sources((now() at time zone 'Europe/Paris')::date,'Europe/Paris')) as source_count", True)
+    print(json.dumps({"generator_source_check": source_check}))
     subprocess.run(["deno", "run", "--allow-env=OPENAI_API_KEY,SUPABASE_ACCESS_TOKEN", "--allow-net=api.openai.com,api.supabase.com", "--allow-write=/tmp/lector-generator-model.txt", "tool/benchmark_lector_generator.ts"], check=True)
     model = Path("/tmp/lector-generator-model.txt").read_text().strip()
     if model not in MODELS:

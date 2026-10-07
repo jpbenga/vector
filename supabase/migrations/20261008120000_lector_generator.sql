@@ -87,7 +87,9 @@ end $$;
 -- Reduced authoritative material: no client supplied prices or analyses.
 -- This works even before the optional delivery-storage migration is installed.
 create function public.lector_generator_sources(p_date date,p_timezone text default 'Europe/Paris') returns jsonb
-language sql stable security definer set search_path=public,pg_temp as $$
+language plpgsql stable security definer set search_path=public,pg_temp as $$
+declare result jsonb; hockey jsonb;
+begin
  with football as (
  select distinct on(scope_key) id,captured_at,payload from match_feed_analysis_snapshots
  where window_start<=p_date and window_end>=p_date and captured_at<=now() and captured_at>now()-interval '36 hours'
@@ -102,10 +104,20 @@ language sql stable security definer set search_path=public,pg_temp as $$
  'odds',coalesce((select jsonb_agg(x) from jsonb_array_elements(coalesce(payload#>'{raw,odds}','[]')) x where x#>>'{fixture,id}' in(select y#>>'{fixture,id}' from jsonb_array_elements(fixtures) y)),'[]'),
  'player_form_radar',coalesce(payload#>'{raw,player_form_radar}','[]')),
  'computed',jsonb_build_object('fixtures',coalesce((select jsonb_agg(x) from jsonb_array_elements(coalesce(payload#>'{computed,fixtures}','[]')) x where x->>'fixture_id' in(select y#>>'{fixture,id}' from jsonb_array_elements(fixtures) y)),'[]'))) payload from f
- union all
- select run_id::text,'hockey',captured_at,jsonb_build_object('items',coalesce((select jsonb_agg(x) from jsonb_array_elements(coalesce(payload->'items','[]')) x where ((x->>'startsAt')::timestamptz at time zone p_timezone)::date=p_date),'[]'),'playerRadar',payload->'playerRadar','competitions',coalesce((select jsonb_agg(jsonb_build_object('id',x->'id','formPhaseVerified',x->'formPhaseVerified')) from jsonb_array_elements(coalesce(payload->'competitions','[]')) x),'[]'))
- from sport_feed_publications where sport='hockey' and captured_at>now()-interval '36 hours'
- ) select coalesce(jsonb_agg(jsonb_build_object('id',id,'sport',sport,'capturedAt',captured_at,'payload',payload)),'[]') from source;
+ ) select coalesce(jsonb_agg(jsonb_build_object('id',id,'sport',sport,'capturedAt',captured_at,'payload',payload)),'[]') into result from source;
+ -- The demo currently delivers hockey as public files. Its optional server
+ -- publication must not be a prerequisite for the football generator.
+ if to_regclass('public.sport_feed_publications') is not null then
+  execute $hockey_publication$
+   select coalesce(jsonb_agg(jsonb_build_object('id',run_id::text,'sport','hockey','capturedAt',captured_at,'payload',
+    jsonb_build_object('items',coalesce((select jsonb_agg(x) from jsonb_array_elements(coalesce(payload->'items','[]')) x where ((x->>'startsAt')::timestamptz at time zone $2)::date=$1),'[]'),
+     'playerRadar',payload->'playerRadar','competitions',coalesce((select jsonb_agg(jsonb_build_object('id',x->'id','formPhaseVerified',x->'formPhaseVerified')) from jsonb_array_elements(coalesce(payload->'competitions','[]')) x),'[]')))),'[]')
+   from public.sport_feed_publications where sport='hockey' and captured_at>now()-interval '36 hours'
+  $hockey_publication$ into hockey using p_date,p_timezone;
+  result:=result||hockey;
+ end if;
+ return result;
+end
 $$;
 revoke all on function public.lector_generator_reserve(uuid,uuid,uuid,integer,integer,integer),public.lector_generator_commit(uuid,uuid,integer,jsonb,uuid,jsonb),public.lector_generator_sources(date,text) from public,anon,authenticated;
 grant execute on function public.lector_generator_reserve(uuid,uuid,uuid,integer,integer,integer),public.lector_generator_commit(uuid,uuid,integer,jsonb,uuid,jsonb),public.lector_generator_sources(date,text) to service_role;

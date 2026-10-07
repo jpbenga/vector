@@ -96,6 +96,7 @@ for (const model of ["gpt-4.1-mini-2025-04-14", "gpt-4.1-nano-2025-04-14"]) {
     inputTokens: 0,
     outputTokens: 0,
     latencyMs: 0,
+    failures: [] as { case: string; reason: string }[],
   };
   for (const test of cases) {
     const start = performance.now();
@@ -109,12 +110,22 @@ for (const model of ["gpt-4.1-mini-2025-04-14", "gpt-4.1-nano-2025-04-14"]) {
         state: null,
       }, { key, model });
       if (test.check(result.intent)) report.passed++;
-      else report.failed++;
+      else {
+        report.failed++;
+        report.failures.push({ case: test.id, reason: "interpretation" });
+      }
       const usage = result.usage as any;
       report.inputTokens += Number(usage?.input_tokens ?? 0);
       report.outputTokens += Number(usage?.output_tokens ?? 0);
-    } catch {
+    } catch (error) {
       report.failed++;
+      // Only bounded classifications; no prompt, provider body or key in logs.
+      const message = error instanceof Error ? error.message : "";
+      const http = message.match(/HTTP (\d{3})/);
+      report.failures.push({
+        case: test.id,
+        reason: http ? `provider_http_${http[1]}` : "request_or_validation",
+      });
     }
     report.latencyMs += Math.round(performance.now() - start);
   }

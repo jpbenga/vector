@@ -34,6 +34,13 @@ n’entre pas dans les suggestions décisives. Une cote absente n’est jamais z
 La découverte autorise les compétitions hors des habitudes, tout en respectant
 les lectures et marchés autorisés. Le mode strict filtre les compétitions.
 
+La démo fournit actuellement le calendrier hockey par fichiers publics ; la
+table de publications hockey n’est pas encore installée dans Supabase. Le
+Générateur ne fait pas confiance aux analyses transmises par le client. Cette
+absence reste explicite et ne bloque pas les sources football ; la lecture des
+publications hockey deviendra disponible lorsque cette collecte serveur sera
+installée.
+
 ### Limites réelles de cette première version
 
 - Les tickets hockey et multisports nécessitent encore une collecte des marchés

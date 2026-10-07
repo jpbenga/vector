@@ -81,6 +81,21 @@ Deno.test("generator migration isolates accounts, reserves quota once and fences
       ),
       /Unauthorized/,
     );
+    await db.exec(`insert into match_feed_analysis_snapshots values(
+      gen_random_uuid(),'league:61',now(),now(),current_date,current_date,
+      jsonb_build_object('raw',jsonb_build_object('fixtures',jsonb_build_array(
+        jsonb_build_object('fixture',jsonb_build_object('id',123,'date',(current_date+interval '12 hours') at time zone 'UTC'))
+      )),'computed',jsonb_build_object('fixtures','[]'::jsonb)))`);
+    const source = async () =>
+      (await db.query<{ v: any }>(
+        "select lector_generator_sources(current_date,'UTC') v",
+      )).rows[0].v;
+    const before = await source();
+    assert.equal(before.length, 1);
+    assert.equal(before[0].sport, "football");
+    assert.equal(before[0].payload.raw.fixtures[0].fixture.id, 123);
+    await db.exec("drop table sport_feed_publications");
+    assert.deepEqual(await source(), before);
     await db.exec("set role anon");
     await assert.rejects(
       db.query("select * from lector_generator_conversations"),
