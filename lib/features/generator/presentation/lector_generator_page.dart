@@ -710,6 +710,8 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
     context,
     ticket,
     selection: selection,
+    inTicket:
+        _conversation?.pending.any((t) => t['id'] == ticket['id']) != true,
     onOpenMatch: widget.onOpenMatch,
     onReplace: (index) => _prompt(
       'Remplace uniquement la sélection ${index + 1} du ticket ${ticket['number']}. Conserve les autres sélections, la mise et les contraintes.',

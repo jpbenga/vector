@@ -161,20 +161,22 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
       body: FutureBuilder<MatchFeedRepository>(
         future: _repository,
         builder: (context, snapshot) {
-          final repository = snapshot.data;
-
-          if (snapshot.hasError ||
-              (repository is EmptyMatchFeedRepository &&
-                  repository.temporaryFailure)) {
-            return _RepositoryLoadError(
-              error:
-                  snapshot.error ??
-                  (repository as EmptyMatchFeedRepository).reason,
-              onRetry: () => setState(() {
-                _repository = _loadRepository(_selectedScoresDate);
-              }),
-            );
-          }
+          final received = snapshot.data;
+          final loadError = snapshot.connectionState == ConnectionState.done
+              ? snapshot.error ??
+                    (received is EmptyMatchFeedRepository &&
+                            received.temporaryFailure
+                        ? received.reason
+                        : null)
+              : null;
+          // Keep the calendar and navigation mounted when a day fails. Never
+          // present the previous day's fixtures as data for the failed day.
+          final repository = loadError != null
+              ? EmptyMatchFeedRepository(
+                  date: _selectedScoresDate,
+                  reason: 'Chargement indisponible',
+                )
+              : received;
 
           if (repository == null) {
             return const Center(
@@ -314,6 +316,13 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
 
           return _ScoresRedesignHome(
             isLoading: snapshot.connectionState == ConnectionState.waiting,
+            loadError: loadError,
+            onRetry: () => setState(() {
+              _repository = _loadRepository(
+                _selectedScoresDate,
+                radar: _scoresMode == _ScoresRedesignMode.radar,
+              );
+            }),
             profile: effectiveProfile,
             identityScope: widget.identityScope,
             matches: analyzedAllMatches,
@@ -331,11 +340,10 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
                 if (widget.repositoryOverride == null &&
                     widget.repositoryForDateLoader == null &&
                     (wasRadar || mode == _ScoresRedesignMode.radar)) {
-                  _repository = mode == _ScoresRedesignMode.radar
-                      ? getIt<MatchFeedRepositoryLoader>().loadRadar(
-                          _selectedScoresDate,
-                        )
-                      : _loadRepository(_selectedScoresDate);
+                  _repository = _loadRepository(
+                    _selectedScoresDate,
+                    radar: mode == _ScoresRedesignMode.radar,
+                  );
                 }
               });
             },
@@ -478,11 +486,10 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
       _selectedScoresDate = selectedDate;
       _hasUserSelectedScoresDate = true;
       if (widget.repositoryOverride == null) {
-        _repository =
-            _scoresMode == _ScoresRedesignMode.radar &&
-                widget.repositoryForDateLoader == null
-            ? getIt<MatchFeedRepositoryLoader>().loadRadar(selectedDate)
-            : _loadRepository(selectedDate);
+        _repository = _loadRepository(
+          selectedDate,
+          radar: _scoresMode == _ScoresRedesignMode.radar,
+        );
       }
     });
     if (widget.repositoryOverride == null &&
@@ -1039,12 +1046,32 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
     );
   }
 
-  Future<MatchFeedRepository> _loadRepository(DateTime date) async {
-    final testLoader = widget.repositoryForDateLoader;
-    if (testLoader != null) {
-      return testLoader(date);
+  Future<MatchFeedRepository> _loadRepository(
+    DateTime date, {
+    bool radar = false,
+  }) {
+    MatchFeedRepository unavailable(Object error) {
+      debugPrint('Calendar load unavailable: $error');
+      return EmptyMatchFeedRepository(
+        date: date,
+        reason: 'La source est momentanément indisponible.',
+        temporaryFailure: true,
+      );
     }
-    return getIt<MatchFeedRepositoryLoader>().load(now: date);
+
+    try {
+      final testLoader = widget.repositoryForDateLoader;
+      final pending = testLoader != null
+          ? testLoader(date)
+          : radar
+          ? getIt<MatchFeedRepositoryLoader>().loadRadar(date)
+          : getIt<MatchFeedRepositoryLoader>().load(now: date);
+      // Attach recovery now, before a frame or a subsequent day selection.
+      // Synchronous cache hits stay synchronous; late failures are handled too.
+      return pending.then((value) => value, onError: unavailable);
+    } catch (error) {
+      return Future.value(unavailable(error));
+    }
   }
 }
 
@@ -1124,6 +1151,8 @@ String _explorationProfileSignature(DecisionProfile profile) {
 class _ScoresRedesignHome extends StatefulWidget {
   const _ScoresRedesignHome({
     this.isLoading = false,
+    this.loadError,
+    required this.onRetry,
     required this.profile,
     required this.identityScope,
     required this.matches,
@@ -1157,6 +1186,8 @@ class _ScoresRedesignHome extends StatefulWidget {
   });
 
   final bool isLoading;
+  final Object? loadError;
+  final VoidCallback onRetry;
   final DecisionProfile profile;
   final IdentityScope identityScope;
   final List<MatchBoardItem> matches;
@@ -1418,6 +1449,11 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                                   ? const ReadingBilanSection()
                                   : widget.isLoading
                                   ? const LinearProgressIndicator()
+                                  : widget.loadError != null
+                                  ? _RepositoryLoadError(
+                                      error: widget.loadError,
+                                      onRetry: widget.onRetry,
+                                    )
                                   : showsRadar
                                   ? PlayerFormRadarPage(
                                       identityScope: widget.identityScope,
@@ -3480,7 +3516,7 @@ class _RepositoryLoadError extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  error?.toString() ?? 'Erreur inconnue.',
+                  'La source est momentanément indisponible. Réessayez ou choisissez une autre journée.',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,

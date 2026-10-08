@@ -52,6 +52,14 @@ class SupabaseMatchFeedSnapshotRepository
 
   @override
   Future<Map<String, Object?>?> loadLatestForDate(DateTime date) async {
+    final overview = await loadPublishedForDate(date);
+    if (overview != null) return overview;
+    return _withSessionRecovery(() => _loadLatestForDate(date));
+  }
+
+  /// Background warming must never fall back to a full archive download.
+  /// A missing publication remains unavailable, rather than an empty calendar.
+  Future<Map<String, Object?>?> loadPublishedForDate(DateTime date) async {
     final overview = await delivery?.loadDay('football', date);
     if (overview != null) {
       final key = PublishedFeedDelivery.dateKey(date);
@@ -62,7 +70,7 @@ class SupabaseMatchFeedSnapshotRepository
       }
       return overview;
     }
-    return _withSessionRecovery(() => _loadLatestForDate(date));
+    return null;
   }
 
   Future<Map<String, Object?>?> _loadLatestForDate(DateTime date) async {
@@ -169,15 +177,7 @@ class SupabaseMatchFeedSnapshotRepository
 
     for (var start = 0; start < chunks.length; start += concurrentChunks) {
       final pages = await Future.wait(
-        chunks
-            .skip(start)
-            .take(concurrentChunks)
-            .map(
-              (chunk) async => await _client
-                  .from('match_feed_analysis_snapshots')
-                  .select('id,scope,league_ids,payload')
-                  .inFilter('id', chunk),
-            ),
+        chunks.skip(start).take(concurrentChunks).map(_fetchPayloadChunk),
       );
       for (final page in pages) {
         for (final row in page) {
@@ -199,6 +199,27 @@ class SupabaseMatchFeedSnapshotRepository
     _selection = selection;
     _merged = merged;
     return merged;
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchPayloadChunk(
+    List<String> ids,
+  ) async {
+    try {
+      return await _client
+          .from('match_feed_analysis_snapshots')
+          .select('id,scope,league_ids,payload')
+          .inFilter('id', ids)
+          .timeout(const Duration(seconds: 30));
+    } on PostgrestException catch (error) {
+      // Splitting a timed-out SQL response lowers the work per statement;
+      // retrying the same large response would repeat the server timeout.
+      if (error.code != '57014' || ids.length == 1) rethrow;
+      final rows = <Map<String, dynamic>>[];
+      for (final id in ids) {
+        rows.addAll(await _fetchPayloadChunk([id]));
+      }
+      return rows;
+    }
   }
 }
 

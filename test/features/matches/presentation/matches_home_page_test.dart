@@ -31,9 +31,96 @@ import 'package:copilot/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
+  testWidgets('a failed day keeps navigation and recovers on another day', (
+    tester,
+  ) async {
+    final today = _dayOnly(DateTime.now());
+    final tomorrow = DateTime(today.year, today.month, today.day + 1);
+    await _pumpPage(
+      tester,
+      repositoryForDateLoader: (date) async {
+        if (_dayOnly(date) == tomorrow) {
+          throw StateError('SQL statement timeout');
+        }
+        return _FakeMatchFeedRepository(
+          opportunities: const [],
+          matches: [
+            _match(
+              id: 'recover-fixture',
+              homeName: 'Recovered FC',
+              awayName: 'Away FC',
+              kickoff: _relativeKickoff(0, hour: 20),
+            ),
+          ],
+        );
+      },
+    );
+    await tester.tap(find.text('Tous'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text(_calendarLabel(tomorrow)));
+    await tester.tap(find.text(_calendarLabel(tomorrow)));
+    await tester.pumpAndSettle();
+    expect(find.text('Impossible de charger les rencontres'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('home-calendar-navigation')),
+      findsOneWidget,
+    );
+    expect(find.text('Tous'), findsOneWidget);
+    expect(find.text('Recovered FC'), findsNothing);
+    await tester.scrollUntilVisible(
+      find.text(_calendarLabel(today)),
+      -80,
+      scrollable: find.descendant(
+        of: find.byKey(const ValueKey('home-calendar-day-strip')),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    await tester.tap(find.text(_calendarLabel(today)));
+    await tester.pumpAndSettle();
+    expect(find.text('Impossible de charger les rencontres'), findsNothing);
+    await tester.tap(find.text('France'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ligue 1'));
+    await tester.pumpAndSettle();
+    expect(find.text('Recovered FC'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('a late failed request cannot replace a newer calendar day', (
+    tester,
+  ) async {
+    final today = _dayOnly(DateTime.now());
+    final tomorrow = DateTime(today.year, today.month, today.day + 1);
+    final delayed = Completer<MatchFeedRepository>();
+    await _pumpPage(
+      tester,
+      repositoryForDateLoader: (date) => _dayOnly(date) == tomorrow
+          ? delayed.future
+          : Future.value(
+              const _FakeMatchFeedRepository(opportunities: [], matches: []),
+            ),
+    );
+    await tester.ensureVisible(find.text(_calendarLabel(tomorrow)));
+    await tester.tap(find.text(_calendarLabel(tomorrow)));
+    await tester.pump();
+    await tester.scrollUntilVisible(
+      find.text(_calendarLabel(today)),
+      -80,
+      scrollable: find.descendant(
+        of: find.byKey(const ValueKey('home-calendar-day-strip')),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    await tester.tap(find.text(_calendarLabel(today)));
+    await tester.pumpAndSettle();
+    delayed.completeError(StateError('old day timeout'));
+    await tester.pumpAndSettle();
+    expect(find.text('Impossible de charger les rencontres'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets(
     'a first transient failure offers retry instead of an empty calendar',
     (tester) async {

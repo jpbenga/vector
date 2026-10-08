@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:copilot/core/data/published_feed_delivery.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -11,6 +12,101 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test(
+    'a missing day publication does not download full snapshots during warming',
+    () async {
+      final requests = <String>[];
+      final transport = MockClient((request) async {
+        requests.add(request.url.path);
+        return http.Response(
+          '[]',
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      });
+      final client = SupabaseClient(
+        'https://example.test',
+        'public-key',
+        httpClient: transport,
+      );
+      addTearDown(client.dispose);
+      final reader = SupabaseMatchFeedSnapshotRepository(
+        client,
+        delivery: PublishedFeedDelivery(
+          projectUrl: Uri.parse('https://example.test'),
+          publicKey: 'public-key',
+          localOffset: (_) => const Duration(hours: 2),
+          client: transport,
+        ),
+      );
+      expect(await reader.loadPublishedForDate(DateTime(2026, 10, 8)), isNull);
+      expect(requests, ['/rest/v1/sport_feed_delivery_heads']);
+    },
+  );
+  test(
+    'a timed-out grouped payload response recovers with individual statements',
+    () async {
+      final calls = <String>[];
+      final metadata = [
+        for (var i = 1; i <= 2; i++)
+          {
+            'id': 'snapshot-$i',
+            'scope': 'league',
+            'league_ids': [i],
+          },
+      ];
+      final client = SupabaseClient(
+        'https://example.test',
+        'public-key',
+        httpClient: MockClient((request) async {
+          if (!request.url.queryParameters['select']!.contains('payload')) {
+            return http.Response(
+              jsonEncode(metadata),
+              200,
+              headers: {'content-type': 'application/json'},
+              request: request,
+            );
+          }
+          final ids = request.url.queryParameters['id']!;
+          calls.add(ids);
+          if (ids.contains('snapshot-1') && ids.contains('snapshot-2')) {
+            return http.Response(
+              jsonEncode({
+                'code': '57014',
+                'message': 'canceling statement due to statement timeout',
+              }),
+              500,
+              headers: {'content-type': 'application/json'},
+              request: request,
+            );
+          }
+          return http.Response(
+            jsonEncode([
+              for (final row in metadata)
+                if (ids.contains(row['id'] as String))
+                  {
+                    ...row,
+                    'payload': {
+                      'schema_version': 1,
+                      'raw': {'fixtures': <Object>[]},
+                      'computed': {'fixtures': <Object>[]},
+                    },
+                  },
+            ]),
+            200,
+            headers: {'content-type': 'application/json'},
+            request: request,
+          );
+        }),
+      );
+      addTearDown(client.dispose);
+      final reader = SupabaseMatchFeedSnapshotRepository(client);
+      expect(await reader.loadLatestForDate(DateTime(2026, 10, 8)), isNotNull);
+      expect(calls, hasLength(3));
+      await reader.loadLatestForDate(DateTime(2026, 10, 8));
+      expect(calls, hasLength(3));
+    },
+  );
   test(
     'public reader downloads an immutable payload once and rejects partial responses',
     () async {

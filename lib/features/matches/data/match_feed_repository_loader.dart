@@ -64,17 +64,46 @@ class MatchFeedRepositoryLoader {
     _navigation.preload([
       for (final day in days.take(3))
         () async {
-          await load(now: day);
+          await _prefetchPublishedDay(day);
         },
       if (days.isNotEmpty)
         () async {
-          await loadRadar(date);
+          final source = _defaultDataSource;
+          if (source is SupabaseMatchFeedSnapshotRepository) {
+            final payload = await source.loadRadar(date);
+            if (payload != null) {
+              await _navigation.read(
+                _radarKey(date),
+                () async => _parsed[payload] ??= factory.create(
+                  MatchDataSourceMode.snapshot,
+                  snapshot: payload,
+                ),
+                isUsable: (repository) => _usable(repository, date),
+                ttl: const Duration(minutes: 10),
+              );
+            }
+          }
         },
       for (final day in days.skip(3))
         () async {
-          await load(now: day);
+          await _prefetchPublishedDay(day);
         },
     ]);
+  }
+
+  Future<void> _prefetchPublishedDay(DateTime day) async {
+    final source = _defaultDataSource ??= _publicSource();
+    if (source is! SupabaseMatchFeedSnapshotRepository) return;
+    final payload = await source.loadPublishedForDate(day);
+    if (payload == null) return;
+    await _navigation.read(
+      'day:${_dateKey(day)}',
+      () async => _parsed[payload] ??= factory.create(
+        MatchDataSourceMode.snapshot,
+        snapshot: payload,
+      ),
+      isUsable: (repository) => _usable(repository, day),
+    );
   }
 
   Future<MatchFeedRepository> _loadUncached({DateTime? now}) async {
@@ -196,13 +225,16 @@ class MatchFeedRepositoryLoader {
   }
 
   Future<MatchFeedRepository> loadRadar(DateTime date) => _navigation.read(
-    date.isBefore(DateTime(clock().year, clock().month, clock().day))
-        ? 'radar:${_dateKey(date)}'
-        : 'radar:current',
+    _radarKey(date),
     () => _loadRadarUncached(date),
     isUsable: (repository) => _usable(repository, date),
     ttl: const Duration(minutes: 10),
   );
+
+  String _radarKey(DateTime date) =>
+      date.isBefore(DateTime(clock().year, clock().month, clock().day))
+      ? 'radar:${_dateKey(date)}'
+      : 'radar:current';
 
   Future<MatchFeedRepository> _loadRadarUncached(DateTime date) async {
     final source = remoteDataSource ?? (_defaultDataSource ??= _publicSource());

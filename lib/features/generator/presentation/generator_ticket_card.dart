@@ -6,22 +6,10 @@ import '../../../core/widgets/lector_brand_mark.dart';
 import '../../../core/widgets/lector_match_card.dart';
 import '../../../core/widgets/sports_asset_badge.dart';
 import '../domain/generator_context.dart';
-
-String generatorMoney(Object? amount) =>
-    NumberFormat.currency(locale: 'fr_FR', symbol: '€').format(amount ?? 0);
-String generatorOdds(Object? amount) =>
-    NumberFormat('0.00', 'fr').format(amount ?? 0);
-String generatorKickoff(Map<String, dynamic> pick) {
-  final date = DateTime.tryParse(pick['kickoff']?.toString() ?? '')?.toLocal();
-  return date == null ? '' : DateFormat('EEE d · HH:mm', 'fr').format(date);
-}
-
-List<Map<String, dynamic>> generatorEvidence(
-  Map<String, dynamic> pick,
-  String source,
-) => generatorRows(
-  pick['evidence'],
-).where((e) => e['source'] == source && e['reusesReading'] != true).toList();
+import 'generator_formatters.dart';
+import 'generator_selection_sheet.dart';
+export 'generator_formatters.dart';
+export 'generator_selection_sheet.dart' show GeneratorSelectionEvidence;
 
 class GeneratorAvatar extends StatelessWidget {
   const GeneratorAvatar({this.size = 36, super.key});
@@ -542,278 +530,118 @@ Future<void> showGeneratorTicketDetail(
   BuildContext context,
   Map<String, dynamic> ticket, {
   int? selection,
+  bool inTicket = true,
   required ValueChanged<Map<String, dynamic>> onOpenMatch,
   required ValueChanged<int> onReplace,
-}) => showModalBottomSheet<void>(
-  context: context,
-  isScrollControlled: true,
-  showDragHandle: true,
-  useSafeArea: true,
-  builder: (sheetContext) => SafeArea(
-    child: SizedBox(
-      height: MediaQuery.sizeOf(sheetContext).height * .86,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-        children: [
-          Row(
-            children: [
-              const GeneratorAvatar(),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Ticket ${ticket['number']} · détail',
-                  style: Theme.of(context).textTheme.titleLarge,
+}) {
+  final picks = generatorRows(ticket['picks']);
+  if (selection != null && selection >= 0 && selection < picks.length) {
+    return showGeneratorSelectionDetail(
+      context,
+      pick: picks[selection],
+      inTicket: inTicket,
+      onOpenMatch: () => onOpenMatch(picks[selection]),
+      onReplace: () => onReplace(selection),
+    );
+  }
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    useSafeArea: true,
+    builder: (sheetContext) => SafeArea(
+      child: SizedBox(
+        height: MediaQuery.sizeOf(sheetContext).height * .86,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+          children: [
+            Row(
+              children: [
+                const GeneratorAvatar(),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Ticket ${ticket['number']} · détail',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
                 ),
-              ),
-              IconButton(
-                tooltip: 'Fermer le détail',
-                onPressed: () => Navigator.pop(sheetContext),
-                icon: const Icon(Icons.close_rounded),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          LectorTicketSummary(ticket: ticket),
-          const SizedBox(height: 8),
-          Text(
-            'Bénéfice net si toutes les sélections gagnent : ${generatorMoney(ticket['netProfit'])}',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 12),
-          for (final entry in generatorRows(ticket['picks']).indexed)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: LectorMatchCardFrame(
-                child: ExpansionTile(
-                  key: ValueKey('${ticket['id']}-detail-${entry.$1}'),
-                  tilePadding: EdgeInsets.zero,
-                  childrenPadding: EdgeInsets.zero,
-                  initiallyExpanded:
-                      selection == entry.$1 ||
-                      (selection == null && entry.$1 == 0),
-                  title: Text(
-                    '${entry.$2['home']} — ${entry.$2['away']}',
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                  subtitle: Text(
-                    '${entry.$2['selection']} · ${generatorOdds(entry.$2['odds'])}',
-                  ),
-                  children: [
-                    GeneratorSelectionEvidence(pick: entry.$2),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        TextButton.icon(
-                          onPressed: () {
-                            Navigator.pop(sheetContext);
-                            onOpenMatch(entry.$2);
-                          },
-                          icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                          label: const Text('Voir les données du match'),
-                        ),
-                        TextButton.icon(
-                          onPressed: () {
-                            Navigator.pop(sheetContext);
-                            onReplace(entry.$1);
-                          },
-                          icon: const Icon(Icons.swap_horiz_rounded, size: 18),
-                          label: const Text('Remplacer cette sélection'),
-                        ),
-                      ],
+                IconButton(
+                  tooltip: 'Fermer le détail',
+                  onPressed: () => Navigator.pop(sheetContext),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            LectorTicketSummary(ticket: ticket),
+            const SizedBox(height: 8),
+            Text(
+              'Bénéfice net si toutes les sélections gagnent : ${generatorMoney(ticket['netProfit'])}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            for (final entry in generatorRows(ticket['picks']).indexed)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: LectorMatchCardFrame(
+                  child: ExpansionTile(
+                    key: ValueKey('${ticket['id']}-detail-${entry.$1}'),
+                    tilePadding: EdgeInsets.zero,
+                    childrenPadding: EdgeInsets.zero,
+                    initiallyExpanded:
+                        selection == entry.$1 ||
+                        (selection == null && entry.$1 == 0),
+                    title: Text(
+                      '${entry.$2['home']} — ${entry.$2['away']}',
+                      style: Theme.of(context).textTheme.titleSmall,
                     ),
-                  ],
+                    subtitle: Text(
+                      '${entry.$2['selection']} · ${generatorOdds(entry.$2['odds'])}',
+                    ),
+                    children: [
+                      GeneratorSelectionEvidence(pick: entry.$2),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          TextButton.icon(
+                            onPressed: () {
+                              Navigator.pop(sheetContext);
+                              onOpenMatch(entry.$2);
+                            },
+                            icon: const Icon(
+                              Icons.open_in_new_rounded,
+                              size: 18,
+                            ),
+                            label: const Text('Voir les données du match'),
+                          ),
+                          TextButton.icon(
+                            onPressed: () {
+                              Navigator.pop(sheetContext);
+                              onReplace(entry.$1);
+                            },
+                            icon: const Icon(
+                              Icons.swap_horiz_rounded,
+                              size: 18,
+                            ),
+                            label: const Text('Remplacer cette sélection'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          const SizedBox(height: 4),
-          Text(
-            'Brouillon de composition. Le retour potentiel inclut la mise, sans garantie. Aucun pari n’est placé.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: context.textColors.secondary,
-            ),
-          ),
-        ],
-      ),
-    ),
-  ),
-);
-
-class GeneratorSelectionEvidence extends StatelessWidget {
-  const GeneratorSelectionEvidence({required this.pick, super.key});
-  final Map<String, dynamic> pick;
-  @override
-  Widget build(BuildContext context) {
-    final readings = generatorEvidence(pick, 'reading');
-    final support = readings
-        .where((e) => e['supportsMarket'] != false)
-        .toList();
-    final contextReadings = readings
-        .where((e) => e['supportsMarket'] == false)
-        .toList();
-    final radar = generatorEvidence(pick, 'radar');
-    final shared = generatorRows(
-      pick['evidence'],
-    ).any((e) => e['reusesReading'] == true);
-    final cautions = (pick['warnings'] as List? ?? [])
-        .map((e) => e.toString())
-        .where(
-          (w) =>
-              !w.contains('preuve indépendante') &&
-              !w.contains('se recouper') &&
-              !w.contains('réutilise ses lectures'),
-        )
-        .toSet();
-    final at = DateTime.tryParse(pick['oddsAt']?.toString() ?? '')?.toLocal();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '${pick['sport'] == 'hockey' ? 'Hockey' : 'Football'} · ${pick['competition']} · ${generatorKickoff(pick)}',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          '${pick['market']} · ${pick['selection']}',
-          style: Theme.of(context).textTheme.titleSmall,
-        ),
-        Text(
-          '${pick['bookmaker']} · cote ${generatorOdds(pick['odds'])}${at == null ? '' : ' · relevée ${DateFormat('d/MM HH:mm', 'fr').format(at)}'}',
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: context.textColors.secondary),
-        ),
-        const Divider(height: 24),
-        Text(
-          'Pourquoi ce match ?',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Lectures qui soutiennent ce marché',
-          style: Theme.of(
-            context,
-          ).textTheme.labelMedium?.copyWith(color: context.brand.accent),
-        ),
-        for (final evidence in support) _EvidenceFact(evidence: evidence),
-        if (contextReadings.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          Text(
-            'Contexte complémentaire',
-            style: Theme.of(context).textTheme.labelMedium,
-          ),
-          for (final evidence in contextReadings)
-            _EvidenceFact(evidence: evidence),
-        ],
-        if (radar.isNotEmpty) ...[
-          const Divider(height: 24),
-          Text(
-            'Radar · éléments complémentaires',
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
-          for (final evidence in radar.take(3))
-            _EvidenceFact(evidence: evidence),
-        ],
-        if (shared)
-          Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: Text(
-              'Le Radar équipes reprend la même série que les lectures de forme.',
+            const SizedBox(height: 4),
+            Text(
+              'Brouillon de composition. Le retour potentiel inclut la mise, sans garantie. Aucun pari n’est placé.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: context.textColors.secondary,
               ),
             ),
-          ),
-        const SizedBox(height: 12),
-        ExpansionTile(
-          tilePadding: EdgeInsets.zero,
-          title: Text(
-            'Point de vigilance',
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
-          children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Les signaux décrivent les données disponibles ; ils ne constituent pas une probabilité de réussite. Un joueur en forme ne justifie pas, à lui seul, le résultat du match.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
-            for (final warning in cautions)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  warning,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
           ],
         ),
-      ],
-    );
-  }
-}
-
-class _EvidenceFact extends StatelessWidget {
-  const _EvidenceFact({required this.evidence});
-  final Map<String, dynamic> evidence;
-  @override
-  Widget build(BuildContext context) {
-    final metrics = generatorRows(
-      evidence['metrics'],
-    ).where((m) => m['label']?.toString().isNotEmpty == true).toList();
-    final text = evidence['text']?.toString() ?? '';
-    return Padding(
-      padding: const EdgeInsets.only(top: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (evidence['family'] == 'player') ...[
-            ClipOval(
-              child: _Asset(
-                url: evidence['photo']?.toString(),
-                size: 32,
-                icon: Icons.person_outline_rounded,
-              ),
-            ),
-            const SizedBox(width: 8),
-          ],
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  evidence['label']?.toString() ?? '',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                if (metrics.isNotEmpty)
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      for (final metric in metrics)
-                        Text(
-                          '${metric['label']}${metric['value']?.toString().isNotEmpty == true ? ' · ${metric['value']}' : ''}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                    ],
-                  )
-                else if (text.isNotEmpty)
-                  Text(
-                    text.split(' Un signal').first.split(' Le Radar').first,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                Text(
-                  'Échantillon : ${evidence['sample']} matchs',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: context.textColors.secondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
-    );
-  }
+    ),
+  );
 }

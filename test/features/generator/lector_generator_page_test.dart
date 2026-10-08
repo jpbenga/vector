@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:copilot/core/theme/app_theme.dart';
 import 'package:copilot/features/generator/presentation/generator_ticket_card.dart';
+import 'package:copilot/features/generator/presentation/generator_selection_sheet.dart';
 import 'package:copilot/features/generator/data/generator_voice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -53,6 +54,143 @@ class DelayedGenerator extends FakeGenerator {
 
 void main() {
   setUpAll(() => initializeDateFormatting('fr'));
+  for (final width in [320.0, 390.0]) {
+    testWidgets('selection detail keeps actions reachable at width $width', (
+      tester,
+    ) async {
+      if (Platform.environment['LECTOR_CAPTURE_UI'] == 'true') {
+        await tester.runAsync(() async {
+          final font = FontLoader('Inter')
+            ..addFont(
+              File(
+                '/System/Library/Fonts/Supplemental/Arial.ttf',
+              ).readAsBytes().then(ByteData.sublistView),
+            );
+          final icons = FontLoader('MaterialIcons')
+            ..addFont(
+              File(
+                '/usr/local/share/flutter/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf',
+              ).readAsBytes().then(ByteData.sublistView),
+            );
+          await font.load();
+          await icons.load();
+        });
+      }
+      tester.view.physicalSize = Size(width, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      var opened = 0, replaced = 0;
+      final pick = generatorRows(testTicket(1)['picks']).single;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: CopilotTheme.dark,
+          home: Scaffold(
+            body: SafeArea(
+              child: RepaintBoundary(
+                key: const ValueKey('selection-capture'),
+                child: ColoredBox(
+                  color: CopilotTheme.dark.scaffoldBackgroundColor,
+                  child: GeneratorSelectionSheet(
+                    pick: pick,
+                    onClose: () {},
+                    onOpenMatch: () => opened++,
+                    onReplace: () => replaced++,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Dans le ticket'), findsOneWidget);
+      if (width == 390 && Platform.environment['LECTOR_CAPTURE_UI'] == 'true') {
+        final boundary = tester.renderObject<RenderRepaintBoundary>(
+          find.byKey(const ValueKey('selection-capture')),
+        );
+        await tester.runAsync(() async {
+          final image = await boundary.toImage(pixelRatio: 2);
+          final data = await image.toByteData(format: ui.ImageByteFormat.png);
+          await File(
+            '/private/tmp/lector-selection-detail-mobile.png',
+          ).writeAsBytes(data!.buffer.asUint8List());
+          image.dispose();
+        });
+      }
+      expect(find.text('Pourquoi ce match ?'), findsNothing);
+      final fixed = tester.getRect(
+        find.byKey(const ValueKey('selection-fixed-actions')),
+      );
+      await tester.drag(
+        find.byKey(const ValueKey('generator-selection-scroll')),
+        const Offset(0, -500),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester.getRect(find.byKey(const ValueKey('selection-fixed-actions'))),
+        fixed,
+      );
+      await tester.tap(find.text('Voir les données du match'));
+      await tester.tap(find.text('Remplacer cette sélection'));
+      expect((opened, replaced), (1, 1));
+      for (final (tab, label) in [
+        (1, 'Données de la sélection'),
+        (2, 'Signaux Radar complémentaires'),
+        (3, 'Marché retenu'),
+      ]) {
+        await tester.drag(
+          find.byKey(const ValueKey('generator-selection-scroll')),
+          const Offset(0, 2000),
+        );
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.byKey(ValueKey('selection-tab-$tab')));
+        await tester.tap(find.byKey(ValueKey('selection-tab-$tab')));
+        await tester.pumpAndSettle();
+        expect(find.text(label), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      }
+    });
+  }
+  testWidgets(
+    'a chosen selection opens its own sheet and preserves evidence separation',
+    (tester) async {
+      final ticket = testTicket(1);
+      final second = generatorRows(testTicket(2)['picks']).single;
+      ticket['picks'] = [...generatorRows(ticket['picks']), second];
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: CopilotTheme.dark,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => showGeneratorTicketDetail(
+                  context,
+                  ticket,
+                  selection: 1,
+                  inTicket: false,
+                  onOpenMatch: (_) {},
+                  onReplace: (_) {},
+                ),
+                child: const Text('Détail'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Détail'));
+      await tester.pumpAndSettle();
+      expect(find.text('Lyon'), findsOneWidget);
+      expect(find.text('Lille'), findsNothing);
+      expect(find.text('Changement proposé'), findsOneWidget);
+      expect(find.text('Solide à domicile'), findsOneWidget);
+      await tester.ensureVisible(find.text('Solide à domicile'));
+      await tester.tap(find.text('Solide à domicile'));
+      await tester.pumpAndSettle();
+      expect(find.text('3 victoires consécutives'), findsWidgets);
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets(
     'mobile generator prepares without an AI turn and sends the effective explorer context',
     (tester) async {
@@ -217,7 +355,6 @@ void main() {
       await tester.ensureVisible(find.text('Voir le détail du ticket'));
       await tester.tap(find.text('Voir le détail du ticket'));
       await tester.pumpAndSettle();
-      expect(find.text('Pourquoi ce match ?'), findsOneWidget);
       expect(find.text('Lectures qui soutiennent ce marché'), findsOneWidget);
       expect(find.text('Contexte complémentaire'), findsOneWidget);
       expect(find.text('3 victoires consécutives'), findsOneWidget);

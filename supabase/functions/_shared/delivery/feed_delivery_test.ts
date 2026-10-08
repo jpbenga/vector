@@ -48,6 +48,20 @@ Deno.test("football daily delivery retains all card odds and server readings wit
     football.computed.fixtures[0],
   ]);
   assert.ok(artifacts.has("delivery/football/source/context.json"));
+  const radar = artifacts.get("delivery/football/source/radar.json")!;
+  assert.equal((radar.raw as Record<string, unknown>).standings, undefined);
+  assert.deepEqual(
+    (radar.computed as { fixtures: Record<string, unknown>[] }).fixtures[0]
+      .readings,
+    football.computed.fixtures[0].readings,
+  );
+  assert.deepEqual(
+    (radar.raw as Record<string, unknown>).recent_league_matches,
+    football.raw.recent_league_matches,
+  );
+  assert.deepEqual((day.delivery as Record<string, unknown>).radarPaths, [
+    "delivery/football/source/radar.json",
+  ]);
 });
 Deno.test("hockey overview keeps reading facts and defers event logs, preserving originals", () => {
   const full = structuredClone(hockey) as unknown as Record<string, unknown>;

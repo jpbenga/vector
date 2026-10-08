@@ -242,7 +242,9 @@ export function dayOverview(
       sport,
       day,
       detailPaths: paths,
-      radarPaths: parts.map((p) => p.fullPath),
+      radarPaths: parts.map((p) =>
+        object(p.overview.delivery_part).radarPath ?? p.fullPath
+      ),
     },
   };
 }
@@ -298,6 +300,9 @@ export function partArtifacts(
         context: `${root}context.json`,
       };
     }
+    // Radar needs card markets, computed readings and activity histories.
+    // Full bookmaker catalogues and ranking tables belong in match details.
+    artifacts.set(`${root}radar.json`, overviewPart(sport, full));
     artifacts.set(`${root}full.json`, full);
   } else {
     for (const c of rows(full.competitions)) {
@@ -333,7 +338,15 @@ export function partArtifacts(
     artifacts.set(`${root}full.json`, overviewPart(sport, full));
   }
   return {
-    overview: { ...overviewPart(sport, full), delivery_part: { detailPaths } },
+    overview: {
+      ...overviewPart(sport, full),
+      delivery_part: {
+        detailPaths,
+        radarPath: sport === "football"
+          ? `${root}radar.json`
+          : `${root}full.json`,
+      },
+    },
     artifacts,
   };
 }
