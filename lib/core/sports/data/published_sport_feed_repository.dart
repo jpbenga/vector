@@ -110,17 +110,13 @@ class PublishedSportFeedRepository
     if (delivery == null) return;
     final days = navigationFeedDays(date, _navigation.clock());
     _navigation.preload([
-      for (final day in days.take(3))
+      for (final day in days)
         () async {
           await load(day);
         },
       if (days.isNotEmpty)
         () async {
           await loadRadar(date);
-        },
-      for (final day in days.skip(3))
-        () async {
-          await load(day);
         },
     ]);
   }

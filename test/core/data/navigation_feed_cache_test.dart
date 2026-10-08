@@ -31,12 +31,31 @@ void main() {
       DateTime(2026, 10, 20),
       DateTime(2026, 10, 7),
     );
-    expect(days.map((d) => d.day), [19, 18, 17]);
+    expect(days.map((d) => d.day), [
+      for (var day = 19; day >= 1; day--) day,
+      30,
+    ]);
     expect(
       navigationFeedDays(DateTime(2026, 10, 21), DateTime(2026, 10, 7)),
       isEmpty,
     );
   });
+
+  test(
+    'past days are warmed alongside future days, including the third day',
+    () {
+      final days = navigationFeedDays(
+        DateTime(2026, 10, 8),
+        DateTime(2026, 10, 8),
+      );
+      expect(days.take(6).map((day) => day.day), [9, 7, 10, 6, 11, 5]);
+      expect(days.length, 20);
+      expect(days.map((day) => day.day).toSet(), {
+        for (var day = 1; day <= 21; day++)
+          if (day != 8) day,
+      });
+    },
+  );
 
   test(
     'warm navigation is synchronous while expired data revalidates silently',

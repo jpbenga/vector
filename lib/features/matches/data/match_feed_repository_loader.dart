@@ -62,7 +62,7 @@ class MatchFeedRepositoryLoader {
     if (remoteDataSource != null) return;
     final days = navigationFeedDays(date, clock());
     _navigation.preload([
-      for (final day in days.take(3))
+      for (final day in days)
         () async {
           await _prefetchPublishedDay(day);
         },
@@ -83,10 +83,6 @@ class MatchFeedRepositoryLoader {
               );
             }
           }
-        },
-      for (final day in days.skip(3))
-        () async {
-          await _prefetchPublishedDay(day);
         },
     ]);
   }

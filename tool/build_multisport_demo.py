@@ -1,7 +1,9 @@
 """Build the real multisport app with a public, self-contained hockey compact."""
 import json
+import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -39,9 +41,16 @@ if not REUSE_DELIVERY:
     sources = Path('/private/tmp/lector-public-delivery-sources.json')
     if not sources.exists():
         raise SystemExit('Export public manquant : exécuter tool/fetch_public_delivery_sources.py')
-    subprocess.run(['deno', 'run', '--allow-read', '--allow-write',
-        str(ROOT / 'tool/build_feed_delivery_demo.ts'), str(sources), str(PUBLICATION), str(OUTPUT)],
-        cwd=ROOT, check=True)
+    # Replace generated delivery only after a complete build. Repeated builds
+    # must not upload abandoned archives or keep obsolete full JSON files.
+    with tempfile.TemporaryDirectory(prefix='lector-delivery-', dir=OUTPUT.parent) as staging:
+        subprocess.run(['deno', 'run', '--allow-read', '--allow-write',
+            str(ROOT / 'tool/build_feed_delivery_demo.ts'), str(sources), str(PUBLICATION), staging],
+            cwd=ROOT, check=True)
+        target = OUTPUT / 'delivery'
+        if target.exists():
+            shutil.rmtree(target)
+        shutil.move(str(Path(staging) / 'delivery'), target)
 elif not (OUTPUT / 'delivery/metrics.json').exists():
     raise SystemExit('Les fichiers de livraison de la démo ont disparu')
 (OUTPUT / 'data').mkdir(exist_ok=True)

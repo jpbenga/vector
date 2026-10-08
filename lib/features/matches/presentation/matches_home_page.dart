@@ -123,7 +123,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
     if (widget.repositoryOverride == null &&
         widget.repositoryForDateLoader == null) {
       _repository.then((_) {
-        if (mounted) {
+        if (mounted && !_hasUserSelectedScoresDate) {
           getIt<MatchFeedRepositoryLoader>().prefetch(_selectedScoresDate);
         }
       }, onError: (Object _) {});
@@ -495,7 +495,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
     if (widget.repositoryOverride == null &&
         widget.repositoryForDateLoader == null) {
       _repository.then((_) {
-        if (mounted) {
+        if (mounted && _isSameCalendarDay(_selectedScoresDate, selectedDate)) {
           getIt<MatchFeedRepositoryLoader>().prefetch(selectedDate);
         }
       }, onError: (Object _) {});

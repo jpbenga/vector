@@ -58,3 +58,6 @@ jobs:
 
       - name: Test remote deployment guards
         run: python3 -m unittest discover -s tool/tests -p 'test_deploy*remote.py'
+
+      - name: Test historical demo publications
+        run: deno test --allow-read --allow-write tool/tests/feed_delivery_demo_test.ts

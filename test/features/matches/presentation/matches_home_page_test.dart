@@ -1,4 +1,5 @@
 import 'package:copilot/core/widgets/lector_standing_table.dart';
+import 'package:copilot/core/widgets/lector_calendar.dart';
 import 'package:copilot/core/auth/supabase_auth_controller.dart';
 import 'package:copilot/core/config/app_config.dart';
 import 'package:copilot/core/config/app_environment.dart';
@@ -35,6 +36,49 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
+  testWidgets('today to three days ago keeps the chosen date while loading', (
+    tester,
+  ) async {
+    final today = _dayOnly(DateTime.now());
+    final past = DateTime(today.year, today.month, today.day - 3);
+    final pending = Completer<MatchFeedRepository>();
+    final current = _FakeMatchFeedRepository(
+      opportunities: const [],
+      matches: [_match(kickoff: _relativeKickoff(0, hour: 20))],
+      metadata: MatchFeedSnapshotMetadata(
+        source: 'compact',
+        capturedAt: DateTime.now(),
+        timezone: 'Europe/Paris',
+        matchCount: 1,
+        windowStart: today,
+        windowEnd: today,
+      ),
+    );
+    await _pumpPage(
+      tester,
+      repositoryForDateLoader: (date) =>
+          _dayOnly(date) == past ? pending.future : Future.value(current),
+    );
+    await tester.ensureVisible(find.text(_calendarLabel(past)));
+    await tester.tap(find.text(_calendarLabel(past)));
+    await tester.pump(const Duration(seconds: 1));
+    expect(
+      tester.widget<CopilotCalendar>(find.byType(CopilotCalendar)).selectedDate,
+      past,
+    );
+    pending.complete(
+      _FakeMatchFeedRepository(
+        opportunities: const [],
+        matches: [_match(kickoff: _relativeKickoff(-3, hour: 20))],
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<CopilotCalendar>(find.byType(CopilotCalendar)).selectedDate,
+      past,
+    );
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('a failed day keeps navigation and recovers on another day', (
     tester,
   ) async {

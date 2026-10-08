@@ -24,7 +24,7 @@ Une nouvelle source invalide une reconstruction en cours. Une erreur d'upload ne
 
 `tool/fetch_public_delivery_sources.py` exporte uniquement des publications publiques, sans clé fournisseur ni secret serveur. `tool/build_multisport_demo.py` produit le frontend et les objets du CDN de démonstration.
 
-La démo optimise les journées actuelles et futures ; les archives football utilisent le lecteur historique existant pour éviter de dupliquer toutes les anciennes publications dans le déploiement. Le football reste sur sa branche distincte, et le hockey reste sur la branche multisport.
+La démo optimise les journées -7 à +13 dès que leurs publications sources existent. Pour les archives football, chaque journée utilise les sources disponibles à la fin de cette journée en heure de Paris : aucune lecture calculée ultérieurement n'est injectée. L'export pagine les métadonnées et produit un index ; le constructeur lit les archives individuellement. Seuls les détails correspondant aux journées sélectionnées, leurs contextes et le radar sont publiés, sans duplication des fichiers complets football. Un historique hockey sans publication archivée conserve le lecteur existant. Le football reste sur sa branche distincte, et le hockey reste sur la branche multisport.
 
 Les publications quotidiennes sont actuellement découpées selon le calendrier Europe/Paris du batch. Les autres décalages horaires conservent automatiquement le lecteur complet existant pour ne perdre aucune rencontre autour de minuit. Leur optimisation nécessitera de prévoir les journées voisines.
 
@@ -37,7 +37,7 @@ Les publications quotidiennes sont actuellement découpées selon le calendrier 
 
 ## Navigation après le premier affichage
 
-Un cache commun aux deux sports conserve les flux publics décodés (24 entrées maximum). Les retours utilisent immédiatement la version déjà chargée ; la vérification de fraîcheur se fait en arrière-plan. Les jours proches sont préchargés après le premier affichage, puis le radar et les autres dates de la fenêtre. Le radar football actuel est partagé entre les dates futures ; les archives conservent leur sélection historique.
+Un cache commun aux deux sports conserve les flux publics décodés (24 entrées maximum). Les retours utilisent immédiatement la version déjà chargée ; la vérification de fraîcheur se fait en arrière-plan. Les jours proches sont préchargés dans les deux directions (J+1, J-1, J+2, J-2, J+3, J-3), puis le reste de la fenêtre, puis le radar plus volumineux. Une ancienne requête qui se termine après un nouveau choix de date ne réordonne pas cette file. Le radar football actuel est partagé entre les dates futures ; les archives conservent leur sélection historique.
 
 La file est séquentielle, limitée aux dates disponibles et annulée lorsque l'écran quitte le sport. Une journée non encore préchargée peut toujours nécessiter une attente lors de sa première ouverture. Les préférences sont appliquées à chaque affichage et ne font pas partie du cache public. Les scores live gardent leur contrôleur indépendant.
 

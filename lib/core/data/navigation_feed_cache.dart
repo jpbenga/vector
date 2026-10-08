@@ -102,23 +102,13 @@ List<DateTime> navigationFeedDays(DateTime selected, DateTime now) {
   final anchor = DateTime(selected.year, selected.month, selected.day);
   if (anchor.isBefore(earliest) || anchor.isAfter(latest)) return const [];
   return [
+    // Nearby past days are as useful as future ones. Cover the whole window
+    // from any anchor, rather than making archives wait behind J+13 and Radar.
     for (final offset in [
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8,
-      9,
-      10,
-      11,
-      12,
-      13,
-      -1,
-      -2,
-      -3,
+      for (var distance = 1; distance <= 20; distance++) ...[
+        distance,
+        -distance,
+      ],
     ])
       if (!DateTime(
             selected.year,
