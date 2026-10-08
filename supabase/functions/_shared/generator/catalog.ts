@@ -53,6 +53,11 @@ function evidence(raw: Json[], source: Source, readings: string[]): Evidence[] {
     subject: String(r.subject_team_id ?? r.subject ?? r.side ?? "match"),
     sample: Number(r.sample_size ?? r.sampleSize ?? 0),
     asOf: source.capturedAt,
+    supportsMarket: true,
+    metrics: rows(r.evidence).slice(0, 4).map((e) => ({
+      label: String(e.label ?? ""),
+      value: String(e.value ?? ""),
+    })),
     text: rows(r.evidence).map((e) => String(e.label ?? "")).join(" ") ||
       String(r.explanation ?? ""),
   }));
@@ -305,6 +310,8 @@ export function buildCatalog(
                 sport: "football",
                 competitionId,
                 competition: String(league.name),
+                competitionLogo: String(league.logo ?? ""),
+                countryFlag: String(league.flag ?? ""),
                 home: String(home.name),
                 away: String(away.name),
                 homeLogo: String(home.logo ?? ""),
@@ -312,13 +319,26 @@ export function buildCatalog(
                 teams: [`football:${home.id}`, `football:${away.id}`],
                 kickoff,
                 marketId,
-                market: String(bet.name),
+                market: ({
+                  matchResult: "Résultat du match",
+                  doubleChance: "Double chance",
+                  goalsTotal: "Plus/Moins de buts",
+                  bothTeamsScore: "Les deux équipes marquent",
+                })[marketId],
                 selection,
                 odds,
                 oddsAt,
                 bookmaker: String(bookmaker.name),
                 snapshotId: source.id,
-                evidence: [...ev, ...radar],
+                evidence: [
+                  ...ev,
+                  ...evidence(
+                    selected.filter((r) => !support.includes(r)),
+                    source,
+                    [...pref.readings, ...scenarioReadings],
+                  ).map((e) => ({ ...e, supportsMarket: false })),
+                  ...radar,
+                ],
                 warnings: [
                   ...(radar.length
                     ? [

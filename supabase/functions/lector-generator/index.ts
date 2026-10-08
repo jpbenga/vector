@@ -10,9 +10,11 @@ import { interpret } from "../_shared/generator/openai.ts";
 import {
   applyIntent,
   preparation,
+  resolveIntent,
   sourceQuery,
 } from "../_shared/generator/service.ts";
 import { validateIntent } from "../_shared/generator/contracts.ts";
+import { decodeVoice, transcribe } from "../_shared/generator/voice.ts";
 import { buildCatalog } from "../_shared/generator/catalog.ts";
 const cors = {
   "access-control-allow-origin": "*",
@@ -68,7 +70,7 @@ Deno.serve(async (request) => {
   if (request.method !== "POST") {
     return reply({ error: "Méthode non autorisée." }, 405);
   }
-  if (Number(request.headers.get("content-length") ?? 0) > 25000) {
+  if (Number(request.headers.get("content-length") ?? 0) > 2700000) {
     return reply({ error: "Demande trop longue." }, 413);
   }
   let reservation: string | null = null;
@@ -115,10 +117,13 @@ Deno.serve(async (request) => {
     const user = await userResponse.json();
     if (!uuid(user.id)) return reply({ error: "Connexion invalide." }, 401);
     const text = await request.text();
-    if (text.length > 25000) {
+    if (text.length > 2700000) {
       return reply({ error: "Demande trop longue." }, 413);
     }
     const input = obj(JSON.parse(text)), action = input.action;
+    if (action !== "transcribe" && text.length > 25000) {
+      return reply({ error: "Demande trop longue." }, 413);
+    }
     if (action === "history") {
       const history = await call(
         `lector_generator_conversations?user_id=eq.${user.id}&select=id,state,updated_at&state->>saved=eq.true&order=updated_at.desc&limit=20`,
@@ -130,6 +135,29 @@ Deno.serve(async (request) => {
       Number(input.revision) < 0
     ) return reply({ error: "Conversation invalide." }, 400);
     const id = String(input.conversationId), revision = Number(input.revision);
+    if (["status", "cancel"].includes(String(action))) {
+      if (!uuid(input.requestId)) {
+        return reply({ error: "Demande invalide." }, 400);
+      }
+      if (action === "cancel") {
+        return reply({
+          turn: await call("rpc/lector_generator_cancel", {
+            p_user: user.id,
+            p_conversation: id,
+            p_request: input.requestId,
+          }),
+        });
+      }
+      const rows = await call(
+        `lector_generator_turns?request_id=eq.${input.requestId}&user_id=eq.${user.id}&conversation_id=eq.${id}&select=status,usage`,
+      );
+      return reply({
+        turn: {
+          status: rows[0]?.status ?? "starting",
+          phase: rows[0]?.usage?.phase ?? "interpret",
+        },
+      });
+    }
     const states = await call(
       `lector_generator_conversations?id=eq.${id}&user_id=eq.${user.id}&select=state,revision`,
     );
@@ -137,9 +165,24 @@ Deno.serve(async (request) => {
       ? states[0].state as State
       : null;
     if (action === "read") return reply({ state: previous });
+    if (action === "ticket") {
+      if (!uuid(input.ticketId)) {
+        return reply({ error: "Référence invalide." }, 400);
+      }
+      const archived = await call(
+        `lector_generator_ticket_drafts?id=eq.${input.ticketId}&conversation_id=eq.${id}&user_id=eq.${user.id}&select=ticket`,
+      );
+      return archived.length
+        ? reply({ ticket: archived[0].ticket })
+        : reply({ error: "Ce brouillon n’est pas disponible." }, 404);
+    }
+
     // Chat replay is resolved by the reservation RPC before its revision fence;
     // a completed request must not cause a second paid interpretation.
-    if (action !== "chat" && states.length && states[0].revision !== revision) {
+    if (
+      !["chat", "transcribe"].includes(String(action)) && states.length &&
+      states[0].revision !== revision
+    ) {
       return reply({
         error: "La conversation a changé dans une autre fenêtre. Rechargez-la.",
       }, 409);
@@ -172,7 +215,7 @@ Deno.serve(async (request) => {
           }
         }
         next.tickets = previous.pending;
-        next.versions = [...previous.versions, next.tickets].slice(-12);
+        next.versions = [...previous.versions, next.tickets].slice(-3);
         next.pending = null;
         next.saved = false;
       } else next.saved = true;
@@ -193,8 +236,10 @@ Deno.serve(async (request) => {
       return reply({ preparation: preparation(sources, context, date, now) });
     }
     if (
-      action !== "chat" || typeof input.message !== "string" ||
-      !input.message.trim() || input.message.length > 2000 ||
+      !["chat", "transcribe"].includes(String(action)) ||
+      (action === "chat" && (typeof input.message !== "string" ||
+        !String(input.message).trim() || input.message.length > 2000 ||
+        !uuid(input.requestId))) ||
       !uuid(input.requestId)
     ) return reply({ error: "Demande invalide." }, 400);
     const key = Deno.env.get("OPENAI_API_KEY"),
@@ -205,6 +250,7 @@ Deno.serve(async (request) => {
           "L’assistant IA n’est pas encore activé. Les appels IA restent désactivés tant que sa configuration serveur n’est pas installée.",
       }, 503);
     }
+    const voice = action === "transcribe" ? decodeVoice(input.audio) : null;
     const claim = await call("rpc/lector_generator_reserve", {
       p_user: user.id,
       p_conversation: id,
@@ -218,24 +264,88 @@ Deno.serve(async (request) => {
       ),
     });
     if (claim.status !== "reserved") {
-      return claim.cached ? reply({ state: claim.cached }) : reply({
-        error:
-          "Cette demande est déjà en cours ou a échoué. Réessayez après actualisation.",
-      }, 409);
+      return claim.cached
+        ? reply(
+          action === "transcribe" ? claim.cached : { state: claim.cached },
+        )
+        : reply({
+          error:
+            "Cette demande est déjà en cours ou a échoué. Réessayez après actualisation.",
+        }, 409);
     }
     reservation = String(input.requestId);
+    const progress = async (phase: string) => {
+      await rest(
+        `lector_generator_turns?request_id=eq.${reservation}&user_id=eq.${user.id}&status=eq.pending`,
+        { usage: { phase } },
+        "PATCH",
+      );
+      const turn = await rest(
+        `lector_generator_turns?request_id=eq.${reservation}&user_id=eq.${user.id}&select=status`,
+      );
+      if (turn[0]?.status !== "pending") {
+        throw new Error("La génération a été interrompue.");
+      }
+    };
+    if (voice) {
+      await progress("transcribe");
+      const transcript = await transcribe(voice, { key });
+      const result = await call("rpc/lector_generator_finish_transcription", {
+        p_user: user.id,
+        p_conversation: id,
+        p_request: reservation,
+        p_transcript: transcript,
+        p_usage: {
+          transcription_seconds: (voice.length - 44) / 32000,
+          model: "whisper-1",
+        },
+      });
+      reservation = null;
+      return reply(result);
+    }
+    await progress("interpret");
     stage = "interpret";
-    const { intent, usage } = await interpret({
-      message: input.message.trim(),
+    const { intent: parsed, usage } = await interpret({
+      message: String(input.message).trim(),
       date,
       context,
       state: previous,
       today: calendarDay(now, context.timezone),
     }, { key, model });
     aiUsage = usage;
+    if (input.referenceTicketId !== undefined) {
+      if (!uuid(input.referenceTicketId)) {
+        throw new Error("Référence de ticket invalide.");
+      }
+      parsed.action = "alternative";
+      parsed.referenceTicketId = String(input.referenceTicketId);
+      parsed.preserveConstraints = true;
+    }
+    if (
+      parsed.referenceTicketId && previous &&
+      ![...previous.tickets, ...(previous.drafts ?? [])].some((t) =>
+        t.id === parsed.referenceTicketId
+      )
+    ) {
+      if (!uuid(parsed.referenceTicketId)) {
+        throw new Error("Référence de ticket invalide.");
+      }
+      const archived = await call(
+        `lector_generator_ticket_drafts?id=eq.${parsed.referenceTicketId}&conversation_id=eq.${id}&user_id=eq.${user.id}&select=ticket`,
+      );
+      if (archived.length) {
+        previous.drafts = [...(previous.drafts ?? []), archived[0].ticket];
+      }
+    }
+    const intent = resolveIntent(parsed, previous);
     const revisionContext = ["generate", "explore"].includes(intent.action)
       ? context
-      : previous?.tickets[intent.ticketIndex ?? 0]?.context ??
+      : (intent.referenceTicketId
+        ? [...(previous?.tickets ?? []), ...(previous?.drafts ?? [])].find(
+          (t) => t.id === intent.referenceTicketId,
+        )?.context
+        : undefined) ??
+        previous?.tickets[intent.ticketIndex ?? 0]?.context ??
         previous?.context ?? context;
     if (
       ["replace", "remove"].includes(intent.action) &&
@@ -246,8 +356,11 @@ Deno.serve(async (request) => {
         revisionContext.timezone,
       );
     }
+    await progress("sources");
     const sources =
-      ["generate", "replace", "remove", "explore"].includes(intent.action) &&
+      ["generate", "alternative", "replace", "remove", "explore"].includes(
+          intent.action,
+        ) &&
         !validateIntent(intent, revisionContext, now)
         ? await sourcesFor(revisionContext, intent.date, intent.sports)
         : [];
@@ -272,16 +385,18 @@ Deno.serve(async (request) => {
         }
       }
     }
+    await progress("compose");
     stage = "compose";
     const next = applyIntent({
       state: previous,
       context,
       intent,
       sources,
-      message: input.message.trim(),
+      message: String(input.message).trim(),
       now,
       id,
     });
+    await progress("commit");
     const state = await call("rpc/lector_generator_commit", {
       p_user: user.id,
       p_conversation: id,

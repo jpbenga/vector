@@ -1338,6 +1338,25 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
       _ScoresRedesignMode.bilan => 'Toutes les lectures annoncées.',
     };
     final showsStories = widget.mode == _ScoresRedesignMode.forMe;
+    if (showsGenerator && const bool.fromEnvironment('LECTOR_GENERATOR_UI')) {
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                child: _ScoresModeControl(
+                  selected: widget.mode,
+                  onChanged: widget.onModeChanged,
+                ),
+              ),
+              Expanded(child: widget.generator),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Stack(
       children: [

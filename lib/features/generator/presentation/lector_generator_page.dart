@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -8,6 +9,8 @@ import '../../../core/supabase/supabase_initializer.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/widgets/lector_match_card.dart';
 import '../data/generator_repository.dart';
+import '../data/generator_voice.dart';
+import 'generator_ticket_card.dart';
 import '../domain/generator_context.dart';
 
 /// One native Lector conversation surface in every sport. No generated markup.
@@ -22,6 +25,7 @@ class LectorGeneratorPage extends StatefulWidget {
     this.onLegacyTickets,
     this.repository,
     this.configurationKey = '',
+    this.voice,
     this.embedded = false,
     super.key,
   });
@@ -32,6 +36,7 @@ class LectorGeneratorPage extends StatefulWidget {
   final VoidCallback? onUseProfile, onLegacyTickets;
   final void Function(Map<String, dynamic> pick) onOpenMatch;
   final GeneratorRepository? repository;
+  final GeneratorVoice? voice;
   final bool embedded;
   final String configurationKey;
   @override
@@ -40,6 +45,14 @@ class LectorGeneratorPage extends StatefulWidget {
 
 class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
   final _message = TextEditingController();
+  final _scroll = ScrollController();
+  final _defaultVoice = GeneratorVoice();
+  GeneratorVoice get _voice => widget.voice ?? _defaultVoice;
+  Timer? _progressTimer, _voiceTimer;
+  String? _requestId, _retryMessage, _retryRequestId, _retryReferenceTicketId;
+  String _phase = 'Analyse de votre demande…';
+  bool _recording = false, _transcribing = false;
+  int _recordSeconds = 0;
   GeneratorContext? _context;
   GeneratorConversation? _conversation;
   Map<String, dynamic>? _preparation;
@@ -68,6 +81,15 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.scope != widget.scope || oldWidget.date != widget.date) {
       _generation++;
+      _progressTimer?.cancel();
+      _voiceTimer?.cancel();
+      _voice.cancel();
+      _recording = false;
+      _transcribing = false;
+      _requestId = null;
+      _retryMessage = null;
+      _retryRequestId = null;
+      _retryReferenceTicketId = null;
       _conversation = null;
       _preparation = null;
       _context = null;
@@ -100,6 +122,10 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
   @override
   void dispose() {
     _generation++;
+    _progressTimer?.cancel();
+    _voiceTimer?.cancel();
+    _voice.cancel();
+    _scroll.dispose();
     _message.dispose();
     super.dispose();
   }
@@ -172,7 +198,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
     }
   }
 
-  Future<void> _send([String? preset]) async {
+  Future<void> _send([String? preset, String? referenceTicketId]) async {
     final message = preset ?? _message.text.trim();
     if (_busy || _context == null || message.isEmpty) return;
     if (!widget.scope.isAccount) {
@@ -188,37 +214,58 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
       return;
     }
     final generation = _generation;
+    final requestId = generatorUuid();
+    _requestId = requestId;
+    _phase = 'Analyse de votre demande…';
+    _retryMessage = message;
+    _retryRequestId = requestId;
+    _retryReferenceTicketId = referenceTicketId;
     setState(() {
       _busy = true;
       _error = null;
       _submittedMessage = message;
       _message.clear();
     });
+    _scrollToEnd();
+    _startProgress(requestId);
     try {
       final result = await repository.request({
         ..._body('chat'),
         'message': message,
-        'requestId': generatorUuid(),
+        'requestId': requestId,
+        'referenceTicketId': ?referenceTicketId,
       });
-      if (!mounted || generation != _generation) return;
+      if (!mounted || generation != _generation || _requestId != requestId) {
+        return;
+      }
       final conversation = GeneratorConversation(generatorMap(result['state']));
       setState(() {
         _conversation = conversation;
         _submittedMessage = null;
+        _retryMessage = null;
+        _retryRequestId = null;
+        _retryReferenceTicketId = null;
       });
+      _scrollToEnd();
       await const ScopedPersistence().write(
         widget.scope,
         _key,
         jsonEncode({'id': conversation.id, 'date': generatorDay(widget.date)}),
       );
     } on Object catch (error) {
-      if (mounted && generation == _generation) {
+      if (mounted && generation == _generation && _requestId == requestId) {
         setState(
           () => _error = error.toString().replaceFirst('Bad state: ', ''),
         );
       }
     } finally {
-      if (mounted && generation == _generation) setState(() => _busy = false);
+      if (mounted && generation == _generation && _requestId == requestId) {
+        _progressTimer?.cancel();
+        setState(() {
+          _busy = false;
+          _requestId = null;
+        });
+      }
     }
   }
 
@@ -383,440 +430,666 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
     }
   }
 
+  void _scrollToEnd() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _scroll.hasClients) {
+        _scroll.animateTo(
+          _scroll.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  void _startProgress(String requestId) {
+    _progressTimer?.cancel();
+    bool polling = false;
+    _progressTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      if (polling || !mounted || _requestId != requestId) return;
+      polling = true;
+      try {
+        final result = await _repository!.request({
+          ..._body('status'),
+          'requestId': requestId,
+        });
+        if (!mounted || _requestId != requestId) return;
+        final phase = generatorMap(result['turn'])['phase'];
+        setState(
+          () => _phase = switch (phase) {
+            'sources' => 'Analyse des rencontres…',
+            'compose' => 'Construction des tickets…',
+            'commit' => 'Enregistrement du brouillon…',
+            _ => 'Analyse de votre demande…',
+          },
+        );
+      } on Object {
+        /* Progress is optional; the actual result remains authoritative. */
+      } finally {
+        polling = false;
+      }
+    });
+  }
+
+  Future<void> _interrupt() async {
+    final requestId = _requestId;
+    if (requestId == null || _repository == null) return;
+    final generation = _generation;
+    try {
+      final result = await _repository!.request({
+        ..._body('cancel'),
+        'requestId': requestId,
+      });
+      if (!mounted || generation != _generation || _requestId != requestId) {
+        return;
+      }
+      _progressTimer?.cancel();
+      setState(() {
+        _requestId = null;
+        _busy = false;
+        _transcribing = false;
+        _submittedMessage = null;
+        _error = null;
+      });
+      if (generatorMap(result['turn'])['status'] == 'complete') {
+        final read = await _repository!.request(_body('read'));
+        if (mounted && generation == _generation && read['state'] != null) {
+          setState(
+            () => _conversation = GeneratorConversation(
+              generatorMap(read['state']),
+            ),
+          );
+        }
+      } else if (_retryMessage != null) {
+        _message.text = _retryMessage!;
+      }
+    } on Object {
+      if (mounted && generation == _generation) {
+        setState(() => _error = 'L’interruption n’a pas pu être confirmée.');
+      }
+    }
+  }
+
+  Future<void> _retry() async {
+    final message = _retryMessage;
+    final referenceTicketId = _retryReferenceTicketId;
+    if (message == null || _busy) return;
+    final generation = _generation;
+    try {
+      final status = _retryRequestId == null
+          ? <String, dynamic>{}
+          : await _repository!.request({
+              ..._body('status'),
+              'requestId': _retryRequestId,
+            });
+      if (!mounted || generation != _generation) return;
+      if (generatorMap(status['turn'])['status'] == 'pending') {
+        setState(
+          () => _error =
+              'Cette recherche est encore en cours. Patientez, puis réessayez pour retrouver son résultat.',
+        );
+        return;
+      }
+      final result = await _repository!.request(_body('read'));
+      if (!mounted || generation != _generation) return;
+      if (result['state'] != null) {
+        final latest = GeneratorConversation(generatorMap(result['state']));
+        final completed = generatorMap(status['turn'])['status'] == 'complete';
+        setState(() {
+          _conversation = latest;
+          _error = null;
+          if (completed) {
+            _submittedMessage = null;
+            _retryMessage = null;
+            _retryRequestId = null;
+            _retryReferenceTicketId = null;
+          }
+        });
+        if (completed) return;
+      }
+      await _send(message, referenceTicketId);
+    } on Object {
+      if (mounted && generation == _generation) {
+        setState(
+          () =>
+              _error = 'La conversation n’a pas pu être actualisée. Réessayez.',
+        );
+      }
+    }
+  }
+
+  Future<void> _dictate() async {
+    if (_busy || _recording || !widget.scope.isAccount) return;
+    if (!_voice.supported) {
+      setState(
+        () => _error =
+            'La dictée nécessite un navigateur compatible et une connexion HTTPS. Vous pouvez utiliser le microphone de votre clavier.',
+      );
+      return;
+    }
+    final generation = _generation;
+    final consent = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Dicter votre demande'),
+        content: const Text(
+          'Autorisez le microphone de votre navigateur. Après « Terminer », jusqu’à une minute d’audio sera transcrite par OpenAI, puis supprimée de l’application. Vous pourrez relire et modifier le texte avant de l’envoyer. La dictée utilise l’enveloppe de tests IA.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Commencer'),
+          ),
+        ],
+      ),
+    );
+    if (consent != true || !mounted || generation != _generation) return;
+    try {
+      await _voice.start();
+      if (!mounted || generation != _generation) {
+        _voice.cancel();
+        return;
+      }
+      setState(() {
+        _recording = true;
+        _recordSeconds = 0;
+        _error = null;
+      });
+      _voiceTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted) return;
+        setState(() => _recordSeconds++);
+        if (_recordSeconds >= 60) _finishDictation();
+      });
+    } on Object {
+      if (mounted && generation == _generation) {
+        setState(
+          () => _error =
+              'Le microphone n’est pas accessible. Vérifiez son autorisation dans le navigateur, ou utilisez la dictée du clavier.',
+        );
+      }
+    }
+  }
+
+  void _cancelDictation() {
+    _voiceTimer?.cancel();
+    _voice.cancel();
+    setState(() => _recording = false);
+  }
+
+  Future<void> _finishDictation() async {
+    if (!_recording) return;
+    final generation = _generation;
+    _voiceTimer?.cancel();
+    final requestId = generatorUuid();
+    setState(() {
+      _recording = false;
+      _transcribing = true;
+      _busy = true;
+      _requestId = requestId;
+    });
+    try {
+      final audio = await _voice.finish();
+      if (!mounted || generation != _generation || _requestId != requestId) {
+        return;
+      }
+      final result = await _repository!.request({
+        ..._body('transcribe'),
+        'audio': audio,
+        'requestId': requestId,
+      });
+      if (!mounted || generation != _generation || _requestId != requestId) {
+        return;
+      }
+      final text = result['transcript']?.toString() ?? '';
+      _message.text = [
+        _message.text.trim(),
+        text.trim(),
+      ].where((s) => s.isNotEmpty).join(' ');
+      _message.selection = TextSelection.collapsed(
+        offset: _message.text.length,
+      );
+    } on Object catch (error) {
+      if (mounted && generation == _generation && _requestId == requestId) {
+        setState(
+          () => _error = error.toString().replaceFirst('Bad state: ', ''),
+        );
+      }
+    } finally {
+      if (mounted && generation == _generation && _requestId == requestId) {
+        setState(() {
+          _busy = false;
+          _transcribing = false;
+          _requestId = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _archivedTicket(String id) async {
+    final generation = _generation;
+    try {
+      final result = await _repository!.request({
+        ..._body('ticket'),
+        'ticketId': id,
+      });
+      if (mounted && generation == _generation && result['ticket'] != null) {
+        _examine(generatorMap(result['ticket']));
+      }
+    } on Object {
+      if (mounted && generation == _generation) {
+        setState(() => _error = 'Ce brouillon n’a pas pu être ouvert.');
+      }
+    }
+  }
+
+  void _prompt(String text) {
+    _message.text = text;
+    _message.selection = TextSelection.collapsed(offset: text.length);
+  }
+
+  Widget _ticket(Map<String, dynamic> ticket) => LectorTicketCard(
+    ticket: ticket,
+    enabled: !_busy,
+    pending: _conversation?.pending.any((t) => t['id'] == ticket['id']) == true,
+    onDetail: () => _examine(ticket),
+    onSelection: (index) => _examine(ticket, selection: index),
+    onModify: () => _examine(ticket),
+    onAlternative: () => _send(
+      'Propose-moi un autre ticket avec les mêmes contraintes que le ticket ${ticket['number']}.',
+      ticket['id']?.toString(),
+    ),
+  );
+  void _examine(
+    Map<String, dynamic> ticket, {
+    int? selection,
+  }) => showGeneratorTicketDetail(
+    context,
+    ticket,
+    selection: selection,
+    onOpenMatch: widget.onOpenMatch,
+    onReplace: (index) => _prompt(
+      'Remplace uniquement la sélection ${index + 1} du ticket ${ticket['number']}. Conserve les autres sélections, la mise et les contraintes.',
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context), current = _context;
-    final children = <Widget>[
-      Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Générateur',
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                Text('Assistant Lector', style: theme.textTheme.bodyMedium),
-              ],
-            ),
-          ),
-          IconButton(
-            tooltip: 'Vos brouillons',
-            onPressed: _history,
-            icon: const Icon(Icons.history_rounded),
-          ),
-          IconButton(
-            tooltip: 'Nouvelle conversation',
-            onPressed: _busy
-                ? null
-                : () => setState(() {
-                    _conversation = null;
-                    _id = generatorUuid();
-                    _error = null;
-                    _submittedMessage = null;
-                  }),
-            icon: const Icon(Icons.add_comment_outlined),
-          ),
-        ],
-      ),
-      const SizedBox(height: 16),
-      LectorMatchCardFrame(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('CONTEXTE ACTIF', style: theme.textTheme.labelSmall),
-            const SizedBox(height: 6),
-            Text(
-              current?.origin == 'explorer'
-                  ? 'Explorateur · configuration temporaire'
-                  : 'Profil enregistré',
-              style: theme.textTheme.titleSmall,
-            ),
-            Text(
-              current == null
-                  ? 'Chargement des préférences…'
-                  : '${current.count('readings')} lectures · ${current.count('markets')} marchés · plafond ${current.budget.toStringAsFixed(0)} €',
-            ),
-            Text(
-              current?.discovery == true
-                  ? 'Pour moi + pistes du Radar'
-                  : 'Strict · mes compétitions uniquement',
-            ),
-            Wrap(
-              spacing: 8,
-              children: [
-                TextButton(
-                  onPressed: widget.onPreferences,
-                  child: const Text('Voir les préférences'),
-                ),
-                TextButton(
-                  onPressed: _settings,
-                  child: const Text('Ajuster le contexte'),
-                ),
-                if (current?.origin == 'explorer' &&
-                    widget.onUseProfile != null)
-                  TextButton(
-                    onPressed: _useProfile,
-                    child: const Text('Utiliser mon profil'),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-      const SizedBox(height: 12),
-      if (_conversation == null) ...[
-        LectorMatchCardFrame(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.auto_awesome_outlined,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Text('Votre préparation', style: theme.textTheme.titleMedium),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                DateFormat('EEEE d MMMM', 'fr').format(widget.date),
-                style: theme.textTheme.titleSmall,
-              ),
-              Text(
-                current?.sports
-                        .map((s) => s == 'hockey' ? 'Hockey' : 'Football')
-                        .join(' · ') ??
-                    '',
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _preparation == null
-                    ? 'Préparation à partir des données Lector disponibles.'
-                    : '${_preparation!['matchCount']} rencontres analysables · ${_preparation!['radarCount']} profils Radar disponibles',
-              ),
-              if (_preparation?['status'] == 'anticipated')
-                const Text(
-                  'Préparation anticipée · certaines lectures ou cotes restent indisponibles.',
-                ),
-              if (_preparation?['status'] == 'verifiable')
-                const Text(
-                  'Sélections vérifiables · à examiner avant utilisation.',
-                ),
-              TextButton.icon(
-                onPressed: () {
-                  _message.text =
-                      'Prépare des tickets pour ${generatorDay(widget.date)}.';
-                },
-                icon: const Icon(Icons.arrow_forward_rounded),
-                label: const Text('Préparer mes tickets'),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text('QUE SOUHAITEZ-VOUS FAIRE ?', style: theme.textTheme.labelMedium),
-        Wrap(
-          spacing: 8,
-          children: [
-            for (final suggestion in [
-              'Créer plusieurs tickets',
-              'Un ticket multisport',
-              'Explorer les joueurs chauds',
-            ])
-              ActionChip(
-                label: Text(suggestion),
-                onPressed: () => _message.text =
-                    '$suggestion pour ${generatorDay(widget.date)}.',
-              ),
-          ],
-        ),
-      ],
-      if (_conversation != null) ...[
-        for (final message in _conversation!.messages)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  message['role'] == 'user' ? 'VOUS' : 'LECTOR',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(message['text']?.toString() ?? ''),
-              ],
-            ),
-          ),
-        if (_conversation!.pending.isNotEmpty) ...[
-          Text('MODIFICATION PROPOSÉE', style: theme.textTheme.titleSmall),
-          for (final ticket in _conversation!.pending)
-            _ticket(ticket, pending: true),
-          FilledButton.icon(
-            onPressed: _busy ? null : () => _operation('apply'),
-            icon: const Icon(Icons.check_rounded),
-            label: const Text('Appliquer le changement'),
-          ),
-          const SizedBox(height: 16),
-        ],
-        for (final ticket in _conversation!.tickets) _ticket(ticket),
-        if (_conversation!.tickets.isNotEmpty)
-          TextButton.icon(
-            onPressed: _busy || _conversation!.saved
-                ? null
-                : () => _operation('save'),
-            icon: const Icon(Icons.bookmark_outline_rounded),
-            label: Text(
-              _conversation!.saved
-                  ? 'Brouillon enregistré'
-                  : 'Enregistrer le brouillon',
-            ),
-          ),
-        if (generatorMap(_conversation!.json['context'])['origin'] ==
-            'explorer')
-          const Text(
-            'Ces compositions conservent la configuration Explorateur de leur création.',
-          ),
-        for (final missing
-            in (generatorMap(_conversation!.json['catalog'])['missing']
-                    as List? ??
-                []))
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(missing.toString(), style: theme.textTheme.bodySmall),
-          ),
-      ],
-      const SizedBox(height: 16),
-      if (_submittedMessage != null)
+    final conversation = _conversation;
+    final tickets = <String, Map<String, dynamic>>{
+      for (final t in [
+        ...generatorRows(conversation?.json['drafts']),
+        ...?conversation?.tickets,
+        ...?conversation?.pending,
+      ])
+        t['id'].toString(): t,
+    };
+    final hasAttachments =
+        conversation?.messages.any((m) => m.containsKey('ticketIds')) == true;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
         Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.fromLTRB(12, 8, 6, 10),
+          child: Row(
             children: [
-              Text(
-                'VOUS',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.primary,
-                ),
+              Icon(
+                Icons.smart_toy_outlined,
+                size: 30,
+                color: context.brand.accent,
               ),
-              const SizedBox(height: 4),
-              Text(_submittedMessage!),
-            ],
-          ),
-        ),
-      if (_error != null)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Text(
-            _error!,
-            style: TextStyle(color: context.semantic.warning),
-          ),
-        ),
-      if (_busy && _submittedMessage != null)
-        Semantics(
-          liveRegion: true,
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Row(
-              children: [
-                const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Recherche en cours…',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        )
-      else if (_busy)
-        const Padding(
-          padding: EdgeInsets.only(bottom: 8),
-          child: LinearProgressIndicator(),
-        ),
-      TextField(
-        controller: _message,
-        enabled: !_busy,
-        minLines: 1,
-        maxLines: 4,
-        maxLength: 2000,
-        textInputAction: TextInputAction.newline,
-        decoration: InputDecoration(
-          hintText: 'Votre demande…',
-          suffixIcon: IconButton(
-            tooltip: 'Envoyer la demande',
-            onPressed: _busy || current == null ? null : _send,
-            icon: const Icon(Icons.arrow_upward_rounded),
-          ),
-        ),
-      ),
-      const Text(
-        'Des compositions à examiner. Aucun pari n’est placé. Le retour potentiel inclut la mise et n’est pas garanti.',
-      ),
-      if (widget.onLegacyTickets != null)
-        TextButton(
-          onPressed: widget.onLegacyTickets,
-          child: const Text('Mes tickets et stratégies'),
-        ),
-    ];
-    final column = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: children,
-    );
-    return widget.embedded
-        ? column
-        : ListView(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 100),
-            children: [column],
-          );
-  }
-
-  Widget _ticket(Map<String, dynamic> ticket, {bool pending = false}) {
-    final picks = generatorRows(ticket['picks']);
-    final needsUpdate = picks.any((p) {
-      final kickoff = DateTime.tryParse(p['kickoff']?.toString() ?? '');
-      final oddsAt = DateTime.tryParse(p['oddsAt']?.toString() ?? '');
-      final now = DateTime.now();
-      return kickoff == null ||
-          !kickoff.isAfter(now) ||
-          oddsAt == null ||
-          now.difference(oddsAt) > const Duration(hours: 48);
-    });
-    String money(String key) => NumberFormat.currency(
-      locale: 'fr_FR',
-      symbol: '€',
-    ).format(ticket[key] ?? 0);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: LectorMatchCardFrame(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'TICKET ${ticket['number']}',
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                ),
-                Text('${picks.length} sélection(s)'),
-              ],
-            ),
-            const SizedBox(height: 8),
-            if (needsUpdate)
-              Text(
-                'À actualiser · statut et cotes à revérifier',
-                style: TextStyle(color: context.semantic.warning),
-              ),
-            Text(
-              'Mise ${money('stake')} · Cote ${NumberFormat('0.00', 'fr').format(ticket['totalOdds'] ?? 0)}',
-            ),
-            Text('Retour potentiel ${money('returnTotal')}'),
-            Text('Bénéfice net si gagnant ${money('netProfit')}'),
-            const Divider(),
-            for (final pick in picks.take(2))
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+              const SizedBox(width: 12),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${pick['home']} — ${pick['away']}'),
-                    Text('${pick['selection']} · ${pick['odds']}'),
+                    Text(
+                      'Générateur',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      'Votre assistant de composition',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: context.textColors.secondary,
+                      ),
+                    ),
                   ],
                 ),
               ),
-            if (picks.length > 2)
-              Text('+ ${picks.length - 2} autre(s) sélection(s)'),
-            TextButton.icon(
-              onPressed: () => _examine(ticket),
-              icon: const Icon(Icons.chevron_right_rounded),
-              label: const Text('Examiner ce ticket'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _examine(Map<String, dynamic> ticket) {
-    final picks = generatorRows(ticket['picks']);
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (sheetContext) => SafeArea(
-        child: SizedBox(
-          height: MediaQuery.sizeOf(sheetContext).height * .8,
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Text(
-                'Ticket ${ticket['number']} · détail',
-                style: Theme.of(context).textTheme.titleLarge,
+              IconButton(
+                tooltip: 'Vos brouillons',
+                onPressed: _busy ? null : _history,
+                icon: const Icon(Icons.history_rounded),
               ),
-              for (final entry in picks.indexed) ...[
-                const SizedBox(height: 16),
-                Text(
-                  entry.$2['competition']?.toString() ?? '',
-                  style: Theme.of(context).textTheme.labelMedium,
-                ),
-                LectorTeamLine(
-                  name: entry.$2['home']?.toString() ?? '',
-                  logoUrl: entry.$2['homeLogo']?.toString(),
-                ),
-                LectorTeamLine(
-                  name: entry.$2['away']?.toString() ?? '',
-                  logoUrl: entry.$2['awayLogo']?.toString(),
-                ),
-                const SizedBox(height: 8),
-                Text('${entry.$2['selection']} · cote ${entry.$2['odds']}'),
-                Text(
-                  '${entry.$2['bookmaker']} · cote relevée ${entry.$2['oddsAt']}',
-                ),
-                const SizedBox(height: 8),
-                const Text('POURQUOI CETTE SÉLECTION ?'),
-                for (final evidence in generatorRows(entry.$2['evidence']))
-                  Text('• ${evidence['text']}'),
-                for (final warning in (entry.$2['warnings'] as List? ?? []))
-                  Text(
-                    warning.toString(),
-                    style: TextStyle(color: context.semantic.warning),
+              PopupMenuButton<String>(
+                tooltip: 'Options du générateur',
+                onSelected: (value) {
+                  switch (value) {
+                    case 'new':
+                      setState(() {
+                        _conversation = null;
+                        _id = generatorUuid();
+                        _error = null;
+                        _submittedMessage = null;
+                        _retryMessage = null;
+                        _retryRequestId = null;
+                        _retryReferenceTicketId = null;
+                        _voice.cancel();
+                        _voiceTimer?.cancel();
+                        _recording = false;
+                      });
+                    case 'settings':
+                      _settings();
+                    case 'preferences':
+                      widget.onPreferences();
+                    case 'profile':
+                      _useProfile();
+                    case 'save':
+                      _operation('save');
+                    case 'legacy':
+                      widget.onLegacyTickets?.call();
+                  }
+                },
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    value: 'new',
+                    enabled: !_busy,
+                    child: const Text('Nouvelle conversation'),
                   ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(sheetContext);
-                    widget.onOpenMatch(entry.$2);
-                  },
-                  child: const Text('Voir les données du match'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(sheetContext);
-                    _message.text =
-                        'Remplace uniquement la sélection ${entry.$1 + 1} du ticket ${ticket['number']}. Conserve le reste.';
-                  },
-                  child: const Text('Remplacer cette sélection'),
-                ),
-                const Divider(),
-              ],
+                  PopupMenuItem(
+                    value: 'settings',
+                    enabled: !_busy,
+                    child: const Text('Ajuster le contexte'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'preferences',
+                    child: Text('Mes préférences'),
+                  ),
+                  if (current?.origin == 'explorer' &&
+                      widget.onUseProfile != null)
+                    const PopupMenuItem(
+                      value: 'profile',
+                      child: Text('Utiliser mon profil'),
+                    ),
+                  if (conversation?.tickets.isNotEmpty == true)
+                    PopupMenuItem(
+                      value: 'save',
+                      enabled: !_busy,
+                      child: Text(
+                        conversation!.saved
+                            ? 'Brouillon enregistré'
+                            : 'Enregistrer le brouillon',
+                      ),
+                    ),
+                  if (widget.onLegacyTickets != null)
+                    const PopupMenuItem(
+                      value: 'legacy',
+                      child: Text('Mes tickets et stratégies'),
+                    ),
+                ],
+              ),
             ],
           ),
         ),
-      ),
+        Divider(height: 1, color: context.surfaces.border),
+        Expanded(
+          child: ListView(
+            controller: _scroll,
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 20),
+            children: [
+              if (conversation == null && _submittedMessage == null) ...[
+                GeneratorMessageBubble(
+                  text: current?.origin == 'explorer'
+                      ? 'Votre configuration Explorateur est active. Décrivez le ticket que vous souhaitez préparer : date, mise et objectif.'
+                      : 'Je m’appuie sur vos lectures et vos marchés autorisés. Quelle composition souhaitez-vous préparer ?',
+                ),
+                LectorMatchCardFrame(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        current?.origin == 'explorer'
+                            ? 'Explorateur · configuration temporaire'
+                            : 'Profil enregistré',
+                        style: theme.textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${DateFormat('EEEE d MMMM', 'fr').format(widget.date)} · ${current?.count('readings') ?? 0} lectures',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                      Text(
+                        current?.discovery == true
+                            ? 'Pour moi + pistes du Radar'
+                            : 'Mes compétitions uniquement',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                      if (_preparation != null)
+                        Text(
+                          '${_preparation!['matchCount']} rencontres analysables',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      if (_preparation != null)
+                        for (final missing
+                            in (generatorMap(_preparation)['missing']
+                                    as List? ??
+                                []))
+                          Text(
+                            missing.toString(),
+                            style: theme.textTheme.bodySmall,
+                          ),
+                      TextButton(
+                        onPressed: _settings,
+                        child: const Text('Ajuster le contexte'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final suggestion in [
+                      'Préparer un ticket',
+                      'Créer plusieurs tickets',
+                      'Explorer les joueurs chauds',
+                    ])
+                      ActionChip(
+                        label: Text(suggestion),
+                        onPressed: () => _prompt(
+                          '$suggestion pour ${generatorDay(widget.date)}.',
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+              for (final message
+                  in conversation?.messages ?? <Map<String, dynamic>>[]) ...[
+                GeneratorMessageBubble(
+                  text: message['text']?.toString() ?? '',
+                  user: message['role'] == 'user',
+                  at: message['at']?.toString(),
+                ),
+                for (final id in (message['ticketIds'] as List? ?? []))
+                  if (tickets[id.toString()] != null)
+                    _ticket(tickets[id.toString()]!)
+                  else
+                    TextButton.icon(
+                      onPressed: () => _archivedTicket(id.toString()),
+                      icon: const Icon(Icons.receipt_long_outlined),
+                      label: const Text('Revoir ce ticket'),
+                    ),
+              ],
+              if (!hasAttachments)
+                for (final ticket
+                    in conversation?.tickets ?? <Map<String, dynamic>>[])
+                  _ticket(ticket),
+              if (conversation?.pending.isNotEmpty == true) ...[
+                if (!hasAttachments)
+                  for (final ticket in conversation!.pending) _ticket(ticket),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: FilledButton.icon(
+                    onPressed: _busy ? null : () => _operation('apply'),
+                    icon: const Icon(Icons.check_rounded),
+                    label: const Text('Appliquer le changement proposé'),
+                  ),
+                ),
+                Text(
+                  'Le ticket initial reste conservé dans la conversation.',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+              if (_submittedMessage != null)
+                GeneratorMessageBubble(text: _submittedMessage!, user: true),
+              if (_busy)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  child: Semantics(
+                    liveRegion: true,
+                    child: Row(
+                      children: [
+                        const GeneratorAvatar(),
+                        const SizedBox(width: 10),
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _transcribing ? 'Transcription en cours…' : _phase,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: context.brand.accent,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              if (_error != null)
+                LectorMatchCardFrame(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _error!,
+                        style: TextStyle(color: context.semantic.warning),
+                      ),
+                      if (_retryMessage != null && !_busy)
+                        TextButton.icon(
+                          onPressed: _retry,
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('Réessayer'),
+                        ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+        SafeArea(
+          top: false,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+            decoration: BoxDecoration(
+              color: context.surfaces.background,
+              border: Border(top: BorderSide(color: context.surfaces.border)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_recording)
+                  Row(
+                    children: [
+                      Icon(Icons.mic_rounded, color: context.semantic.live),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text('À l’écoute… ${_recordSeconds}s / 60s'),
+                      ),
+                      TextButton(
+                        onPressed: _cancelDictation,
+                        child: const Text('Annuler'),
+                      ),
+                      TextButton(
+                        onPressed: _finishDictation,
+                        child: const Text('Terminer'),
+                      ),
+                    ],
+                  )
+                else
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _message,
+                          enabled: !_busy,
+                          minLines: 1,
+                          maxLines: 4,
+                          maxLength: 2000,
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: (_) => _send(),
+                          decoration: const InputDecoration(
+                            hintText: 'Écrivez votre demande…',
+                            counterText: '',
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      IconButton.filled(
+                        tooltip: 'Dicter une demande',
+                        onPressed: _busy || !widget.scope.isAccount
+                            ? null
+                            : _dictate,
+                        icon: const Icon(Icons.mic_none_rounded),
+                      ),
+                      const SizedBox(width: 4),
+                      if (_busy && _requestId != null)
+                        IconButton(
+                          tooltip: 'Interrompre la génération',
+                          onPressed: _interrupt,
+                          icon: const Icon(Icons.stop_circle_outlined),
+                        )
+                      else
+                        ValueListenableBuilder<TextEditingValue>(
+                          valueListenable: _message,
+                          builder: (_, value, _) => IconButton(
+                            tooltip: 'Envoyer la demande',
+                            onPressed:
+                                _busy ||
+                                    current == null ||
+                                    value.text.trim().isEmpty
+                                ? null
+                                : _send,
+                            icon: Icon(
+                              Icons.send_rounded,
+                              color: value.text.trim().isEmpty
+                                  ? context.textColors.secondary
+                                  : context.brand.accent,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -28,6 +28,7 @@ export interface Target {
 export interface Intent {
   action:
     | "generate"
+    | "alternative"
     | "replace"
     | "remove"
     | "restore"
@@ -41,6 +42,8 @@ export interface Intent {
   diversify: boolean;
   requireEachSport: boolean;
   maxSelections?: number | null;
+  referenceTicketId?: string | null;
+  preserveConstraints?: boolean;
   ticketIndex: number | null;
   selectionIndex: number | null;
   marketIds: string[];
@@ -55,6 +58,10 @@ export interface Evidence {
   sample: number;
   asOf: string;
   text: string;
+  photo?: string;
+  metrics?: { label: string; value: string }[];
+  supportsMarket?: boolean;
+  reusesReading?: boolean;
 }
 export interface Candidate {
   id: string;
@@ -62,6 +69,8 @@ export interface Candidate {
   sport: Sport;
   competitionId: string;
   competition: string;
+  competitionLogo?: string;
+  countryFlag?: string;
   home: string;
   away: string;
   homeLogo?: string;
@@ -96,6 +105,10 @@ export interface Ticket {
   returnTotal: number;
   netProfit: number;
   target: Target;
+  constraints?: Pick<
+    Intent,
+    "maxSelections" | "marketIds" | "requireEachSport" | "sports"
+  >;
   context: Context;
   warnings: string[];
 }
@@ -108,7 +121,14 @@ export interface State {
   tickets: Ticket[];
   versions: Ticket[][];
   pending: Ticket[] | null;
-  messages: { role: "user" | "assistant"; text: string }[];
+  messages: {
+    role: "user" | "assistant";
+    text: string;
+    ticketIds?: string[];
+    at?: string;
+  }[];
+  drafts?: Ticket[];
+  compositions?: string[];
   saved: boolean;
   updatedAt: string;
   catalog?: Pick<
@@ -163,6 +183,7 @@ export function intentFrom(value: unknown): Intent {
   const v = obj(value);
   const actions = [
     "generate",
+    "alternative",
     "replace",
     "remove",
     "restore",
@@ -186,11 +207,19 @@ export function intentFrom(value: unknown): Intent {
   const index = (x: unknown) =>
     x === null || (Number.isInteger(x) && Number(x) >= 0 && Number(x) < 30);
   if (
-    !Object.keys(v).every((k) => [...keys, "maxSelections"].includes(k)) ||
+    !Object.keys(v).every((k) =>
+      [...keys, "maxSelections", "referenceTicketId", "preserveConstraints"]
+        .includes(k)
+    ) ||
     !keys.every((k) => k in v) ||
     (v.maxSelections !== undefined && v.maxSelections !== null &&
       (!Number.isInteger(v.maxSelections) || Number(v.maxSelections) < 1 ||
         Number(v.maxSelections) > 6)) ||
+    (v.referenceTicketId != null &&
+      (typeof v.referenceTicketId !== "string" ||
+        v.referenceTicketId.length > 100)) ||
+    (v.preserveConstraints !== undefined &&
+      typeof v.preserveConstraints !== "boolean") ||
     !actions.includes(String(v.action)) || typeof v.date !== "string" ||
     v.date.length > 10 ||
     !Array.isArray(v.sports) || v.sports.length > 2 ||
@@ -242,7 +271,7 @@ export function validateIntent(
     !i.sports.length ||
     i.sports.some((s) => !["football", "hockey"].includes(s))
   ) return "Choisissez un sport disponible dans Lector.";
-  if (i.action !== "generate") return null;
+  if (!["generate", "alternative"].includes(i.action)) return null;
   if (
     i.maxSelections != null &&
     (!Number.isInteger(i.maxSelections) || i.maxSelections < 1 ||

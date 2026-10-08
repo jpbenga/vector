@@ -46,6 +46,12 @@ export function playerSignals(
       family: "player",
       subject: `player:${id}`,
       label: name,
+      photo: String(player.photo ?? profile.photo ?? ""),
+      metrics: [{ label: "Décisif", value: `${decisive}/3 matchs` }, {
+        label: "Buts",
+        value: String(goals),
+      }, { label: "Passes", value: String(assists) }],
+      supportsMarket: false,
       sample: 3,
       asOf: source.capturedAt,
       text:
@@ -81,6 +87,8 @@ export function teamSignals(
       source: "radar",
       family: "form",
       subject: String(r.subject_team_id),
+      reusesReading: true,
+      supportsMarket: false,
       label: String(r.label ?? r.id),
       sample: Number(r.sample_size),
       asOf: source.capturedAt,

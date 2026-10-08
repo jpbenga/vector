@@ -15,6 +15,11 @@ Deno.test("generator migration isolates accounts, reserves quota once and fences
         "supabase/migrations/20261008120000_lector_generator.sql",
       ),
     );
+    await db.exec(
+      await Deno.readTextFile(
+        "supabase/migrations/20261008170000_lector_generator_conversation_controls.sql",
+      ),
+    );
     const user = "11111111-1111-4111-8111-111111111111",
       other = "22222222-2222-4222-8222-222222222222",
       conversation = "33333333-3333-4333-8333-333333333333",
@@ -45,12 +50,51 @@ Deno.test("generator migration isolates accounts, reserves quota once and fences
       [user, conversation, {
         id: conversation,
         tickets: [],
+        drafts: [{ id: "77777777-7777-4777-8777-777777777777", number: 1 }],
         context: {},
         revision: 0,
       }, turn],
     )).rows[0].v;
     assert.equal(commit.revision, 1);
     assert.equal((await reserve()).cached.revision, 1);
+    const archived = (await db.query<{ user_id: string; ticket: any }>(
+      "select user_id,ticket from lector_generator_ticket_drafts",
+    )).rows[0];
+    assert.equal(archived.user_id, user);
+    assert.equal(archived.ticket.number, 1);
+    const early = "88888888-8888-4888-8888-888888888888";
+    const cancel = (u = user, request = early) =>
+      db.query<{ v: any }>("select lector_generator_cancel($1,$2,$3) v", [
+        u,
+        conversation,
+        request,
+      ]);
+    assert.equal((await cancel(user, turn)).rows[0].v.status, "complete");
+    assert.equal((await cancel()).rows[0].v.cancelled, true);
+    await assert.rejects(cancel(other), /Unauthorized/);
+    assert.equal(
+      (await db.query<{ v: any }>(
+        "select lector_generator_reserve($1,$2,$3,1,10,100) v",
+        [user, conversation, early],
+      )).rows[0].v.status,
+      "failed",
+    );
+    await assert.rejects(
+      db.query("select lector_generator_commit($1,$2,1,'{}',$3,'{}')", [
+        user,
+        conversation,
+        early,
+      ]),
+      /Invalid reservation/,
+    );
+    await assert.rejects(
+      db.query(
+        "select lector_generator_finish_transcription($1,$2,$3,'dictée','{}')",
+        [user, conversation, early],
+      ),
+      /Invalid reservation/,
+    );
+
     await assert.rejects(
       db.query("select lector_generator_commit($1,$2,0,'{}')", [
         user,
@@ -97,6 +141,10 @@ Deno.test("generator migration isolates accounts, reserves quota once and fences
     await db.exec("drop table sport_feed_publications");
     assert.deepEqual(await source(), before);
     await db.exec("set role anon");
+    await assert.rejects(
+      db.query("select * from lector_generator_ticket_drafts"),
+      /permission denied/,
+    );
     await assert.rejects(
       db.query("select * from lector_generator_conversations"),
       /permission denied/,

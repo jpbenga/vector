@@ -142,3 +142,15 @@ branche multisport vers main dans cette livraison.
 Arrêt immédiat : passer le secret serveur `LECTOR_GENERATOR_ENABLED` à `false`.
 Une nouvelle enveloppe de tests doit être autorisée explicitement puis inscrite
 dans la ligne `lector_generator_budget` ; elle n’est pas augmentée par le chat.
+
+
+## Conversation et tickets v1.1
+
+- Une vue commune avec défilement indépendant et compositeur fixe est utilisée dans les onglets Football et Hockey. Le clavier redimensionne la vue, les détails utilisent une bottom sheet avec SafeArea.
+- Les messages portent les identifiants des tickets produits à ce tour. Les cartes utilisent les couleurs du thème, les logos présents dans les sources, les marchés, les cotes et des preuves structurées. Le Radar équipes qui reprend une lecture de forme n’est pas compté une seconde fois.
+- L’intention `alternative` référence un ticket existant. Le serveur conserve son contexte, sa mise, son objectif, les sports et la limite de sélections. Il privilégie d’autres rencontres, puis d’autres marchés, en excluant toute composition déjà proposée. L’identité SHA-256 normalise sport, rencontre, marché et sélection, indépendamment de l’ordre, des cotes, du bookmaker et du snapshot. Aucun ticket n’est artificiellement complété.
+- Les tickets sont archivés comme objets immuables dans `lector_generator_ticket_drafts` (accès serveur avec filtre propriétaire). Le cache de conversation reste borné ; les anciennes cartes restent consultables par leur identifiant. Les remplacements sont proposés et demandent confirmation.
+- `status` renvoie uniquement la phase du tour appartenant au compte ; les états d’affichage correspondent aux étapes exécutées. `cancel` crée une marque d’annulation même avant la réservation. Le verrou de commit empêche la publication d’un résultat annulé. Un appel OpenAI déjà parti peut néanmoins finir et consommer son crédit ; aucune somme n’est remboursée automatiquement.
+- La dictée demande le consentement puis l’autorisation du microphone. MediaRecorder capture l’audio (formats détectés par capacité, notamment MP4 sur Safari), puis AudioContext produit au maximum 60 secondes de PCM mono 16 kHz. Le serveur vérifie la structure et la durée réelle avant la réservation et transmet le WAV à `whisper-1`. Aucun audio n’est enregistré dans Supabase. La transcription est modifiable et n’est jamais envoyée automatiquement comme message.
+- La dictée utilise la même enveloppe conservatrice de tests (0,025 USD réservés par appel, plafond cumulé inchangé). HTTPS ou localhost et un navigateur compatible sont requis. Le clavier reste utilisable si le microphone est refusé. Les tests automatisés couvrent l’enregistrement simulé, la validation WAV, le clavier, les thèmes, les alternatives et l’annulation ; un essai sur iPhone Safari reste nécessaire pour valider les autorisations et le clavier réels.
+- La régression distante utilise deux demandes synthétiques courtes (alternative et clarification), sans lire ni modifier les conversations personnelles. Elle ne crée aucun pari.

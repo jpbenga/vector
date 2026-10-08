@@ -6,7 +6,7 @@ import {
   type State,
   validateIntent,
 } from "./contracts.ts";
-import { compose, revise } from "./engine.ts";
+import { compose, compositionKey, revise } from "./engine.ts";
 export function sourceQuery(
   context: Context,
   date: string,
@@ -26,6 +26,47 @@ export function sourceQuery(
     p_scenarios: [...new Set(prefs.flatMap((p) => p.scenarios ?? []))],
   };
 }
+/** References and frozen constraints are resolved by the server, not trusted to the model. */
+export function resolveIntent(intent: Intent, state: State | null): Intent {
+  if (intent.action !== "alternative") return intent;
+  const reference = intent.referenceTicketId
+    ? [...(state?.tickets ?? []), ...(state?.drafts ?? [])].find((t) =>
+      t.id === intent.referenceTicketId
+    )
+    : state?.tickets.at(-1);
+  if (!reference) {
+    return {
+      ...intent,
+      action: "clarify",
+      message: "Quel ticket souhaitez-vous prendre comme point de départ ?",
+    };
+  }
+  const previous = state?.intent;
+  return {
+    ...intent,
+    referenceTicketId: reference.id,
+    date: intent.preserveConstraints !== false
+      ? calendarDay(reference.picks[0].kickoff, reference.context.timezone)
+      : intent.date,
+    sports: intent.preserveConstraints !== false
+      ? reference.constraints?.sports ??
+        [...new Set(reference.picks.map((p) => p.sport))]
+      : intent.sports,
+    tickets: intent.preserveConstraints !== false
+      ? [reference.target]
+      : intent.tickets,
+    maxSelections: intent.preserveConstraints !== false
+      ? reference.constraints?.maxSelections ?? previous?.maxSelections ?? 6
+      : intent.maxSelections,
+    marketIds: intent.preserveConstraints !== false
+      ? reference.constraints?.marketIds ?? previous?.marketIds ?? []
+      : intent.marketIds,
+    requireEachSport: intent.preserveConstraints !== false
+      ? reference.constraints?.requireEachSport ?? previous?.requireEachSport ??
+        false
+      : intent.requireEachSport,
+  };
+}
 export function applyIntent(
   input: {
     state: State | null;
@@ -38,16 +79,32 @@ export function applyIntent(
   },
 ): State {
   const previous = input.state;
+  input.intent = resolveIntent(input.intent, previous);
   // Revisions always use the original frozen configuration. A changed current
   // profile applies only when asking for a fresh generation.
   const context = ["generate", "explore"].includes(input.intent.action)
     ? input.context
-    : previous?.tickets[input.intent.ticketIndex ?? 0]?.context ??
+    : (input.intent.referenceTicketId
+      ? [...(previous?.tickets ?? []), ...(previous?.drafts ?? [])].find((t) =>
+        t.id === input.intent.referenceTicketId
+      )?.context
+      : undefined) ??
+      previous?.tickets[input.intent.ticketIndex ?? 0]?.context ??
       previous?.context ?? input.context;
   const error = validateIntent(input.intent, context, input.now);
   let reply = error ?? "", tickets = previous?.tickets ?? [], pending = null;
   const versions = [...(previous?.versions ?? [])];
   let catalog = previous?.catalog;
+  let drafts = [
+    ...(previous?.drafts ?? []),
+    ...(previous?.tickets ?? []),
+    ...(previous?.pending ?? []),
+  ];
+  const compositions = new Set([
+    ...(previous?.compositions ?? []),
+    ...drafts.map((t) => compositionKey(t.picks)),
+  ]);
+  let attachments: string[] = [];
   if (!error) {
     if (input.intent.action === "unsupported") {
       reply =
@@ -95,10 +152,24 @@ export function applyIntent(
       ) {
         reply =
           "Un marché demandé ne fait pas partie de vos marchés autorisés. Modifiez vos préférences explicitement avant de l’utiliser.";
-      } else if (input.intent.action === "generate") {
-        const proposed = compose(available.candidates, input.intent, context);
+      } else if (["generate", "alternative"].includes(input.intent.action)) {
+        const proposed = compose(available.candidates, input.intent, context, {
+          tickets: drafts,
+          compositions: [...compositions],
+        });
         if (proposed.length) {
-          if (tickets.length) {
+          const lastNumber = Math.max(0, ...drafts.map((t) => t.number));
+          proposed.forEach((t, i) => t.number = lastNumber + i + 1);
+          attachments = proposed.map((t) => t.id);
+          drafts.push(...proposed);
+          proposed.forEach((t) => compositions.add(compositionKey(t.picks)));
+          if (input.intent.action === "alternative") {
+            tickets = [...tickets, ...proposed].slice(-12);
+            versions.push(tickets);
+            reply = input.intent.preserveConstraints === false
+              ? "Voici une autre composition, avec les ajustements demandés. Le ticket précédent reste disponible."
+              : "Voici une autre composition, avec les contraintes conservées. Le ticket précédent reste disponible.";
+          } else if (tickets.length) {
             pending = proposed;
             reply =
               "Une nouvelle composition est prête. Vous pouvez l’appliquer après examen.";
@@ -115,8 +186,11 @@ export function applyIntent(
             reply +=
               " Certaines compositions n’ont pas pu respecter toutes les contraintes ; elles ne sont pas complétées artificiellement.";
           }
-        } else {reply =
-            "Les données vérifiées ne permettent pas de respecter votre demande. Vous pouvez élargir la date ou réduire le nombre de compositions, sans augmenter votre budget.";}
+        } else {
+          reply = input.intent.action === "alternative"
+            ? "Aucune composition différente n’a été trouvée avec ces contraintes et les données disponibles. Le ticket précédent est conservé. Vous pouvez choisir une autre date, un autre marché autorisé ou ajuster l’objectif."
+            : "Les données vérifiées ne permettent pas de respecter votre demande. Vous pouvez élargir la date ou ajuster l’objectif.";
+        }
       } else {
         // Keep the untouched selections only if they are still real and fresh.
         const freshIds = new Set(available.candidates.map((c) => c.id));
@@ -129,6 +203,14 @@ export function applyIntent(
         pending = existingFresh
           ? revise(tickets, input.intent, available.candidates)
           : null;
+        if (pending) {
+          const changed = pending.filter((t) =>
+            !tickets.some((old) => old.id === t.id)
+          );
+          attachments = changed.map((t) => t.id);
+          drafts.push(...changed);
+          changed.forEach((t) => compositions.add(compositionKey(t.picks)));
+        }
         reply = pending
           ? "Le changement proposé conserve les autres sélections et les mises. Examinez-le, puis confirmez son application."
           : "Aucun remplacement vérifié ne respecte ces contraintes, ou les sélections conservées doivent être actualisées. La composition initiale reste disponible.";
@@ -136,7 +218,8 @@ export function applyIntent(
     }
   }
   // Invalid/ambiguous prompts do not replace the last usable intent.
-  return {
+  drafts = [...new Map(drafts.map((t) => [t.id, t])).values()].slice(-12);
+  const next: State = {
     id: input.id,
     revision: previous?.revision ?? 0,
     context,
@@ -153,17 +236,36 @@ export function applyIntent(
       : input.intent.action === "unsupported"
       ? previous?.pendingIntent ?? null
       : null,
-    tickets,
+    tickets: [...tickets],
     pending,
-    versions: versions.slice(-12),
+    versions: versions.slice(-3),
+    drafts,
+    compositions: [...compositions],
     saved: tickets === previous?.tickets ? previous.saved : false,
     updatedAt: input.now.toISOString(),
     catalog,
     messages: [...(previous?.messages ?? []), {
       role: "user",
       text: input.message,
-    }, { role: "assistant", text: reply }].slice(-40) as State["messages"],
+      at: input.now.toISOString(),
+    }, {
+      role: "assistant",
+      text: reply,
+      ticketIds: attachments,
+      at: input.now.toISOString(),
+    }].slice(-40) as State["messages"],
   };
+  // Bound duplicated ticket snapshots without forgetting composition identities.
+  while (JSON.stringify(next).length > 180000 && next.versions.length) {
+    next.versions.shift();
+  }
+  while (
+    JSON.stringify(next).length > 180000 && (next.drafts?.length ?? 0) > 1
+  ) next.drafts!.shift();
+  while (JSON.stringify(next).length > 180000 && next.tickets.length > 1) {
+    next.tickets.shift();
+  }
+  return next;
 }
 export function preparation(
   sources: Source[],

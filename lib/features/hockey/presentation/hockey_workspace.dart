@@ -317,6 +317,32 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
       icon: auth?.isSignedIn == true ? null : Icons.person_outline_rounded,
       onPressed: () => showLectorAccountSheet(context),
     );
+    if (_section == LectorWorkspaceSection.generator &&
+        const bool.fromEnvironment('LECTOR_GENERATOR_UI')) {
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                child: LectorWorkspaceNavigation(
+                  selected: _section,
+                  onChanged: (value) {
+                    setState(() {
+                      _section = value;
+                      _page = 0;
+                    });
+                    _load();
+                  },
+                ),
+              ),
+              Expanded(child: _generator(context)),
+            ],
+          ),
+        ),
+      );
+    }
     return ListView(
       key: const ValueKey('hockey-workspace'),
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 32),
@@ -449,32 +475,7 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
                 _forMe(context, auth)
               else if (_section == LectorWorkspaceSection.generator &&
                   const bool.fromEnvironment('LECTOR_GENERATOR_UI'))
-                LectorGeneratorPage(
-                  date: _date,
-                  scope: _scope ?? const IdentityScope.guest('unresolved'),
-                  embedded: true,
-                  configurationKey: _preferences.toJson().toString(),
-                  loadContext: () async {
-                    final scope = _scope;
-                    final profile = scope == null
-                        ? null
-                        : await const SavedDecisionProfileStore().load(
-                            scope: scope,
-                          );
-                    return GeneratorContext(
-                      origin: 'profile',
-                      preferences: {
-                        'hockey': GeneratorContext.hockey(_preferences),
-                        if (profile != null)
-                          'football': GeneratorContext.football(
-                            const ProfileCompiler().compile(profile),
-                          ),
-                      },
-                    );
-                  },
-                  onPreferences: _openSpace,
-                  onOpenMatch: (pick) => openGeneratorMatch(context, pick),
-                )
+                _generator(context)
               else if (_section == LectorWorkspaceSection.generator ||
                   _section == LectorWorkspaceSection.bilan)
                 _notice(
@@ -503,6 +504,30 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
       ],
     );
   }
+
+  Widget _generator(BuildContext context) => LectorGeneratorPage(
+    date: _date,
+    scope: _scope ?? const IdentityScope.guest('unresolved'),
+    configurationKey: _preferences.toJson().toString(),
+    loadContext: () async {
+      final scope = _scope;
+      final profile = scope == null
+          ? null
+          : await const SavedDecisionProfileStore().load(scope: scope);
+      return GeneratorContext(
+        origin: 'profile',
+        preferences: {
+          'hockey': GeneratorContext.hockey(_preferences),
+          if (profile != null)
+            'football': GeneratorContext.football(
+              const ProfileCompiler().compile(profile),
+            ),
+        },
+      );
+    },
+    onPreferences: _openSpace,
+    onOpenMatch: (pick) => openGeneratorMatch(context, pick),
+  );
 
   Widget _notice(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 12),

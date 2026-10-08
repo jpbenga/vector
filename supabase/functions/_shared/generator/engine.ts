@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   type Candidate,
   type Context,
@@ -31,16 +32,38 @@ function within(picks: Candidate[], target: Target) {
 }
 export function compatible(picks: Candidate[], next: Candidate) {
   return picks.every((p) =>
-    p.matchId !== next.matchId && p.bookmaker === next.bookmaker &&
+    !(p.sport === next.sport && p.matchId === next.matchId) &&
+    p.bookmaker === next.bookmaker &&
     !p.teams.some((team) => next.teams.includes(team))
   );
+}
+/** Stable business identity: order, prices, bookmaker and publication are irrelevant. */
+export function compositionKey(picks: Candidate[]): string {
+  const normalize = (v: string) =>
+    v.normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ");
+  return createHash("sha256").update(JSON.stringify(
+    picks.map((p) => [p.sport, p.matchId, p.marketId, normalize(p.selection)])
+      .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
+  )).digest("hex");
 }
 export function compose(
   candidates: Candidate[],
   intent: Intent,
   context: Context,
+  history: { tickets?: Ticket[]; compositions?: string[] } = {},
 ): Ticket[] {
   const used = new Set<string>(), result: Ticket[] = [];
+  const previous = history.tickets ?? [];
+  const excluded = new Set([
+    ...(history.compositions ?? []),
+    ...previous.map((t) => compositionKey(t.picks)),
+  ]);
+  const oldFixtures = new Set(
+    previous.flatMap((t) => t.picks.map((p) => `${p.sport}:${p.matchId}`)),
+  );
+  const oldSelections = new Set(
+    previous.flatMap((t) => t.picks.map((p) => compositionKey([p]))),
+  );
   const sorted = [...candidates].filter((c) =>
     intent.sports.includes(c.sport) &&
     (!intent.marketIds.length || intent.marketIds.includes(c.marketId))
@@ -58,33 +81,51 @@ export function compose(
     const available = sorted.filter((c) =>
       !intent.diversify || !used.has(c.matchId)
     );
-    // Fair cap by fixture, not by bookmaker rows belonging to one early fixture.
-    const matches = [...new Set(available.map((c) => c.matchId))].slice(0, 24);
-    const pool = matches.flatMap((id) =>
-      available.filter((c) => c.matchId === id).slice(0, 12)
-    );
-    let attempts = 0, chosen: Candidate[] | null = null;
-    const walk = (start: number, picks: Candidate[]) => {
-      if (chosen || attempts++ >= 16000) return;
-      if (
-        picks.length && within(picks, target) &&
-        (!intent.requireEachSport ||
-          intent.sports.every((s) => picks.some((p) => p.sport === s)))
-      ) {
-        chosen = picks;
-        return;
-      }
-      if (picks.length >= (intent.maxSelections ?? 6)) return;
-      if (
-        target.maximum !== null &&
-        (totals(picks, target.stake!).returnTotal -
-            (target.kind === "net" ? target.stake! : 0)) > target.maximum
-      ) return;
-      for (let i = start; i < pool.length && !chosen && attempts < 16000; i++) {
-        if (compatible(picks, pool[i])) walk(i + 1, [...picks, pool[i]]);
-      }
-    };
-    walk(0, []);
+    const alternatives = intent.action === "alternative"
+      ? [
+        available.filter((c) => !oldFixtures.has(`${c.sport}:${c.matchId}`)),
+        available.filter((c) => !oldSelections.has(compositionKey([c]))),
+        available,
+      ]
+      : [available];
+    let chosen: Candidate[] | null = null;
+    for (const variant of alternatives) {
+      // Fair cap by fixture, not by bookmaker rows belonging to one early fixture.
+      const matches = [
+        ...new Set(variant.map((c) => `${c.sport}:${c.matchId}`)),
+      ].slice(0, 48);
+      const pool = matches.flatMap((id) =>
+        variant.filter((c) => `${c.sport}:${c.matchId}` === id).slice(0, 16)
+      );
+      let attempts = 0;
+      const walk = (start: number, picks: Candidate[]) => {
+        if (chosen || attempts++ >= 16000) return;
+        if (
+          picks.length && within(picks, target) &&
+          !excluded.has(compositionKey(picks)) &&
+          (!intent.requireEachSport ||
+            intent.sports.every((s) => picks.some((p) => p.sport === s)))
+        ) {
+          chosen = picks;
+          return;
+        }
+        if (picks.length >= (intent.maxSelections ?? 6)) return;
+        if (
+          target.maximum !== null &&
+          (totals(picks, target.stake!).returnTotal -
+              (target.kind === "net" ? target.stake! : 0)) > target.maximum
+        ) return;
+        for (
+          let i = start;
+          i < pool.length && !chosen && attempts < 16000;
+          i++
+        ) {
+          if (compatible(picks, pool[i])) walk(i + 1, [...picks, pool[i]]);
+        }
+      };
+      walk(0, []);
+      if (chosen) break;
+    }
     if (!chosen) continue;
     const picks = chosen as Candidate[];
     result.push({
@@ -94,12 +135,19 @@ export function compose(
       picks,
       ...totals(picks, target.stake),
       target,
+      constraints: {
+        maxSelections: intent.maxSelections ?? 6,
+        marketIds: intent.marketIds,
+        requireEachSport: intent.requireEachSport,
+        sports: intent.sports,
+      },
       context: structuredClone(context),
       warnings: [
         "Retour arithmétique si toutes les sélections gagnent, sans garantie.",
         "Cotes et statut à vérifier de nouveau avant toute utilisation.",
       ],
     });
+    excluded.add(compositionKey(picks));
     for (const p of picks) used.add(p.matchId);
   }
   if (
@@ -137,6 +185,7 @@ export function revise(
     i === index
       ? {
         ...t,
+        id: crypto.randomUUID(),
         picks,
         ...totals(picks, t.stake),
         warnings: [

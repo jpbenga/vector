@@ -537,3 +537,188 @@ Deno.test("Pour moi is the base and outside competitions require a factual Radar
     null,
   );
 });
+
+Deno.test("alternatives exclude identical compositions across ordering, odds and snapshot updates", () => {
+  const unconstrained = {
+    ...intent,
+    tickets: [{
+      stake: 50,
+      minimum: null,
+      maximum: null,
+      kind: "total" as const,
+    }],
+    maxSelections: 1,
+  };
+  const first = compose([pick("a"), pick("b")], unconstrained, context)[0];
+  const fresh = {
+    ...pick("a", 2.1),
+    id: "new-publication-a",
+    snapshotId: "new",
+    bookmaker: "Other",
+  };
+  const alternative = compose(
+    [fresh, pick("b")],
+    { ...unconstrained, action: "alternative" },
+    context,
+    { tickets: [first] },
+  );
+  assert.equal(alternative[0].picks[0].matchId, "b");
+  assert.equal(
+    compose([fresh], { ...unconstrained, action: "alternative" }, context, {
+      tickets: [first],
+    }).length,
+    0,
+  );
+});
+Deno.test("alternative falls back to another authorized market without inventing a new fixture", () => {
+  const simple = {
+    ...intent,
+    tickets: [{
+      stake: 50,
+      minimum: null,
+      maximum: null,
+      kind: "total" as const,
+    }],
+    maxSelections: 1,
+  };
+  const a = pick("a"),
+    safer = {
+      ...a,
+      id: "double-chance",
+      marketId: "doubleChance",
+      selection: "Domicile ou nul",
+      odds: 1.5,
+    };
+  const previous = compose([a], simple, context);
+  assert.equal(
+    compose([a, safer], { ...simple, action: "alternative" }, context, {
+      tickets: previous,
+    })[0].picks[0].id,
+    safer.id,
+  );
+});
+Deno.test("another ticket preserves frozen constraints, remembers rejected proposals and keeps the original", () => {
+  const s = source(),
+    constrained = {
+      ...intent,
+      tickets: [{
+        stake: 50,
+        minimum: null,
+        maximum: null,
+        kind: "total" as const,
+      }],
+      maxSelections: 1,
+    };
+  const original = applyIntent({
+    state: null,
+    context,
+    intent: constrained,
+    sources: [s],
+    message: "Un ticket",
+    now,
+    id: "conversation",
+  });
+  const changed = structuredClone(s);
+  const raw = changed.payload.raw as any;
+  raw.fixtures.push({
+    ...raw.fixtures[0],
+    fixture: { ...raw.fixtures[0].fixture, id: 2 },
+    teams: { home: { id: 10, name: "C" }, away: { id: 11, name: "D" } },
+    league: { id: 61, name: "Ligue 1" },
+  });
+  raw.odds.push({ ...raw.odds[0], fixture: { id: 2 } });
+  (changed.payload.computed as any).fixtures.push({
+    ...(changed.payload.computed as any).fixtures[0],
+    fixture_id: 2,
+  });
+  const second = applyIntent({
+    state: original,
+    context: { ...context, budget: 1 },
+    intent: {
+      ...constrained,
+      action: "alternative",
+      referenceTicketId: original.tickets[0].id,
+      date: "2026-10-12",
+      tickets: [],
+      sports: ["hockey"],
+    },
+    sources: [changed],
+    message: "Un autre",
+    now,
+    id: "conversation",
+  });
+  assert.equal(second.tickets.length, 2);
+  assert.deepEqual(second.tickets[0], original.tickets[0]);
+  assert.equal(second.tickets[1].stake, 50);
+  assert.equal(second.intent?.date, constrained.date);
+  assert.equal(second.tickets[1].number, 2);
+  assert.deepEqual(second.messages.at(-1)?.ticketIds, [second.tickets[1].id]);
+  const exhausted = applyIntent({
+    state: second,
+    context,
+    intent: { ...constrained, action: "alternative" },
+    sources: [changed],
+    message: "Encore",
+    now,
+    id: "conversation",
+  });
+  assert.equal(exhausted.tickets.length, 2);
+  assert.match(
+    exhausted.messages.at(-1)!.text,
+    /Aucune composition différente/,
+  );
+});
+Deno.test("fingerprint ignores selection order and explanations, but distinguishes markets", async () => {
+  const { compositionKey } = await import("./engine.ts");
+  assert.equal(
+    compositionKey([pick("a"), pick("b")]),
+    compositionKey([{ ...pick("b"), evidence: [] }, {
+      ...pick("a"),
+      selection: " domicile ",
+    }]),
+  );
+  assert.notEqual(
+    compositionKey([pick("a")]),
+    compositionKey([{ ...pick("a"), marketId: "doubleChance" }]),
+  );
+});
+Deno.test("voice rejects oversized or disguised compressed audio before a paid call", async () => {
+  const { decodeVoice, transcribe } = await import("./voice.ts");
+  assert.throws(() => decodeVoice(btoa("fake")), /dictée|invalide/);
+  const bytes = new Uint8Array(32044), view = new DataView(bytes.buffer);
+  const str = (i: number, s: string) =>
+    [...s].forEach((c, j) => view.setUint8(i + j, c.charCodeAt(0)));
+  str(0, "RIFF");
+  view.setUint32(4, bytes.length - 8, true);
+  str(8, "WAVE");
+  str(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, 16000, true);
+  view.setUint32(28, 32000, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  str(36, "data");
+  view.setUint32(40, 32000, true);
+  const encoded = () =>
+    btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(""));
+  assert.equal(decodeVoice(encoded()).length, 32044);
+  let called = false;
+  assert.equal(
+    await transcribe(bytes, {
+      key: "test",
+      fetcher: async (_url, init) => {
+        called = true;
+        const form = init!.body as FormData;
+        assert.equal(form.get("model"), "whisper-1");
+        assert.equal(form.get("language"), "fr");
+        return Response.json({ text: "Un ticket pour samedi" });
+      },
+    }),
+    "Un ticket pour samedi",
+  );
+  assert.equal(called, true);
+  view.setUint32(24, 8000, true);
+  assert.throws(() => decodeVoice(encoded()), /invalide/);
+});
