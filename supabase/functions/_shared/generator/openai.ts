@@ -26,6 +26,7 @@ export const intentSchema = {
     "tickets",
     "diversify",
     "requireEachSport",
+    "maxSelections",
     "ticketIndex",
     "selectionIndex",
     "marketIds",
@@ -53,6 +54,7 @@ export const intentSchema = {
     tickets: { type: "array", items: target },
     diversify: { type: "boolean" },
     requireEachSport: { type: "boolean" },
+    maxSelections: { type: ["integer", "null"], minimum: 1, maximum: 6 },
     ticketIndex: { type: ["integer", "null"] },
     selectionIndex: { type: ["integer", "null"] },
     marketIds: { type: "array", items: { type: "string" } },
@@ -90,12 +92,12 @@ export async function interpret(
     store: false,
     max_output_tokens: 1800,
     instructions: instructions +
-      " Une demande de découverte des joueurs ou équipes chauds utilise explore ; elle ne nécessite ni mise ni objectif de retour.",
+      " Une demande de découverte des joueurs ou équipes chauds utilise explore ; elle ne nécessite ni mise ni objectif de retour. maxSelections est le maximum de matchs par ticket explicitement demandé, entre 1 et 6 ; null si absent. Une réponse courte à une clarification reprend la date, les sports, les mises, les objectifs et le maximum de matchs de previousIntent (ou des messages récents pour une ancienne conversation). Elle change uniquement la précision fournie et utilise generate si la demande est désormais complète. Pour une demande incomplète, conserve toujours les contraintes déjà exprimées dans les champs structurés.",
     input: JSON.stringify({
       today: input.today,
       selectedDate: input.date,
       context: input.context,
-      previousIntent: input.state?.intent,
+      previousIntent: input.state?.pendingIntent ?? input.state?.intent,
       tickets: input.state?.tickets.map((t, i) => ({
         index: i,
         stake: t.stake,

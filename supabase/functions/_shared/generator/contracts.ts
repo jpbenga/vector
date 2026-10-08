@@ -40,6 +40,7 @@ export interface Intent {
   tickets: Target[];
   diversify: boolean;
   requireEachSport: boolean;
+  maxSelections?: number | null;
   ticketIndex: number | null;
   selectionIndex: number | null;
   marketIds: string[];
@@ -103,6 +104,7 @@ export interface State {
   revision: number;
   context: Context;
   intent: Intent | null;
+  pendingIntent?: Intent | null;
   tickets: Ticket[];
   versions: Ticket[][];
   pending: Ticket[] | null;
@@ -184,7 +186,11 @@ export function intentFrom(value: unknown): Intent {
   const index = (x: unknown) =>
     x === null || (Number.isInteger(x) && Number(x) >= 0 && Number(x) < 30);
   if (
-    Object.keys(v).length !== keys.length || !keys.every((k) => k in v) ||
+    !Object.keys(v).every((k) => [...keys, "maxSelections"].includes(k)) ||
+    !keys.every((k) => k in v) ||
+    (v.maxSelections !== undefined && v.maxSelections !== null &&
+      (!Number.isInteger(v.maxSelections) || Number(v.maxSelections) < 1 ||
+        Number(v.maxSelections) > 6)) ||
     !actions.includes(String(v.action)) || typeof v.date !== "string" ||
     v.date.length > 10 ||
     !Array.isArray(v.sports) || v.sports.length > 2 ||
@@ -237,6 +243,13 @@ export function validateIntent(
     i.sports.some((s) => !["football", "hockey"].includes(s))
   ) return "Choisissez un sport disponible dans Lector.";
   if (i.action !== "generate") return null;
+  if (
+    i.maxSelections != null &&
+    (!Number.isInteger(i.maxSelections) || i.maxSelections < 1 ||
+      i.maxSelections > 6)
+  ) {
+    return "Choisissez entre un et six matchs maximum par composition.";
+  }
   if (!i.tickets.length || i.tickets.length > 4) {
     return "Précisez entre un et quatre tickets.";
   }
@@ -259,6 +272,9 @@ export function validateIntent(
         v !== null && (!Number.isFinite(v) || v < 0)
       ) || (t.minimum !== null && t.maximum !== null && t.maximum < t.minimum)
     ) return "Précisez un intervalle de retour cohérent.";
+    if (t.kind === "total" && t.maximum !== null && t.maximum <= t.stake) {
+      return "Le retour total comprend la mise. Avec cette mise, l’objectif doit être supérieur à la mise pour composer un ticket. Précisez la mise ou l’objectif.";
+    }
   }
   return budget > context.budget + 0.001
     ? "Les mises dépassent votre plafond. Réduisez-les ou demandez moins de compositions."

@@ -45,6 +45,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
   Map<String, dynamic>? _preparation;
   String _id = generatorUuid();
   String? _error;
+  String? _submittedMessage;
   bool _busy = false;
   int _generation = 0;
   static const _key = 'generator.conversation.v1';
@@ -72,6 +73,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
       _context = null;
       _busy = false;
       _error = null;
+      _submittedMessage = null;
       _id = generatorUuid();
       _message.clear();
       _initialize();
@@ -189,6 +191,8 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
     setState(() {
       _busy = true;
       _error = null;
+      _submittedMessage = message;
+      _message.clear();
     });
     try {
       final result = await repository.request({
@@ -200,7 +204,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
       final conversation = GeneratorConversation(generatorMap(result['state']));
       setState(() {
         _conversation = conversation;
-        _message.clear();
+        _submittedMessage = null;
       });
       await const ScopedPersistence().write(
         widget.scope,
@@ -341,7 +345,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Découverte'),
                 subtitle: const Text(
-                  'Explorer aussi hors de mes compétitions.',
+                  'Inclure les pistes du Radar hors de mes compétitions.',
                 ),
                 value: discovery,
                 onChanged: (v) => update(() => discovery = v),
@@ -412,6 +416,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
                     _conversation = null;
                     _id = generatorUuid();
                     _error = null;
+                    _submittedMessage = null;
                   }),
             icon: const Icon(Icons.add_comment_outlined),
           ),
@@ -437,7 +442,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
             ),
             Text(
               current?.discovery == true
-                  ? 'Découverte · autres compétitions autorisées'
+                  ? 'Pour moi + pistes du Radar'
                   : 'Strict · mes compétitions uniquement',
             ),
             Wrap(
@@ -589,6 +594,23 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
           ),
       ],
       const SizedBox(height: 16),
+      if (_submittedMessage != null)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'VOUS',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(_submittedMessage!),
+            ],
+          ),
+        ),
       if (_error != null)
         Padding(
           padding: const EdgeInsets.only(bottom: 8),
@@ -597,13 +619,37 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
             style: TextStyle(color: context.semantic.warning),
           ),
         ),
-      if (_busy)
+      if (_busy && _submittedMessage != null)
+        Semantics(
+          liveRegion: true,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Row(
+              children: [
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Recherche en cours…',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        )
+      else if (_busy)
         const Padding(
           padding: EdgeInsets.only(bottom: 8),
           child: LinearProgressIndicator(),
         ),
       TextField(
         controller: _message,
+        enabled: !_busy,
         minLines: 1,
         maxLines: 4,
         maxLength: 2000,

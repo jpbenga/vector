@@ -7,7 +7,11 @@ import {
 } from "../_shared/generator/contracts.ts";
 import { type Source } from "../_shared/generator/catalog.ts";
 import { interpret } from "../_shared/generator/openai.ts";
-import { applyIntent, preparation } from "../_shared/generator/service.ts";
+import {
+  applyIntent,
+  preparation,
+  sourceQuery,
+} from "../_shared/generator/service.ts";
 import { validateIntent } from "../_shared/generator/contracts.ts";
 import { buildCatalog } from "../_shared/generator/catalog.ts";
 const cors = {
@@ -25,6 +29,7 @@ async function rest(
   path: string,
   body?: unknown,
   method = body ? "POST" : "GET",
+  timeoutMs = 15000,
 ) {
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const result = await fetch(
@@ -32,7 +37,7 @@ async function rest(
     {
       method,
       redirect: "error",
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(timeoutMs),
       headers: {
         authorization: `Bearer ${key}`,
         apikey: key,
@@ -67,6 +72,27 @@ Deno.serve(async (request) => {
     return reply({ error: "Demande trop longue." }, 413);
   }
   let reservation: string | null = null;
+  let stage = "authenticate";
+  let aiUsage: unknown = null;
+  const started = performance.now();
+  const call = async (
+    path: string,
+    body?: unknown,
+    method?: string,
+    timeoutMs?: number,
+  ) => {
+    stage = path.split("?")[0];
+    return await rest(path, body, method, timeoutMs);
+  };
+  const sourcesFor = (
+    context: ReturnType<typeof contextFrom>,
+    date: string,
+    sports = Object.keys(context.preferences),
+  ) =>
+    call(
+      "rpc/lector_generator_sources_filtered",
+      sourceQuery(context, date, sports),
+    ) as Promise<Source[]>;
   try {
     const auth = request.headers.get("authorization") ?? "";
     if (!auth.startsWith("Bearer ")) {
@@ -94,7 +120,7 @@ Deno.serve(async (request) => {
     }
     const input = obj(JSON.parse(text)), action = input.action;
     if (action === "history") {
-      const history = await rest(
+      const history = await call(
         `lector_generator_conversations?user_id=eq.${user.id}&select=id,state,updated_at&state->>saved=eq.true&order=updated_at.desc&limit=20`,
       );
       return reply({ history: history.map((h: Json) => h.state) });
@@ -104,7 +130,7 @@ Deno.serve(async (request) => {
       Number(input.revision) < 0
     ) return reply({ error: "Conversation invalide." }, 400);
     const id = String(input.conversationId), revision = Number(input.revision);
-    const states = await rest(
+    const states = await call(
       `lector_generator_conversations?id=eq.${id}&user_id=eq.${user.id}&select=state,revision`,
     );
     const previous = states.length && Object.keys(states[0].state).length
@@ -133,10 +159,9 @@ Deno.serve(async (request) => {
             ticket.picks[0].kickoff,
             ticket.context.timezone,
           );
-          const sources = await rest("rpc/lector_generator_sources", {
-            p_date: date,
-            p_timezone: ticket.context.timezone,
-          }) as Source[];
+          const sources = await sourcesFor(ticket.context, date, [
+            ...new Set(ticket.picks.map((p) => p.sport)),
+          ]);
           const catalog = buildCatalog(sources, ticket.context, date, now);
           const ids = new Set(catalog.candidates.map((c) => c.id));
           if (!ticket.picks.every((p) => ids.has(p.id))) {
@@ -151,7 +176,7 @@ Deno.serve(async (request) => {
         next.pending = null;
         next.saved = false;
       } else next.saved = true;
-      const state = await rest("rpc/lector_generator_commit", {
+      const state = await call("rpc/lector_generator_commit", {
         p_user: user.id,
         p_conversation: id,
         p_revision: revision,
@@ -164,10 +189,7 @@ Deno.serve(async (request) => {
       return reply({ error: "Date invalide." }, 400);
     }
     if (action === "prepare") {
-      const sources = await rest("rpc/lector_generator_sources", {
-        p_date: date,
-        p_timezone: context.timezone,
-      }) as Source[];
+      const sources = await sourcesFor(context, date);
       return reply({ preparation: preparation(sources, context, date, now) });
     }
     if (
@@ -183,7 +205,7 @@ Deno.serve(async (request) => {
           "L’assistant IA n’est pas encore activé. Les appels IA restent désactivés tant que sa configuration serveur n’est pas installée.",
       }, 503);
     }
-    const claim = await rest("rpc/lector_generator_reserve", {
+    const claim = await call("rpc/lector_generator_reserve", {
       p_user: user.id,
       p_conversation: id,
       p_request: input.requestId,
@@ -202,6 +224,7 @@ Deno.serve(async (request) => {
       }, 409);
     }
     reservation = String(input.requestId);
+    stage = "interpret";
     const { intent, usage } = await interpret({
       message: input.message.trim(),
       date,
@@ -209,6 +232,7 @@ Deno.serve(async (request) => {
       state: previous,
       today: calendarDay(now, context.timezone),
     }, { key, model });
+    aiUsage = usage;
     const revisionContext = ["generate", "explore"].includes(intent.action)
       ? context
       : previous?.tickets[intent.ticketIndex ?? 0]?.context ??
@@ -225,17 +249,19 @@ Deno.serve(async (request) => {
     const sources =
       ["generate", "replace", "remove", "explore"].includes(intent.action) &&
         !validateIntent(intent, revisionContext, now)
-        ? await rest("rpc/lector_generator_sources", {
-          p_date: intent.date,
-          p_timezone: revisionContext.timezone,
-        }) as Source[]
+        ? await sourcesFor(revisionContext, intent.date, intent.sports)
         : [];
     if (sources.some((s) => s.sport === "football")) {
       try {
-        const history = await rest("rpc/match_reading_bilan_breakdown", {
-          p_since: new Date(now.getTime() - 90 * 86400000).toISOString(),
-          p_until: now.toISOString(),
-        });
+        const history = await call(
+          "rpc/match_reading_bilan_breakdown",
+          {
+            p_since: new Date(now.getTime() - 90 * 86400000).toISOString(),
+            p_until: now.toISOString(),
+          },
+          "POST",
+          3000,
+        );
         for (const source of sources.filter((s) => s.sport === "football")) {
           source.payload.bilan = history;
         }
@@ -246,6 +272,7 @@ Deno.serve(async (request) => {
         }
       }
     }
+    stage = "compose";
     const next = applyIntent({
       state: previous,
       context,
@@ -255,7 +282,7 @@ Deno.serve(async (request) => {
       now,
       id,
     });
-    const state = await rest("rpc/lector_generator_commit", {
+    const state = await call("rpc/lector_generator_commit", {
       p_user: user.id,
       p_conversation: id,
       p_revision: revision,
@@ -269,14 +296,35 @@ Deno.serve(async (request) => {
     if (reservation) {
       await rest(
         `lector_generator_turns?request_id=eq.${reservation}&status=eq.pending`,
-        { status: "failed" },
+        {
+          status: "failed",
+          usage: {
+            failure_stage: stage,
+            elapsed_ms: Math.round(performance.now() - started),
+            ai_usage: aiUsage,
+          },
+        },
         "PATCH",
       ).catch(() => {});
     }
+    const timeout = error instanceof Error &&
+      ["TimeoutError", "AbortError"].includes(error.name);
+    console.error(
+      JSON.stringify({
+        event: "generator_failure",
+        stage,
+        elapsed_ms: Math.round(performance.now() - started),
+        timeout,
+      }),
+    );
     return reply({
-      error: error instanceof Error
+      error: timeout
+        ? (stage === "interpret"
+          ? "L’interprétation a pris trop de temps. Votre conversation est conservée ; vous pouvez réessayer."
+          : "La récupération des données a pris trop de temps. Votre conversation est conservée ; vous pouvez réessayer.")
+        : error instanceof Error
         ? error.message
         : "La préparation a échoué. Aucune mise n’a été engagée.",
-    }, 400);
+    }, timeout ? 504 : 400);
   }
 });

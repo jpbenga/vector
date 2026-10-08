@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../domain/generator_context.dart';
 
@@ -20,6 +22,10 @@ class SupabaseGeneratorRepository implements GeneratorRepository {
       final data = generatorMap(response.data);
       if (data['error'] != null) throw StateError(data['error'].toString());
       return data;
+    } on TimeoutException {
+      throw StateError(
+        'La préparation a pris trop de temps. Votre conversation est conservée ; rechargez-la avant de réessayer.',
+      );
     } on FunctionException catch (error) {
       final message = generatorMap(error.details)['error'];
       throw StateError(

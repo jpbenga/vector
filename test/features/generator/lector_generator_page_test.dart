@@ -145,6 +145,12 @@ void main() {
       await tester.enterText(find.byType(TextField), 'Un ticket');
       await tester.tap(find.byTooltip('Envoyer la demande'));
       await tester.pump();
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        isEmpty,
+      );
+      expect(find.text('Recherche en cours…'), findsOneWidget);
+      expect(find.text('Un ticket'), findsOneWidget);
       final oldId = service.requests.last['conversationId'];
       await tester.pumpWidget(screen('generator-new-account'));
       await tester.pumpAndSettle();
@@ -161,6 +167,8 @@ void main() {
       });
       await tester.pumpAndSettle();
       expect(find.text('private-old-account'), findsNothing);
+      expect(find.text('Recherche en cours…'), findsNothing);
+      expect(find.text('Un ticket'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );

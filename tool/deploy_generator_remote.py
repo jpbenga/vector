@@ -70,11 +70,25 @@ def main():
         if "$lector_generator_sql$" in sql:
             raise ValueError("Unexpected SQL delimiter.")
         query("begin;\n" + sql + f"\ninsert into supabase_migrations.schema_migrations(version,name,statements) values('{VERSION}','lector_generator',array[$lector_generator_sql${sql}$lector_generator_sql$]);\ncommit;")
+    # Follow-up migrations are append-only; never alter the installed baseline
+    # or clear the cumulative budget/account usage during an update.
+    for migration in sorted(Path("supabase/migrations").glob("*_lector_generator_*.sql")):
+        version, name = migration.stem.split("_", 1)
+        followup = migration.read_text()
+        prior = query(f"select statements from supabase_migrations.schema_migrations where version='{version}'", True)
+        if prior:
+            if prior[0].get("statements") != [followup]:
+                raise ValueError("Installed follow-up migration differs.")
+        else:
+            if "$lector_generator_sql$" in followup:
+                raise ValueError("Unexpected SQL delimiter.")
+            query("begin;\n" + followup + f"\ninsert into supabase_migrations.schema_migrations(version,name,statements) values('{version}','{name}',array[$lector_generator_sql${followup}$lector_generator_sql$]);\ncommit;")
     # The helper is deliberately unavailable to the management API's restricted
     # read-only role. This SELECT uses the installer role without changing ACLs.
     source_check = query("select jsonb_array_length(public.lector_generator_sources((now() at time zone 'Europe/Paris')::date,'Europe/Paris')) as source_count")
     print(json.dumps({"generator_source_check": source_check}))
-    subprocess.run(["deno", "run", "--allow-env=OPENAI_API_KEY,SUPABASE_ACCESS_TOKEN", "--allow-net=api.openai.com,api.supabase.com", "--allow-write=/tmp/lector-generator-model.txt", "tool/benchmark_lector_generator.ts"], check=True)
+    script = "tool/regression_generator_remote.ts" if env.get("GENERATOR_UPDATE") == "true" else "tool/benchmark_lector_generator.ts"
+    subprocess.run(["deno", "run", "--allow-env=OPENAI_API_KEY,SUPABASE_ACCESS_TOKEN", "--allow-net=api.openai.com,api.supabase.com", "--allow-write=/tmp/lector-generator-model.txt", script], check=True)
     model = Path("/tmp/lector-generator-model.txt").read_text().strip()
     if model not in MODELS:
         raise ValueError("No verified test model selected.")

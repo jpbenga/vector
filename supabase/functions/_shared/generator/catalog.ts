@@ -32,6 +32,14 @@ const aliases: Record<string, string> = {
   form_advantage: "recent_form_advantage",
   form_improvement: "improving_form",
 };
+export function publishedReadingIds(ids: string[]): string[] {
+  return [
+    ...new Set([
+      ...ids,
+      ...Object.keys(aliases).filter((id) => ids.includes(aliases[id])),
+    ]),
+  ];
+}
 function evidence(raw: Json[], source: Source, readings: string[]): Evidence[] {
   return raw.filter((r) =>
     readings.includes(String(r.id)) || readings.includes(aliases[String(r.id)])
@@ -194,7 +202,6 @@ export function buildCatalog(
       seen.add(id);
       const discovery = !pref.competitions.includes(competitionId);
       if (discovery && context.scope === "strict") continue;
-      matchCount++;
       const analysis = computed.find((v) => String(v.fixture_id) === id);
       const allReadings = rows(analysis?.readings),
         scenarios = rows(analysis?.scenarios).filter((s) =>
@@ -212,6 +219,7 @@ export function buildCatalog(
           pref.readings.includes(aliases[String(r.id)]) ||
           scenarioReadings.has(String(r.id))
         );
+      if (!selected.length && !scenarios.length) continue;
       const radar = [
         ...playerSignals(
           source,
@@ -220,6 +228,10 @@ export function buildCatalog(
         ),
         ...teamSignals(source, fixture, selected),
       ];
+      // Outside followed competitions, only a factual Radar opportunity may
+      // supplement Pour moi. A matching reading alone never scans all leagues.
+      if (discovery && !radar.length) continue;
+      matchCount++;
       for (const signal of radar) signals.set(signal.id, signal);
       const prices = rows(raw.odds).filter((r) =>
         String(obj(r.fixture).id) === id

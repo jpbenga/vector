@@ -1,4 +1,4 @@
-import { buildCatalog, type Source } from "./catalog.ts";
+import { buildCatalog, publishedReadingIds, type Source } from "./catalog.ts";
 import {
   calendarDay,
   type Context,
@@ -7,6 +7,25 @@ import {
   validateIntent,
 } from "./contracts.ts";
 import { compose, revise } from "./engine.ts";
+export function sourceQuery(
+  context: Context,
+  date: string,
+  sports = Object.keys(context.preferences),
+) {
+  const prefs = sports.flatMap((s) =>
+    context.preferences[s as "football" | "hockey"] ?? []
+  );
+  return {
+    p_date: date,
+    p_timezone: context.timezone,
+    p_sports: sports,
+    p_competitions: context.scope === "strict"
+      ? [...new Set(prefs.flatMap((p) => p.competitions))]
+      : null,
+    p_readings: publishedReadingIds(prefs.flatMap((p) => p.readings)),
+    p_scenarios: [...new Set(prefs.flatMap((p) => p.scenarios ?? []))],
+  };
+}
 export function applyIntent(
   input: {
     state: State | null;
@@ -124,6 +143,16 @@ export function applyIntent(
     intent: !error && !["unsupported", "clarify"].includes(input.intent.action)
       ? input.intent
       : previous?.intent ?? null,
+    // Keep the structured draft through clarification without replacing any
+    // usable ticket intent. Old conversations still retain their raw messages.
+    pendingIntent: (error && input.intent.action === "generate") ||
+        input.intent.action === "clarify"
+      ? (input.intent.tickets.length
+        ? input.intent
+        : previous?.pendingIntent ?? null)
+      : input.intent.action === "unsupported"
+      ? previous?.pendingIntent ?? null
+      : null,
     tickets,
     pending,
     versions: versions.slice(-12),

@@ -74,7 +74,7 @@ export function compose(
         chosen = picks;
         return;
       }
-      if (picks.length >= 6) return;
+      if (picks.length >= (intent.maxSelections ?? 6)) return;
       if (
         target.maximum !== null &&
         (totals(picks, target.stake!).returnTotal -

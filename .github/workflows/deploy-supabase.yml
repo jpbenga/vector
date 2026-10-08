@@ -20,6 +20,7 @@ on:
           - admin-ops
           - all-football
           - lector-generator-demo
+          - lector-generator-update
           - lector-generator-diagnostic
 
 permissions:
@@ -50,7 +51,7 @@ jobs:
         run: python3 tool/deploy_supabase_remote.py
 
   generator-demo:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-demo'
+    if: github.ref == 'refs/heads/codex/multisport-hockey' && (inputs.function == 'lector-generator-demo' || inputs.function == 'lector-generator-update')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
@@ -72,6 +73,7 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GH_TOKEN: ${{ github.token }}
+          GENERATOR_UPDATE: ${{ inputs.function == 'lector-generator-update' && 'true' || 'false' }}
         run: python3 tool/deploy_generator_remote.py
 
   generator-diagnostic:

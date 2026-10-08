@@ -109,3 +109,116 @@ Deno.test("generator migration isolates accounts, reserves quota once and fences
     await db.close();
   }
 });
+Deno.test("compact generator sources keep day evidence and actual prices without unrelated profiles", async () => {
+  const db = new PGlite();
+  try {
+    await db.exec(
+      `create role anon;create role authenticated;create role service_role;
+      create table match_feed_analysis_snapshots(id uuid,source_snapshot_id uuid,scope_key text,league_ids integer[],captured_at timestamptz,as_of timestamptz,window_start date,window_end date,payload jsonb);
+      create table match_feed_snapshot_fixtures(snapshot_id uuid,kickoff_at timestamptz);
+      create table sport_feed_publications(run_id uuid,sport text,captured_at timestamptz,window_start date,window_end date,payload jsonb);
+      create function lector_generator_sources(date,text default 'Europe/Paris') returns jsonb language sql as $$select '[]'::jsonb$$;`,
+    );
+    await db.exec(
+      await Deno.readTextFile(
+        "supabase/migrations/20261008143000_lector_generator_compact_sources.sql",
+      ),
+    );
+    const fixture = (id: number, day = 0) => ({
+      fixture: {
+        id,
+        date: new Date(Date.now() + day * 86400000).toISOString(),
+        status: { short: "NS" },
+      },
+      league: { id: 61 },
+      teams: { home: { id: 1, name: "A" }, away: { id: 2, name: "B" } },
+    });
+    const quote = {
+      fixture: { id: 123 },
+      update: new Date().toISOString(),
+      bookmakers: [{
+        id: 8,
+        name: "Bookmaker",
+        bets: [{ id: 1, values: [{ value: "Home", odd: "2.00" }] }, {
+          id: 99,
+          values: [{ value: "fake", odd: "1.23" }],
+        }],
+      }],
+    };
+    const reading = {
+      fixture_id: 123,
+      readings: [{ id: "strong_home_team", sample_size: 3 }],
+      scenarios: [{
+        id: "ranking_gap",
+        required_reading_ids: ["strong_home_team"],
+      }],
+      large_unused: "unused",
+    };
+    const payload = {
+      raw: {
+        fixtures: [fixture(123), fixture(124, 1)],
+        odds: [quote, { ...quote, fixture: { id: 124 } }],
+        player_form_radar: [{
+          team: { id: 1 },
+          player: { id: 7, name: "Player" },
+          activity: [{
+            played_at: new Date().toISOString(),
+            goals: 1,
+            assists: 0,
+            unnecessary: "ignored",
+          }],
+        }, { team: { id: 999 }, player: { id: 9 }, activity: [] }],
+      },
+      computed: { fixtures: [reading, { fixture_id: 124 }] },
+    };
+    const id = "11111111-1111-4111-8111-111111111111";
+    await db.query(
+      "insert into match_feed_analysis_snapshots values($1,$1,'league:61',array[61],now(),now(),current_date,current_date+13,$2)",
+      [id, payload],
+    );
+    await db.query(
+      "insert into match_feed_snapshot_fixtures values($1,now())",
+      [id],
+    );
+    const get = async (
+      sports = ["football"],
+      leagues: string[] | null = null,
+    ) =>
+      (await db.query<{ v: any }>(
+        "select lector_generator_sources_filtered(current_date,'UTC',$1::text[],$2::text[]) v",
+        [sports, leagues],
+      )).rows[0].v;
+    const sources = await get();
+    assert.equal(sources.length, 1);
+    const p = sources[0].payload;
+    assert.equal(p.raw.fixtures.length, 1);
+    assert.equal(p.raw.fixtures[0].fixture.id, 123);
+    assert.equal(p.raw.odds[0].update, quote.update);
+    assert.deepEqual(p.raw.odds[0].bookmakers[0].bets, [
+      quote.bookmakers[0].bets[0],
+    ]);
+    assert.equal(p.raw.player_form_radar.length, 1);
+    assert.equal(p.raw.player_form_radar[0].activity[0].goals, 1);
+    assert.equal(p.raw.player_form_radar[0].activity[0].unnecessary, undefined);
+    assert.deepEqual(p.computed.fixtures[0].readings, reading.readings);
+    assert.deepEqual(p.computed.fixtures[0].scenarios, reading.scenarios);
+    assert.equal(p.computed.fixtures[0].large_unused, undefined);
+    assert.deepEqual(await get(["football"], ["62"]), []);
+    assert.deepEqual(await get(["hockey"]), []);
+    assert.deepEqual(await get([], null), []);
+    const personalized = async (readings: string[], scenarios: string[] = []) =>
+      (await db.query<{ v: any }>(
+        "select lector_generator_sources_filtered(current_date,'UTC',array['football'],null,$1::text[],$2::text[]) v",
+        [readings, scenarios],
+      )).rows[0].v;
+    assert.deepEqual(await personalized(["strong_home_team"]), sources);
+    assert.deepEqual(await personalized(["unconfigured_reading"]), []);
+    assert.deepEqual(await personalized([], ["ranking_gap"]), sources);
+    await db.exec("drop table sport_feed_publications");
+    assert.deepEqual(await get(), sources);
+    await db.exec("set role anon");
+    await assert.rejects(get(), /permission denied/);
+  } finally {
+    await db.close();
+  }
+});

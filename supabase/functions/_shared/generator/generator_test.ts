@@ -8,7 +8,7 @@ import {
 } from "./contracts.ts";
 import { buildCatalog, type Source } from "./catalog.ts";
 import { compose, revise, totals } from "./engine.ts";
-import { applyIntent } from "./service.ts";
+import { applyIntent, sourceQuery } from "./service.ts";
 import { interpret } from "./openai.ts";
 const now = new Date("2026-10-08T10:00:00Z");
 const context: Context = {
@@ -98,6 +98,15 @@ const source = (): Source => ({
             values: [{ value: "Home", odd: "2.00" }],
           }],
         }],
+      }],
+      player_form_radar: [{
+        player: { id: 7, name: "Player" },
+        team: { id: 1, name: "A" },
+        activity: [5, 6, 7].map((day) => ({
+          played_at: `2026-10-0${day}T18:00:00Z`,
+          goals: 1,
+          assists: 0,
+        })),
       }],
     },
     computed: {
@@ -399,5 +408,132 @@ Deno.test("structured provider contract has no price tools and fails closed on i
         )) as typeof fetch,
     }),
     /incomplète/,
+  );
+});
+Deno.test("clarification retains the original stake, date, sports and match limit", async () => {
+  const incomplete = {
+    ...intent,
+    date: "2026-10-10",
+    maxSelections: 6,
+    tickets: [{
+      stake: 50,
+      minimum: 500,
+      maximum: null,
+      kind: "unspecified" as const,
+    }],
+  };
+  const state = applyIntent({
+    state: null,
+    context,
+    intent: incomplete,
+    sources: [],
+    message: "Samedi, 50 euros pour environ 500 euros, six matchs maximum",
+    now,
+    id: "id",
+  });
+  assert.equal(state.intent, null);
+  assert.deepEqual(state.pendingIntent, incomplete);
+  let sent: any;
+  const complete = {
+    ...incomplete,
+    tickets: [{ ...incomplete.tickets[0], kind: "total" as const }],
+  };
+  const result = await interpret({
+    message: "retour total",
+    date: intent.date,
+    today: intent.date,
+    context,
+    state,
+  }, {
+    key: "test-only",
+    model: "gpt-4.1-mini",
+    fetcher: ((_url: unknown, options: any) => {
+      sent = JSON.parse(JSON.parse(options.body).input);
+      return Promise.resolve(
+        Response.json({
+          status: "completed",
+          output: [{
+            content: [{ type: "output_text", text: JSON.stringify(complete) }],
+          }],
+        }),
+      );
+    }) as typeof fetch,
+  });
+  assert.deepEqual(sent.previousIntent, incomplete);
+  assert.equal(result.intent.tickets[0].stake, 50);
+  assert.equal(result.intent.date, "2026-10-10");
+  assert.equal(result.intent.maxSelections, 6);
+  const next = applyIntent({
+    state,
+    context,
+    intent: result.intent,
+    sources: [],
+    message: "retour total",
+    now,
+    id: "id",
+  });
+  assert.equal(next.pendingIntent, null);
+  assert.equal(next.intent?.tickets[0].kind, "total");
+});
+Deno.test("the explicit maximum constrains the search and invalid total goals clarify first", () => {
+  const candidates = [pick("1", 2), pick("2", 2), pick("3", 2)];
+  assert.equal(
+    compose(candidates, { ...intent, maxSelections: 2 }, context).length,
+    0,
+  );
+  assert.equal(
+    compose(candidates, { ...intent, maxSelections: 3 }, context)[0].picks
+      .length,
+    3,
+  );
+  assert.throws(() => intentFrom({ ...intent, maxSelections: 0 }), /invalide/);
+  assert.throws(() => intentFrom({ ...intent, maxSelections: 7 }), /invalide/);
+  const impossible = {
+    ...intent,
+    tickets: [{ stake: 50, minimum: 50, maximum: 50, kind: "total" as const }],
+  };
+  assert.match(
+    validateIntent(impossible, context, now)!,
+    /supérieur à la mise/,
+  );
+  assert.equal(
+    applyIntent({
+      state: null,
+      context,
+      intent: impossible,
+      sources: [source()],
+      message: "50 total",
+      now,
+      id: "id",
+    }).catalog,
+    undefined,
+  );
+});
+Deno.test("Pour moi is the base and outside competitions require a factual Radar signal", () => {
+  const withoutRadar = source();
+  delete (withoutRadar.payload.raw as any).player_form_radar;
+  assert.equal(
+    buildCatalog([withoutRadar], context, intent.date, now).candidates.length,
+    0,
+  );
+  const own = structuredClone(context);
+  own.preferences.football!.competitions = ["62"];
+  assert.equal(
+    buildCatalog([withoutRadar], own, intent.date, now).candidates.length,
+    1,
+  );
+  assert.equal(
+    buildCatalog([source()], context, intent.date, now).candidates.length,
+    1,
+  );
+  const strict = sourceQuery({ ...context, scope: "strict" }, intent.date, [
+    "football",
+  ]);
+  assert.deepEqual(strict.p_competitions, ["61"]);
+  assert.deepEqual(strict.p_sports, ["football"]);
+  assert.ok(strict.p_readings.includes("strong_home_team"));
+  assert.deepEqual(
+    sourceQuery(context, intent.date, ["football"]).p_competitions,
+    null,
   );
 });

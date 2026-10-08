@@ -23,12 +23,12 @@ def main():
         c.state->'messages' as messages, c.state->'catalog'->'matchCount' as match_count
         from public.lector_generator_conversations c join auth.users u on u.id=c.user_id
         where {account} order by c.updated_at desc limit 3""")
-    print(json.dumps({"incident_conversations": rows}, ensure_ascii=False))
+    print(json.dumps({"incident_conversations": [{"revision": r["revision"], "updated_at": r["updated_at"], "intent": r["intent"], "budget": r["budget"], "message_count": len(r.get("messages") or []), "match_count": r["match_count"]} for r in rows]}, ensure_ascii=False))
     turns = query(f"""select t.conversation_id, t.started_at, t.status, t.usage,
         t.response->'intent' as intent from public.lector_generator_turns t
         join auth.users u on u.id=t.user_id where {account}
         order by t.started_at desc limit 8""")
-    print(json.dumps({"incident_turns": turns}, ensure_ascii=False))
+    print(json.dumps({"incident_turns": [{k: v for k, v in t.items() if k != "conversation_id"} for t in turns]}, ensure_ascii=False))
     dates = sorted({str(r.get("intent", {}).get("date")) for r in rows if isinstance(r.get("intent"), dict) and r["intent"].get("date")})
     if not dates:
         today = datetime.datetime.now(datetime.timezone.utc).date()
@@ -49,7 +49,7 @@ def main():
     try:
         logs = request(base + "/analytics/endpoints/logs?" + params, token)
         # Only endpoint status lines; never emit metadata, request headers or tokens.
-        safe = [{"timestamp": row.get("timestamp"), "source": row.get("source"), "event": str(row.get("event_message", ""))[:350]} for row in logs.get("result", [])]
+        safe = [{"timestamp": row.get("timestamp"), "source": row.get("source")} for row in logs.get("result", [])]
         print(json.dumps({"generator_invocations": safe}))
     except RuntimeError as error:
         print(json.dumps({"invocations_unavailable": str(error)}))
