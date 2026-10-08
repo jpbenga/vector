@@ -217,6 +217,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
         () => _error =
             'Connectez-vous à votre compte pour utiliser l’assistant et conserver vos brouillons.',
       );
+      _scrollToEnd();
       return;
     }
     final repository = _repository;
@@ -920,7 +921,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
                   runSpacing: 8,
                   children: [
                     for (final suggestion in [
-                      'Comparer les 5 rencontres les plus intéressantes dans Pour moi',
+                      'Top 5 dans Pour moi',
                       'Préparer un ticket',
                       'Créer plusieurs tickets',
                       'Explorer les joueurs chauds',
