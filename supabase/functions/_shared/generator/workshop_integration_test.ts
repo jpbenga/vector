@@ -234,3 +234,151 @@ Deno.test("targeted substitution keeps other picks; removal does not fabricate r
   assert.deepEqual(removed[0].picks, t.picks.slice(1));
   assert.equal(t.picks.length, removed[0].picks.length + 1);
 });
+Deno.test("workshop chat connects scoped sources, actual tool work, progress and an owner-only analysis commit", async () => {
+  const oldFetch = globalThis.fetch, oldGet = Deno.env.get;
+  const owner = "00000000-0000-4000-8000-000000000002";
+  const id = "00000000-0000-4000-8000-000000000001";
+  const requestId = "00000000-0000-4000-8000-000000000003";
+  const future = new Date();
+  future.setUTCDate(future.getUTCDate() + 1);
+  const date = future.toISOString().slice(0, 10);
+  const publication = source();
+  publication.capturedAt = new Date().toISOString();
+  const raw = publication.payload.raw as {
+    fixtures: { fixture: { date: string } }[];
+    odds: { update: string }[];
+  };
+  raw.fixtures.forEach((f) => f.fixture.date = `${date}T18:00:00Z`);
+  raw.odds.forEach((o) => o.update = publication.capturedAt);
+  const parsed = {
+    ...intent,
+    action: "analyze",
+    date,
+    tickets: [],
+    maxSelections: 5,
+    view: "profile",
+  };
+  let paid = 0, committed: unknown = null;
+  const phases: string[] = [];
+  try {
+    Deno.env.get = (name: string) => ({
+      SUPABASE_URL: "https://example.test",
+      SUPABASE_ANON_KEY: "public",
+      SUPABASE_SERVICE_ROLE_KEY: "server",
+      OPENAI_API_KEY: "test",
+      LECTOR_WORKSHOP_MODEL: "gpt-6.1-sol",
+      LECTOR_WORKSHOP_ENABLED: "true",
+    }[name]);
+    globalThis.fetch = (async (url: unknown, init?: RequestInit) => {
+      const u = new URL(String(url)),
+        payload = init?.body ? JSON.parse(String(init.body)) : null;
+      if (u.pathname === "/auth/v1/user") return Response.json({ id: owner });
+      if (u.pathname === "/rest/v1/lector_generator_conversations") {
+        assert.equal(u.searchParams.get("user_id"), `eq.${owner}`);
+        return Response.json([]);
+      }
+      if (u.pathname === "/rest/v1/rpc/lector_generator_workshop_reserve") {
+        return Response.json({ status: "reserved" });
+      }
+      if (u.pathname === "/rest/v1/lector_generator_turns") {
+        assert.equal(u.searchParams.get("user_id"), `eq.${owner}`);
+        if (init?.method === "PATCH") {
+          phases.push(payload.usage.phase);
+          return Response.json(null);
+        }
+        return Response.json([{ status: "pending" }]);
+      }
+      if (u.pathname === "/rest/v1/rpc/lector_generator_sources_filtered") {
+        assert.deepEqual(payload.p_competitions, ["61"]);
+        return Response.json([publication]);
+      }
+      if (u.pathname === "/rest/v1/rpc/match_reading_bilan_breakdown") {
+        return Response.json([]);
+      }
+      if (u.pathname === "/rest/v1/rpc/lector_generator_commit") {
+        assert.equal(payload.p_user, owner);
+        assert.equal(payload.p_request, requestId);
+        assert.equal(
+          payload.p_state.messages.at(-1).analysis.context.view,
+          "profile",
+        );
+        assert.equal(payload.p_state.tickets.length, 0);
+        assert.equal(payload.p_usage.ai.length, 3);
+        assert.ok(
+          payload.p_usage.steps.some((s: { phase: string }) =>
+            s.phase === "details"
+          ),
+        );
+        committed = payload.p_state;
+        return Response.json(payload.p_state);
+      }
+      if (u.hostname === "api.openai.com") {
+        paid++;
+        const response = (output: unknown[]) =>
+          Response.json({
+            id: `r-${paid}`,
+            status: "completed",
+            model: "gpt-6.1-sol",
+            usage: { input_tokens: 20, output_tokens: 30 },
+            output,
+          });
+        if (paid === 1) {
+          return response([{
+            type: "message",
+            content: [{ type: "output_text", text: JSON.stringify(parsed) }],
+          }]);
+        }
+        if (paid === 2) {
+          return response([{
+            type: "function_call",
+            name: "get_match_details",
+            call_id: "details",
+            arguments: '{"matchIds":["api-fixture-1"]}',
+          }]);
+        }
+        const content = JSON.stringify({
+          text: "Voici une rencontre à examiner.",
+          selections: [{
+            candidateId: "football:1:1:Home:1:publication-test",
+            reason: "La série à domicile soutient la victoire.",
+            vigilance: "L’adversaire a un avantage au classement.",
+            references: ["publication-test:strong_home_team:2"],
+          }],
+          comparedMatchIds: ["api-fixture-1"],
+          limitations: [],
+        });
+        return response([{
+          type: "message",
+          content: [{ type: "output_text", text: content }],
+        }]);
+      }
+      throw new Error(`Unexpected call ${u.pathname}`);
+    }) as typeof fetch;
+    const response = await generatorHandler({ workshop: true })(
+      new Request("https://example.test", {
+        method: "POST",
+        headers: { authorization: "Bearer session-test" },
+        body: JSON.stringify({
+          action: "chat",
+          conversationId: id,
+          requestId,
+          revision: 0,
+          context,
+          date,
+          message: "Top 5 dans Pour moi",
+        }),
+      }),
+    );
+    assert.equal(
+      response.status,
+      200,
+      JSON.stringify(await response.clone().json()),
+    );
+    assert.ok(committed);
+    assert.equal(paid, 3);
+    assert.ok(phases.includes("details"));
+  } finally {
+    globalThis.fetch = oldFetch;
+    Deno.env.get = oldGet;
+  }
+});

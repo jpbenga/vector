@@ -89,15 +89,16 @@ export function applyIntent(
   input.intent = resolveIntent(input.intent, previous);
   // Revisions always use the original frozen configuration. A changed current
   // profile applies only when asking for a fresh generation.
-  const context = ["generate", "explore"].includes(input.intent.action)
-    ? input.context
-    : (input.intent.referenceTicketId
-      ? [...(previous?.tickets ?? []), ...(previous?.drafts ?? [])].find((t) =>
-        t.id === input.intent.referenceTicketId
-      )?.context
-      : undefined) ??
-      previous?.tickets[input.intent.ticketIndex ?? 0]?.context ??
-      previous?.context ?? input.context;
+  const context =
+    ["generate", "explore", "analyze"].includes(input.intent.action)
+      ? input.context
+      : (input.intent.referenceTicketId
+        ? [...(previous?.tickets ?? []), ...(previous?.drafts ?? [])].find((
+          t,
+        ) => t.id === input.intent.referenceTicketId)?.context
+        : undefined) ??
+        previous?.tickets[input.intent.ticketIndex ?? 0]?.context ??
+        previous?.context ?? input.context;
   const error = validateIntent(input.intent, context, input.now);
   let reply = error ?? "", tickets = previous?.tickets ?? [], pending = null;
   const versions = [...(previous?.versions ?? [])];
@@ -148,7 +149,7 @@ export function applyIntent(
         sources: available.sources,
         signals: available.signals,
       };
-      if (input.intent.action === "explore") {
+      if (["explore", "analyze"].includes(input.intent.action)) {
         reply = available.signals.length
           ? available.signals.map((s) => s.text).join("\n\n")
           : "Aucun signal Radar suffisamment documenté n’a été trouvé pour cette date et ce contexte.";
@@ -319,12 +320,13 @@ export function preparation(
   date: string,
   now: Date,
 ) {
-  const { candidates: _candidates, ...catalog } = buildCatalog(
-    sources,
-    context,
-    date,
-    now,
-  );
+  const { candidates: _candidates, matches: _matches, ...catalog } =
+    buildCatalog(
+      sources,
+      context,
+      date,
+      now,
+    );
   return {
     ...catalog,
     candidateCount: _candidates.length,

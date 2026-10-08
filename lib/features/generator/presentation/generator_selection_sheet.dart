@@ -12,6 +12,7 @@ Future<void> showGeneratorSelectionDetail(
   required VoidCallback onOpenMatch,
   required VoidCallback onReplace,
   bool inTicket = true,
+  bool analysisOnly = false,
 }) {
   FocusManager.instance.primaryFocus?.unfocus();
   return showModalBottomSheet<void>(
@@ -33,6 +34,7 @@ Future<void> showGeneratorSelectionDetail(
         child: GeneratorSelectionSheet(
           pick: pick,
           inTicket: inTicket,
+          analysisOnly: analysisOnly,
           onClose: () => Navigator.pop(context),
           onOpenMatch: () {
             Navigator.pop(context);
@@ -56,11 +58,13 @@ class GeneratorSelectionSheet extends StatefulWidget {
     required this.onOpenMatch,
     required this.onReplace,
     this.inTicket = true,
+    this.analysisOnly = false,
     super.key,
   });
   final Map<String, dynamic> pick;
   final VoidCallback onClose, onOpenMatch, onReplace;
   final bool inTicket;
+  final bool analysisOnly;
   @override
   State<GeneratorSelectionSheet> createState() =>
       _GeneratorSelectionSheetState();
@@ -89,7 +93,11 @@ class _GeneratorSelectionSheetState extends State<GeneratorSelectionSheet> {
             const SizedBox(height: 14),
             _Opposition(pick: widget.pick),
             const SizedBox(height: 18),
-            _SelectionProposal(pick: widget.pick, inTicket: widget.inTicket),
+            _SelectionProposal(
+              pick: widget.pick,
+              inTicket: widget.inTicket,
+              analysisOnly: widget.analysisOnly,
+            ),
             const SizedBox(height: 14),
             Container(
               decoration: BoxDecoration(
@@ -190,8 +198,10 @@ class _GeneratorSelectionSheetState extends State<GeneratorSelectionSheet> {
                 style: style,
                 onPressed: widget.onReplace,
                 icon: const Icon(Icons.swap_horiz_rounded, size: 22),
-                label: const Text(
-                  'Remplacer cette sélection',
+                label: Text(
+                  widget.analysisOnly
+                      ? 'Comparer les autres marchés'
+                      : 'Remplacer cette sélection',
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -324,9 +334,14 @@ class _Opposition extends StatelessWidget {
 }
 
 class _SelectionProposal extends StatelessWidget {
-  const _SelectionProposal({required this.pick, required this.inTicket});
+  const _SelectionProposal({
+    required this.pick,
+    required this.inTicket,
+    this.analysisOnly = false,
+  });
   final Map<String, dynamic> pick;
   final bool inTicket;
+  final bool analysisOnly;
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(12),
@@ -415,7 +430,11 @@ class _SelectionProposal extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                inTicket ? 'Dans le ticket' : 'Changement proposé',
+                analysisOnly
+                    ? 'À examiner'
+                    : inTicket
+                    ? 'Dans le ticket'
+                    : 'Changement proposé',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: context.brand.accent,

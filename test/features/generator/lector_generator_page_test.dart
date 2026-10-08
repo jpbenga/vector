@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:copilot/core/theme/app_theme.dart';
 import 'package:copilot/features/generator/presentation/generator_ticket_card.dart';
+import 'package:copilot/features/generator/presentation/generator_analysis.dart';
 import 'package:copilot/features/generator/presentation/generator_compositions.dart';
 import 'package:copilot/features/generator/presentation/generator_selection_sheet.dart';
 import 'package:copilot/features/generator/data/generator_voice.dart';
@@ -55,6 +56,88 @@ class DelayedGenerator extends FakeGenerator {
 
 void main() {
   setUpAll(() => initializeDateFormatting('fr'));
+  testWidgets('analysis stages and verified shortlist fit a 320px mobile', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final scope = {
+      'date': '2026-10-09',
+      'view': 'profile',
+      'sports': ['football'],
+      'matchCount': 41,
+    };
+    Map<String, dynamic>? inspected;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: CopilotTheme.dark,
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: Column(
+              children: [
+                GeneratorAnalysisProgress(
+                  phase: 'Réflexion en cours…',
+                  progress: {
+                    'context': scope,
+                    'steps': [
+                      {
+                        'phase': 'sources',
+                        'detail': 'Consultation des publications Lector',
+                      },
+                      {
+                        'phase': 'details',
+                        'detail':
+                            'Examen des lectures et marchés de 5 rencontres',
+                      },
+                    ],
+                    'summary':
+                        'Comparaison des arguments et des contradictions.',
+                  },
+                ),
+                GeneratorAnalysisResult(
+                  analysis: {
+                    'context': scope,
+                    'selections': [
+                      {
+                        'candidate': {
+                          'competition': 'Eliteserien',
+                          'home': 'Bodo/Glimt',
+                          'away': 'Kristiansund BK',
+                          'selection': 'Bodo/Glimt gagne',
+                          'odds': 1.04,
+                        },
+                        'reason':
+                            'Les victoires consécutives à domicile soutiennent le marché.',
+                        'vigilance': 'Cette cote apporte peu au retour.',
+                      },
+                    ],
+                    'limitations': [
+                      'Aucune probabilité indépendante n’est établie.',
+                    ],
+                  },
+                  onInspect: (pick) => inspected = pick,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(
+      find.textContaining('41 rencontres dans ce périmètre'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Pour moi'), findsNWidgets(2));
+    expect(find.text('Bodo/Glimt gagne'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.ensureVisible(find.text('Bodo/Glimt gagne'));
+    await tester.tap(find.text('Bodo/Glimt gagne'));
+    expect(inspected?['odds'], 1.04);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
   testWidgets(
     'composition alternatives share one stake and remain usable on a narrow mobile',
     (tester) async {

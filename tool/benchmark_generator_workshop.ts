@@ -1,4 +1,13 @@
 // Paired evaluations use frozen SYNTHETIC data. No account lookup or ticket commit.
+import {
+  analysisContext,
+  analyzeDay,
+} from "../supabase/functions/_shared/generator/analysis.ts";
+import { buildCatalog } from "../supabase/functions/_shared/generator/catalog.ts";
+import {
+  obj,
+  rows,
+} from "../supabase/functions/_shared/generator/contracts.ts";
 import { interpret } from "../supabase/functions/_shared/generator/openai.ts";
 import {
   comparisonModels,
@@ -197,6 +206,141 @@ reviews.forEach((r, i) => {
     }),
   });
 });
+// Regression of the user's actual workflow on frozen, synthetic data.
+// The sixth fixture has an insufficient sample and the seventh is outside Pour moi.
+const daySource = source();
+const raw = obj(daySource.payload.raw),
+  computed = obj(daySource.payload.computed);
+const fixtures = rows(raw.fixtures),
+  prices = rows(raw.odds),
+  readings = rows(computed.fixtures);
+for (const id of [5, 6, 7]) {
+  const fixture = structuredClone(fixtures[0]);
+  obj(fixture.fixture).id = id;
+  obj(fixture.fixture).date = "2026-10-09T18:00:00Z";
+  obj(obj(fixture.teams).home).id = id * 2;
+  obj(obj(fixture.teams).home).name = `Équipe ${id} domicile`;
+  obj(obj(fixture.teams).away).id = id * 2 + 1;
+  obj(obj(fixture.teams).away).name = `Équipe ${id} extérieur`;
+  if (id === 7) obj(fixture.league).id = 999;
+  const price = structuredClone(prices[0]);
+  obj(price.fixture).id = id;
+  const reading = structuredClone(readings[0]);
+  reading.fixture_id = id;
+  for (const r of rows(reading.readings)) {
+    r.subject_team_id = r.side === "home" ? id * 2 : id * 2 + 1;
+    if (id === 6) r.sample_size = 2;
+  }
+  fixtures.push(fixture);
+  prices.push(price);
+  readings.push(reading);
+}
+for (const f of fixtures) obj(f.fixture).date = "2026-10-09T18:00:00Z";
+raw.fixtures = fixtures;
+raw.odds = prices;
+computed.fixtures = readings;
+const analysisInput =
+  "Regarde la journée de football de vendredi dans l'écran Pour moi et donne-moi les top 5 rencontres avec 5 paris à examiner, parmi les rencontres de cet écran.";
+for (const model of comparisonModels) {
+  try {
+    const interpreted = await interpret({
+      message: analysisInput,
+      context,
+      date: intent.date,
+      today: "2026-10-08",
+      state: null,
+    }, { key, model, onReceipt: (r) => receipts.push(r) });
+    const selectedIntent = interpreted.intent;
+    if (
+      selectedIntent.action !== "analyze" ||
+      selectedIntent.view !== "profile" ||
+      selectedIntent.date !== "2026-10-09" ||
+      selectedIntent.maxSelections !== 5 || selectedIntent.tickets.length
+    ) throw new Error("Top5 intent/scope/date failed");
+    const scoped = analysisContext(context, selectedIntent);
+    const catalog = buildCatalog([daySource], scoped, selectedIntent.date, now);
+    const stages: unknown[] = [];
+    const analysis = await analyzeDay({
+      message: analysisInput,
+      intent: selectedIntent,
+      context: scoped,
+      catalog,
+      state: null,
+      now,
+    }, {
+      key,
+      model,
+      onReceipt: (r) => receipts.push(r),
+      onProgress: async (event) => {
+        stages.push({ phase: event.phase, detail: event.detail });
+      },
+    });
+    if (
+      analysis.selections.length !== 5 || analysis.context.matchCount !== 6 ||
+      analysis.selections.some((s) =>
+        s.candidate.competitionId !== "61" ||
+        s.candidate.matchId === "api-fixture-6"
+      )
+    ) throw new Error("Top5 shortlist failed");
+    const analysisState: State = {
+      ...state,
+      tickets: [],
+      drafts: [],
+      intent: selectedIntent,
+      context: scoped,
+      messages: [{ role: "user", text: analysisInput }, {
+        role: "assistant",
+        text: analysis.text,
+        analysis,
+      }],
+    };
+    const followup = await interpret({
+      message:
+        "Je ne comprends pas ta réponse, quelles sont les 5 rencontres ?",
+      context,
+      date: "2026-10-10",
+      today: "2026-10-08",
+      state: analysisState,
+    }, { key, model, onReceipt: (r) => receipts.push(r) });
+    if (
+      followup.intent.action !== "analyze" ||
+      followup.intent.date !== "2026-10-09" ||
+      followup.intent.view !== "profile" || followup.intent.maxSelections !== 5
+    ) throw new Error("Analysis follow-up context failed");
+    outcomes.push({
+      case: "contextual_top5_and_followup",
+      model,
+      passed: true,
+      intent: selectedIntent,
+      analysis,
+      followup: followup.intent,
+      stages,
+    });
+    console.log(
+      JSON.stringify({
+        case: "contextual_top5_and_followup",
+        model,
+        passed: true,
+        choices: analysis.selections.length,
+      }),
+    );
+  } catch (error) {
+    failed.add(model);
+    outcomes.push({
+      case: "contextual_top5_and_followup",
+      model,
+      passed: false,
+      error: error instanceof Error ? error.message : "model_failure",
+    });
+    console.log(
+      JSON.stringify({
+        case: "contextual_top5_and_followup",
+        model,
+        passed: false,
+      }),
+    );
+  }
+}
 // Select only within the user-authorized pair after objective contract gates.
 // This is an initial demo default, not a final quality/cost verdict.
 const selected = comparisonModels.find((m) => !failed.has(m)) ?? null;
@@ -205,7 +349,7 @@ const report = {
   createdAt: new Date().toISOString(),
   inputs: "frozen_synthetic",
   engine: "workshop",
-  reasoning: "low",
+  reasoning: { interpretation: "low", analysis: "medium", review: "medium" },
   paidCallsAttempted: receipts.length,
   selected,
   outcomes,

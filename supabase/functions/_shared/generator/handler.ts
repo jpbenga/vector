@@ -15,6 +15,11 @@ import {
 import { type Source } from "./catalog.ts";
 import { interpret } from "./openai.ts";
 import {
+  analysisContext,
+  type AnalysisProgress,
+  analyzeDay,
+} from "./analysis.ts";
+import {
   applyIntent,
   preparation,
   resolveIntent,
@@ -180,6 +185,13 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
           turn: {
             status: rows[0]?.status ?? "starting",
             phase: rows[0]?.usage?.phase ?? "interpret",
+            ...(options.workshop
+              ? {
+                steps: rows[0]?.usage?.steps ?? [],
+                context: rows[0]?.usage?.context ?? null,
+                summary: rows[0]?.usage?.summary ?? null,
+              }
+              : {}),
           },
         });
       }
@@ -339,10 +351,41 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
           }, 409);
       }
       reservation = String(input.requestId);
-      const progress = async (phase: string) => {
+      const progressState: {
+        phase: string;
+        steps: { phase: string; detail: string; at: string }[];
+        summary?: string;
+        context?: AnalysisProgress["context"];
+      } = { phase: "interpret", steps: [] };
+      const progress = async (phase: string, event?: AnalysisProgress) => {
+        const labels: Record<string, string> = {
+          interpret: "Compréhension de votre demande",
+          sources: "Consultation des publications Lector",
+          compose: "Construction des compositions",
+          review: "Comparaison des arguments et des compromis",
+          analyze: "Comparaison des rencontres",
+          details: "Examen des lectures et marchés",
+          commit: "Préparation de la réponse",
+        };
+        const detail = event?.detail ?? labels[phase] ?? phase;
+        if (
+          !event?.summary &&
+          !progressState.steps.some((s) =>
+            s.phase === phase && s.detail === detail
+          )
+        ) {
+          progressState.steps.push({
+            phase,
+            detail,
+            at: new Date().toISOString(),
+          });
+        }
+        progressState.phase = phase;
+        if (event?.context) progressState.context = event.context;
+        if (event?.summary) progressState.summary = event.summary;
         await rest(
           `lector_generator_turns?request_id=eq.${reservation}&user_id=eq.${user.id}&status=eq.pending`,
-          { usage: { phase } },
+          { usage: options.workshop ? progressState : { phase } },
           "PATCH",
         );
         const turn = await rest(
@@ -432,15 +475,19 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
         }
       }
       const intent = resolveIntent(parsed, previous);
-      const revisionContext = ["generate", "explore"].includes(intent.action)
-        ? context
-        : (intent.referenceTicketId
-          ? [...(previous?.tickets ?? []), ...(previous?.drafts ?? [])].find(
-            (t) => t.id === intent.referenceTicketId,
-          )?.context
-          : undefined) ??
-          previous?.tickets[intent.ticketIndex ?? 0]?.context ??
-          previous?.context ?? context;
+      const baseContext =
+        ["generate", "explore", "analyze"].includes(intent.action)
+          ? context
+          : (intent.referenceTicketId
+            ? [...(previous?.tickets ?? []), ...(previous?.drafts ?? [])].find(
+              (t) => t.id === intent.referenceTicketId,
+            )?.context
+            : undefined) ??
+            previous?.tickets[intent.ticketIndex ?? 0]?.context ??
+            previous?.context ?? context;
+      const revisionContext = options.workshop
+        ? analysisContext(baseContext, intent)
+        : baseContext;
       if (
         ["replace", "remove"].includes(intent.action) &&
         previous?.tickets[intent.ticketIndex ?? 0]?.picks[0]
@@ -452,9 +499,10 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
       }
       await progress("sources");
       const sources =
-        ["generate", "alternative", "replace", "remove", "explore"].includes(
-            intent.action,
-          ) &&
+        ["generate", "alternative", "replace", "remove", "explore", "analyze"]
+            .includes(
+              intent.action,
+            ) &&
           !validateIntent(intent, revisionContext, now)
           ? await sourcesFor(revisionContext, intent.date, intent.sports)
           : [];
@@ -484,7 +532,7 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
       const composedAt = performance.now();
       const next = applyIntent({
         state: previous,
-        context,
+        context: options.workshop ? revisionContext : context,
         intent,
         sources,
         message: String(input.message).trim(),
@@ -504,18 +552,67 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
         },
       });
       timings.compose = Math.round(performance.now() - composedAt);
+      if (
+        options.workshop && ["analyze", "explore"].includes(intent.action) &&
+        !validateIntent(intent, revisionContext, now)
+      ) {
+        stage = "analyze";
+        const analysis = await analyzeDay({
+          message: String(input.message).trim(),
+          intent,
+          context: revisionContext,
+          catalog: buildCatalog(sources, revisionContext, intent.date, now),
+          state: previous,
+          now,
+        }, {
+          key,
+          model,
+          onReceipt: (r) => receipts.push(r),
+          onProgress: (event) => progress(event.phase, event),
+        });
+        const message = next.messages.at(-1)!;
+        message.text = analysis.text;
+        message.analysis = analysis;
+        // Retain recent analyses for follow-ups without duplicating unbounded snapshots.
+        let size = JSON.stringify(next).length;
+        for (const older of next.messages.slice(0, -1)) {
+          if (size <= 180000) break;
+          delete older.analysis;
+          size = JSON.stringify(next).length;
+        }
+        while (JSON.stringify(next).length > 180000 && next.versions.length) {
+          next.versions.shift();
+        }
+        while (
+          JSON.stringify(next).length > 180000 && (next.drafts?.length ?? 0) > 1
+        ) next.drafts!.shift();
+        while (
+          JSON.stringify(next).length > 180000 && next.messages.length > 2
+        ) next.messages.shift();
+        if (JSON.stringify(next).length > 180000) {
+          throw new Error(
+            "Cette analyse contient trop de données pour être conservée. Choisissez un périmètre plus ciblé.",
+          );
+        }
+      }
       if (options.workshop) {
         const attachments = next.messages.at(-1)?.ticketIds ?? [];
-        const reviewTickets = [
-          ...new Map(
-            [...(next.proposals ?? []), ...(next.drafts ?? [])].filter((t) =>
-              attachments.includes(t.id) ||
-              next.messages.at(-1)?.proposalIds?.includes(t.id)
-            ).map((t) => [t.id, t]),
-          ).values(),
-        ].slice(0, 4);
+        const reviewTickets = intent.action === "explain" &&
+            previous?.tickets[intent.ticketIndex ?? 0]
+          ? [previous.tickets[intent.ticketIndex ?? 0]]
+          : [
+            ...new Map(
+              [...(next.proposals ?? []), ...(next.drafts ?? [])].filter((
+                t,
+              ) =>
+                attachments.includes(t.id) ||
+                next.messages.at(-1)?.proposalIds?.includes(t.id)
+              ).map((t) => [t.id, t]),
+            ).values(),
+          ].slice(0, 4);
         if (reviewTickets.length) {
           const brief = buildReviewBrief(reviewTickets, now);
+          brief.request = String(input.message).trim();
           await progress("review");
           stage = "review";
           const reviewed = await Promise.allSettled([
@@ -542,6 +639,14 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
               : fallbackReview(brief),
             brief,
           );
+          if (
+            primary.status === "fulfilled" && primary.value.narrative.trim()
+          ) {
+            if (intent.action === "explain") {
+              next.messages.at(-1)!.text = primary.value.narrative;
+            } else {next.messages.at(-1)!.text +=
+                `\n\n${primary.value.narrative}`;}
+          }
           if (primary.status === "rejected") {
             next.messages.at(-1)!.text +=
               " L’analyse IA n’est pas disponible ; les arguments factuels restent consultables.";
@@ -570,6 +675,7 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
             elapsed_ms: Math.round(performance.now() - started),
             comparison,
             search,
+            ...progressState,
           }
           : usage,
       });

@@ -53,6 +53,7 @@ export const intentSchema = {
     "message",
     "goalMode",
     "preserveFixtures",
+    "view",
   ],
   properties: {
     action: {
@@ -65,6 +66,7 @@ export const intentSchema = {
         "restore",
         "explain",
         "explore",
+        "analyze",
         "clarify",
         "unsupported",
       ],
@@ -89,6 +91,7 @@ export const intentSchema = {
       enum: ["around", "minimum", "range", "unconstrained"],
     },
     preserveFixtures: { type: "boolean" },
+    view: { type: "string", enum: ["current", "profile", "radar", "all"] },
   },
 };
 export const instructions =
@@ -119,6 +122,7 @@ export async function interpret(
     name: "lector_intent",
     schema: intentSchema,
     instructions: instructions + "\n" + targetInstructions +
+      " Pour une analyse, un classement de rencontres, un top N, une comparaison ou une question sur les données de la journée, action=analyze, sans demander de mise ni créer de ticket. Pour découvrir les joueurs/équipes chauds, explore. La demande de cinq rencontres/paris à examiner, même pour un futur combiné, est analyze tant que l'utilisateur ne demande pas de construire un ticket avec une mise. view=profile pour l'écran Pour moi, radar pour Radar, all pour Tous ; current si aucun périmètre n'est précisé. Une simple relance de l'analyse précédente conserve sa date, son sport, son view et son nombre demandé. Une analyse n'a jamais besoin de clarification sur mise/retour. Les données seront consultées APRÈS cette interprétation : ne dis pas que tu n'y as pas accès et ne demande pas leur liste. maxSelections sert aussi au nombre de rencontres demandé pour analyze, null si absent. Pour analyze/explore, tickets=[] et goalMode=unconstrained. " +
       " Une demande de découverte des joueurs ou équipes chauds utilise explore ; elle ne nécessite ni mise ni objectif de retour. maxSelections est le maximum de matchs par ticket explicitement demandé, entre 1 et 6 ; null si absent. Une réponse courte à une clarification reprend les contraintes de previousIntent. Elle change uniquement la précision fournie et utilise generate si la demande est complète. Conserve les contraintes connues même si une clarification reste nécessaire. Pour ‘environ’ ou ‘autour de’, goalMode=around ; pour ‘au moins’, goalMode=minimum ; sinon range si deux bornes explicites, unconstrained sans objectif. preserveFixtures=true uniquement si l’utilisateur demande les mêmes rencontres avec d’autres marchés. Ne confonds pas ce choix avec preserveConstraints qui conserve la mise, la date et les autres contraintes.",
     input: {
       today: input.today,
@@ -151,7 +155,23 @@ export async function interpret(
           selection: p.selection,
         })),
       })),
-      recentMessages: input.state?.messages.slice(-8),
+      recentMessages: input.state?.messages.slice(-6).map((m) => ({
+        role: m.role,
+        text: m.text.slice(0, 2200),
+        ...(m.analysis
+          ? {
+            analysis: {
+              context: m.analysis.context,
+              selections: m.analysis.selections.map((s) => ({
+                id: s.candidate.id,
+                match: `${s.candidate.home} — ${s.candidate.away}`,
+                market: s.candidate.marketId,
+                selection: s.candidate.selection,
+              })),
+            },
+          }
+          : {}),
+      })),
       request: input.message,
     },
   }, options);

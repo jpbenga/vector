@@ -18,6 +18,8 @@ export interface Context {
   timezone: string;
   budget: number;
   preferences: Partial<Record<Sport, Preferences>>;
+  /** Read scope for this request; never changes the saved preferences. */
+  view?: "profile" | "radar" | "all";
 }
 export interface Target {
   stake: number | null;
@@ -34,6 +36,7 @@ export interface Intent {
     | "restore"
     | "explain"
     | "explore"
+    | "analyze"
     | "clarify"
     | "unsupported";
   date: string;
@@ -50,6 +53,7 @@ export interface Intent {
   message: string;
   goalMode?: "around" | "minimum" | "range" | "unconstrained";
   preserveFixtures?: boolean;
+  view?: "current" | "profile" | "radar" | "all";
 }
 export interface Evidence {
   id: string;
@@ -99,6 +103,35 @@ export interface Catalog {
   missing: string[];
   sources: string[];
   signals: Evidence[];
+  matches?: AnalysisMatch[];
+}
+export interface AnalysisMatch {
+  id: string;
+  sport: Sport;
+  competition: string;
+  home: string;
+  away: string;
+  kickoff: string;
+  evidence: Evidence[];
+}
+export interface Analysis {
+  context: {
+    date: string;
+    view: string;
+    sports: Sport[];
+    matchCount: number;
+    candidateCount: number;
+  };
+  text: string;
+  selections: {
+    candidate: Candidate;
+    reason: string;
+    vigilance: string;
+    references: string[];
+  }[];
+  comparedMatchIds: string[];
+  limitations: string[];
+  summary?: string;
 }
 export interface Ticket {
   id: string;
@@ -156,6 +189,7 @@ export interface State {
     ticketIds?: string[];
     proposalIds?: string[];
     at?: string;
+    analysis?: Analysis;
   }[];
   drafts?: Ticket[];
   compositions?: string[];
@@ -219,6 +253,7 @@ export function intentFrom(value: unknown): Intent {
     "restore",
     "explain",
     "explore",
+    "analyze",
     "clarify",
     "unsupported",
   ];
@@ -245,6 +280,7 @@ export function intentFrom(value: unknown): Intent {
         "preserveConstraints",
         "goalMode",
         "preserveFixtures",
+        "view",
       ]
         .includes(k)
     ) ||
@@ -255,6 +291,8 @@ export function intentFrom(value: unknown): Intent {
       )) ||
     (v.preserveFixtures !== undefined &&
       typeof v.preserveFixtures !== "boolean") ||
+    (v.view !== undefined &&
+      !["current", "profile", "radar", "all"].includes(String(v.view))) ||
     (v.maxSelections !== undefined && v.maxSelections !== null &&
       (!Number.isInteger(v.maxSelections) || Number(v.maxSelections) < 1 ||
         Number(v.maxSelections) > 6)) ||

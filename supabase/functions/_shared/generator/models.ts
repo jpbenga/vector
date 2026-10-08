@@ -23,7 +23,7 @@ export const modelRegistry: Record<
   },
 };
 export interface ModelReceipt {
-  stage: "interpret" | "review";
+  stage: "interpret" | "review" | "analyze";
   requestedModel: string;
   returnedModel: string | null;
   responseId: string | null;
@@ -93,6 +93,7 @@ export async function structuredResponse(
     input: unknown;
     schema: unknown;
     name: string;
+    effort?: "low" | "medium";
   },
   options: ModelOptions,
 ) {
@@ -103,7 +104,9 @@ export async function structuredResponse(
     store: false,
     service_tier: "default",
     max_output_tokens: configuration.reasoning ? 6000 : 1800,
-    ...(configuration.reasoning ? { reasoning: { effort: "low" } } : {}),
+    ...(configuration.reasoning
+      ? { reasoning: { effort: input.effort ?? "low" } }
+      : {}),
     instructions: input.instructions,
     input: JSON.stringify(input.input),
     text: {
@@ -129,7 +132,7 @@ export async function structuredResponse(
       {
         method: "POST",
         redirect: "error",
-        signal: AbortSignal.timeout(input.stage === "review" ? 30000 : 45000),
+        signal: AbortSignal.timeout(45000),
         headers: {
           authorization: `Bearer ${options.key}`,
           "content-type": "application/json",

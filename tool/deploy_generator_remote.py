@@ -103,7 +103,7 @@ def main():
     if workshop:
         if model not in {"gpt-6.1-sol", "gpt-6-luna"}:
             raise ValueError("Workshop accepts only the requested GPT-6 comparison pair.")
-        config = {"OPENAI_API_KEY": env["OPENAI_API_KEY"], "LECTOR_WORKSHOP_MODEL": model, "LECTOR_WORKSHOP_ENABLED": "false", "LECTOR_WORKSHOP_COMPARE_MODELS": "true"}
+        config = {"OPENAI_API_KEY": env["OPENAI_API_KEY"], "LECTOR_WORKSHOP_MODEL": model, "LECTOR_WORKSHOP_ENABLED": "false", "LECTOR_WORKSHOP_COMPARE_MODELS": "false"}
     request(base + "/secrets", token, [{"name": n, "value": v} for n, v in config.items()])
     subprocess.run(["supabase", "functions", "deploy", function, "--project-ref", PROJECT, "--use-api", "--no-verify-jwt"], check=True)
     remote = request(base + "/functions/" + function, token)
@@ -118,7 +118,7 @@ def main():
         if error.code != 401:
             raise RuntimeError("Anonymous protection check failed.") from None
     request(base + "/secrets", token, [{"name":"LECTOR_WORKSHOP_ENABLED" if workshop else "LECTOR_GENERATOR_ENABLED","value":"true"}])
-    print(json.dumps({"function":function,"active":True,"model":model,"compare_models":workshop,"user_daily_limit":None if workshop else 5,"global_daily_limit":None if workshop else 20,"test_envelope_usd":None if workshop else 3,"migration_sha256":hashlib.sha256(sql.encode()).hexdigest()}))
+    print(json.dumps({"function":function,"active":True,"model":model,"compare_models":False if workshop else None,"user_daily_limit":None if workshop else 5,"global_daily_limit":None if workshop else 20,"test_envelope_usd":None if workshop else 3,"migration_sha256":hashlib.sha256(sql.encode()).hexdigest()}))
 
 
 if __name__ == "__main__":

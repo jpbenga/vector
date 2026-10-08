@@ -1,5 +1,6 @@
 import { playerSignals, teamSignals } from "./radar.ts";
 import {
+  type AnalysisMatch,
   calendarDay,
   type Candidate,
   type Catalog,
@@ -155,6 +156,7 @@ export function buildCatalog(
   now: Date,
 ): Catalog {
   const candidates: Candidate[] = [], missing = new Set<string>();
+  const matches: AnalysisMatch[] = [];
   const seen = new Set<string>(), sourceIds = new Set<string>();
   const signals = new Map<string, Evidence>();
   let matchCount = 0;
@@ -202,6 +204,17 @@ export function buildCatalog(
         ) continue;
         seen.add(identity);
         matchCount++;
+        matches.push({
+          id: String(fixture.id),
+          sport: "hockey",
+          competition: String(fixture.competitionName ?? fixture.competitionId),
+          home: String(obj(fixture.home).name),
+          away: String(obj(fixture.away).name),
+          kickoff: String(fixture.startsAt),
+          evidence: evidence(rows(fixture.readings), source, pref.readings).map(
+            (e) => ({ ...e, supportsMarket: false, role: "context" as const }),
+          ),
+        });
         for (
           const signal of playerSignals(source, [
             String(obj(fixture.home).id),
@@ -267,8 +280,26 @@ export function buildCatalog(
       ];
       // Outside followed competitions, only a factual Radar opportunity may
       // supplement Pour moi. A matching reading alone never scans all leagues.
-      if (discovery && !radar.length) continue;
+      if (context.view === "radar" && !radar.length) continue;
+      if (discovery && !radar.length && context.view !== "all") continue;
       matchCount++;
+      matches.push({
+        id: `api-fixture-${id}`,
+        sport: "football",
+        competition: String(league.name),
+        home: String(home.name),
+        away: String(away.name),
+        kickoff,
+        evidence: [
+          ...evidence(selected, source, [...pref.readings, ...scenarioReadings])
+            .map((e) => ({
+              ...e,
+              supportsMarket: false,
+              role: "context" as const,
+            })),
+          ...radar,
+        ],
+      });
       for (const signal of radar) signals.set(signal.id, signal);
       const prices = rows(raw.odds).filter((r) =>
         String(obj(r.fixture).id) === id
@@ -461,5 +492,6 @@ export function buildCatalog(
     missing: [...missing],
     sources: [...sourceIds],
     signals: [...signals.values()].slice(0, 30),
+    matches,
   };
 }

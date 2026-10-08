@@ -12,6 +12,8 @@ import '../data/generator_repository.dart';
 import '../data/generator_voice.dart';
 import 'generator_ticket_card.dart';
 import 'generator_compositions.dart';
+import 'generator_analysis.dart';
+import 'generator_selection_sheet.dart';
 import '../domain/generator_context.dart';
 
 /// One native Lector conversation surface in every sport. No generated markup.
@@ -52,6 +54,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
   Timer? _progressTimer, _voiceTimer;
   String? _requestId, _retryMessage, _retryRequestId, _retryReferenceTicketId;
   String _phase = 'Analyse de votre demande…';
+  Map<String, dynamic> _progress = {};
   bool _recording = false, _transcribing = false;
   int _recordSeconds = 0;
   GeneratorContext? _context;
@@ -225,6 +228,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
     final requestId = generatorUuid();
     _requestId = requestId;
     _phase = 'Analyse de votre demande…';
+    _progress = {};
     _retryMessage = message;
     _retryRequestId = requestId;
     _retryReferenceTicketId = referenceTicketId;
@@ -465,16 +469,20 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
           'requestId': requestId,
         });
         if (!mounted || _requestId != requestId) return;
-        final phase = generatorMap(result['turn'])['phase'];
-        setState(
-          () => _phase = switch (phase) {
+        final turn = generatorMap(result['turn']);
+        final phase = turn['phase'];
+        setState(() {
+          _progress = turn;
+          _phase = switch (phase) {
+            'analyze' => 'Réflexion en cours…',
+            'details' => 'Examen des lectures et des marchés…',
             'sources' => 'Analyse des rencontres…',
             'compose' => 'Comparaison des compositions…',
             'review' => 'Analyse des arguments et des compromis…',
             'commit' => 'Enregistrement du brouillon…',
             _ => 'Analyse de votre demande…',
-          },
-        );
+          };
+        });
       } on Object {
         /* Progress is optional; the actual result remains authoritative. */
       } finally {
@@ -861,8 +869,8 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
               if (conversation == null && _submittedMessage == null) ...[
                 GeneratorMessageBubble(
                   text: current?.origin == 'explorer'
-                      ? 'Votre configuration Explorateur est active. Décrivez le ticket que vous souhaitez préparer : date, mise et objectif.'
-                      : 'Je m’appuie sur vos lectures et vos marchés autorisés. Quelle composition souhaitez-vous préparer ?',
+                      ? 'Votre configuration Explorateur est active. Posez une question sur les rencontres ou décrivez le ticket que vous souhaitez préparer.'
+                      : 'Je m’appuie sur vos lectures, le Radar et vos marchés autorisés. Quelle journée souhaitez-vous analyser ou quelle composition voulez-vous préparer ?',
                 ),
                 LectorMatchCardFrame(
                   child: Column(
@@ -912,6 +920,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
                   runSpacing: 8,
                   children: [
                     for (final suggestion in [
+                      'Comparer les 5 rencontres les plus intéressantes dans Pour moi',
                       'Préparer un ticket',
                       'Créer plusieurs tickets',
                       'Explorer les joueurs chauds',
@@ -932,6 +941,20 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
                   user: message['role'] == 'user',
                   at: message['at']?.toString(),
                 ),
+                if (message['analysis'] is Map)
+                  GeneratorAnalysisResult(
+                    analysis: generatorMap(message['analysis']),
+                    onInspect: (pick) => showGeneratorSelectionDetail(
+                      context,
+                      pick: pick,
+                      inTicket: false,
+                      analysisOnly: true,
+                      onOpenMatch: () => widget.onOpenMatch(pick),
+                      onReplace: () => _send(
+                        'Compare les autres marchés autorisés pour ${pick['home']} contre ${pick['away']}, dans le même périmètre et la même journée.',
+                      ),
+                    ),
+                  ),
                 if ((message['proposalIds'] as List? ?? []).length > 1)
                   GeneratorCompositionOptions(
                     tickets: [
@@ -988,31 +1011,9 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
               if (_submittedMessage != null)
                 GeneratorMessageBubble(text: _submittedMessage!, user: true),
               if (_busy)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  child: Semantics(
-                    liveRegion: true,
-                    child: Row(
-                      children: [
-                        const GeneratorAvatar(),
-                        const SizedBox(width: 10),
-                        const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _transcribing ? 'Transcription en cours…' : _phase,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: context.brand.accent,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                GeneratorAnalysisProgress(
+                  phase: _transcribing ? 'Transcription en cours…' : _phase,
+                  progress: _progress,
                 ),
               if (_error != null)
                 LectorMatchCardFrame(
