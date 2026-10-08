@@ -2,6 +2,7 @@
 import datetime
 import json
 import os
+import re
 import time
 import urllib.parse
 
@@ -22,11 +23,29 @@ def main():
         c.state->'intent' as intent, c.state#>'{{context,budget}}' as budget,
         c.state->'messages' as messages, c.state->'catalog'->'matchCount' as match_count
         from public.lector_generator_conversations c join auth.users u on u.id=c.user_id
-        where {account} order by c.updated_at desc limit 3""")
-    print(json.dumps({"incident_conversations": [{"revision": r["revision"], "updated_at": r["updated_at"], "intent": r["intent"], "budget": r["budget"], "message_count": len(r.get("messages") or []), "match_count": r["match_count"]} for r in rows]}, ensure_ascii=False))
+        where {account} and c.updated_at >= now() - interval '6 hours'
+        order by c.updated_at desc limit 3""")
+    cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=6)
+    def reported_pairs(messages):
+        pairs = []
+        for index, message in enumerate(messages or []):
+            text = str(message.get("text", ""))
+            if message.get("role") != "user" or not re.search(r"\b(top|cinq|5|vendredi)\b", text, re.I):
+                continue
+            try:
+                if datetime.datetime.fromisoformat(message.get("at", "").replace("Z", "+00:00")) < cutoff:
+                    continue
+            except ValueError:
+                continue
+            following = messages[index+1] if index+1 < len(messages) else {}
+            pairs.append({"at": message.get("at"), "request": text,
+                "reply": following.get("text") if following.get("role") == "assistant" else None})
+        return pairs[-4:]
+    print(json.dumps({"incident_conversations": [{"revision": r["revision"], "updated_at": r["updated_at"], "intent": r["intent"], "budget": r["budget"], "message_count": len(r.get("messages") or []), "match_count": r["match_count"], "reported_pairs": reported_pairs(r.get("messages"))} for r in rows]}, ensure_ascii=False))
     turns = query(f"""select t.conversation_id, t.started_at, t.status, t.usage,
         t.response->'intent' as intent from public.lector_generator_turns t
         join auth.users u on u.id=t.user_id where {account}
+        and t.started_at >= now() - interval '6 hours'
         order by t.started_at desc limit 8""")
     print(json.dumps({"incident_turns": [{k: v for k, v in t.items() if k != "conversation_id"} for t in turns]}, ensure_ascii=False))
     dates = sorted({str(r.get("intent", {}).get("date")) for r in rows if isinstance(r.get("intent"), dict) and r["intent"].get("date")})
