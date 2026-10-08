@@ -20,6 +20,7 @@ on:
           - admin-ops
           - all-football
           - lector-generator-demo
+          - lector-generator-diagnostic
 
 permissions:
   contents: read
@@ -72,3 +73,16 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GH_TOKEN: ${{ github.token }}
         run: python3 tool/deploy_generator_remote.py
+
+  generator-diagnostic:
+    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-diagnostic'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Inspect the reported generator incident without paid calls
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: python3 tool/diagnose_generator_remote.py
