@@ -7,6 +7,8 @@ import '../../../core/theme/app_components.dart';
 import '../../../core/theme/app_radius.dart';
 import '../data/match_reading_bilan_repository.dart';
 import '../domain/reading_bilan_analysis.dart';
+import '../../../core/widgets/lector_glass_card.dart';
+import 'widgets/reading_verdict_details.dart';
 
 const _pageSize = 10;
 
@@ -814,31 +816,10 @@ class ReadingVerdictCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final verdict = switch (entry.verdict) {
-      'confirmed' => ('Confirmée', context.semantic.success),
-      'contradicted' => ('Contredite', context.semantic.error),
-      'not_evaluable' => ('Non évaluable', context.semantic.warning),
-      'context_only' => (
-        'Sans règle de résultat',
-        context.textColors.secondary,
-      ),
-      'caution_confirmed' => ('Nuance pertinente', context.semantic.warning),
-      'caution_not_confirmed' => (
-        'Nuance non confirmée',
-        context.textColors.secondary,
-      ),
-      _ => ('En attente', context.textColors.secondary),
-    };
     final teams =
         '${_teamName(entry.homeTeamName, 'Équipe à domicile')} – ${_teamName(entry.awayTeamName, 'Équipe à l’extérieur')}';
-    final subject = switch (entry.subjectSide) {
-      'home' =>
-        '${_teamName(entry.homeTeamName, 'Équipe à domicile')} · domicile',
-      'away' =>
-        '${_teamName(entry.awayTeamName, 'Équipe à l’extérieur')} · extérieur',
-      _ => 'Match entier',
-    };
-    return _Panel(
+    return LectorGlassCard(
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -885,49 +866,10 @@ class ReadingVerdictCard extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(height: 10),
-          Text(
-            entry.readingLabel,
-            style: TextStyle(
-              color: context.textColors.primary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Concerne : $subject',
-            style: TextStyle(color: context.textColors.secondary, fontSize: 12),
-          ),
-          const SizedBox(height: 7),
-          Text(
-            verdict.$1,
-            style: TextStyle(color: verdict.$2, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            'Critère : ${bilanOutcomeRuleText(entry.outcomeRule)}',
-            style: TextStyle(color: context.textColors.secondary, fontSize: 12),
-          ),
-          if (entry.explanation?.isNotEmpty == true) ...[
-            const SizedBox(height: 4),
-            Text(
-              entry.explanation!,
-              style: TextStyle(
-                color: context.textColors.secondary,
-                fontSize: 12,
-              ),
-            ),
-          ],
-          if (entry.evidence.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Avant match : ${entry.evidence.first['label'] ?? entry.readingLabel}',
-              style: TextStyle(
-                color: context.textColors.secondary,
-                fontSize: 12,
-              ),
-            ),
-          ],
+          const SizedBox(height: 14),
+          Divider(height: 1, color: context.surfaces.border),
+          const SizedBox(height: 14),
+          ReadingVerdictDetails(entry: entry),
         ],
       ),
     );

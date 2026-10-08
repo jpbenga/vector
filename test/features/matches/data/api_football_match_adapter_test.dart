@@ -461,6 +461,7 @@ void main() {
           'odds': [
             {
               'fixture': {'id': 1},
+              'update': '2026-07-30T02:13:14+00:00',
               'bookmakers': [
                 {
                   'id': 8,
@@ -507,6 +508,10 @@ void main() {
       expect(match.defaultMarket?.id, 'matchResult');
       expect(match.defaultMarket?.bookmakerId, 16);
       expect(match.defaultMarket?.bookmakerName, 'Unibet');
+      expect(
+        match.defaultMarket?.updatedAt,
+        DateTime.utc(2026, 7, 30, 2, 13, 14),
+      );
       expect(match.defaultMarket?.selections[0].label, 'Domicile');
       expect(match.defaultMarket?.selections[0].odds, 1.95);
       expect(match.defaultMarket?.selections[1].label, 'Nul');

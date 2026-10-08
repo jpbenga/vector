@@ -22,6 +22,7 @@ class MatchReadingBilanEntry {
     this.leagueId,
     this.competitionName,
     this.countryName,
+    this.sampleSize,
   });
 
   factory MatchReadingBilanEntry.fromJson(Map<String, dynamic> row) {
@@ -59,6 +60,7 @@ class MatchReadingBilanEntry {
       leagueId: _integer(row['league_id']),
       competitionName: row['competition_name']?.toString(),
       countryName: row['country_name']?.toString(),
+      sampleSize: _integer(row['sample_size']),
     );
   }
 
@@ -82,6 +84,7 @@ class MatchReadingBilanEntry {
   final int? leagueId;
   final String? competitionName;
   final String? countryName;
+  final int? sampleSize;
 
   bool get isEvaluable =>
       verdict == 'confirmed' ||
@@ -218,7 +221,7 @@ class SupabaseMatchReadingBilanRepository
       'announcement_id,fixture_id,kickoff_at,reading_id,reading_label,'
       'verdict,explanation,home_team_name,away_team_name,home_goals,'
       'away_goals,outcome_rule,evidence,announcement_kind,required_reading_ids,'
-      'parent_announcement_key,subject_side,league_id,competition_name,country_name';
+      'parent_announcement_key,subject_side,league_id,competition_name,country_name,sample_size';
 
   @override
   Future<List<MatchReadingBilanSummary>> loadBreakdown({

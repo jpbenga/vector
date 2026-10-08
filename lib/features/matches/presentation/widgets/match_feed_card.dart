@@ -157,6 +157,8 @@ class _MatchFeedCardContent extends StatelessWidget {
       liveSummary: liveState == null || !showReadings
           ? null
           : LiveReadingSummary(
+              match: match,
+              onOpenMatch: onTap,
               state: liveState!,
               hasReadings: readings.isNotEmpty,
               entries: liveState!.visibleReadings(

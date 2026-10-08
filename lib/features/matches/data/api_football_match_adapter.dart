@@ -1675,7 +1675,10 @@ class ApiFootballMatchAdapter {
         continue;
       }
 
-      final odds = _fixtureOdds(_list(root['bookmakers']));
+      final odds = _fixtureOdds(
+        _list(root['bookmakers']),
+        updatedAt: DateTime.tryParse(root['update']?.toString() ?? ''),
+      );
       if (odds != null) {
         result[fixtureId] = odds;
       }
@@ -1684,7 +1687,7 @@ class ApiFootballMatchAdapter {
     return result;
   }
 
-  _FixtureOdds? _fixtureOdds(List<Object?> bookmakers) {
+  _FixtureOdds? _fixtureOdds(List<Object?> bookmakers, {DateTime? updatedAt}) {
     final sortedBookmakers = [...bookmakers]
       ..sort((a, b) {
         final aRank = _bookmakerRank(_intValue(_map(a)['id']));
@@ -1693,7 +1696,10 @@ class ApiFootballMatchAdapter {
         return aRank.compareTo(bRank);
       });
 
-    final availableMarkets = _availableMarkets(sortedBookmakers);
+    final availableMarkets = _availableMarkets(
+      sortedBookmakers,
+      updatedAt: updatedAt,
+    );
     final primaryMarket = _firstSupportedMarket(availableMarkets);
 
     if (availableMarkets.isEmpty && primaryMarket == null) {
@@ -1713,7 +1719,10 @@ class ApiFootballMatchAdapter {
     );
   }
 
-  List<MatchMarket> _availableMarkets(List<Object?> sortedBookmakers) {
+  List<MatchMarket> _availableMarkets(
+    List<Object?> sortedBookmakers, {
+    DateTime? updatedAt,
+  }) {
     final markets = <String, MatchMarket>{};
 
     for (final bookmakerJson in sortedBookmakers) {
@@ -1780,6 +1789,7 @@ class ApiFootballMatchAdapter {
           apiFootballBetId: betId,
           bookmakerId: bookmakerId,
           bookmakerName: bookmakerName,
+          updatedAt: updatedAt,
         );
       }
     }

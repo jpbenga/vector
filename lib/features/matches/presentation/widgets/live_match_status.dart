@@ -7,7 +7,8 @@ import 'package:intl/intl.dart';
 import '../../../../core/theme/app_components.dart';
 import '../../data/match_reading_bilan_repository.dart';
 import '../../domain/live_match_state.dart';
-import '../reading_bilan_section.dart';
+import '../../domain/match_board_item.dart';
+import 'match_reading_bilan_sheet.dart';
 
 class LiveMatchStatus extends StatefulWidget {
   const LiveMatchStatus({
@@ -77,11 +78,15 @@ class LiveReadingSummary extends StatelessWidget {
     required this.state,
     required this.entries,
     this.hasReadings = false,
+    this.match,
+    this.onOpenMatch,
     super.key,
   });
   final LiveMatchState state;
   final List<MatchReadingBilanEntry> entries;
   final bool hasReadings;
+  final MatchBoardItem? match;
+  final VoidCallback? onOpenMatch;
   @override
   Widget build(BuildContext context) {
     if (!hasReadings && entries.isEmpty) return const SizedBox.shrink();
@@ -137,47 +142,11 @@ class LiveReadingSummary extends StatelessWidget {
               padding: EdgeInsets.zero,
               alignment: Alignment.centerLeft,
             ),
-            onPressed: () => showModalBottomSheet<void>(
-              context: context,
-              isScrollControlled: true,
-              useSafeArea: true,
-              builder: (context) => FractionallySizedBox(
-                heightFactor: 0.85,
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
-                      child: Row(
-                        children: [
-                          const Expanded(
-                            child: Text(
-                              'Bilan des lectures annoncées',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            tooltip: 'Fermer',
-                            onPressed: () => Navigator.pop(context),
-                            icon: const Icon(Icons.close),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: entries.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 12),
-                        itemBuilder: (_, index) =>
-                            ReadingVerdictCard(entry: entries[index]),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            onPressed: () => showMatchReadingBilan(
+              context,
+              entries: entries,
+              match: match,
+              onOpenMatch: onOpenMatch,
             ),
             icon: const Icon(Icons.fact_check_outlined, size: 17),
             label: const Text('Voir les lectures'),

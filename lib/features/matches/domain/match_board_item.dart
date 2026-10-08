@@ -140,6 +140,7 @@ class MatchMarket {
     this.apiFootballBetId,
     this.bookmakerId,
     this.bookmakerName,
+    this.updatedAt,
   });
 
   final String id;
@@ -148,6 +149,7 @@ class MatchMarket {
   final int? apiFootballBetId;
   final int? bookmakerId;
   final String? bookmakerName;
+  final DateTime? updatedAt;
 }
 
 class MatchSignal {
