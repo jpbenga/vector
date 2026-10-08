@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:copilot/core/config/app_config.dart';
 import 'package:copilot/core/config/app_environment.dart';
 import 'package:copilot/core/supabase/supabase_initializer.dart';
@@ -842,6 +843,26 @@ void main() {
       expect(remote.latestForDateCalls, 1);
     });
 
+    test(
+      'invalid remote data remains an error rather than an empty day',
+      () async {
+        final remote = _FakeRemoteSnapshotDataSource(
+          throwsOnLatestForDate: true,
+          failure: const FormatException('invalid snapshot schema'),
+        );
+        final loader = _loader(
+          source: 'auto',
+          configuredSupabase: true,
+          remoteDataSource: remote,
+        );
+        await expectLater(
+          loader.load(now: DateTime(2026, 8, 12)),
+          throwsA(isA<FormatException>()),
+        );
+        expect(remote.latestForDateCalls, 1);
+      },
+    );
+
     test('rejects the deleted local snapshot source', () async {
       final loader = _loader(
         source: 'snapshot',
@@ -1239,17 +1260,19 @@ class _FakeRemoteSnapshotDataSource
   _FakeRemoteSnapshotDataSource({
     this.latestForDate,
     this.throwsOnLatestForDate = false,
+    this.failure,
   });
 
   final Map<String, Object?>? latestForDate;
   bool throwsOnLatestForDate;
+  final Object? failure;
   int latestForDateCalls = 0;
 
   @override
   Future<Map<String, Object?>?> loadLatestForDate(DateTime date) async {
     latestForDateCalls += 1;
     if (throwsOnLatestForDate) {
-      throw StateError('remote unavailable');
+      throw failure ?? TimeoutException('remote unavailable');
     }
     return latestForDate;
   }
