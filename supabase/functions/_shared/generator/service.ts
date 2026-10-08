@@ -7,6 +7,7 @@ import {
   validateIntent,
 } from "./contracts.ts";
 import { compose, compositionKey, revise } from "./engine.ts";
+import { composeWorkshop, reviseWorkshop } from "./compositions.ts";
 export function sourceQuery(
   context: Context,
   date: string,
@@ -61,6 +62,10 @@ export function resolveIntent(intent: Intent, state: State | null): Intent {
     marketIds: intent.preserveConstraints !== false
       ? reference.constraints?.marketIds ?? previous?.marketIds ?? []
       : intent.marketIds,
+    goalMode: intent.preserveConstraints !== false
+      ? reference.constraints?.goalMode ?? previous?.goalMode
+      : intent.goalMode,
+    preserveFixtures: intent.preserveFixtures ?? false,
     requireEachSport: intent.preserveConstraints !== false
       ? reference.constraints?.requireEachSport ?? previous?.requireEachSport ??
         false
@@ -76,6 +81,8 @@ export function applyIntent(
     message: string;
     now: Date;
     id: string;
+    workshop?: boolean;
+    onWorkshop?: (report: unknown) => void;
   },
 ): State {
   const previous = input.state;
@@ -104,6 +111,8 @@ export function applyIntent(
     ...(previous?.compositions ?? []),
     ...drafts.map((t) => compositionKey(t.picks)),
   ]);
+  let proposals = previous?.proposals ?? [];
+  let proposalIds: string[] = [];
   let attachments: string[] = [];
   if (!error) {
     if (input.intent.action === "unsupported") {
@@ -153,16 +162,35 @@ export function applyIntent(
         reply =
           "Un marché demandé ne fait pas partie de vos marchés autorisés. Modifiez vos préférences explicitement avant de l’utiliser.";
       } else if (["generate", "alternative"].includes(input.intent.action)) {
-        const proposed = compose(available.candidates, input.intent, context, {
-          tickets: drafts,
-          compositions: [...compositions],
-        });
+        const history = { tickets: drafts, compositions: [...compositions] };
+        const workshop = input.workshop
+          ? composeWorkshop(
+            available.candidates,
+            input.intent,
+            context,
+            history,
+            input.now,
+          )
+          : null;
+        input.onWorkshop?.(workshop?.reports ?? []);
+        const proposed = workshop?.tickets ??
+          compose(available.candidates, input.intent, context, history);
+        proposals = workshop?.proposals ?? [];
+        proposalIds = proposals.length > 1 ? proposals.map((t) => t.id) : [];
         if (proposed.length) {
           const lastNumber = Math.max(0, ...drafts.map((t) => t.number));
-          proposed.forEach((t, i) => t.number = lastNumber + i + 1);
+          const numbered = proposals.length ? proposals : proposed;
+          numbered.forEach((t, i) => t.number = lastNumber + i + 1);
+          for (const option of proposals.slice(1)) {
+            if (option.workshop?.comparedTo?.id === proposed[0].id) {
+              option.workshop.comparedTo.number = proposed[0].number;
+            }
+          }
           attachments = proposed.map((t) => t.id);
-          drafts.push(...proposed);
-          proposed.forEach((t) => compositions.add(compositionKey(t.picks)));
+          drafts.push(...(proposals.length ? proposals : proposed));
+          (proposals.length ? proposals : proposed).forEach((t) =>
+            compositions.add(compositionKey(t.picks))
+          );
           if (input.intent.action === "alternative") {
             tickets = [...tickets, ...proposed].slice(-12);
             versions.push(tickets);
@@ -181,6 +209,14 @@ export function applyIntent(
             } préparée${
               proposed.length > 1 ? "s" : ""
             } avec marchés et cotes vérifiés.`;
+          }
+          if (proposalIds.length) {
+            reply +=
+              ` ${proposals.length} approches sont disponibles pour cette même mise. Choisissez une composition après examen.`;
+          }
+          if (input.workshop && input.intent.goalMode === "around") {
+            reply +=
+              " L’objectif est exploré avec une marge de 10 % autour du retour demandé.";
           }
           if (proposed.length < input.intent.tickets.length) {
             reply +=
@@ -201,9 +237,17 @@ export function applyIntent(
           )
         );
         pending = existingFresh
-          ? revise(tickets, input.intent, available.candidates)
+          ? (input.workshop
+            ? reviseWorkshop(
+              tickets,
+              input.intent,
+              available.candidates,
+              input.now,
+            )
+            : revise(tickets, input.intent, available.candidates))
           : null;
         if (pending) {
+          proposals = [];
           const changed = pending.filter((t) =>
             !tickets.some((old) => old.id === t.id)
           );
@@ -238,6 +282,7 @@ export function applyIntent(
       : null,
     tickets: [...tickets],
     pending,
+    proposals,
     versions: versions.slice(-3),
     drafts,
     compositions: [...compositions],
@@ -252,6 +297,7 @@ export function applyIntent(
       role: "assistant",
       text: reply,
       ticketIds: attachments,
+      proposalIds,
       at: input.now.toISOString(),
     }].slice(-40) as State["messages"],
   };

@@ -54,6 +54,18 @@ function evidence(raw: Json[], source: Source, readings: string[]): Evidence[] {
     sample: Number(r.sample_size ?? r.sampleSize ?? 0),
     asOf: source.capturedAt,
     supportsMarket: true,
+    role: "support",
+    ...(Array.isArray(obj(r.lineage).matchIds)
+      ? {
+        lineage: {
+          kind: String(obj(r.lineage).kind ?? family(String(r.id))),
+          matchIds: (obj(r.lineage).matchIds as unknown[]).map(String).slice(
+            0,
+            80,
+          ),
+        },
+      }
+      : {}),
     metrics: rows(r.evidence).slice(0, 4).map((e) => ({
       label: String(e.label ?? ""),
       value: String(e.value ?? ""),
@@ -115,6 +127,26 @@ function opposing(raw: Json[], side: string): boolean {
         String(r.id),
       ))
   );
+}
+/** Opponent support is vigilance for this market, not extra support. */
+function vigilance(raw: Json[], bet: number, value: string): Json[] {
+  if ([1, 12].includes(bet)) {
+    const other = value.startsWith("Home") ? "Away" : "Home";
+    return supports(raw, 1, other);
+  }
+  const opposite = value === "Over 2.5"
+    ? ["frequent_under_25", "closed_match_profile"]
+    : value === "Under 2.5"
+    ? [
+      "frequent_over_25",
+      "open_match_profile",
+      "prolific_attack",
+      "attack_in_form",
+    ]
+    : bet === 8 && value === "Yes"
+    ? ["frequent_no_btts", "closed_match_profile"]
+    : [];
+  return raw.filter((r) => opposite.includes(String(r.id)));
 }
 export function buildCatalog(
   sources: Source[],
@@ -303,6 +335,16 @@ export function buildCatalog(
                 : value === "Yes"
                 ? "Les deux équipes marquent"
                 : value;
+              const counter = evidence(
+                vigilance(allReadings, betId, value),
+                source,
+                allReadings.map((r) => String(r.id)),
+              )
+                .map((e) => ({
+                  ...e,
+                  supportsMarket: false,
+                  role: "vigilance" as const,
+                }));
               candidates.push({
                 id:
                   `football:${id}:${betId}:${value}:${bookmaker.id}:${source.id}`,
@@ -337,9 +379,17 @@ export function buildCatalog(
                     source,
                     [...pref.readings, ...scenarioReadings],
                   ).map((e) => ({ ...e, supportsMarket: false })),
+                  ...counter.filter((e) =>
+                    !ev.some((direct) => direct.id === e.id)
+                  ),
                   ...radar,
                 ],
                 warnings: [
+                  ...(counter.length
+                    ? [
+                      "Des lectures concernant l’adversaire ou le marché opposé appellent à la vigilance.",
+                    ]
+                    : []),
                   ...(radar.length
                     ? [
                       "Activité des joueurs et production de leur équipe peuvent se recouper : le Radar ne constitue pas une preuve indépendante.",

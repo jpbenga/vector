@@ -48,6 +48,8 @@ export interface Intent {
   selectionIndex: number | null;
   marketIds: string[];
   message: string;
+  goalMode?: "around" | "minimum" | "range" | "unconstrained";
+  preserveFixtures?: boolean;
 }
 export interface Evidence {
   id: string;
@@ -62,6 +64,8 @@ export interface Evidence {
   metrics?: { label: string; value: string }[];
   supportsMarket?: boolean;
   reusesReading?: boolean;
+  role?: "support" | "context" | "vigilance";
+  lineage?: { kind: string; matchIds: string[]; from?: string; until?: string };
 }
 export interface Candidate {
   id: string;
@@ -107,10 +111,34 @@ export interface Ticket {
   target: Target;
   constraints?: Pick<
     Intent,
-    "maxSelections" | "marketIds" | "requireEachSport" | "sports"
+    "maxSelections" | "marketIds" | "requireEachSport" | "sports" | "goalMode"
   >;
   context: Context;
   warnings: string[];
+  workshop?: {
+    approach: string;
+    metrics: {
+      conditions: number;
+      minimumSample: number;
+      redundantReferences: number;
+      targetDistance: number;
+      largestOddsContribution: number;
+    };
+    notes: { code: string; text: string; refs: string[] }[];
+    comparison: {
+      kept: string[];
+      removed: string[];
+      added: string[];
+      replaced: { fixture: string; before: string; after: string }[];
+      sharedFixtures: number;
+      sharedSelections: number;
+    } | null;
+    comparedTo?: {
+      id: string;
+      number: number;
+      picks: { id: string; match: string; selection: string }[];
+    };
+  };
 }
 export interface State {
   id: string;
@@ -121,10 +149,12 @@ export interface State {
   tickets: Ticket[];
   versions: Ticket[][];
   pending: Ticket[] | null;
+  proposals?: Ticket[];
   messages: {
     role: "user" | "assistant";
     text: string;
     ticketIds?: string[];
+    proposalIds?: string[];
     at?: string;
   }[];
   drafts?: Ticket[];
@@ -208,10 +238,23 @@ export function intentFrom(value: unknown): Intent {
     x === null || (Number.isInteger(x) && Number(x) >= 0 && Number(x) < 30);
   if (
     !Object.keys(v).every((k) =>
-      [...keys, "maxSelections", "referenceTicketId", "preserveConstraints"]
+      [
+        ...keys,
+        "maxSelections",
+        "referenceTicketId",
+        "preserveConstraints",
+        "goalMode",
+        "preserveFixtures",
+      ]
         .includes(k)
     ) ||
     !keys.every((k) => k in v) ||
+    (v.goalMode !== undefined &&
+      !["around", "minimum", "range", "unconstrained"].includes(
+        String(v.goalMode),
+      )) ||
+    (v.preserveFixtures !== undefined &&
+      typeof v.preserveFixtures !== "boolean") ||
     (v.maxSelections !== undefined && v.maxSelections !== null &&
       (!Number.isInteger(v.maxSelections) || Number(v.maxSelections) < 1 ||
         Number(v.maxSelections) > 6)) ||

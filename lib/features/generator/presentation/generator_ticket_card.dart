@@ -7,6 +7,7 @@ import '../../../core/widgets/lector_match_card.dart';
 import '../../../core/widgets/sports_asset_badge.dart';
 import '../domain/generator_context.dart';
 import 'generator_formatters.dart';
+import 'generator_compositions.dart';
 import 'generator_selection_sheet.dart';
 export 'generator_formatters.dart';
 export 'generator_selection_sheet.dart' show GeneratorSelectionEvidence;
@@ -253,6 +254,7 @@ class LectorTicketCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           LectorTicketSummary(ticket: ticket),
+          GeneratorCompositionAnalysis(ticket: ticket),
           const SizedBox(height: 4),
           for (final entry in picks.indexed) ...[
             if (entry.$1 > 0) const Divider(height: 1),
@@ -574,6 +576,7 @@ Future<void> showGeneratorTicketDetail(
             ),
             const SizedBox(height: 12),
             LectorTicketSummary(ticket: ticket),
+            GeneratorCompositionAnalysis(ticket: ticket),
             const SizedBox(height: 8),
             Text(
               'Bénéfice net si toutes les sélections gagnent : ${generatorMoney(ticket['netProfit'])}',

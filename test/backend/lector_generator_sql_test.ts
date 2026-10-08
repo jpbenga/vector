@@ -270,3 +270,121 @@ Deno.test("compact generator sources keep day evidence and actual prices without
     await db.close();
   }
 });
+
+Deno.test("workshop reservations remove financial caps while retaining replay, ownership and revision fences", async () => {
+  const db = new PGlite();
+  try {
+    await db.exec(
+      `create role anon;create role authenticated;create role service_role;
+      create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql as $$select null::uuid$$;
+      create table match_feed_analysis_snapshots(id uuid,scope_key text,captured_at timestamptz,as_of timestamptz,window_start date,window_end date,payload jsonb);
+      insert into auth.users values('11111111-1111-4111-8111-111111111111'),('22222222-2222-4222-8222-222222222222');`,
+    );
+    for (
+      const name of [
+        "20261008120000_lector_generator.sql",
+        "20261008170000_lector_generator_conversation_controls.sql",
+        "20261008210000_lector_generator_workshop.sql",
+      ]
+    ) await db.exec(await Deno.readTextFile("supabase/migrations/" + name));
+    const user = "11111111-1111-4111-8111-111111111111",
+      other = "22222222-2222-4222-8222-222222222222",
+      conversation = "33333333-3333-4333-8333-333333333333",
+      turn = "44444444-4444-4444-8444-444444444444";
+    await db.exec("update lector_generator_budget set limit_usd=0");
+    const reserve = (owner = user) =>
+      db.query<{ v: any }>(
+        "select lector_generator_workshop_reserve($1,$2,$3,0,1,1) v",
+        [owner, conversation, turn],
+      );
+    assert.equal((await reserve()).rows[0].v.status, "reserved");
+    assert.equal((await reserve()).rows[0].v.status, "pending");
+    await assert.rejects(reserve(other), /Unauthorized/);
+    assert.equal(
+      (await db.query<{ v: string }>(
+        "select reserved_usd::text v from lector_generator_budget",
+      )).rows[0].v,
+      "0.0000",
+    );
+    await db.query("select lector_generator_commit($1,$2,0,$3,$4,'{}')", [
+      user,
+      conversation,
+      { id: conversation, tickets: [], context: {} },
+      turn,
+    ]);
+    assert.equal((await reserve()).rows[0].v.cached.revision, 1);
+    await db.exec(
+      "update lector_generator_turns set started_at=now()-interval '1 minute'",
+    );
+    await assert.rejects(
+      db.query(
+        "select lector_generator_workshop_reserve($1,$2,'55555555-5555-4555-8555-555555555555',0)",
+        [user, conversation],
+      ),
+      /changed/,
+    );
+    assert.equal(
+      (await db.query<{ v: any }>(
+        "select lector_generator_workshop_reserve($1,$2,'55555555-5555-4555-8555-555555555555',1,1,1) v",
+        [user, conversation],
+      )).rows[0].v.status,
+      "reserved",
+    );
+    assert.equal(
+      (await db.query<{ calls: number }>(
+        "select calls from lector_generator_workshop_usage",
+      )).rows[0].calls,
+      2,
+    );
+    assert.equal(
+      (await db.query<{ n: number }>(
+        "select count(*)::integer n from lector_generator_usage",
+      )).rows[0].n,
+      0,
+    );
+    const secondTurn = "55555555-5555-4555-8555-555555555555";
+    await db.query("select lector_generator_cancel($1,$2,$3)", [
+      user,
+      conversation,
+      secondTurn,
+    ]);
+    const lateReceipt = {
+      ai: [{ returnedModel: "gpt-6-luna", inputTokens: 100, outputTokens: 20 }],
+    };
+    await assert.rejects(
+      db.query("select lector_generator_workshop_record_failure($1,$2,$3)", [
+        other,
+        secondTurn,
+        lateReceipt,
+      ]),
+      /Unauthorized/,
+    );
+    await db.query(
+      "select lector_generator_workshop_record_failure($1,$2,$3)",
+      [user, secondTurn, lateReceipt],
+    );
+    const cancelled = (await db.query<
+      { status: string; usage: { cancelled: boolean; ai: unknown[] } }
+    >("select status,usage from lector_generator_turns where request_id=$1", [
+      secondTurn,
+    ])).rows[0];
+    assert.equal(cancelled.status, "failed");
+    assert.equal(cancelled.usage.cancelled, true);
+    assert.deepEqual(cancelled.usage.ai, lateReceipt.ai);
+    await db.exec("set role anon");
+    await assert.rejects(
+      db.query("select lector_generator_workshop_reserve($1,$2,$3,1)", [
+        user,
+        conversation,
+        turn,
+      ]),
+      /permission denied/,
+    );
+    await assert.rejects(
+      db.query("select * from lector_generator_workshop_usage"),
+      /permission denied/,
+    );
+  } finally {
+    await db.close();
+  }
+});

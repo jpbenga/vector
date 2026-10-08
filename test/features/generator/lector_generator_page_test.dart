@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:copilot/core/theme/app_theme.dart';
 import 'package:copilot/features/generator/presentation/generator_ticket_card.dart';
+import 'package:copilot/features/generator/presentation/generator_compositions.dart';
 import 'package:copilot/features/generator/presentation/generator_selection_sheet.dart';
 import 'package:copilot/features/generator/data/generator_voice.dart';
 import 'package:flutter/material.dart';
@@ -54,6 +55,42 @@ class DelayedGenerator extends FakeGenerator {
 
 void main() {
   setUpAll(() => initializeDateFormatting('fr'));
+  testWidgets(
+    'composition alternatives share one stake and remain usable on a narrow mobile',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final first = testTicket(1),
+          second = {
+            ...testTicket(2),
+            'workshop': {'approach': 'fewer_matches'},
+          };
+      String? chosen;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: CopilotTheme.dark,
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: GeneratorCompositionOptions(
+                tickets: [first, second],
+                selectedId: first['id'].toString(),
+                onInspect: (_) {},
+                onChoose: (t) => chosen = t['id'].toString(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Compositions à examiner'), findsOneWidget);
+      expect(find.text('Composition retenue'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.text('Retenir cette composition'));
+      expect(chosen, second['id'].toString());
+    },
+  );
   for (final width in [320.0, 390.0]) {
     testWidgets('selection detail keeps actions reachable at width $width', (
       tester,

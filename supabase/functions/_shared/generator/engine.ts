@@ -46,11 +46,40 @@ export function compositionKey(picks: Candidate[]): string {
       .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
   )).digest("hex");
 }
+export function rankCandidates(
+  candidates: Candidate[],
+  intent: Intent,
+): Candidate[] {
+  return [...candidates].filter((c) =>
+    intent.sports.includes(c.sport) &&
+    (!intent.marketIds.length || intent.marketIds.includes(c.marketId))
+  ).sort((a, b) => {
+    // Legacy ordering retained verbatim for comparison with the workshop.
+    const depth = (c: Candidate) =>
+      new Set(
+        c.evidence.filter((e) => e.source === "reading").map((e) => e.family),
+      ).size;
+    return depth(b) - depth(a) || a.warnings.length - b.warnings.length ||
+      a.kickoff.localeCompare(b.kickoff) || a.id.localeCompare(b.id);
+  });
+}
 export function compose(
   candidates: Candidate[],
   intent: Intent,
   context: Context,
-  history: { tickets?: Ticket[]; compositions?: string[] } = {},
+  history: {
+    tickets?: Ticket[];
+    compositions?: string[];
+    onSearch?: (
+      trace: {
+        poolRows: number;
+        fixtures: number;
+        visited: number;
+        found: boolean;
+        hitLimit: boolean;
+      },
+    ) => void;
+  } = {},
 ): Ticket[] {
   const used = new Set<string>(), result: Ticket[] = [];
   const previous = history.tickets ?? [];
@@ -64,18 +93,7 @@ export function compose(
   const oldSelections = new Set(
     previous.flatMap((t) => t.picks.map((p) => compositionKey([p]))),
   );
-  const sorted = [...candidates].filter((c) =>
-    intent.sports.includes(c.sport) &&
-    (!intent.marketIds.length || intent.marketIds.includes(c.marketId))
-  ).sort((a, b) => {
-    // Independent data families precede raw signal counts. This is not a probability.
-    const depth = (c: Candidate) =>
-      new Set(
-        c.evidence.filter((e) => e.source === "reading").map((e) => e.family),
-      ).size;
-    return depth(b) - depth(a) || a.warnings.length - b.warnings.length ||
-      a.kickoff.localeCompare(b.kickoff) || a.id.localeCompare(b.id);
-  });
+  const sorted = rankCandidates(candidates, intent);
   for (const [index, target] of intent.tickets.entries()) {
     if (target.stake === null) break;
     const available = sorted.filter((c) =>
@@ -124,6 +142,13 @@ export function compose(
         }
       };
       walk(0, []);
+      history.onSearch?.({
+        poolRows: pool.length,
+        fixtures: matches.length,
+        visited: Math.min(attempts, 16000),
+        found: chosen !== null,
+        hitLimit: attempts >= 16000,
+      });
       if (chosen) break;
     }
     if (!chosen) continue;

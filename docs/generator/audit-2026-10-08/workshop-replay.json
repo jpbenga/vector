@@ -1,0 +1,2761 @@
+{
+  "auditVersion": 1,
+  "generatedFrom": "build/multisport-demo/delivery/football/demo-2026-10-08/2026-10-10.json",
+  "day": "2026-10-10",
+  "asOf": "2026-10-08T12:00:00Z",
+  "profile": "Profil de test : toutes les compétitions/lectures de cette publication, quatre marchés. Ce n’est pas le profil personnel d’un utilisateur.",
+  "rawFixtureCount": 123,
+  "catalogMs": 257.91,
+  "admissibleMatches": 121,
+  "candidates": 2412,
+  "businessSelections": 290,
+  "candidateMatches": 111,
+  "bookmakers": [
+    "William Hill",
+    "Bet365",
+    "Marathonbet",
+    "Betfair",
+    "BetVictor",
+    "Pinnacle",
+    "SBO",
+    "1xBet",
+    "Betano",
+    "Dafabet"
+  ],
+  "sources": [
+    "public-demo-replay-2026-10-08"
+  ],
+  "missing": [],
+  "paidCalls": 0,
+  "providerSportCalls": 0,
+  "cases": [
+    {
+      "goal": 300,
+      "stake": 50,
+      "maxSelections": 6,
+      "legacyMs": 79.04,
+      "legacyTraces": [
+        {
+          "poolRows": 762,
+          "fixtures": 48,
+          "visited": 3,
+          "found": true,
+          "hitLimit": false
+        }
+      ],
+      "legacy": [
+        {
+          "conditions": 2,
+          "totalOdds": 24.67,
+          "returnTotal": 1233.7,
+          "picks": [
+            "Mariehamn — Ilves · Résultat du match · Mariehamn gagne @ 2.92 (1xBet)",
+            "Real Madrid — Villarreal · Résultat du match · Villarreal gagne @ 8.45 (1xBet)"
+          ]
+        }
+      ],
+      "workshop": {
+        "protocol": "lector-workshop-v1",
+        "alternatives": [
+          {
+            "approach": "balanced",
+            "fingerprint": "bcd304d7d6dac78aea2cb947dd2c8abe99e25568501fbe497e8b456f25098846",
+            "picks": [
+              {
+                "id": "football:1558646:1:Home:8:public-demo-replay-2026-10-08",
+                "matchId": "api-fixture-1558646",
+                "sport": "football",
+                "competitionId": "144",
+                "competition": "Jupiler Pro League",
+                "competitionLogo": "https://media.api-sports.io/football/leagues/144.png",
+                "countryFlag": "https://media.api-sports.io/flags/be.svg",
+                "home": "Genk",
+                "away": "Kortrijk",
+                "homeLogo": "https://media.api-sports.io/football/teams/742.png",
+                "awayLogo": "https://media.api-sports.io/football/teams/734.png",
+                "teams": [
+                  "football:742",
+                  "football:734"
+                ],
+                "kickoff": "2026-10-10T20:45:00+02:00",
+                "marketId": "matchResult",
+                "market": "Résultat du match",
+                "selection": "Genk gagne",
+                "odds": 1.42,
+                "oddsAt": "2026-10-07T02:15:45+00:00",
+                "bookmaker": "Bet365",
+                "snapshotId": "public-demo-replay-2026-10-08",
+                "evidence": [
+                  {
+                    "id": "public-demo-replay-2026-10-08:form_advantage:api-team-742",
+                    "label": "Avantage de forme",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-742",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Genk : 6/15 contre Kortrijk : 3/15 sur les cinq derniers matchs.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Genk : 6/15 contre Kortrijk : 3/15 sur les cinq derniers matchs."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_superiority:api-team-742",
+                    "label": "Supériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-742",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Genk devance son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Genk devance son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:declining_form:api-team-742",
+                    "label": "Trajectoire en baisse",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-742",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "Genk suit une trajectoire en baisse sur les cinq derniers matchs (du plus ancien au plus récent : N, V, N, N, D, 6/15).",
+                        "value": "[object Object]"
+                      }
+                    ],
+                    "text": "Genk suit une trajectoire en baisse sur les cinq derniers matchs (du plus ancien au plus récent : N, V, N, N, D, 6/15)."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:high_xg_creation:api-team-742",
+                    "label": "Création d'xG élevée",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-742",
+                    "sample": 3,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "Genk crée des occasions de qualité au-dessus du championnat.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Genk crée des occasions de qualité au-dessus du championnat."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:improving_form:api-team-734",
+                    "label": "Trajectoire en hausse",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-734",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "Kortrijk suit une trajectoire en hausse sur les cinq derniers matchs (du plus ancien au plus récent : D, D, D, D, V, 3/15).",
+                        "value": "[object Object]"
+                      }
+                    ],
+                    "text": "Kortrijk suit une trajectoire en hausse sur les cinq derniers matchs (du plus ancien au plus récent : D, D, D, D, V, 3/15)."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:negative_streak:api-team-734",
+                    "label": "Méforme",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-734",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "Kortrijk totalise 3/15 sur ses cinq derniers matchs (du plus ancien au plus récent : D, D, D, D, V).",
+                        "value": "[object Object]"
+                      }
+                    ],
+                    "text": "Kortrijk totalise 3/15 sur ses cinq derniers matchs (du plus ancien au plus récent : D, D, D, D, V)."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_inferiority:api-team-734",
+                    "label": "Infériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-734",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "Kortrijk est derrière son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Kortrijk est derrière son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:weak_away_team:api-team-734",
+                    "label": "Fragile à l’extérieur",
+                    "family": "venue",
+                    "source": "reading",
+                    "subject": "api-team-734",
+                    "sample": 3,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "Kortrijk : au moins 3 défaites consécutives à extérieur.",
+                        "value": "[object Object]"
+                      }
+                    ],
+                    "text": "Kortrijk : au moins 3 défaites consécutives à extérieur."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:radar:team:api-team-742:declining_form",
+                    "source": "radar",
+                    "family": "form",
+                    "subject": "api-team-742",
+                    "reusesReading": true,
+                    "supportsMarket": false,
+                    "label": "Trajectoire en baisse",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "text": "Genk : Genk suit une trajectoire en baisse sur les cinq derniers matchs (du plus ancien au plus récent : N, V, N, N, D, 6/15).. Le Radar équipes et cette lecture reprennent la même série de résultats."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:radar:team:api-team-734:improving_form",
+                    "source": "radar",
+                    "family": "form",
+                    "subject": "api-team-734",
+                    "reusesReading": true,
+                    "supportsMarket": false,
+                    "label": "Trajectoire en hausse",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "text": "Kortrijk : Kortrijk suit une trajectoire en hausse sur les cinq derniers matchs (du plus ancien au plus récent : D, D, D, D, V, 3/15).. Le Radar équipes et cette lecture reprennent la même série de résultats."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:radar:team:api-team-734:negative_streak",
+                    "source": "radar",
+                    "family": "form",
+                    "subject": "api-team-734",
+                    "reusesReading": true,
+                    "supportsMarket": false,
+                    "label": "Méforme",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "text": "Kortrijk : Kortrijk totalise 3/15 sur ses cinq derniers matchs (du plus ancien au plus récent : D, D, D, D, V).. Le Radar équipes et cette lecture reprennent la même série de résultats."
+                  }
+                ],
+                "warnings": [
+                  "Activité des joueurs et production de leur équipe peuvent se recouper : le Radar ne constitue pas une preuve indépendante."
+                ],
+                "discovery": false
+              },
+              {
+                "id": "football:1584421:12:Home/Draw:8:public-demo-replay-2026-10-08",
+                "matchId": "api-fixture-1584421",
+                "sport": "football",
+                "competitionId": "203",
+                "competition": "Süper Lig",
+                "competitionLogo": "https://media.api-sports.io/football/leagues/203.png",
+                "countryFlag": "https://media.api-sports.io/flags/tr.svg",
+                "home": "Alanyaspor",
+                "away": "Erzurumspor FK",
+                "homeLogo": "https://media.api-sports.io/football/teams/996.png",
+                "awayLogo": "https://media.api-sports.io/football/teams/1009.png",
+                "teams": [
+                  "football:996",
+                  "football:1009"
+                ],
+                "kickoff": "2026-10-10T15:00:00+02:00",
+                "marketId": "doubleChance",
+                "market": "Double chance",
+                "selection": "Alanyaspor ou nul",
+                "odds": 1.25,
+                "oddsAt": "2026-10-07T02:15:45+00:00",
+                "bookmaker": "Bet365",
+                "snapshotId": "public-demo-replay-2026-10-08",
+                "evidence": [
+                  {
+                    "id": "public-demo-replay-2026-10-08:form_advantage:api-team-996",
+                    "label": "Avantage de forme",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-996",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Alanyaspor : 10/15 contre Erzurumspor FK : 7/15 sur les cinq derniers matchs.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Alanyaspor : 10/15 contre Erzurumspor FK : 7/15 sur les cinq derniers matchs."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_superiority:api-team-996",
+                    "label": "Supériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-996",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Alanyaspor devance son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Alanyaspor devance son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_inferiority:api-team-1009",
+                    "label": "Infériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-1009",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "Erzurumspor FK est derrière son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Erzurumspor FK est derrière son adversaire au classement."
+                  }
+                ],
+                "warnings": [],
+                "discovery": false
+              },
+              {
+                "id": "football:1601543:12:Home/Draw:8:public-demo-replay-2026-10-08",
+                "matchId": "api-fixture-1601543",
+                "sport": "football",
+                "competitionId": "136",
+                "competition": "Serie B",
+                "competitionLogo": "https://media.api-sports.io/football/leagues/136.png",
+                "countryFlag": "https://media.api-sports.io/flags/it.svg",
+                "home": "Arezzo",
+                "away": "Cremonese",
+                "homeLogo": "https://media.api-sports.io/football/teams/876.png",
+                "awayLogo": "https://media.api-sports.io/football/teams/520.png",
+                "teams": [
+                  "football:876",
+                  "football:520"
+                ],
+                "kickoff": "2026-10-10T19:30:00+02:00",
+                "marketId": "doubleChance",
+                "market": "Double chance",
+                "selection": "Arezzo ou nul",
+                "odds": 1.53,
+                "oddsAt": "2026-10-07T02:15:45+00:00",
+                "bookmaker": "Bet365",
+                "snapshotId": "public-demo-replay-2026-10-08",
+                "evidence": [
+                  {
+                    "id": "public-demo-replay-2026-10-08:form_advantage:api-team-876",
+                    "label": "Avantage de forme",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-876",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Arezzo : 6/15 contre Cremonese : 5/15 sur les cinq derniers matchs.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Arezzo : 6/15 contre Cremonese : 5/15 sur les cinq derniers matchs."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_superiority:api-team-876",
+                    "label": "Supériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-876",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Arezzo devance son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Arezzo devance son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_inferiority:api-team-520",
+                    "label": "Infériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-520",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "Cremonese est derrière son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Cremonese est derrière son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:radar:31436",
+                    "source": "radar",
+                    "family": "player",
+                    "subject": "player:31436",
+                    "label": "F. Bonazzoli",
+                    "photo": "https://media.api-sports.io/football/players/31436.png",
+                    "metrics": [
+                      {
+                        "label": "Décisif",
+                        "value": "2/3 matchs"
+                      },
+                      {
+                        "label": "Buts",
+                        "value": "3"
+                      },
+                      {
+                        "label": "Passes",
+                        "value": "1"
+                      }
+                    ],
+                    "supportsMarket": false,
+                    "sample": 3,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "text": "F. Bonazzoli (Cremonese) : décisif dans 2/3 matchs, 3 but(s) et 1 passe(s). Un signal d’activité, sans garantie de contribution au prochain match."
+                  }
+                ],
+                "warnings": [
+                  "Activité des joueurs et production de leur équipe peuvent se recouper : le Radar ne constitue pas une preuve indépendante."
+                ],
+                "discovery": false
+              },
+              {
+                "id": "football:1603036:12:Home/Draw:8:public-demo-replay-2026-10-08",
+                "matchId": "api-fixture-1603036",
+                "sport": "football",
+                "competitionId": "307",
+                "competition": "Pro League",
+                "competitionLogo": "https://media.api-sports.io/football/leagues/307.png",
+                "countryFlag": "https://media.api-sports.io/flags/sa.svg",
+                "home": "Al-Ettifaq",
+                "away": "Al Khaleej Saihat",
+                "homeLogo": "https://media.api-sports.io/football/teams/2934.png",
+                "awayLogo": "https://media.api-sports.io/football/teams/2928.png",
+                "teams": [
+                  "football:2934",
+                  "football:2928"
+                ],
+                "kickoff": "2026-10-10T16:55:00+02:00",
+                "marketId": "doubleChance",
+                "market": "Double chance",
+                "selection": "Al-Ettifaq ou nul",
+                "odds": 1.3,
+                "oddsAt": "2026-10-08T00:30:36+00:00",
+                "bookmaker": "Bet365",
+                "snapshotId": "public-demo-replay-2026-10-08",
+                "evidence": [
+                  {
+                    "id": "public-demo-replay-2026-10-08:form_advantage:api-team-2934",
+                    "label": "Avantage de forme",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-2934",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Al-Ettifaq : 5/15 contre Al Khaleej Saihat : 3/15 sur les cinq derniers matchs.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Al-Ettifaq : 5/15 contre Al Khaleej Saihat : 3/15 sur les cinq derniers matchs."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_superiority:api-team-2934",
+                    "label": "Supériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-2934",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Al-Ettifaq devance son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Al-Ettifaq devance son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:negative_streak:api-team-2928",
+                    "label": "Méforme",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-2928",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "Al Khaleej Saihat totalise 3/15 sur ses cinq derniers matchs (du plus ancien au plus récent : N, D, D, N, N).",
+                        "value": "[object Object]"
+                      }
+                    ],
+                    "text": "Al Khaleej Saihat totalise 3/15 sur ses cinq derniers matchs (du plus ancien au plus récent : N, D, D, N, N)."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_inferiority:api-team-2928",
+                    "label": "Infériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-2928",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "Al Khaleej Saihat est derrière son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Al Khaleej Saihat est derrière son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:radar:team:api-team-2928:negative_streak",
+                    "source": "radar",
+                    "family": "form",
+                    "subject": "api-team-2928",
+                    "reusesReading": true,
+                    "supportsMarket": false,
+                    "label": "Méforme",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "text": "Al Khaleej Saihat : Al Khaleej Saihat totalise 3/15 sur ses cinq derniers matchs (du plus ancien au plus récent : N, D, D, N, N).. Le Radar équipes et cette lecture reprennent la même série de résultats."
+                  }
+                ],
+                "warnings": [
+                  "Activité des joueurs et production de leur équipe peuvent se recouper : le Radar ne constitue pas une preuve indépendante."
+                ],
+                "discovery": false
+              },
+              {
+                "id": "football:1638643:1:Home:8:public-demo-replay-2026-10-08",
+                "matchId": "api-fixture-1638643",
+                "sport": "football",
+                "competitionId": "164",
+                "competition": "Úrvalsdeild",
+                "competitionLogo": "https://media.api-sports.io/football/leagues/164.png",
+                "countryFlag": "https://media.api-sports.io/flags/is.svg",
+                "home": "Stjarnan",
+                "away": "KA Akureyri",
+                "homeLogo": "https://media.api-sports.io/football/teams/275.png",
+                "awayLogo": "https://media.api-sports.io/football/teams/272.png",
+                "teams": [
+                  "football:275",
+                  "football:272"
+                ],
+                "kickoff": "2026-10-10T16:00:00+02:00",
+                "marketId": "matchResult",
+                "market": "Résultat du match",
+                "selection": "Stjarnan gagne",
+                "odds": 1.7,
+                "oddsAt": "2026-10-08T02:36:15+00:00",
+                "bookmaker": "Bet365",
+                "snapshotId": "public-demo-replay-2026-10-08",
+                "evidence": [
+                  {
+                    "id": "public-demo-replay-2026-10-08:form_advantage:api-team-275",
+                    "label": "Avantage de forme",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-275",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Stjarnan : 10/15 contre KA Akureyri : 7/15 sur les cinq derniers matchs.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Stjarnan : 10/15 contre KA Akureyri : 7/15 sur les cinq derniers matchs."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_superiority:api-team-275",
+                    "label": "Supériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-275",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Stjarnan devance son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Stjarnan devance son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_inferiority:api-team-272",
+                    "label": "Infériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-272",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "KA Akureyri est derrière son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "KA Akureyri est derrière son adversaire au classement."
+                  }
+                ],
+                "warnings": [],
+                "discovery": false
+              }
+            ],
+            "stake": 50,
+            "totalOdds": 6,
+            "returnTotal": 300.09,
+            "netProfit": 250.09,
+            "metrics": {
+              "conditions": 5,
+              "meanDataGroups": 2,
+              "minimumSample": 5,
+              "redundantReferences": 0,
+              "maximumQuoteAgeHours": 33.7375,
+              "targetDistance": 0.0003012499999999818,
+              "largestOddsContribution": 0.2960994897113703
+            },
+            "assessments": [
+              {
+                "directReferences": [
+                  "public-demo-replay-2026-10-08:form_advantage:api-team-742",
+                  "public-demo-replay-2026-10-08:ranking_superiority:api-team-742"
+                ],
+                "contextReferences": [
+                  "public-demo-replay-2026-10-08:declining_form:api-team-742",
+                  "public-demo-replay-2026-10-08:high_xg_creation:api-team-742",
+                  "public-demo-replay-2026-10-08:improving_form:api-team-734",
+                  "public-demo-replay-2026-10-08:negative_streak:api-team-734",
+                  "public-demo-replay-2026-10-08:ranking_inferiority:api-team-734",
+                  "public-demo-replay-2026-10-08:weak_away_team:api-team-734",
+                  "public-demo-replay-2026-10-08:radar:team:api-team-742:declining_form",
+                  "public-demo-replay-2026-10-08:radar:team:api-team-734:improving_form",
+                  "public-demo-replay-2026-10-08:radar:team:api-team-734:negative_streak"
+                ],
+                "dataGroups": [
+                  {
+                    "group": "recent_results",
+                    "references": [
+                      "public-demo-replay-2026-10-08:form_advantage:api-team-742"
+                    ]
+                  },
+                  {
+                    "group": "standing",
+                    "references": [
+                      "public-demo-replay-2026-10-08:ranking_superiority:api-team-742"
+                    ]
+                  }
+                ],
+                "redundantReferences": 0,
+                "minimumSample": 5,
+                "quoteAgeHours": 33.7375,
+                "sourceReferences": [
+                  "public-demo-replay-2026-10-08"
+                ],
+                "independence": "unverified",
+                "contradictions": "not_published_per_market",
+                "history": "not_available",
+                "warnings": [
+                  "Activité des joueurs et production de leur équipe peuvent se recouper : le Radar ne constitue pas une preuve indépendante."
+                ],
+                "exclusions": []
+              },
+              {
+                "directReferences": [
+                  "public-demo-replay-2026-10-08:form_advantage:api-team-996",
+                  "public-demo-replay-2026-10-08:ranking_superiority:api-team-996"
+                ],
+                "contextReferences": [
+                  "public-demo-replay-2026-10-08:ranking_inferiority:api-team-1009"
+                ],
+                "dataGroups": [
+                  {
+                    "group": "recent_results",
+                    "references": [
+                      "public-demo-replay-2026-10-08:form_advantage:api-team-996"
+                    ]
+                  },
+                  {
+                    "group": "standing",
+                    "references": [
+                      "public-demo-replay-2026-10-08:ranking_superiority:api-team-996"
+                    ]
+                  }
+                ],
+                "redundantReferences": 0,
+                "minimumSample": 5,
+                "quoteAgeHours": 33.7375,
+                "sourceReferences": [
+                  "public-demo-replay-2026-10-08"
+                ],
+                "independence": "unverified",
+                "contradictions": "not_published_per_market",
+                "history": "not_available",
+                "warnings": [],
+                "exclusions": []
+              },
+              {
+                "directReferences": [
+                  "public-demo-replay-2026-10-08:form_advantage:api-team-876",
+                  "public-demo-replay-2026-10-08:ranking_superiority:api-team-876"
+                ],
+                "contextReferences": [
+                  "public-demo-replay-2026-10-08:ranking_inferiority:api-team-520",
+                  "public-demo-replay-2026-10-08:radar:31436"
+                ],
+                "dataGroups": [
+                  {
+                    "group": "recent_results",
+                    "references": [
+                      "public-demo-replay-2026-10-08:form_advantage:api-team-876"
+                    ]
+                  },
+                  {
+                    "group": "standing",
+                    "references": [
+                      "public-demo-replay-2026-10-08:ranking_superiority:api-team-876"
+                    ]
+                  }
+                ],
+                "redundantReferences": 0,
+                "minimumSample": 5,
+                "quoteAgeHours": 33.7375,
+                "sourceReferences": [
+                  "public-demo-replay-2026-10-08"
+                ],
+                "independence": "unverified",
+                "contradictions": "not_published_per_market",
+                "history": "not_available",
+                "warnings": [
+                  "Activité des joueurs et production de leur équipe peuvent se recouper : le Radar ne constitue pas une preuve indépendante."
+                ],
+                "exclusions": []
+              },
+              {
+                "directReferences": [
+                  "public-demo-replay-2026-10-08:form_advantage:api-team-2934",
+                  "public-demo-replay-2026-10-08:ranking_superiority:api-team-2934"
+                ],
+                "contextReferences": [
+                  "public-demo-replay-2026-10-08:negative_streak:api-team-2928",
+                  "public-demo-replay-2026-10-08:ranking_inferiority:api-team-2928",
+                  "public-demo-replay-2026-10-08:radar:team:api-team-2928:negative_streak"
+                ],
+                "dataGroups": [
+                  {
+                    "group": "recent_results",
+                    "references": [
+                      "public-demo-replay-2026-10-08:form_advantage:api-team-2934"
+                    ]
+                  },
+                  {
+                    "group": "standing",
+                    "references": [
+                      "public-demo-replay-2026-10-08:ranking_superiority:api-team-2934"
+                    ]
+                  }
+                ],
+                "redundantReferences": 0,
+                "minimumSample": 5,
+                "quoteAgeHours": 11.49,
+                "sourceReferences": [
+                  "public-demo-replay-2026-10-08"
+                ],
+                "independence": "unverified",
+                "contradictions": "not_published_per_market",
+                "history": "not_available",
+                "warnings": [
+                  "Activité des joueurs et production de leur équipe peuvent se recouper : le Radar ne constitue pas une preuve indépendante."
+                ],
+                "exclusions": []
+              },
+              {
+                "directReferences": [
+                  "public-demo-replay-2026-10-08:form_advantage:api-team-275",
+                  "public-demo-replay-2026-10-08:ranking_superiority:api-team-275"
+                ],
+                "contextReferences": [
+                  "public-demo-replay-2026-10-08:ranking_inferiority:api-team-272"
+                ],
+                "dataGroups": [
+                  {
+                    "group": "recent_results",
+                    "references": [
+                      "public-demo-replay-2026-10-08:form_advantage:api-team-275"
+                    ]
+                  },
+                  {
+                    "group": "standing",
+                    "references": [
+                      "public-demo-replay-2026-10-08:ranking_superiority:api-team-275"
+                    ]
+                  }
+                ],
+                "redundantReferences": 0,
+                "minimumSample": 5,
+                "quoteAgeHours": 9.395833333333334,
+                "sourceReferences": [
+                  "public-demo-replay-2026-10-08"
+                ],
+                "independence": "unverified",
+                "contradictions": "not_published_per_market",
+                "history": "not_available",
+                "warnings": [],
+                "exclusions": []
+              }
+            ],
+            "comparison": null
+          },
+          {
+            "approach": "fewer_matches",
+            "fingerprint": "b5f6121a0774f0630f4e1e91913820a2a4fa58ec06577faf7b334a4c99f3efb8",
+            "picks": [
+              {
+                "id": "football:1550144:1:Away:8:public-demo-replay-2026-10-08",
+                "matchId": "api-fixture-1550144",
+                "sport": "football",
+                "competitionId": "135",
+                "competition": "Serie A",
+                "competitionLogo": "https://media.api-sports.io/football/leagues/135.png",
+                "countryFlag": "https://media.api-sports.io/flags/it.svg",
+                "home": "Napoli",
+                "away": "Frosinone",
+                "homeLogo": "https://media.api-sports.io/football/teams/492.png",
+                "awayLogo": "https://media.api-sports.io/football/teams/512.png",
+                "teams": [
+                  "football:492",
+                  "football:512"
+                ],
+                "kickoff": "2026-10-10T20:45:00+02:00",
+                "marketId": "matchResult",
+                "market": "Résultat du match",
+                "selection": "Frosinone gagne",
+                "odds": 6.25,
+                "oddsAt": "2026-10-07T03:35:20+00:00",
+                "bookmaker": "Bet365",
+                "snapshotId": "public-demo-replay-2026-10-08",
+                "evidence": [
+                  {
+                    "id": "public-demo-replay-2026-10-08:form_advantage:api-team-512",
+                    "label": "Avantage de forme",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-512",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Frosinone : 10/15 contre Napoli : 7/15 sur les cinq derniers matchs.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Frosinone : 10/15 contre Napoli : 7/15 sur les cinq derniers matchs."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_superiority:api-team-512",
+                    "label": "Supériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-512",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Frosinone devance son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Frosinone devance son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:improving_form:api-team-492",
+                    "label": "Trajectoire en hausse",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-492",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "Napoli suit une trajectoire en hausse sur les cinq derniers matchs (du plus ancien au plus récent : V, D, D, V, N, 7/15).",
+                        "value": "[object Object]"
+                      }
+                    ],
+                    "text": "Napoli suit une trajectoire en hausse sur les cinq derniers matchs (du plus ancien au plus récent : V, D, D, V, N, 7/15)."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_inferiority:api-team-492",
+                    "label": "Infériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-492",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "Napoli est derrière son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Napoli est derrière son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:radar:311251",
+                    "source": "radar",
+                    "family": "player",
+                    "subject": "player:311251",
+                    "label": "Giorgi Kvernadze",
+                    "photo": "https://media.api-sports.io/football/players/311251.png",
+                    "metrics": [
+                      {
+                        "label": "Décisif",
+                        "value": "2/3 matchs"
+                      },
+                      {
+                        "label": "Buts",
+                        "value": "2"
+                      },
+                      {
+                        "label": "Passes",
+                        "value": "0"
+                      }
+                    ],
+                    "supportsMarket": false,
+                    "sample": 3,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "text": "Giorgi Kvernadze (Frosinone) : décisif dans 2/3 matchs, 2 but(s) et 0 passe(s). Un signal d’activité, sans garantie de contribution au prochain match."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:radar:team:api-team-492:improving_form",
+                    "source": "radar",
+                    "family": "form",
+                    "subject": "api-team-492",
+                    "reusesReading": true,
+                    "supportsMarket": false,
+                    "label": "Trajectoire en hausse",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "text": "Napoli : Napoli suit une trajectoire en hausse sur les cinq derniers matchs (du plus ancien au plus récent : V, D, D, V, N, 7/15).. Le Radar équipes et cette lecture reprennent la même série de résultats."
+                  }
+                ],
+                "warnings": [
+                  "Activité des joueurs et production de leur équipe peuvent se recouper : le Radar ne constitue pas une preuve indépendante."
+                ],
+                "discovery": false
+              }
+            ],
+            "stake": 50,
+            "totalOdds": 6.25,
+            "returnTotal": 312.5,
+            "netProfit": 262.5,
+            "metrics": {
+              "conditions": 1,
+              "meanDataGroups": 2,
+              "minimumSample": 5,
+              "redundantReferences": 0,
+              "maximumQuoteAgeHours": 32.41111111111111,
+              "targetDistance": 0.041666666666666664,
+              "largestOddsContribution": 1
+            },
+            "assessments": [
+              {
+                "directReferences": [
+                  "public-demo-replay-2026-10-08:form_advantage:api-team-512",
+                  "public-demo-replay-2026-10-08:ranking_superiority:api-team-512"
+                ],
+                "contextReferences": [
+                  "public-demo-replay-2026-10-08:improving_form:api-team-492",
+                  "public-demo-replay-2026-10-08:ranking_inferiority:api-team-492",
+                  "public-demo-replay-2026-10-08:radar:311251",
+                  "public-demo-replay-2026-10-08:radar:team:api-team-492:improving_form"
+                ],
+                "dataGroups": [
+                  {
+                    "group": "recent_results",
+                    "references": [
+                      "public-demo-replay-2026-10-08:form_advantage:api-team-512"
+                    ]
+                  },
+                  {
+                    "group": "standing",
+                    "references": [
+                      "public-demo-replay-2026-10-08:ranking_superiority:api-team-512"
+                    ]
+                  }
+                ],
+                "redundantReferences": 0,
+                "minimumSample": 5,
+                "quoteAgeHours": 32.41111111111111,
+                "sourceReferences": [
+                  "public-demo-replay-2026-10-08"
+                ],
+                "independence": "unverified",
+                "contradictions": "not_published_per_market",
+                "history": "not_available",
+                "warnings": [
+                  "Activité des joueurs et production de leur équipe peuvent se recouper : le Radar ne constitue pas une preuve indépendante."
+                ],
+                "exclusions": []
+              }
+            ],
+            "comparison": {
+              "kept": [],
+              "removed": [
+                "football:1558646:1:Home:8:public-demo-replay-2026-10-08",
+                "football:1584421:12:Home/Draw:8:public-demo-replay-2026-10-08",
+                "football:1601543:12:Home/Draw:8:public-demo-replay-2026-10-08",
+                "football:1603036:12:Home/Draw:8:public-demo-replay-2026-10-08",
+                "football:1638643:1:Home:8:public-demo-replay-2026-10-08"
+              ],
+              "added": [
+                "football:1550144:1:Away:8:public-demo-replay-2026-10-08"
+              ],
+              "replaced": [],
+              "sharedFixtures": 0,
+              "sharedSelections": 0,
+              "significant": true
+            }
+          },
+          {
+            "approach": "other_markets",
+            "fingerprint": "13b335ebfe200ad2f809a95771fabee192b964b0597c27c6e8d114bc25f85816",
+            "picks": [
+              {
+                "id": "football:1584421:1:Home:32:public-demo-replay-2026-10-08",
+                "matchId": "api-fixture-1584421",
+                "sport": "football",
+                "competitionId": "203",
+                "competition": "Süper Lig",
+                "competitionLogo": "https://media.api-sports.io/football/leagues/203.png",
+                "countryFlag": "https://media.api-sports.io/flags/tr.svg",
+                "home": "Alanyaspor",
+                "away": "Erzurumspor FK",
+                "homeLogo": "https://media.api-sports.io/football/teams/996.png",
+                "awayLogo": "https://media.api-sports.io/football/teams/1009.png",
+                "teams": [
+                  "football:996",
+                  "football:1009"
+                ],
+                "kickoff": "2026-10-10T15:00:00+02:00",
+                "marketId": "matchResult",
+                "market": "Résultat du match",
+                "selection": "Alanyaspor gagne",
+                "odds": 2.02,
+                "oddsAt": "2026-10-07T02:15:45+00:00",
+                "bookmaker": "Betano",
+                "snapshotId": "public-demo-replay-2026-10-08",
+                "evidence": [
+                  {
+                    "id": "public-demo-replay-2026-10-08:form_advantage:api-team-996",
+                    "label": "Avantage de forme",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-996",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Alanyaspor : 10/15 contre Erzurumspor FK : 7/15 sur les cinq derniers matchs.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Alanyaspor : 10/15 contre Erzurumspor FK : 7/15 sur les cinq derniers matchs."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_superiority:api-team-996",
+                    "label": "Supériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-996",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Alanyaspor devance son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Alanyaspor devance son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_inferiority:api-team-1009",
+                    "label": "Infériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-1009",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "Erzurumspor FK est derrière son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Erzurumspor FK est derrière son adversaire au classement."
+                  }
+                ],
+                "warnings": [],
+                "discovery": false
+              },
+              {
+                "id": "football:1601543:1:Home:32:public-demo-replay-2026-10-08",
+                "matchId": "api-fixture-1601543",
+                "sport": "football",
+                "competitionId": "136",
+                "competition": "Serie B",
+                "competitionLogo": "https://media.api-sports.io/football/leagues/136.png",
+                "countryFlag": "https://media.api-sports.io/flags/it.svg",
+                "home": "Arezzo",
+                "away": "Cremonese",
+                "homeLogo": "https://media.api-sports.io/football/teams/876.png",
+                "awayLogo": "https://media.api-sports.io/football/teams/520.png",
+                "teams": [
+                  "football:876",
+                  "football:520"
+                ],
+                "kickoff": "2026-10-10T19:30:00+02:00",
+                "marketId": "matchResult",
+                "market": "Résultat du match",
+                "selection": "Arezzo gagne",
+                "odds": 3,
+                "oddsAt": "2026-10-07T02:15:45+00:00",
+                "bookmaker": "Betano",
+                "snapshotId": "public-demo-replay-2026-10-08",
+                "evidence": [
+                  {
+                    "id": "public-demo-replay-2026-10-08:form_advantage:api-team-876",
+                    "label": "Avantage de forme",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-876",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Arezzo : 6/15 contre Cremonese : 5/15 sur les cinq derniers matchs.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Arezzo : 6/15 contre Cremonese : 5/15 sur les cinq derniers matchs."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_superiority:api-team-876",
+                    "label": "Supériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-876",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Arezzo devance son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Arezzo devance son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_inferiority:api-team-520",
+                    "label": "Infériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-520",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "Cremonese est derrière son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Cremonese est derrière son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:radar:31436",
+                    "source": "radar",
+                    "family": "player",
+                    "subject": "player:31436",
+                    "label": "F. Bonazzoli",
+                    "photo": "https://media.api-sports.io/football/players/31436.png",
+                    "metrics": [
+                      {
+                        "label": "Décisif",
+                        "value": "2/3 matchs"
+                      },
+                      {
+                        "label": "Buts",
+                        "value": "3"
+                      },
+                      {
+                        "label": "Passes",
+                        "value": "1"
+                      }
+                    ],
+                    "supportsMarket": false,
+                    "sample": 3,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "text": "F. Bonazzoli (Cremonese) : décisif dans 2/3 matchs, 3 but(s) et 1 passe(s). Un signal d’activité, sans garantie de contribution au prochain match."
+                  }
+                ],
+                "warnings": [
+                  "Activité des joueurs et production de leur équipe peuvent se recouper : le Radar ne constitue pas une preuve indépendante."
+                ],
+                "discovery": false
+              }
+            ],
+            "stake": 50,
+            "totalOdds": 6.06,
+            "returnTotal": 303,
+            "netProfit": 253,
+            "metrics": {
+              "conditions": 2,
+              "meanDataGroups": 2,
+              "minimumSample": 5,
+              "redundantReferences": 0,
+              "maximumQuoteAgeHours": 33.7375,
+              "targetDistance": 0.01,
+              "largestOddsContribution": 0.6097609551874464
+            },
+            "assessments": [
+              {
+                "directReferences": [
+                  "public-demo-replay-2026-10-08:form_advantage:api-team-996",
+                  "public-demo-replay-2026-10-08:ranking_superiority:api-team-996"
+                ],
+                "contextReferences": [
+                  "public-demo-replay-2026-10-08:ranking_inferiority:api-team-1009"
+                ],
+                "dataGroups": [
+                  {
+                    "group": "recent_results",
+                    "references": [
+                      "public-demo-replay-2026-10-08:form_advantage:api-team-996"
+                    ]
+                  },
+                  {
+                    "group": "standing",
+                    "references": [
+                      "public-demo-replay-2026-10-08:ranking_superiority:api-team-996"
+                    ]
+                  }
+                ],
+                "redundantReferences": 0,
+                "minimumSample": 5,
+                "quoteAgeHours": 33.7375,
+                "sourceReferences": [
+                  "public-demo-replay-2026-10-08"
+                ],
+                "independence": "unverified",
+                "contradictions": "not_published_per_market",
+                "history": "not_available",
+                "warnings": [],
+                "exclusions": []
+              },
+              {
+                "directReferences": [
+                  "public-demo-replay-2026-10-08:form_advantage:api-team-876",
+                  "public-demo-replay-2026-10-08:ranking_superiority:api-team-876"
+                ],
+                "contextReferences": [
+                  "public-demo-replay-2026-10-08:ranking_inferiority:api-team-520",
+                  "public-demo-replay-2026-10-08:radar:31436"
+                ],
+                "dataGroups": [
+                  {
+                    "group": "recent_results",
+                    "references": [
+                      "public-demo-replay-2026-10-08:form_advantage:api-team-876"
+                    ]
+                  },
+                  {
+                    "group": "standing",
+                    "references": [
+                      "public-demo-replay-2026-10-08:ranking_superiority:api-team-876"
+                    ]
+                  }
+                ],
+                "redundantReferences": 0,
+                "minimumSample": 5,
+                "quoteAgeHours": 33.7375,
+                "sourceReferences": [
+                  "public-demo-replay-2026-10-08"
+                ],
+                "independence": "unverified",
+                "contradictions": "not_published_per_market",
+                "history": "not_available",
+                "warnings": [
+                  "Activité des joueurs et production de leur équipe peuvent se recouper : le Radar ne constitue pas une preuve indépendante."
+                ],
+                "exclusions": []
+              }
+            ],
+            "comparison": {
+              "kept": [],
+              "removed": [
+                "football:1558646:1:Home:8:public-demo-replay-2026-10-08",
+                "football:1603036:12:Home/Draw:8:public-demo-replay-2026-10-08",
+                "football:1638643:1:Home:8:public-demo-replay-2026-10-08"
+              ],
+              "added": [],
+              "replaced": [
+                {
+                  "fixture": "football:api-fixture-1584421",
+                  "before": "football:1584421:12:Home/Draw:8:public-demo-replay-2026-10-08",
+                  "after": "football:1584421:1:Home:32:public-demo-replay-2026-10-08"
+                },
+                {
+                  "fixture": "football:api-fixture-1601543",
+                  "before": "football:1601543:12:Home/Draw:8:public-demo-replay-2026-10-08",
+                  "after": "football:1601543:1:Home:32:public-demo-replay-2026-10-08"
+                }
+              ],
+              "sharedFixtures": 2,
+              "sharedSelections": 0,
+              "significant": true
+            }
+          }
+        ],
+        "report": {
+          "inputCandidates": 2412,
+          "eligibleCandidates": 2412,
+          "retainedCandidates": 448,
+          "eligibleFixtures": 111,
+          "retainedFixtures": 48,
+          "bookmakersExamined": 4,
+          "exploredStates": 23282,
+          "feasibleObserved": 15019,
+          "paretoCount": 86,
+          "limited": {
+            "fixtures": true,
+            "bookmakers": true,
+            "states": false,
+            "beam": true
+          },
+          "elapsedMs": 1352.46,
+          "exclusions": []
+        },
+        "status": "compositions_found",
+        "limitations": [
+          "Heuristiques de comparaison non calibrées ; aucune probabilité de réussite.",
+          "Indépendance statistique non établie : groupes de données estimés conservativement.",
+          "Contradictions par marché et cohortes historiques comparables non publiées."
+        ]
+      }
+    },
+    {
+      "goal": 500,
+      "stake": 50,
+      "maxSelections": 6,
+      "legacyMs": 55.78,
+      "legacyTraces": [
+        {
+          "poolRows": 762,
+          "fixtures": 48,
+          "visited": 3,
+          "found": true,
+          "hitLimit": false
+        }
+      ],
+      "legacy": [
+        {
+          "conditions": 2,
+          "totalOdds": 24.67,
+          "returnTotal": 1233.7,
+          "picks": [
+            "Mariehamn — Ilves · Résultat du match · Mariehamn gagne @ 2.92 (1xBet)",
+            "Real Madrid — Villarreal · Résultat du match · Villarreal gagne @ 8.45 (1xBet)"
+          ]
+        }
+      ],
+      "workshop": {
+        "protocol": "lector-workshop-v1",
+        "alternatives": [
+          {
+            "approach": "balanced",
+            "fingerprint": "832ad99234398642cdf78fb843e8d183ffc188a3cdcbc5979444928ab2eaf84d",
+            "picks": [
+              {
+                "id": "football:1550144:12:Draw/Away:8:public-demo-replay-2026-10-08",
+                "matchId": "api-fixture-1550144",
+                "sport": "football",
+                "competitionId": "135",
+                "competition": "Serie A",
+                "competitionLogo": "https://media.api-sports.io/football/leagues/135.png",
+                "countryFlag": "https://media.api-sports.io/flags/it.svg",
+                "home": "Napoli",
+                "away": "Frosinone",
+                "homeLogo": "https://media.api-sports.io/football/teams/492.png",
+                "awayLogo": "https://media.api-sports.io/football/teams/512.png",
+                "teams": [
+                  "football:492",
+                  "football:512"
+                ],
+                "kickoff": "2026-10-10T20:45:00+02:00",
+                "marketId": "doubleChance",
+                "market": "Double chance",
+                "selection": "Frosinone ou nul",
+                "odds": 2.75,
+                "oddsAt": "2026-10-07T03:35:20+00:00",
+                "bookmaker": "Bet365",
+                "snapshotId": "public-demo-replay-2026-10-08",
+                "evidence": [
+                  {
+                    "id": "public-demo-replay-2026-10-08:form_advantage:api-team-512",
+                    "label": "Avantage de forme",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-512",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Frosinone : 10/15 contre Napoli : 7/15 sur les cinq derniers matchs.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Frosinone : 10/15 contre Napoli : 7/15 sur les cinq derniers matchs."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_superiority:api-team-512",
+                    "label": "Supériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-512",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Frosinone devance son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Frosinone devance son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:improving_form:api-team-492",
+                    "label": "Trajectoire en hausse",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-492",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "Napoli suit une trajectoire en hausse sur les cinq derniers matchs (du plus ancien au plus récent : V, D, D, V, N, 7/15).",
+                        "value": "[object Object]"
+                      }
+                    ],
+                    "text": "Napoli suit une trajectoire en hausse sur les cinq derniers matchs (du plus ancien au plus récent : V, D, D, V, N, 7/15)."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_inferiority:api-team-492",
+                    "label": "Infériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-492",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "Napoli est derrière son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Napoli est derrière son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:radar:311251",
+                    "source": "radar",
+                    "family": "player",
+                    "subject": "player:311251",
+                    "label": "Giorgi Kvernadze",
+                    "photo": "https://media.api-sports.io/football/players/311251.png",
+                    "metrics": [
+                      {
+                        "label": "Décisif",
+                        "value": "2/3 matchs"
+                      },
+                      {
+                        "label": "Buts",
+                        "value": "2"
+                      },
+                      {
+                        "label": "Passes",
+                        "value": "0"
+                      }
+                    ],
+                    "supportsMarket": false,
+                    "sample": 3,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "text": "Giorgi Kvernadze (Frosinone) : décisif dans 2/3 matchs, 2 but(s) et 0 passe(s). Un signal d’activité, sans garantie de contribution au prochain match."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:radar:team:api-team-492:improving_form",
+                    "source": "radar",
+                    "family": "form",
+                    "subject": "api-team-492",
+                    "reusesReading": true,
+                    "supportsMarket": false,
+                    "label": "Trajectoire en hausse",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "text": "Napoli : Napoli suit une trajectoire en hausse sur les cinq derniers matchs (du plus ancien au plus récent : V, D, D, V, N, 7/15).. Le Radar équipes et cette lecture reprennent la même série de résultats."
+                  }
+                ],
+                "warnings": [
+                  "Activité des joueurs et production de leur équipe peuvent se recouper : le Radar ne constitue pas une preuve indépendante."
+                ],
+                "discovery": false
+              },
+              {
+                "id": "football:1601543:1:Home:8:public-demo-replay-2026-10-08",
+                "matchId": "api-fixture-1601543",
+                "sport": "football",
+                "competitionId": "136",
+                "competition": "Serie B",
+                "competitionLogo": "https://media.api-sports.io/football/leagues/136.png",
+                "countryFlag": "https://media.api-sports.io/flags/it.svg",
+                "home": "Arezzo",
+                "away": "Cremonese",
+                "homeLogo": "https://media.api-sports.io/football/teams/876.png",
+                "awayLogo": "https://media.api-sports.io/football/teams/520.png",
+                "teams": [
+                  "football:876",
+                  "football:520"
+                ],
+                "kickoff": "2026-10-10T19:30:00+02:00",
+                "marketId": "matchResult",
+                "market": "Résultat du match",
+                "selection": "Arezzo gagne",
+                "odds": 3,
+                "oddsAt": "2026-10-07T02:15:45+00:00",
+                "bookmaker": "Bet365",
+                "snapshotId": "public-demo-replay-2026-10-08",
+                "evidence": [
+                  {
+                    "id": "public-demo-replay-2026-10-08:form_advantage:api-team-876",
+                    "label": "Avantage de forme",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-876",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Arezzo : 6/15 contre Cremonese : 5/15 sur les cinq derniers matchs.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Arezzo : 6/15 contre Cremonese : 5/15 sur les cinq derniers matchs."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_superiority:api-team-876",
+                    "label": "Supériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-876",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Arezzo devance son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Arezzo devance son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_inferiority:api-team-520",
+                    "label": "Infériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-520",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "Cremonese est derrière son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Cremonese est derrière son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:radar:31436",
+                    "source": "radar",
+                    "family": "player",
+                    "subject": "player:31436",
+                    "label": "F. Bonazzoli",
+                    "photo": "https://media.api-sports.io/football/players/31436.png",
+                    "metrics": [
+                      {
+                        "label": "Décisif",
+                        "value": "2/3 matchs"
+                      },
+                      {
+                        "label": "Buts",
+                        "value": "3"
+                      },
+                      {
+                        "label": "Passes",
+                        "value": "1"
+                      }
+                    ],
+                    "supportsMarket": false,
+                    "sample": 3,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "text": "F. Bonazzoli (Cremonese) : décisif dans 2/3 matchs, 3 but(s) et 1 passe(s). Un signal d’activité, sans garantie de contribution au prochain match."
+                  }
+                ],
+                "warnings": [
+                  "Activité des joueurs et production de leur équipe peuvent se recouper : le Radar ne constitue pas une preuve indépendante."
+                ],
+                "discovery": false
+              },
+              {
+                "id": "football:1638643:12:Home/Draw:8:public-demo-replay-2026-10-08",
+                "matchId": "api-fixture-1638643",
+                "sport": "football",
+                "competitionId": "164",
+                "competition": "Úrvalsdeild",
+                "competitionLogo": "https://media.api-sports.io/football/leagues/164.png",
+                "countryFlag": "https://media.api-sports.io/flags/is.svg",
+                "home": "Stjarnan",
+                "away": "KA Akureyri",
+                "homeLogo": "https://media.api-sports.io/football/teams/275.png",
+                "awayLogo": "https://media.api-sports.io/football/teams/272.png",
+                "teams": [
+                  "football:275",
+                  "football:272"
+                ],
+                "kickoff": "2026-10-10T16:00:00+02:00",
+                "marketId": "doubleChance",
+                "market": "Double chance",
+                "selection": "Stjarnan ou nul",
+                "odds": 1.22,
+                "oddsAt": "2026-10-08T02:36:15+00:00",
+                "bookmaker": "Bet365",
+                "snapshotId": "public-demo-replay-2026-10-08",
+                "evidence": [
+                  {
+                    "id": "public-demo-replay-2026-10-08:form_advantage:api-team-275",
+                    "label": "Avantage de forme",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-275",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Stjarnan : 10/15 contre KA Akureyri : 7/15 sur les cinq derniers matchs.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Stjarnan : 10/15 contre KA Akureyri : 7/15 sur les cinq derniers matchs."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_superiority:api-team-275",
+                    "label": "Supériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-275",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Stjarnan devance son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Stjarnan devance son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_inferiority:api-team-272",
+                    "label": "Infériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-272",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "KA Akureyri est derrière son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "KA Akureyri est derrière son adversaire au classement."
+                  }
+                ],
+                "warnings": [],
+                "discovery": false
+              }
+            ],
+            "stake": 50,
+            "totalOdds": 10.07,
+            "returnTotal": 503.25,
+            "netProfit": 453.25,
+            "metrics": {
+              "conditions": 3,
+              "meanDataGroups": 2,
+              "minimumSample": 5,
+              "redundantReferences": 0,
+              "maximumQuoteAgeHours": 33.7375,
+              "targetDistance": 0.0065,
+              "largestOddsContribution": 0.47578250778379744
+            },
+            "assessments": [
+              {
+                "directReferences": [
+                  "public-demo-replay-2026-10-08:form_advantage:api-team-512",
+                  "public-demo-replay-2026-10-08:ranking_superiority:api-team-512"
+                ],
+                "contextReferences": [
+                  "public-demo-replay-2026-10-08:improving_form:api-team-492",
+                  "public-demo-replay-2026-10-08:ranking_inferiority:api-team-492",
+                  "public-demo-replay-2026-10-08:radar:311251",
+                  "public-demo-replay-2026-10-08:radar:team:api-team-492:improving_form"
+                ],
+                "dataGroups": [
+                  {
+                    "group": "recent_results",
+                    "references": [
+                      "public-demo-replay-2026-10-08:form_advantage:api-team-512"
+                    ]
+                  },
+                  {
+                    "group": "standing",
+                    "references": [
+                      "public-demo-replay-2026-10-08:ranking_superiority:api-team-512"
+                    ]
+                  }
+                ],
+                "redundantReferences": 0,
+                "minimumSample": 5,
+                "quoteAgeHours": 32.41111111111111,
+                "sourceReferences": [
+                  "public-demo-replay-2026-10-08"
+                ],
+                "independence": "unverified",
+                "contradictions": "not_published_per_market",
+                "history": "not_available",
+                "warnings": [
+                  "Activité des joueurs et production de leur équipe peuvent se recouper : le Radar ne constitue pas une preuve indépendante."
+                ],
+                "exclusions": []
+              },
+              {
+                "directReferences": [
+                  "public-demo-replay-2026-10-08:form_advantage:api-team-876",
+                  "public-demo-replay-2026-10-08:ranking_superiority:api-team-876"
+                ],
+                "contextReferences": [
+                  "public-demo-replay-2026-10-08:ranking_inferiority:api-team-520",
+                  "public-demo-replay-2026-10-08:radar:31436"
+                ],
+                "dataGroups": [
+                  {
+                    "group": "recent_results",
+                    "references": [
+                      "public-demo-replay-2026-10-08:form_advantage:api-team-876"
+                    ]
+                  },
+                  {
+                    "group": "standing",
+                    "references": [
+                      "public-demo-replay-2026-10-08:ranking_superiority:api-team-876"
+                    ]
+                  }
+                ],
+                "redundantReferences": 0,
+                "minimumSample": 5,
+                "quoteAgeHours": 33.7375,
+                "sourceReferences": [
+                  "public-demo-replay-2026-10-08"
+                ],
+                "independence": "unverified",
+                "contradictions": "not_published_per_market",
+                "history": "not_available",
+                "warnings": [
+                  "Activité des joueurs et production de leur équipe peuvent se recouper : le Radar ne constitue pas une preuve indépendante."
+                ],
+                "exclusions": []
+              },
+              {
+                "directReferences": [
+                  "public-demo-replay-2026-10-08:form_advantage:api-team-275",
+                  "public-demo-replay-2026-10-08:ranking_superiority:api-team-275"
+                ],
+                "contextReferences": [
+                  "public-demo-replay-2026-10-08:ranking_inferiority:api-team-272"
+                ],
+                "dataGroups": [
+                  {
+                    "group": "recent_results",
+                    "references": [
+                      "public-demo-replay-2026-10-08:form_advantage:api-team-275"
+                    ]
+                  },
+                  {
+                    "group": "standing",
+                    "references": [
+                      "public-demo-replay-2026-10-08:ranking_superiority:api-team-275"
+                    ]
+                  }
+                ],
+                "redundantReferences": 0,
+                "minimumSample": 5,
+                "quoteAgeHours": 9.395833333333334,
+                "sourceReferences": [
+                  "public-demo-replay-2026-10-08"
+                ],
+                "independence": "unverified",
+                "contradictions": "not_published_per_market",
+                "history": "not_available",
+                "warnings": [],
+                "exclusions": []
+              }
+            ],
+            "comparison": null
+          },
+          {
+            "approach": "fewer_matches",
+            "fingerprint": "2fc26bd01e19144fbbf52c6147b816a0ecb07415b36f26723879c6b99ebdfac7",
+            "picks": [
+              {
+                "id": "football:1550144:1:Away:32:public-demo-replay-2026-10-08",
+                "matchId": "api-fixture-1550144",
+                "sport": "football",
+                "competitionId": "135",
+                "competition": "Serie A",
+                "competitionLogo": "https://media.api-sports.io/football/leagues/135.png",
+                "countryFlag": "https://media.api-sports.io/flags/it.svg",
+                "home": "Napoli",
+                "away": "Frosinone",
+                "homeLogo": "https://media.api-sports.io/football/teams/492.png",
+                "awayLogo": "https://media.api-sports.io/football/teams/512.png",
+                "teams": [
+                  "football:492",
+                  "football:512"
+                ],
+                "kickoff": "2026-10-10T20:45:00+02:00",
+                "marketId": "matchResult",
+                "market": "Résultat du match",
+                "selection": "Frosinone gagne",
+                "odds": 6.5,
+                "oddsAt": "2026-10-07T03:35:20+00:00",
+                "bookmaker": "Betano",
+                "snapshotId": "public-demo-replay-2026-10-08",
+                "evidence": [
+                  {
+                    "id": "public-demo-replay-2026-10-08:form_advantage:api-team-512",
+                    "label": "Avantage de forme",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-512",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Frosinone : 10/15 contre Napoli : 7/15 sur les cinq derniers matchs.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Frosinone : 10/15 contre Napoli : 7/15 sur les cinq derniers matchs."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_superiority:api-team-512",
+                    "label": "Supériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-512",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Frosinone devance son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Frosinone devance son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:improving_form:api-team-492",
+                    "label": "Trajectoire en hausse",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-492",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "Napoli suit une trajectoire en hausse sur les cinq derniers matchs (du plus ancien au plus récent : V, D, D, V, N, 7/15).",
+                        "value": "[object Object]"
+                      }
+                    ],
+                    "text": "Napoli suit une trajectoire en hausse sur les cinq derniers matchs (du plus ancien au plus récent : V, D, D, V, N, 7/15)."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_inferiority:api-team-492",
+                    "label": "Infériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-492",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "Napoli est derrière son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Napoli est derrière son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:radar:311251",
+                    "source": "radar",
+                    "family": "player",
+                    "subject": "player:311251",
+                    "label": "Giorgi Kvernadze",
+                    "photo": "https://media.api-sports.io/football/players/311251.png",
+                    "metrics": [
+                      {
+                        "label": "Décisif",
+                        "value": "2/3 matchs"
+                      },
+                      {
+                        "label": "Buts",
+                        "value": "2"
+                      },
+                      {
+                        "label": "Passes",
+                        "value": "0"
+                      }
+                    ],
+                    "supportsMarket": false,
+                    "sample": 3,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "text": "Giorgi Kvernadze (Frosinone) : décisif dans 2/3 matchs, 2 but(s) et 0 passe(s). Un signal d’activité, sans garantie de contribution au prochain match."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:radar:team:api-team-492:improving_form",
+                    "source": "radar",
+                    "family": "form",
+                    "subject": "api-team-492",
+                    "reusesReading": true,
+                    "supportsMarket": false,
+                    "label": "Trajectoire en hausse",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "text": "Napoli : Napoli suit une trajectoire en hausse sur les cinq derniers matchs (du plus ancien au plus récent : V, D, D, V, N, 7/15).. Le Radar équipes et cette lecture reprennent la même série de résultats."
+                  }
+                ],
+                "warnings": [
+                  "Activité des joueurs et production de leur équipe peuvent se recouper : le Radar ne constitue pas une preuve indépendante."
+                ],
+                "discovery": false
+              },
+              {
+                "id": "football:1601543:12:Home/Draw:32:public-demo-replay-2026-10-08",
+                "matchId": "api-fixture-1601543",
+                "sport": "football",
+                "competitionId": "136",
+                "competition": "Serie B",
+                "competitionLogo": "https://media.api-sports.io/football/leagues/136.png",
+                "countryFlag": "https://media.api-sports.io/flags/it.svg",
+                "home": "Arezzo",
+                "away": "Cremonese",
+                "homeLogo": "https://media.api-sports.io/football/teams/876.png",
+                "awayLogo": "https://media.api-sports.io/football/teams/520.png",
+                "teams": [
+                  "football:876",
+                  "football:520"
+                ],
+                "kickoff": "2026-10-10T19:30:00+02:00",
+                "marketId": "doubleChance",
+                "market": "Double chance",
+                "selection": "Arezzo ou nul",
+                "odds": 1.55,
+                "oddsAt": "2026-10-07T02:15:45+00:00",
+                "bookmaker": "Betano",
+                "snapshotId": "public-demo-replay-2026-10-08",
+                "evidence": [
+                  {
+                    "id": "public-demo-replay-2026-10-08:form_advantage:api-team-876",
+                    "label": "Avantage de forme",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-876",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Arezzo : 6/15 contre Cremonese : 5/15 sur les cinq derniers matchs.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Arezzo : 6/15 contre Cremonese : 5/15 sur les cinq derniers matchs."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_superiority:api-team-876",
+                    "label": "Supériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-876",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Arezzo devance son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Arezzo devance son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_inferiority:api-team-520",
+                    "label": "Infériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-520",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "Cremonese est derrière son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Cremonese est derrière son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:radar:31436",
+                    "source": "radar",
+                    "family": "player",
+                    "subject": "player:31436",
+                    "label": "F. Bonazzoli",
+                    "photo": "https://media.api-sports.io/football/players/31436.png",
+                    "metrics": [
+                      {
+                        "label": "Décisif",
+                        "value": "2/3 matchs"
+                      },
+                      {
+                        "label": "Buts",
+                        "value": "3"
+                      },
+                      {
+                        "label": "Passes",
+                        "value": "1"
+                      }
+                    ],
+                    "supportsMarket": false,
+                    "sample": 3,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "text": "F. Bonazzoli (Cremonese) : décisif dans 2/3 matchs, 3 but(s) et 1 passe(s). Un signal d’activité, sans garantie de contribution au prochain match."
+                  }
+                ],
+                "warnings": [
+                  "Activité des joueurs et production de leur équipe peuvent se recouper : le Radar ne constitue pas une preuve indépendante."
+                ],
+                "discovery": false
+              }
+            ],
+            "stake": 50,
+            "totalOdds": 10.08,
+            "returnTotal": 503.75,
+            "netProfit": 453.75,
+            "metrics": {
+              "conditions": 2,
+              "meanDataGroups": 2,
+              "minimumSample": 5,
+              "redundantReferences": 0,
+              "maximumQuoteAgeHours": 33.7375,
+              "targetDistance": 0.007500000000000113,
+              "largestOddsContribution": 0.810283940840615
+            },
+            "assessments": [
+              {
+                "directReferences": [
+                  "public-demo-replay-2026-10-08:form_advantage:api-team-512",
+                  "public-demo-replay-2026-10-08:ranking_superiority:api-team-512"
+                ],
+                "contextReferences": [
+                  "public-demo-replay-2026-10-08:improving_form:api-team-492",
+                  "public-demo-replay-2026-10-08:ranking_inferiority:api-team-492",
+                  "public-demo-replay-2026-10-08:radar:311251",
+                  "public-demo-replay-2026-10-08:radar:team:api-team-492:improving_form"
+                ],
+                "dataGroups": [
+                  {
+                    "group": "recent_results",
+                    "references": [
+                      "public-demo-replay-2026-10-08:form_advantage:api-team-512"
+                    ]
+                  },
+                  {
+                    "group": "standing",
+                    "references": [
+                      "public-demo-replay-2026-10-08:ranking_superiority:api-team-512"
+                    ]
+                  }
+                ],
+                "redundantReferences": 0,
+                "minimumSample": 5,
+                "quoteAgeHours": 32.41111111111111,
+                "sourceReferences": [
+                  "public-demo-replay-2026-10-08"
+                ],
+                "independence": "unverified",
+                "contradictions": "not_published_per_market",
+                "history": "not_available",
+                "warnings": [
+                  "Activité des joueurs et production de leur équipe peuvent se recouper : le Radar ne constitue pas une preuve indépendante."
+                ],
+                "exclusions": []
+              },
+              {
+                "directReferences": [
+                  "public-demo-replay-2026-10-08:form_advantage:api-team-876",
+                  "public-demo-replay-2026-10-08:ranking_superiority:api-team-876"
+                ],
+                "contextReferences": [
+                  "public-demo-replay-2026-10-08:ranking_inferiority:api-team-520",
+                  "public-demo-replay-2026-10-08:radar:31436"
+                ],
+                "dataGroups": [
+                  {
+                    "group": "recent_results",
+                    "references": [
+                      "public-demo-replay-2026-10-08:form_advantage:api-team-876"
+                    ]
+                  },
+                  {
+                    "group": "standing",
+                    "references": [
+                      "public-demo-replay-2026-10-08:ranking_superiority:api-team-876"
+                    ]
+                  }
+                ],
+                "redundantReferences": 0,
+                "minimumSample": 5,
+                "quoteAgeHours": 33.7375,
+                "sourceReferences": [
+                  "public-demo-replay-2026-10-08"
+                ],
+                "independence": "unverified",
+                "contradictions": "not_published_per_market",
+                "history": "not_available",
+                "warnings": [
+                  "Activité des joueurs et production de leur équipe peuvent se recouper : le Radar ne constitue pas une preuve indépendante."
+                ],
+                "exclusions": []
+              }
+            ],
+            "comparison": {
+              "kept": [],
+              "removed": [
+                "football:1638643:12:Home/Draw:8:public-demo-replay-2026-10-08"
+              ],
+              "added": [],
+              "replaced": [
+                {
+                  "fixture": "football:api-fixture-1550144",
+                  "before": "football:1550144:12:Draw/Away:8:public-demo-replay-2026-10-08",
+                  "after": "football:1550144:1:Away:32:public-demo-replay-2026-10-08"
+                },
+                {
+                  "fixture": "football:api-fixture-1601543",
+                  "before": "football:1601543:1:Home:8:public-demo-replay-2026-10-08",
+                  "after": "football:1601543:12:Home/Draw:32:public-demo-replay-2026-10-08"
+                }
+              ],
+              "sharedFixtures": 2,
+              "sharedSelections": 0,
+              "significant": true
+            }
+          },
+          {
+            "approach": "other_markets",
+            "fingerprint": "5415ef84a2867eccfdf79de8db02d9d818878fed72e1697d32ab5ea45d26bedb",
+            "picks": [
+              {
+                "id": "football:1523270:12:Draw/Away:8:public-demo-replay-2026-10-08",
+                "matchId": "api-fixture-1523270",
+                "sport": "football",
+                "competitionId": "169",
+                "competition": "Super League",
+                "competitionLogo": "https://media.api-sports.io/football/leagues/169.png",
+                "countryFlag": "https://media.api-sports.io/flags/cn.svg",
+                "home": "Shanghai Shenhua",
+                "away": "Yunnan Yukun",
+                "homeLogo": "https://media.api-sports.io/football/teams/833.png",
+                "awayLogo": "https://media.api-sports.io/football/teams/21265.png",
+                "teams": [
+                  "football:833",
+                  "football:21265"
+                ],
+                "kickoff": "2026-10-10T13:35:00+02:00",
+                "marketId": "doubleChance",
+                "market": "Double chance",
+                "selection": "Yunnan Yukun ou nul",
+                "odds": 2.38,
+                "oddsAt": "2026-10-08T00:30:36+00:00",
+                "bookmaker": "Bet365",
+                "snapshotId": "public-demo-replay-2026-10-08",
+                "evidence": [
+                  {
+                    "id": "public-demo-replay-2026-10-08:form_advantage:api-team-21265",
+                    "label": "Avantage de forme",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-21265",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Yunnan Yukun : 10/15 contre Shanghai Shenhua : 9/15 sur les cinq derniers matchs.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Yunnan Yukun : 10/15 contre Shanghai Shenhua : 9/15 sur les cinq derniers matchs."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_superiority:api-team-21265",
+                    "label": "Supériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-21265",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Yunnan Yukun devance son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Yunnan Yukun devance son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_inferiority:api-team-833",
+                    "label": "Infériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-833",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "Shanghai Shenhua est derrière son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Shanghai Shenhua est derrière son adversaire au classement."
+                  }
+                ],
+                "warnings": [],
+                "discovery": false
+              },
+              {
+                "id": "football:1555402:1:Home:8:public-demo-replay-2026-10-08",
+                "matchId": "api-fixture-1555402",
+                "sport": "football",
+                "competitionId": "207",
+                "competition": "Super League",
+                "competitionLogo": "https://media.api-sports.io/football/leagues/207.png",
+                "countryFlag": "https://media.api-sports.io/flags/ch.svg",
+                "home": "FC Zurich",
+                "away": "FC Thun",
+                "homeLogo": "https://media.api-sports.io/football/teams/783.png",
+                "awayLogo": "https://media.api-sports.io/football/teams/1012.png",
+                "teams": [
+                  "football:783",
+                  "football:1012"
+                ],
+                "kickoff": "2026-10-10T18:00:00+02:00",
+                "marketId": "matchResult",
+                "market": "Résultat du match",
+                "selection": "FC Zurich gagne",
+                "odds": 2.5,
+                "oddsAt": "2026-10-07T03:58:18+00:00",
+                "bookmaker": "Bet365",
+                "snapshotId": "public-demo-replay-2026-10-08",
+                "evidence": [
+                  {
+                    "id": "public-demo-replay-2026-10-08:form_advantage:api-team-783",
+                    "label": "Avantage de forme",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-783",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "FC Zurich : 8/15 contre FC Thun : 4/15 sur les cinq derniers matchs.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "FC Zurich : 8/15 contre FC Thun : 4/15 sur les cinq derniers matchs."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_superiority:api-team-783",
+                    "label": "Supériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-783",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "FC Zurich devance son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "FC Zurich devance son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:high_xg_conceded:api-team-1012",
+                    "label": "xG concédés élevés",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-1012",
+                    "sample": 3,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "FC Thun concède des occasions de qualité.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "FC Thun concède des occasions de qualité."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:high_xg_conceded:api-team-783",
+                    "label": "xG concédés élevés",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-783",
+                    "sample": 4,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "FC Zurich concède des occasions de qualité.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "FC Zurich concède des occasions de qualité."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:improving_form:api-team-1012",
+                    "label": "Trajectoire en hausse",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-1012",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "FC Thun suit une trajectoire en hausse sur les cinq derniers matchs (du plus ancien au plus récent : N, D, D, D, V, 4/15).",
+                        "value": "[object Object]"
+                      }
+                    ],
+                    "text": "FC Thun suit une trajectoire en hausse sur les cinq derniers matchs (du plus ancien au plus récent : N, D, D, D, V, 4/15)."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:negative_streak:api-team-1012",
+                    "label": "Méforme",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-1012",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "FC Thun totalise 4/15 sur ses cinq derniers matchs (du plus ancien au plus récent : N, D, D, D, V).",
+                        "value": "[object Object]"
+                      }
+                    ],
+                    "text": "FC Thun totalise 4/15 sur ses cinq derniers matchs (du plus ancien au plus récent : N, D, D, D, V)."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_inferiority:api-team-1012",
+                    "label": "Infériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-1012",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "FC Thun est derrière son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "FC Thun est derrière son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:radar:team:api-team-1012:improving_form",
+                    "source": "radar",
+                    "family": "form",
+                    "subject": "api-team-1012",
+                    "reusesReading": true,
+                    "supportsMarket": false,
+                    "label": "Trajectoire en hausse",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "text": "FC Thun : FC Thun suit une trajectoire en hausse sur les cinq derniers matchs (du plus ancien au plus récent : N, D, D, D, V, 4/15).. Le Radar équipes et cette lecture reprennent la même série de résultats."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:radar:team:api-team-1012:negative_streak",
+                    "source": "radar",
+                    "family": "form",
+                    "subject": "api-team-1012",
+                    "reusesReading": true,
+                    "supportsMarket": false,
+                    "label": "Méforme",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "text": "FC Thun : FC Thun totalise 4/15 sur ses cinq derniers matchs (du plus ancien au plus récent : N, D, D, D, V).. Le Radar équipes et cette lecture reprennent la même série de résultats."
+                  }
+                ],
+                "warnings": [
+                  "Activité des joueurs et production de leur équipe peuvent se recouper : le Radar ne constitue pas une preuve indépendante."
+                ],
+                "discovery": false
+              },
+              {
+                "id": "football:1638643:1:Home:8:public-demo-replay-2026-10-08",
+                "matchId": "api-fixture-1638643",
+                "sport": "football",
+                "competitionId": "164",
+                "competition": "Úrvalsdeild",
+                "competitionLogo": "https://media.api-sports.io/football/leagues/164.png",
+                "countryFlag": "https://media.api-sports.io/flags/is.svg",
+                "home": "Stjarnan",
+                "away": "KA Akureyri",
+                "homeLogo": "https://media.api-sports.io/football/teams/275.png",
+                "awayLogo": "https://media.api-sports.io/football/teams/272.png",
+                "teams": [
+                  "football:275",
+                  "football:272"
+                ],
+                "kickoff": "2026-10-10T16:00:00+02:00",
+                "marketId": "matchResult",
+                "market": "Résultat du match",
+                "selection": "Stjarnan gagne",
+                "odds": 1.7,
+                "oddsAt": "2026-10-08T02:36:15+00:00",
+                "bookmaker": "Bet365",
+                "snapshotId": "public-demo-replay-2026-10-08",
+                "evidence": [
+                  {
+                    "id": "public-demo-replay-2026-10-08:form_advantage:api-team-275",
+                    "label": "Avantage de forme",
+                    "family": "form",
+                    "source": "reading",
+                    "subject": "api-team-275",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Stjarnan : 10/15 contre KA Akureyri : 7/15 sur les cinq derniers matchs.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Stjarnan : 10/15 contre KA Akureyri : 7/15 sur les cinq derniers matchs."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_superiority:api-team-275",
+                    "label": "Supériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-275",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": true,
+                    "metrics": [
+                      {
+                        "label": "Stjarnan devance son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "Stjarnan devance son adversaire au classement."
+                  },
+                  {
+                    "id": "public-demo-replay-2026-10-08:ranking_inferiority:api-team-272",
+                    "label": "Infériorité au classement",
+                    "family": "standing",
+                    "source": "reading",
+                    "subject": "api-team-272",
+                    "sample": 5,
+                    "asOf": "2026-10-08T05:32:05.78+00:00",
+                    "supportsMarket": false,
+                    "metrics": [
+                      {
+                        "label": "KA Akureyri est derrière son adversaire au classement.",
+                        "value": ""
+                      }
+                    ],
+                    "text": "KA Akureyri est derrière son adversaire au classement."
+                  }
+                ],
+                "warnings": [],
+                "discovery": false
+              }
+            ],
+            "stake": 50,
+            "totalOdds": 10.12,
+            "returnTotal": 505.75,
+            "netProfit": 455.75,
+            "metrics": {
+              "conditions": 3,
+              "meanDataGroups": 2,
+              "minimumSample": 5,
+              "redundantReferences": 0,
+              "maximumQuoteAgeHours": 32.028333333333336,
+              "targetDistance": 0.011499999999999887,
+              "largestOddsContribution": 0.39597364823761266
+            },
+            "assessments": [
+              {
+                "directReferences": [
+                  "public-demo-replay-2026-10-08:form_advantage:api-team-21265",
+                  "public-demo-replay-2026-10-08:ranking_superiority:api-team-21265"
+                ],
+                "contextReferences": [
+                  "public-demo-replay-2026-10-08:ranking_inferiority:api-team-833"
+                ],
+                "dataGroups": [
+                  {
+                    "group": "recent_results",
+                    "references": [
+                      "public-demo-replay-2026-10-08:form_advantage:api-team-21265"
+                    ]
+                  },
+                  {
+                    "group": "standing",
+                    "references": [
+                      "public-demo-replay-2026-10-08:ranking_superiority:api-team-21265"
+                    ]
+                  }
+                ],
+                "redundantReferences": 0,
+                "minimumSample": 5,
+                "quoteAgeHours": 11.49,
+                "sourceReferences": [
+                  "public-demo-replay-2026-10-08"
+                ],
+                "independence": "unverified",
+                "contradictions": "not_published_per_market",
+                "history": "not_available",
+                "warnings": [],
+                "exclusions": []
+              },
+              {
+                "directReferences": [
+                  "public-demo-replay-2026-10-08:form_advantage:api-team-783",
+                  "public-demo-replay-2026-10-08:ranking_superiority:api-team-783"
+                ],
+                "contextReferences": [
+                  "public-demo-replay-2026-10-08:high_xg_conceded:api-team-1012",
+                  "public-demo-replay-2026-10-08:high_xg_conceded:api-team-783",
+                  "public-demo-replay-2026-10-08:improving_form:api-team-1012",
+                  "public-demo-replay-2026-10-08:negative_streak:api-team-1012",
+                  "public-demo-replay-2026-10-08:ranking_inferiority:api-team-1012",
+                  "public-demo-replay-2026-10-08:radar:team:api-team-1012:improving_form",
+                  "public-demo-replay-2026-10-08:radar:team:api-team-1012:negative_streak"
+                ],
+                "dataGroups": [
+                  {
+                    "group": "recent_results",
+                    "references": [
+                      "public-demo-replay-2026-10-08:form_advantage:api-team-783"
+                    ]
+                  },
+                  {
+                    "group": "standing",
+                    "references": [
+                      "public-demo-replay-2026-10-08:ranking_superiority:api-team-783"
+                    ]
+                  }
+                ],
+                "redundantReferences": 0,
+                "minimumSample": 5,
+                "quoteAgeHours": 32.028333333333336,
+                "sourceReferences": [
+                  "public-demo-replay-2026-10-08"
+                ],
+                "independence": "unverified",
+                "contradictions": "not_published_per_market",
+                "history": "not_available",
+                "warnings": [
+                  "Activité des joueurs et production de leur équipe peuvent se recouper : le Radar ne constitue pas une preuve indépendante."
+                ],
+                "exclusions": []
+              },
+              {
+                "directReferences": [
+                  "public-demo-replay-2026-10-08:form_advantage:api-team-275",
+                  "public-demo-replay-2026-10-08:ranking_superiority:api-team-275"
+                ],
+                "contextReferences": [
+                  "public-demo-replay-2026-10-08:ranking_inferiority:api-team-272"
+                ],
+                "dataGroups": [
+                  {
+                    "group": "recent_results",
+                    "references": [
+                      "public-demo-replay-2026-10-08:form_advantage:api-team-275"
+                    ]
+                  },
+                  {
+                    "group": "standing",
+                    "references": [
+                      "public-demo-replay-2026-10-08:ranking_superiority:api-team-275"
+                    ]
+                  }
+                ],
+                "redundantReferences": 0,
+                "minimumSample": 5,
+                "quoteAgeHours": 9.395833333333334,
+                "sourceReferences": [
+                  "public-demo-replay-2026-10-08"
+                ],
+                "independence": "unverified",
+                "contradictions": "not_published_per_market",
+                "history": "not_available",
+                "warnings": [],
+                "exclusions": []
+              }
+            ],
+            "comparison": {
+              "kept": [],
+              "removed": [
+                "football:1550144:12:Draw/Away:8:public-demo-replay-2026-10-08",
+                "football:1601543:1:Home:8:public-demo-replay-2026-10-08"
+              ],
+              "added": [
+                "football:1523270:12:Draw/Away:8:public-demo-replay-2026-10-08",
+                "football:1555402:1:Home:8:public-demo-replay-2026-10-08"
+              ],
+              "replaced": [
+                {
+                  "fixture": "football:api-fixture-1638643",
+                  "before": "football:1638643:12:Home/Draw:8:public-demo-replay-2026-10-08",
+                  "after": "football:1638643:1:Home:8:public-demo-replay-2026-10-08"
+                }
+              ],
+              "sharedFixtures": 1,
+              "sharedSelections": 0,
+              "significant": true
+            }
+          }
+        ],
+        "report": {
+          "inputCandidates": 2412,
+          "eligibleCandidates": 2412,
+          "retainedCandidates": 448,
+          "eligibleFixtures": 111,
+          "retainedFixtures": 48,
+          "bookmakersExamined": 4,
+          "exploredStates": 23858,
+          "feasibleObserved": 13016,
+          "paretoCount": 118,
+          "limited": {
+            "fixtures": true,
+            "bookmakers": true,
+            "states": false,
+            "beam": true
+          },
+          "elapsedMs": 1048.24,
+          "exclusions": []
+        },
+        "status": "compositions_found",
+        "limitations": [
+          "Heuristiques de comparaison non calibrées ; aucune probabilité de réussite.",
+          "Indépendance statistique non établie : groupes de données estimés conservativement.",
+          "Contradictions par marché et cohortes historiques comparables non publiées."
+        ]
+      }
+    }
+  ]
+}

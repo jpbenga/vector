@@ -4,6 +4,7 @@ import {
   intentFrom,
   type State,
 } from "./contracts.ts";
+import { type ModelOptions, structuredResponse } from "./models.ts";
 const nullableNumber = { type: ["number", "null"] };
 const target = {
   type: "object",
@@ -33,6 +34,8 @@ export const intentSchema = {
     "selectionIndex",
     "marketIds",
     "message",
+    "goalMode",
+    "preserveFixtures",
   ],
   properties: {
     action: {
@@ -64,6 +67,11 @@ export const intentSchema = {
     selectionIndex: { type: ["integer", "null"] },
     marketIds: { type: "array", items: { type: "string" } },
     message: { type: "string" },
+    goalMode: {
+      type: "string",
+      enum: ["around", "minimum", "range", "unconstrained"],
+    },
+    preserveFixtures: { type: "boolean" },
   },
 };
 export const instructions =
@@ -78,27 +86,15 @@ export async function interpret(
     state: State | null;
     today: string;
   },
-  options: { key: string; model: string; fetcher?: typeof fetch },
+  options: ModelOptions,
 ): Promise<{ intent: Intent; usage: unknown }> {
-  if (
-    ![
-      "gpt-4.1-mini",
-      "gpt-4.1-mini-2025-04-14",
-      "gpt-4.1-nano",
-      "gpt-4.1-nano-2025-04-14",
-    ].includes(options.model)
-  ) {
-    throw new Error(
-      "Ce modèle n’a pas de coût vérifié dans l’enveloppe de test.",
-    );
-  }
-  const requestBody = JSON.stringify({
-    model: options.model,
-    store: false,
-    max_output_tokens: 1800,
+  const result = await structuredResponse({
+    stage: "interpret",
+    name: "lector_intent",
+    schema: intentSchema,
     instructions: instructions +
-      " Une demande de découverte des joueurs ou équipes chauds utilise explore ; elle ne nécessite ni mise ni objectif de retour. maxSelections est le maximum de matchs par ticket explicitement demandé, entre 1 et 6 ; null si absent. Une réponse courte à une clarification reprend la date, les sports, les mises, les objectifs et le maximum de matchs de previousIntent (ou des messages récents pour une ancienne conversation). Elle change uniquement la précision fournie et utilise generate si la demande est désormais complète. Pour une demande incomplète, conserve toujours les contraintes déjà exprimées dans les champs structurés.",
-    input: JSON.stringify({
+      " Une demande de découverte des joueurs ou équipes chauds utilise explore ; elle ne nécessite ni mise ni objectif de retour. maxSelections est le maximum de matchs par ticket explicitement demandé, entre 1 et 6 ; null si absent. Une réponse courte à une clarification reprend les contraintes de previousIntent. Elle change uniquement la précision fournie et utilise generate si la demande est complète. Conserve les contraintes connues même si une clarification reste nécessaire. Pour ‘environ’ ou ‘autour de’, goalMode=around ; pour ‘au moins’, goalMode=minimum ; sinon range si deux bornes explicites, unconstrained sans objectif. preserveFixtures=true uniquement si l’utilisateur demande les mêmes rencontres avec d’autres marchés. Ne confonds pas ce choix avec preserveConstraints qui conserve la mise, la date et les autres contraintes.",
+    input: {
       today: input.today,
       selectedDate: input.date,
       context: input.context,
@@ -131,51 +127,7 @@ export async function interpret(
       })),
       recentMessages: input.state?.messages.slice(-8),
       request: input.message,
-    }),
-    text: {
-      format: {
-        type: "json_schema",
-        name: "lector_intent",
-        strict: true,
-        schema: intentSchema,
-      },
     },
-  });
-  if (new TextEncoder().encode(requestBody).length > 32000) {
-    throw new Error(
-      "Cette conversation est trop longue. Ouvrez une nouvelle préparation.",
-    );
-  }
-  const response = await (options.fetcher ?? fetch)(
-    "https://api.openai.com/v1/responses",
-    {
-      method: "POST",
-      redirect: "error",
-      signal: AbortSignal.timeout(45000),
-      headers: {
-        authorization: `Bearer ${options.key}`,
-        "content-type": "application/json",
-      },
-      body: requestBody,
-    },
-  );
-  if (!response.ok) {
-    throw new Error(
-      `Le service IA est indisponible (HTTP ${response.status}).`,
-    );
-  }
-  const body = await response.json();
-  if (body.status !== "completed") {
-    throw new Error(
-      "La réponse IA est incomplète. Aucune composition n’a été modifiée.",
-    );
-  }
-  const content = (body.output ?? []).flatMap((o: { content?: unknown[] }) =>
-    o.content ?? []
-  );
-  const text = content.find((c: { type?: string }) => c.type === "output_text")
-    ?.text;
-  if (!text) throw new Error("La demande n’a pas pu être interprétée.");
-  const intent = intentFrom(JSON.parse(text));
-  return { intent, usage: body.usage };
+  }, options);
+  return { intent: intentFrom(result.value), usage: result.usage };
 }

@@ -11,6 +11,7 @@ import '../../../core/widgets/lector_match_card.dart';
 import '../data/generator_repository.dart';
 import '../data/generator_voice.dart';
 import 'generator_ticket_card.dart';
+import 'generator_compositions.dart';
 import '../domain/generator_context.dart';
 
 /// One native Lector conversation surface in every sport. No generated markup.
@@ -61,7 +62,14 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
   String? _submittedMessage;
   bool _busy = false;
   int _generation = 0;
-  static const _key = 'generator.conversation.v1';
+  static const _key =
+      String.fromEnvironment(
+            'LECTOR_GENERATOR_ENDPOINT',
+            defaultValue: 'lector-generator',
+          ) ==
+          'lector-generator-workshop'
+      ? 'generator.conversation.workshop.v1'
+      : 'generator.conversation.v1';
   GeneratorRepository? get _repository {
     if (widget.repository != null) return widget.repository;
     final client = getIt.isRegistered<SupabaseInitializer>()
@@ -269,7 +277,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
     }
   }
 
-  Future<void> _operation(String action) async {
+  Future<void> _operation(String action, {String? ticketId}) async {
     if (_busy || _conversation == null) return;
     final generation = _generation;
     setState(() {
@@ -277,7 +285,10 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
       _error = null;
     });
     try {
-      final result = await _repository!.request(_body(action));
+      final result = await _repository!.request({
+        ..._body(action),
+        'ticketId': ?ticketId,
+      });
       if (!mounted || generation != _generation) return;
       setState(
         () => _conversation = GeneratorConversation(
@@ -458,7 +469,8 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
         setState(
           () => _phase = switch (phase) {
             'sources' => 'Analyse des rencontres…',
-            'compose' => 'Construction des tickets…',
+            'compose' => 'Comparaison des compositions…',
+            'review' => 'Analyse des arguments et des compromis…',
             'commit' => 'Enregistrement du brouillon…',
             _ => 'Analyse de votre demande…',
           },
@@ -711,7 +723,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
     ticket,
     selection: selection,
     inTicket:
-        _conversation?.pending.any((t) => t['id'] == ticket['id']) != true,
+        _conversation?.tickets.any((t) => t['id'] == ticket['id']) == true,
     onOpenMatch: widget.onOpenMatch,
     onReplace: (index) => _prompt(
       'Remplace uniquement la sélection ${index + 1} du ticket ${ticket['number']}. Conserve les autres sélections, la mise et les contraintes.',
@@ -725,6 +737,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
     final tickets = <String, Map<String, dynamic>>{
       for (final t in [
         ...generatorRows(conversation?.json['drafts']),
+        ...generatorRows(conversation?.json['proposals']),
         ...?conversation?.tickets,
         ...?conversation?.pending,
       ])
@@ -919,6 +932,29 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
                   user: message['role'] == 'user',
                   at: message['at']?.toString(),
                 ),
+                if ((message['proposalIds'] as List? ?? []).length > 1)
+                  GeneratorCompositionOptions(
+                    tickets: [
+                      for (final id in message['proposalIds'] as List)
+                        if (tickets[id.toString()] != null)
+                          tickets[id.toString()]!,
+                    ],
+                    selectedId: conversation?.tickets.firstOrNull?['id']
+                        ?.toString(),
+                    onInspect: (ticket) => _examine(ticket),
+                    onChoose:
+                        !_busy &&
+                            (message['proposalIds'] as List).every(
+                              (id) => generatorRows(
+                                conversation?.json['proposals'],
+                              ).any((t) => t['id'] == id),
+                            )
+                        ? (ticket) => _operation(
+                            'apply',
+                            ticketId: ticket['id'].toString(),
+                          )
+                        : null,
+                  ),
                 for (final id in (message['ticketIds'] as List? ?? []))
                   if (tickets[id.toString()] != null)
                     _ticket(tickets[id.toString()]!)

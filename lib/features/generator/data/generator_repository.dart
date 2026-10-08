@@ -17,8 +17,14 @@ class SupabaseGeneratorRepository implements GeneratorRepository {
     }
     try {
       final response = await client.functions
-          .invoke('lector-generator', body: body)
-          .timeout(const Duration(seconds: 75));
+          .invoke(
+            const String.fromEnvironment(
+              'LECTOR_GENERATOR_ENDPOINT',
+              defaultValue: 'lector-generator',
+            ),
+            body: body,
+          )
+          .timeout(const Duration(seconds: 120));
       final data = generatorMap(response.data);
       if (data['error'] != null) throw StateError(data['error'].toString());
       return data;

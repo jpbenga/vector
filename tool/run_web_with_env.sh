@@ -66,5 +66,6 @@ flutter run -d chrome "--$mode" \
   --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
   --dart-define=APP_PUBLIC_URL="$app_public_url" \
   --dart-define=MATCH_FEED_SOURCE="$match_feed_source" \
+  --dart-define=LECTOR_GENERATOR_ENDPOINT="${LECTOR_GENERATOR_ENDPOINT:-lector-generator}" \
   --dart-define=FORM_RADAR_FIXTURE="$form_radar_fixture" \
   --dart-define=SPORT_FEED_BASE_URL="${SPORT_FEED_BASE_URL:-}"

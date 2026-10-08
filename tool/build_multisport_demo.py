@@ -34,6 +34,7 @@ subprocess.run([
     '--dart-define=APP_ENV=staging', '--dart-define=SPORT_FEED_DEMO=true',
     '--dart-define=MATCH_FEED_SOURCE=auto', '--dart-define=FEED_DELIVERY_DEMO=true',
     '--dart-define=LECTOR_GENERATOR_UI=true',
+    '--dart-define=LECTOR_GENERATOR_ENDPOINT=lector-generator-workshop',
     '--dart-define=SUPABASE_URL=' + values['SUPABASE_URL'],
     '--dart-define=SUPABASE_ANON_KEY=' + values['SUPABASE_ANON_KEY'],
 ], cwd=ROOT, check=True)

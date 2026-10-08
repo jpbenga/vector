@@ -52,7 +52,7 @@ launch_app() {
   echo "Application : http://localhost:$port/sports/hockey"
   # A local run must return OAuth to the same origin, even when .env contains
   # an old LAN address or a production APP_PUBLIC_URL.
-  WEB_HOSTNAME=localhost APP_PUBLIC_URL="http://localhost:$port/" \
+  LECTOR_GENERATOR_ENDPOINT=lector-generator-workshop WEB_HOSTNAME=localhost APP_PUBLIC_URL="http://localhost:$port/" \
     SPORT_FEED_BASE_URL="http://127.0.0.1:$sport_port/" \
     bash tool/run_web_with_env.sh "$port" "$mode"
 }

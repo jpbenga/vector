@@ -1,5 +1,9 @@
 # Générateur Lector — première version conversationnelle
 
+L’[atelier de compositions de la démo](workshop-implementation-2026-10-08.md)
+documente le nouveau service séparé. Le reste de ce document décrit la première
+version et ses limites.
+
 ## Périmètre et architecture
 
 Le Générateur utilise une page Flutter commune aux deux sports. Il ouvre les
@@ -88,13 +92,18 @@ absents restent absents. Un objectif ambigu déclenche une clarification.
   atteindre un retour. Les montants sont calculés en centimes.
 - Publications de moins de 36 h et cotes datées de moins de 48 h ; seules les
   rencontres non commencées sont utilisées.
-- Les contradictions connues bloquent le candidat ; Radar et scénarios ne
-  multiplient pas les preuves issues de la même série.
-- Recherche bornée à 24 oppositions, 12 possibilités par opposition et 16 000
+- Les contradictions connues bloquent le candidat. Radar et scénarios restent
+  descriptifs, mais le tri actuel compte les familles de lectures de contexte
+  et ne vérifie pas l’indépendance de leurs données. Voir l’audit ci-dessous.
+- Recherche bornée à 48 oppositions, 16 possibilités par opposition et 16 000
   essais. Un résultat absent peut aussi signaler cette limite de recherche ;
   ce n’est pas une preuve qu’aucune combinaison mathématique n’existe.
 - Une révision conserve les autres sélections et les mises ; elle attend une
   confirmation. Les compositions ne sont jamais envoyées à un bookmaker.
+
+L’[audit du moteur et le prototype de variantes](composition-workshop-audit-2026-10-08.md)
+documentent l’arrêt à la première solution, le rejeu d’une journée chargée et
+le protocole de comparaison. Ce prototype reste séparé du service actif.
 
 ## Clé et enveloppe de tests
 
