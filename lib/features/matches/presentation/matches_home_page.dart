@@ -1,4 +1,6 @@
 import '../../../core/widgets/lector_deferred_content.dart';
+import '../../../core/data/read_recovery.dart';
+import '../../../core/widgets/lector_loading.dart';
 import '../../generator/presentation/lector_generator_page.dart';
 import '../../generator/domain/generator_context.dart';
 import '../../../app/sports/generator_match_navigation.dart';
@@ -90,6 +92,7 @@ class MatchesHomePage extends StatefulWidget {
 
 class _MatchesHomePageState extends State<MatchesHomePage> {
   late Future<MatchFeedRepository> _repository;
+  late final ReadRecovery _readRecovery;
   final SavedTicketStore _savedTicketStore = const SavedTicketStore();
   final TicketSettlementEngine _ticketSettlementEngine =
       const TicketSettlementEngine();
@@ -116,6 +119,18 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
   @override
   void initState() {
     super.initState();
+    _readRecovery = ReadRecovery(
+      onConnectionReturn: () {
+        if (mounted) {
+          setState(
+            () => _repository = _loadRepository(
+              _selectedScoresDate,
+              radar: _scoresMode == _ScoresRedesignMode.radar,
+            ),
+          );
+        }
+      },
+    );
     _repository = widget.repositoryOverride == null
         ? _loadRepository(_selectedScoresDate)
         : Future.value(widget.repositoryOverride);
@@ -145,7 +160,14 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _readRecovery.setActive(TickerMode.valuesOf(context).enabled);
+  }
+
+  @override
   void dispose() {
+    _readRecovery.dispose();
     if (widget.repositoryOverride == null &&
         widget.repositoryForDateLoader == null &&
         getIt.isRegistered<MatchFeedRepositoryLoader>()) {
@@ -176,20 +198,11 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
                   date: _selectedScoresDate,
                   reason: 'Chargement indisponible',
                 )
-              : received;
-
-          if (repository == null) {
-            return const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 14),
-                  Text('Chargement du snapshot des rencontres...'),
-                ],
-              ),
-            );
-          }
+              : received ??
+                    EmptyMatchFeedRepository(
+                      date: _selectedScoresDate,
+                      reason: 'Chargement en cours',
+                    );
 
           final baseProfile = widget.profile;
           final effectiveProfile = _effectiveProfile;
@@ -315,14 +328,9 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
           }
 
           return _ScoresRedesignHome(
+            readRecovery: _readRecovery,
             isLoading: snapshot.connectionState == ConnectionState.waiting,
             loadError: loadError,
-            onRetry: () => setState(() {
-              _repository = _loadRepository(
-                _selectedScoresDate,
-                radar: _scoresMode == _ScoresRedesignMode.radar,
-              );
-            }),
             profile: effectiveProfile,
             identityScope: widget.identityScope,
             matches: analyzedAllMatches,
@@ -335,11 +343,29 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             onModeChanged: (mode) {
               if (mode == _scoresMode) return;
               setState(() {
+                final wasIndependent =
+                    _scoresMode == _ScoresRedesignMode.generator ||
+                    _scoresMode == _ScoresRedesignMode.bilan;
+                final independent =
+                    mode == _ScoresRedesignMode.generator ||
+                    mode == _ScoresRedesignMode.bilan;
                 final wasRadar = _scoresMode == _ScoresRedesignMode.radar;
                 _scoresMode = mode;
+                if (independent && _readRecovery.inProgress) {
+                  _readRecovery.cancel();
+                  _repository = Future.value(
+                    EmptyMatchFeedRepository(
+                      date: _selectedScoresDate,
+                      reason: 'Section indépendante',
+                    ),
+                  );
+                }
                 if (widget.repositoryOverride == null &&
-                    widget.repositoryForDateLoader == null &&
-                    (wasRadar || mode == _ScoresRedesignMode.radar)) {
+                    !independent &&
+                    (wasIndependent ||
+                        wasRadar ||
+                        mode == _ScoresRedesignMode.radar ||
+                        _readRecovery.inProgress)) {
                   _repository = _loadRepository(
                     _selectedScoresDate,
                     radar: mode == _ScoresRedesignMode.radar,
@@ -1051,6 +1077,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
     bool radar = false,
   }) {
     MatchFeedRepository unavailable(Object error) {
+      if (!isTransientReadError(error)) throw error;
       debugPrint('Calendar load unavailable: $error');
       return EmptyMatchFeedRepository(
         date: date,
@@ -1059,19 +1086,25 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
       );
     }
 
-    try {
-      final testLoader = widget.repositoryForDateLoader;
-      final pending = testLoader != null
-          ? testLoader(date)
-          : radar
-          ? getIt<MatchFeedRepositoryLoader>().loadRadar(date)
-          : getIt<MatchFeedRepositoryLoader>().load(now: date);
-      // Attach recovery now, before a frame or a subsequent day selection.
-      // Synchronous cache hits stay synchronous; late failures are handled too.
-      return pending.then((value) => value, onError: unavailable);
-    } catch (error) {
-      return Future.value(unavailable(error));
-    }
+    return _readRecovery.read(
+      () {
+        try {
+          final testLoader = widget.repositoryForDateLoader;
+          final pending = testLoader != null
+              ? testLoader(date)
+              : radar
+              ? getIt<MatchFeedRepositoryLoader>().loadRadar(date)
+              : getIt<MatchFeedRepositoryLoader>().load(now: date);
+          // Attach recovery now, before a frame or a subsequent day selection.
+          // Synchronous cache hits stay synchronous; late failures are handled too.
+          return pending.then((value) => value, onError: unavailable);
+        } catch (error) {
+          return Future.value(unavailable(error));
+        }
+      },
+      retryValue: (value) =>
+          value is EmptyMatchFeedRepository && value.temporaryFailure,
+    );
   }
 }
 
@@ -1150,9 +1183,9 @@ String _explorationProfileSignature(DecisionProfile profile) {
 
 class _ScoresRedesignHome extends StatefulWidget {
   const _ScoresRedesignHome({
+    required this.readRecovery,
     this.isLoading = false,
     this.loadError,
-    required this.onRetry,
     required this.profile,
     required this.identityScope,
     required this.matches,
@@ -1185,9 +1218,9 @@ class _ScoresRedesignHome extends StatefulWidget {
     required this.generator,
   });
 
+  final ReadRecovery readRecovery;
   final bool isLoading;
   final Object? loadError;
-  final VoidCallback onRetry;
   final DecisionProfile profile;
   final IdentityScope identityScope;
   final List<MatchBoardItem> matches;
@@ -1424,8 +1457,13 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                           ),
                           const SizedBox(height: 8),
                           AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 220),
-                            reverseDuration: const Duration(milliseconds: 170),
+                            duration: MediaQuery.disableAnimationsOf(context)
+                                ? Duration.zero
+                                : const Duration(milliseconds: 220),
+                            reverseDuration:
+                                MediaQuery.disableAnimationsOf(context)
+                                ? Duration.zero
+                                : const Duration(milliseconds: 170),
                             switchInCurve: Curves.easeOutCubic,
                             switchOutCurve: Curves.easeInCubic,
                             transitionBuilder: (child, animation) {
@@ -1448,11 +1486,23 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                               child: widget.mode == _ScoresRedesignMode.bilan
                                   ? const ReadingBilanSection()
                                   : widget.isLoading
-                                  ? const LinearProgressIndicator()
+                                  ? ListenableBuilder(
+                                      listenable: widget.readRecovery,
+                                      builder: (context, _) => LectorLoading(
+                                        kind: showsRadar
+                                            ? LectorSkeletonKind.radar
+                                            : LectorSkeletonKind.matches,
+                                        label:
+                                            'Chargement des rencontres du ${widget.selectedDate.day}/${widget.selectedDate.month}…',
+                                        recovering:
+                                            widget.readRecovery.recovering,
+                                      ),
+                                    )
                                   : widget.loadError != null
-                                  ? _RepositoryLoadError(
-                                      error: widget.loadError,
-                                      onRetry: widget.onRetry,
+                                  ? LectorReadUnavailable(
+                                      exhausted: widget.readRecovery.exhausted,
+                                      label:
+                                          'Les rencontres sont momentanément indisponibles.',
                                     )
                                   : showsRadar
                                   ? PlayerFormRadarPage(
@@ -3478,62 +3528,6 @@ List<_ScoresCountryGroup> _scoresCountryGroups(
     (left, right) => left.country.name.compareTo(right.country.name),
   );
   return countries;
-}
-
-class _RepositoryLoadError extends StatelessWidget {
-  const _RepositoryLoadError({required this.error, required this.onRetry});
-
-  final Object? error;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainer,
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(color: colorScheme.error.withValues(alpha: 0.4)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.error_outline_rounded, color: colorScheme.error),
-                const SizedBox(height: 10),
-                Text(
-                  'Impossible de charger les rencontres',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'La source est momentanément indisponible. Réessayez ou choisissez une autre journée.',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                FilledButton(
-                  onPressed: onRetry,
-                  child: const Text('Réessayer'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 enum _MatchStatusFilter { all, live, scheduled, finished, postponed, cancelled }

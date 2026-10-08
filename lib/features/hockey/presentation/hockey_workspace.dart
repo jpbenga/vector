@@ -1,4 +1,6 @@
 import '../../../core/widgets/lector_deferred_content.dart';
+import '../../../core/data/read_recovery.dart';
+import '../../../core/widgets/lector_loading.dart';
 import '../../generator/presentation/lector_generator_page.dart';
 import '../../generator/domain/generator_context.dart';
 import '../../onboarding/data/saved_decision_profile_store.dart';
@@ -69,6 +71,8 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
   late DateTime _date;
   SportFeedResult? _feed;
   bool _loading = false, _failed = false, _teamsSelected = false;
+  late final ReadRecovery _recovery;
+  DateTime? _feedDate;
   int _request = 0, _page = 0;
   SportLiveController? _live;
   String? _league;
@@ -86,6 +90,11 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
   @override
   void initState() {
     super.initState();
+    _recovery = ReadRecovery(
+      onConnectionReturn: () {
+        if (mounted) _load();
+      },
+    );
     final now = widget.initialDate ?? DateTime.now();
     _date = DateTime(now.year, now.month, now.day);
     _identity = getIt.isRegistered<IdentityController>()
@@ -119,7 +128,15 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _recovery.setActive(TickerMode.valuesOf(context).enabled);
+  }
+
+  @override
   void dispose() {
+    _request++;
+    _recovery.dispose();
     final repository = widget.repository;
     if (repository is PreloadingSportFeedRepository) {
       repository.cancelPrefetch();
@@ -231,8 +248,21 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
     _load();
   }
 
+  Widget _loadingContent() => ListenableBuilder(
+    listenable: _recovery,
+    builder: (context, _) => LectorLoading(
+      kind: _section == LectorWorkspaceSection.radar
+          ? LectorSkeletonKind.radar
+          : LectorSkeletonKind.matches,
+      label: 'Chargement des rencontres du ${_date.day}/${_date.month}…',
+      recovering: _recovery.recovering,
+    ),
+  );
+
   Future<void> _load({bool force = false}) async {
     final generation = ++_request;
+    final requestedDate = _date;
+    final requestedSection = _section;
     final repository = widget.repository;
     final cached = !force && repository is PreloadingSportFeedRepository
         ? repository.peek(
@@ -243,6 +273,7 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
     if (cached != null) {
       setState(() {
         _feed = cached;
+        _feedDate = _date;
         _loading = false;
         _failed = false;
         _page = 0;
@@ -250,26 +281,30 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
       _live?.watch(_dayMatches);
     }
     setState(() {
-      _loading = cached == null;
+      _loading =
+          cached == null &&
+          (!force || _feedDate != _date || _feed?.snapshot == null);
       _failed = false;
     });
     try {
-      final refreshed = force && repository is RefreshableSportFeedRepository
-          ? await repository.refresh(_date)
-          : null;
-      final result =
-          await (_section == LectorWorkspaceSection.radar &&
-                  repository is ProgressiveSportFeedRepository
-              ? repository.loadRadar(_date)
-              : refreshed != null
-              ? Future.value(refreshed)
-              : repository?.load(_date)) ??
-          const SportFeedResult.unavailable(
-            SportFeedUnavailableReason.notConnected,
-          );
+      final result = await _recovery.read(() async {
+        final refreshed = force && repository is RefreshableSportFeedRepository
+            ? await repository.refresh(requestedDate)
+            : null;
+        return await (requestedSection == LectorWorkspaceSection.radar &&
+                    repository is ProgressiveSportFeedRepository
+                ? repository.loadRadar(requestedDate)
+                : refreshed != null
+                ? Future.value(refreshed)
+                : repository?.load(requestedDate)) ??
+            const SportFeedResult.unavailable(
+              SportFeedUnavailableReason.notConnected,
+            );
+      });
       if (!mounted || generation != _request) return;
       setState(() {
         _feed = result;
+        _feedDate = _date;
         _loading = false;
         _page = 0;
       });
@@ -278,10 +313,11 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
       if (repository is PreloadingSportFeedRepository) {
         repository.prefetch(_date);
       }
-    } catch (_) {
+    } catch (error) {
+      if (error is ReadCancelled) return;
       if (!mounted || generation != _request) return;
       setState(() {
-        _feed = null;
+        if (_feedDate != _date) _feed = null;
         _failed = true;
         _loading = false;
       });
@@ -386,10 +422,27 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
                     _section = value;
                     _page = 0;
                   });
-                  _load();
+                  if (value == LectorWorkspaceSection.generator ||
+                      value == LectorWorkspaceSection.bilan) {
+                    _request++;
+                    _recovery.cancel();
+                    setState(() => _loading = false);
+                  } else {
+                    _load();
+                  }
                 },
               ),
               const SizedBox(height: 8),
+              ListenableBuilder(
+                listenable: _recovery,
+                builder: (context, _) => _recovery.inProgress && !_loading
+                    ? const LectorRefreshStatus()
+                    : const SizedBox.shrink(),
+              ),
+              if (_failed && _feedDate == _date && _feed?.snapshot != null)
+                _notice(
+                  'Actualisation momentanément indisponible. Dernières données reçues conservées.',
+                ),
               Row(
                 children: [
                   Expanded(
@@ -482,7 +535,9 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
                   'Cette fonctionnalité sera disponible après la validation des lectures hockey.',
                 )
               else if (_loading)
-                const LinearProgressIndicator()
+                _loadingContent()
+              else if (_failed && _feed?.snapshot == null)
+                LectorReadUnavailable(exhausted: _recovery.exhausted)
               else if (_feed?.snapshot == null)
                 _notice(_unavailable)
               else if (_section == LectorWorkspaceSection.radar)
@@ -562,7 +617,10 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
       );
     }
     final snapshot = _feed?.snapshot;
-    if (_loading) return const LinearProgressIndicator();
+    if (_loading) return _loadingContent();
+    if (_failed && snapshot == null) {
+      return LectorReadUnavailable(exhausted: _recovery.exhausted);
+    }
     if (snapshot == null) return _notice(_unavailable);
     final matches = _dayMatches
         .where((f) => _readings.recommends(f, snapshot, _preferences))

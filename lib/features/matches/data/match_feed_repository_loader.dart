@@ -1,4 +1,5 @@
 import '../../../core/data/navigation_feed_cache.dart';
+import '../../../core/data/read_recovery.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/data/retained_async_value.dart';
@@ -179,6 +180,7 @@ class MatchFeedRepositoryLoader {
           !retained!.snapshotMetadata!.isObsolete(clock())) {
         return retained;
       }
+      if (!isTransientReadError(error)) rethrow;
       return EmptyMatchFeedRepository(
         date: now,
         reason: 'Le flux Supabase est momentanément indisponible.',

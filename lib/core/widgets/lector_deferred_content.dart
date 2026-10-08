@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../data/read_recovery.dart';
+import 'lector_loading.dart';
+import 'lector_responsive_layout.dart';
 
 /// Shared route shell: detail data is fetched only after opening the match.
 class LectorDeferredContent<T> extends StatefulWidget {
@@ -18,10 +21,28 @@ class LectorDeferredContent<T> extends StatefulWidget {
 
 class _LectorDeferredContentState<T> extends State<LectorDeferredContent<T>> {
   late Future<T> _result;
+  late final ReadRecovery _recovery;
   @override
   void initState() {
     super.initState();
-    _result = widget.load();
+    _recovery = ReadRecovery(onConnectionReturn: _restart);
+    _result = _recovery.read(widget.load);
+  }
+
+  void _restart() {
+    if (mounted) setState(() => _result = _recovery.read(widget.load));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _recovery.setActive(TickerMode.valuesOf(context).enabled);
+  }
+
+  @override
+  void dispose() {
+    _recovery.dispose();
+    super.dispose();
   }
 
   @override
@@ -31,23 +52,22 @@ class _LectorDeferredContentState<T> extends State<LectorDeferredContent<T>> {
       if (snapshot.hasData) return widget.builder(context, snapshot.data as T);
       return Scaffold(
         appBar: AppBar(title: Text(widget.title)),
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (!snapshot.hasError) const CircularProgressIndicator(),
-              const SizedBox(height: 16),
-              Text(
-                snapshot.hasError
-                    ? 'Les détails sont momentanément indisponibles.'
-                    : 'Chargement des détails du match…',
-              ),
-              if (snapshot.hasError)
-                TextButton(
-                  onPressed: () => setState(() => _result = widget.load()),
-                  child: const Text('Réessayer'),
-                ),
-            ],
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: LectorContent(
+            child: ListenableBuilder(
+              listenable: _recovery,
+              builder: (context, _) => snapshot.hasError
+                  ? LectorReadUnavailable(
+                      label: 'Les détails sont momentanément indisponibles.',
+                      exhausted: _recovery.exhausted,
+                    )
+                  : LectorLoading(
+                      kind: LectorSkeletonKind.detail,
+                      label: 'Chargement des détails du match…',
+                      recovering: _recovery.recovering,
+                    ),
+            ),
           ),
         ),
       );

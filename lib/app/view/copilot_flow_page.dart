@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../core/widgets/lector_loading.dart';
+import '../../core/widgets/lector_responsive_layout.dart';
 
 import '../access/temporary_access_link_cleaner.dart';
 import '../access/temporary_access_link_repository.dart';
@@ -69,13 +71,27 @@ class _CopilotFlowPageState extends State<CopilotFlowPage> {
     final profile = _profile;
 
     if (_isCheckingSavedProfile) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: SingleChildScrollView(
+          padding: EdgeInsets.all(16),
+          child: LectorContent(
+            child: LectorLoading(label: 'Préparation de votre espace…'),
+          ),
+        ),
+      );
     }
 
     final isResolvingOAuthRedirect =
         _authController?.isResolvingOAuthRedirect ?? false;
     if (isResolvingOAuthRedirect || _isIdentityBusy) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: SingleChildScrollView(
+          padding: EdgeInsets.all(16),
+          child: LectorContent(
+            child: LectorLoading(label: 'Connexion à votre espace…'),
+          ),
+        ),
+      );
     }
 
     return MatchesHomePage(

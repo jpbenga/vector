@@ -108,7 +108,10 @@ void main() {
     await tester.ensureVisible(find.text(_calendarLabel(tomorrow)));
     await tester.tap(find.text(_calendarLabel(tomorrow)));
     await tester.pumpAndSettle();
-    expect(find.text('Impossible de charger les rencontres'), findsOneWidget);
+    expect(
+      find.text('Les rencontres sont momentanément indisponibles.'),
+      findsOneWidget,
+    );
     expect(
       find.byKey(const ValueKey('home-calendar-navigation')),
       findsOneWidget,
@@ -125,7 +128,10 @@ void main() {
     );
     await tester.tap(find.text(_calendarLabel(today)));
     await tester.pumpAndSettle();
-    expect(find.text('Impossible de charger les rencontres'), findsNothing);
+    expect(
+      find.text('Les rencontres sont momentanément indisponibles.'),
+      findsNothing,
+    );
     await tester.tap(find.text('France'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Ligue 1'));
@@ -162,11 +168,14 @@ void main() {
     await tester.pumpAndSettle();
     delayed.completeError(StateError('old day timeout'));
     await tester.pumpAndSettle();
-    expect(find.text('Impossible de charger les rencontres'), findsNothing);
+    expect(
+      find.text('Les rencontres sont momentanément indisponibles.'),
+      findsNothing,
+    );
     expect(tester.takeException(), isNull);
   });
   testWidgets(
-    'a first transient failure offers retry instead of an empty calendar',
+    'a first transient failure recovers automatically instead of an empty calendar',
     (tester) async {
       var calls = 0;
       await _pumpPage(
@@ -182,11 +191,12 @@ void main() {
               : DemoMatchFeedRepository();
         },
       );
-      expect(find.text('Impossible de charger les rencontres'), findsOneWidget);
-      await tester.tap(find.text('Réessayer'));
-      await tester.pumpAndSettle();
       expect(calls, 2);
-      expect(find.text('Impossible de charger les rencontres'), findsNothing);
+      expect(find.text('Réessayer'), findsNothing);
+      expect(
+        find.text('Les rencontres sont momentanément indisponibles.'),
+        findsNothing,
+      );
       expect(find.text('Tous'), findsOneWidget);
     },
   );

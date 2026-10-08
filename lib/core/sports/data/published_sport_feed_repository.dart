@@ -30,7 +30,9 @@ class HttpSportPublicationSource implements SportPublicationSource {
         .timeout(const Duration(seconds: 10));
     if (response.statusCode == 204 || response.statusCode == 404) return null;
     if (response.statusCode != 200) {
-      throw StateError('Publication service unavailable');
+      throw StateError(
+        'Publication service unavailable (${response.statusCode})',
+      );
     }
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
@@ -63,7 +65,9 @@ class SupabaseSportPublicationSource implements SportPublicationSource {
     // Table may not be installed while the module is being prepared locally.
     if (response.statusCode == 404) return null;
     if (response.statusCode != 200) {
-      throw StateError('Sport publication service unavailable');
+      throw StateError(
+        'Sport publication service unavailable (${response.statusCode})',
+      );
     }
     final rows = jsonDecode(response.body) as List;
     return rows.isEmpty

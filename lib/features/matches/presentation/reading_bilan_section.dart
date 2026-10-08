@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../core/data/read_recovery.dart';
+import '../../../core/widgets/lector_loading.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -23,6 +25,7 @@ class ReadingBilanSection extends StatefulWidget {
 }
 
 class _ReadingBilanSectionState extends State<ReadingBilanSection> {
+  late final ReadRecovery _recovery;
   late Future<List<MatchReadingBilanSummary>> _breakdown;
   late DateTime _until;
   late DateTime _since;
@@ -41,6 +44,11 @@ class _ReadingBilanSectionState extends State<ReadingBilanSection> {
   @override
   void initState() {
     super.initState();
+    _recovery = ReadRecovery(
+      onConnectionReturn: () {
+        if (mounted) setState(_reload);
+      },
+    );
     _reload();
   }
 
@@ -48,7 +56,7 @@ class _ReadingBilanSectionState extends State<ReadingBilanSection> {
     _until = DateTime.now();
     _since = _until.subtract(Duration(days: _periodDays));
     _page = 0;
-    _breakdown = Future.sync(
+    _breakdown = _recovery.read(
       () => _repository.loadBreakdown(
         since: _since,
         until: _until,
@@ -75,6 +83,18 @@ class _ReadingBilanSectionState extends State<ReadingBilanSection> {
         subjectSide: _subjectSide,
       ),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _recovery.setActive(TickerMode.valuesOf(context).enabled);
+  }
+
+  @override
+  void dispose() {
+    _recovery.dispose();
+    super.dispose();
   }
 
   @override
@@ -223,18 +243,18 @@ class _ReadingBilanSectionState extends State<ReadingBilanSection> {
             ),
             const SizedBox(height: 14),
             if (snapshot.hasError)
-              _InfoCard(
-                title: 'Bilan indisponible',
-                message: 'Impossible de charger les résultats pour le moment.',
-                action: TextButton(
-                  onPressed: () => setState(_reload),
-                  child: const Text('Réessayer'),
-                ),
+              LectorReadUnavailable(
+                label: 'Le bilan est momentanément indisponible.',
+                exhausted: _recovery.exhausted,
               )
             else if (snapshot.connectionState != ConnectionState.done)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator()),
+              ListenableBuilder(
+                listenable: _recovery,
+                builder: (context, _) => LectorLoading(
+                  kind: LectorSkeletonKind.bilan,
+                  label: 'Chargement du bilan…',
+                  recovering: _recovery.recovering,
+                ),
               )
             else ...[
               _Overview(summary: total),
@@ -554,6 +574,7 @@ class _ReadingResultsSheet extends StatefulWidget {
 }
 
 class _ReadingResultsSheetState extends State<_ReadingResultsSheet> {
+  late final ReadRecovery _recovery;
   late Future<List<MatchReadingBilanEntry>> _entries;
   int _page = 0;
   String? _verdict;
@@ -561,11 +582,16 @@ class _ReadingResultsSheetState extends State<_ReadingResultsSheet> {
   @override
   void initState() {
     super.initState();
+    _recovery = ReadRecovery(
+      onConnectionReturn: () {
+        if (mounted) setState(_reload);
+      },
+    );
     _reload();
   }
 
   void _reload() {
-    _entries = Future.sync(
+    _entries = _recovery.read(
       () => widget.repository.loadForReading(
         readingId: widget.summary.readingId,
         since: widget.since,
@@ -577,6 +603,18 @@ class _ReadingResultsSheetState extends State<_ReadingResultsSheet> {
         limit: _pageSize + 1,
       ),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _recovery.setActive(TickerMode.valuesOf(context).enabled);
+  }
+
+  @override
+  void dispose() {
+    _recovery.dispose();
+    super.dispose();
   }
 
   @override
@@ -754,20 +792,18 @@ class _ReadingResultsSheetState extends State<_ReadingResultsSheet> {
             future: _entries,
             builder: (context, snapshot) {
               if (snapshot.hasError) {
-                return _InfoCard(
-                  title: 'Matchs indisponibles',
-                  message: 'Impossible de charger cette page de résultats.',
-                  action: TextButton(
-                    onPressed: () => setState(_reload),
-                    child: const Text('Réessayer'),
-                  ),
+                return LectorReadUnavailable(
+                  label: 'Les résultats sont momentanément indisponibles.',
+                  exhausted: _recovery.exhausted,
                 );
               }
               if (snapshot.connectionState != ConnectionState.done) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: CircularProgressIndicator(),
+                return ListenableBuilder(
+                  listenable: _recovery,
+                  builder: (context, _) => LectorLoading(
+                    kind: LectorSkeletonKind.bilan,
+                    label: 'Chargement des résultats…',
+                    recovering: _recovery.recovering,
                   ),
                 );
               }
@@ -965,10 +1001,9 @@ class _Panel extends StatelessWidget {
 }
 
 class _InfoCard extends StatelessWidget {
-  const _InfoCard({required this.title, required this.message, this.action});
+  const _InfoCard({required this.title, required this.message});
   final String title;
   final String message;
-  final Widget? action;
 
   @override
   Widget build(BuildContext context) => _Panel(
@@ -984,7 +1019,6 @@ class _InfoCard extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(message, style: TextStyle(color: context.textColors.secondary)),
-        ?action,
       ],
     ),
   );
