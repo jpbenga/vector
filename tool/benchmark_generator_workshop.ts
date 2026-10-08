@@ -55,7 +55,8 @@ const cases: Evaluation[] = [
     accepts: (i) =>
       i.action === "generate" && i.date === "2026-10-10" &&
       i.maxSelections === 6 && i.tickets[0]?.stake === 50 &&
-      i.tickets[0]?.kind === "total" && i.goalMode === "around",
+      i.tickets[0]?.kind === "total" && i.goalMode === "around" &&
+      i.tickets[0]?.minimum === 300 && i.tickets[0]?.maximum === null,
   },
   {
     name: "explicit_minimum",
@@ -64,21 +65,29 @@ const cases: Evaluation[] = [
     state: null,
     accepts: (i) =>
       i.action === "generate" && i.goalMode === "minimum" &&
-      i.tickets[0]?.minimum === 300 && i.maxSelections === 4,
+      i.tickets[0]?.minimum === 300 && i.tickets[0]?.maximum === null &&
+      i.tickets[0]?.stake === 50 && i.tickets[0]?.kind === "total" &&
+      i.maxSelections === 4,
   },
   {
     name: "missing_stake",
     message:
       "Samedi 10 octobre, propose-moi un ticket de football pour un retour total autour de 300 euros.",
     state: null,
-    accepts: (i) => i.tickets.every((t) => t.stake === null),
+    accepts: (i) =>
+      i.action === "clarify" &&
+      i.tickets.length === 1 && i.tickets[0]?.stake === null &&
+      i.tickets[0]?.minimum === 300 && i.tickets[0]?.kind === "total",
   },
   {
     name: "ambiguous_return",
     message:
       "Samedi, football, 50 euros pour gagner 300 euros, six matchs maximum.",
     state: null,
-    accepts: (i) => i.tickets[0]?.kind === "unspecified",
+    accepts: (i) =>
+      i.action === "clarify" &&
+      i.tickets[0]?.kind === "unspecified" && i.tickets[0]?.stake === 50 &&
+      i.tickets[0]?.minimum === 300,
   },
   {
     name: "clarification",
