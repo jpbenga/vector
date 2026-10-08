@@ -33,6 +33,8 @@ class GeneratorDeploymentTests(unittest.TestCase):
         self.assertEqual(module.sql_diagnostic('{"message":"relation \\"public.sport_feed_publications\\" does not exist"}'), ': relation "public.sport_feed_publications" does not exist')
         self.assertEqual(module.sql_diagnostic('{"message":"duplicate key contains sk-secret-test"}'), '')
         self.assertEqual(module.sql_diagnostic('sk-secret-test'), '')
+        self.assertEqual(module.sql_diagnostic('{"message":"permission denied for function lector_generator_sources"}'), ': permission denied for function lector_generator_sources')
+        self.assertEqual(module.sql_diagnostic('{"message":"cannot extract elements from a scalar"}'), ': cannot extract elements from a scalar')
 
 
 if __name__ == "__main__":
