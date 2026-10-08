@@ -295,3 +295,15 @@ Deno.test("cancelled progress interrupts tool analysis without a replacement res
   );
   assert(calls === 1);
 });
+Deno.test("insufficient evidence is distinguished from missing collected quotes", () => {
+  const s = source();
+  for (const r of rows(rows(obj(s.payload.computed).fixtures)[0].readings)) {
+    r.sample_size = 2;
+  }
+  const catalog = buildCatalog([s], context, request.date, now);
+  assert(!catalog.candidates.some((c) => c.matchId === "api-fixture-1"));
+  assert(
+    catalog.matches?.find((m) => m.id === "api-fixture-1")
+      ?.quoteAvailability === "recent",
+  );
+});

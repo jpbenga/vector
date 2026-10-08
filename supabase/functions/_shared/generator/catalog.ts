@@ -211,6 +211,7 @@ export function buildCatalog(
           home: String(obj(fixture.home).name),
           away: String(obj(fixture.away).name),
           kickoff: String(fixture.startsAt),
+          quoteAvailability: "not_collected",
           evidence: evidence(rows(fixture.readings), source, pref.readings).map(
             (e) => ({ ...e, supportsMarket: false, role: "context" as const }),
           ),
@@ -282,6 +283,21 @@ export function buildCatalog(
       // supplement Pour moi. A matching reading alone never scans all leagues.
       if (context.view === "radar" && !radar.length) continue;
       if (discovery && !radar.length && context.view !== "all") continue;
+      const prices = rows(raw.odds).filter((r) =>
+        String(obj(r.fixture).id) === id
+      );
+      const hasFreshQuotes = prices.some((p) => {
+        const age = now.getTime() - Date.parse(String(p.update ?? ""));
+        return Number.isFinite(age) && age >= -60000 && age <= 48 * 3600000 &&
+          rows(p.bookmakers).some((b) =>
+            rows(b.bets).some((bet) =>
+              rows(bet.values).some((v) =>
+                Number.isFinite(Number(v.odd)) && Number(v.odd) > 1 &&
+                Number(v.odd) <= 100
+              )
+            )
+          );
+      });
       matchCount++;
       matches.push({
         id: `api-fixture-${id}`,
@@ -290,6 +306,7 @@ export function buildCatalog(
         home: String(home.name),
         away: String(away.name),
         kickoff,
+        quoteAvailability: hasFreshQuotes ? "recent" : "unavailable",
         evidence: [
           ...evidence(selected, source, [...pref.readings, ...scenarioReadings])
             .map((e) => ({
@@ -301,9 +318,6 @@ export function buildCatalog(
         ],
       });
       for (const signal of radar) signals.set(signal.id, signal);
-      const prices = rows(raw.odds).filter((r) =>
-        String(obj(r.fixture).id) === id
-      );
       for (const price of prices) {
         const oddsAt = String(price.update ?? ""),
           oddsAge = now.getTime() - Date.parse(oddsAt);

@@ -113,6 +113,7 @@ export interface AnalysisMatch {
   away: string;
   kickoff: string;
   evidence: Evidence[];
+  quoteAvailability: "recent" | "unavailable" | "not_collected";
 }
 export interface Analysis {
   context: {
