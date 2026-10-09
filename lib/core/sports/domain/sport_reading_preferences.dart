@@ -7,11 +7,13 @@ class SportReadingPreferences {
     required this.sport,
     Iterable<String> competitionKeys = const [],
     Iterable<String> readingIds = const [],
+    Iterable<String> marketIds = const [],
   }) : competitionKeys = Set.unmodifiable(competitionKeys),
-       readingIds = Set.unmodifiable(readingIds.map(canonicalVenueReadingId));
+       readingIds = Set.unmodifiable(readingIds.map(canonicalVenueReadingId)),
+       marketIds = Set.unmodifiable(marketIds);
 
   final SportId sport;
-  final Set<String> competitionKeys, readingIds;
+  final Set<String> competitionKeys, readingIds, marketIds;
   bool get isConfigured => competitionKeys.isNotEmpty && readingIds.isNotEmpty;
   bool follows(SportEntityId competition) =>
       competition.sport == sport && competitionKeys.contains(competition.key);
@@ -21,6 +23,7 @@ class SportReadingPreferences {
     'sport': sport.key,
     'competitions': competitionKeys.toList()..sort(),
     'readings': readingIds.toList()..sort(),
+    'markets': marketIds.toList()..sort(),
   };
 
   factory SportReadingPreferences.fromJson(
@@ -55,6 +58,7 @@ class SportReadingPreferences {
       sport: sport,
       competitionKeys: competitions,
       readingIds: strings('readings'),
+      marketIds: json.containsKey('markets') ? strings('markets') : const [],
     );
   }
 }

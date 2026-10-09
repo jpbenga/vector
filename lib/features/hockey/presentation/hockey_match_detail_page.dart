@@ -1,3 +1,5 @@
+import '../../../core/widgets/lector_match_odds.dart';
+import 'hockey_quote_presentation.dart';
 import '../../../core/domain/lector_head_to_head_policy.dart';
 import '../../../core/sports/data/sport_live_repository.dart';
 import '../../../core/widgets/lector_match_form_view.dart';
@@ -251,60 +253,70 @@ class _HockeyMatchDetailPageState extends State<HockeyMatchDetailPage> {
   }
 
   Widget _context() {
-    final f = widget.fixture;
+    final f = widget.liveController?.display(widget.fixture) ?? widget.fixture;
     final detected = widget.readings
         .where((r) => r.status == SportReadingStatus.detected)
         .toList();
-    return LectorMatchContextView(
-      count: detected.length,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (detected.isEmpty)
-            Text(
-              widget.readings.isEmpty
-                  ? 'Configurez vos lectures hockey pour personnaliser cette analyse.'
-                  : 'Aucune clé du match détectée avec les données d’avant-match disponibles.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: context.textColors.secondary,
-              ),
-            ),
-          for (final team in [f.away, f.home])
-            if (detected.any((r) => r.subject == team.id))
-              Padding(
-                padding: const EdgeInsets.only(bottom: 9),
-                child: LectorEvidenceTeamCard(
-                  title: team.name,
-                  logoUrl: team.logoUrl,
-                  children: [
-                    for (final r in detected.where(
-                      (r) => r.subject == team.id,
-                    )) ...[
-                      LectorEvidenceRow(
-                        title: HockeyModule.definition.readings
-                            .firstWhere((d) => d.id == r.id)
-                            .label,
-                        icon: r.id == 'standing_advantage'
-                            ? Icons.bar_chart_rounded
-                            : Icons.trending_up_rounded,
-                        color: context.semantic.success,
-                        evidence: Text(
-                          r.explanation,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: context.textColors.secondary,
-                                height: 1.25,
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                  ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        LectorMatchContextView(
+          count: detected.length,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (detected.isEmpty)
+                Text(
+                  widget.readings.isEmpty
+                      ? 'Configurez vos lectures hockey pour personnaliser cette analyse.'
+                      : 'Aucune clé du match détectée avec les données d’avant-match disponibles.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.textColors.secondary,
+                  ),
                 ),
-              ),
-        ],
-      ),
+              for (final team in [f.away, f.home])
+                if (detected.any((r) => r.subject == team.id))
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 9),
+                    child: LectorEvidenceTeamCard(
+                      title: team.name,
+                      logoUrl: team.logoUrl,
+                      children: [
+                        for (final r in detected.where(
+                          (r) => r.subject == team.id,
+                        )) ...[
+                          LectorEvidenceRow(
+                            title: HockeyModule.definition.readings
+                                .firstWhere((d) => d.id == r.id)
+                                .label,
+                            icon: r.id == 'standing_advantage'
+                                ? Icons.bar_chart_rounded
+                                : Icons.trending_up_rounded,
+                            color: context.semantic.success,
+                            evidence: Text(
+                              r.explanation,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: context.textColors.secondary,
+                                    height: 1.25,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                      ],
+                    ),
+                  ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        LectorMatchOdds(
+          markets: hockeyOddsMarkets(f, DateTime.now().toUtc()),
+          finished: f.status != SportFixtureStatus.scheduled,
+        ),
+      ],
     );
   }
 

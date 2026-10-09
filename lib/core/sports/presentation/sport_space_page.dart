@@ -16,10 +16,12 @@ class SportSpacePage extends StatelessWidget {
     required this.onOpenCompetitions,
     required this.onOpenReadings,
     required this.onOpenAccount,
+    this.onOpenMarkets,
     super.key,
   });
   final ValueListenable<SportReadingPreferences> preferences;
   final VoidCallback onOpenCompetitions, onOpenReadings, onOpenAccount;
+  final VoidCallback? onOpenMarkets;
 
   void _appearance(BuildContext context) => Navigator.of(
     context,
@@ -110,6 +112,16 @@ class SportSpacePage extends StatelessWidget {
                     color: context.semantic.info,
                     onTap: onOpenReadings,
                   ),
+                  if (onOpenMarkets != null)
+                    LectorSpaceActionCard(
+                      key: const ValueKey('sport-space-markets'),
+                      icon: Icons.stacked_line_chart_rounded,
+                      title: 'Mes marchés',
+                      subtitle: 'Les marchés autorisés pour vos compositions.',
+                      count: selected.marketIds.length,
+                      color: context.brand.accent,
+                      onTap: onOpenMarkets!,
+                    ),
                 ],
               ),
               const SizedBox(height: AppSpacing.lg),

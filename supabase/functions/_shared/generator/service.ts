@@ -29,7 +29,79 @@ export function sourceQuery(
 }
 /** References and frozen constraints are resolved by the server, not trusted to the model. */
 export function resolveIntent(intent: Intent, state: State | null): Intent {
-  if (intent.action !== "alternative") return intent;
+  if (
+    intent.referenceAnalysisAt &&
+    ["generate", "clarify"].includes(intent.action)
+  ) {
+    const message = state?.messages.find((m) =>
+      m.at === intent.referenceAnalysisAt && m.analysis
+    );
+    const analysis = message?.analysis;
+    const chosen = analysis
+      ? [
+        ...analysis.selections.map((s) => ({
+          sport: s.candidate.sport,
+          matchId: s.candidate.matchId,
+          match: `${s.candidate.home} — ${s.candidate.away}`,
+        })),
+        ...(analysis.observations ?? []).map((o) => ({
+          sport: o.sport,
+          matchId: o.matchId,
+          match: o.match,
+        })),
+      ]
+      : [];
+    if (!analysis || !chosen.length) {
+      return {
+        ...intent,
+        action: "clarify",
+        fixtureFocus: undefined,
+        message:
+          "Cette analyse n’a pas conservé de rencontres retenues avec des références vérifiées. Demandez-moi une nouvelle analyse ou précisez les rencontres à reprendre.",
+      };
+    }
+    if (
+      intent.date !== analysis.context.date ||
+      intent.sports.some((s) => !analysis.context.sports.includes(s))
+    ) {
+      return {
+        ...intent,
+        action: "clarify",
+        fixtureFocus: undefined,
+        message:
+          "Souhaitez-vous reprendre les rencontres de l’analyse précédente ou chercher celles de cette nouvelle journée ?",
+      };
+    }
+    const focus = [
+      ...new Map(chosen.map((m) => [`${m.sport}:${m.matchId}`, m])).values(),
+    ];
+    if ((intent.maxSelections ?? 6) < focus.length) {
+      return {
+        ...intent,
+        action: "clarify",
+        fixtureFocus: undefined,
+        message:
+          `L’analyse retient ${focus.length} rencontres. Lesquelles souhaitez-vous garder dans ce ticket plus court ?`,
+      };
+    }
+    return {
+      ...intent,
+      fixtureFocus: focus,
+      preserveFixtures: true,
+      view: analysis.context.view === "discovery"
+        ? "all"
+        : analysis.context.view as Intent["view"],
+      radarKind: analysis.context.radarKind as Intent["radarKind"],
+      sports: [...new Set(focus.map((m) => m.sport))],
+      maxSelections: intent.maxSelections ?? focus.length,
+    };
+  }
+  if (intent.action !== "alternative") {
+    if (!intent.fixtureFocus) return intent;
+    const reset = { ...intent };
+    delete reset.fixtureFocus;
+    return reset;
+  }
   const reference = intent.referenceTicketId
     ? [...(state?.tickets ?? []), ...(state?.drafts ?? [])].find((t) =>
       t.id === intent.referenceTicketId
@@ -174,8 +246,25 @@ export function applyIntent(
           )
           : null;
         input.onWorkshop?.(workshop?.reports ?? []);
-        const proposed = workshop?.tickets ??
-          compose(available.candidates, input.intent, context, history);
+        const focusedPool = input.intent.fixtureFocus
+          ? available.candidates.filter((c) =>
+            input.intent.fixtureFocus!.some((m) =>
+              m.sport === c.sport && m.matchId === c.matchId
+            )
+          )
+          : available.candidates;
+        const composed = workshop?.tickets ??
+          compose(focusedPool, input.intent, context, history);
+        const proposed = input.intent.fixtureFocus
+          ? composed.filter((t) =>
+            t.picks.length === input.intent.fixtureFocus!.length &&
+            input.intent.fixtureFocus!.every((m) =>
+              t.picks.some((p) =>
+                p.sport === m.sport && p.matchId === m.matchId
+              )
+            )
+          )
+          : composed;
         proposals = workshop?.proposals ?? [];
         proposalIds = proposals.length > 1 ? proposals.map((t) => t.id) : [];
         if (proposed.length) {
@@ -224,7 +313,17 @@ export function applyIntent(
               " Certaines compositions n’ont pas pu respecter toutes les contraintes ; elles ne sont pas complétées artificiellement.";
           }
         } else {
-          reply = input.intent.action === "alternative"
+          reply = input.intent.fixtureFocus?.length
+            ? `Je reprends ${
+              input.intent.fixtureFocus.map((m) => m.match).join(" ; ")
+            }. Aucun ticket réunissant ces rencontres avec leurs marchés autorisés, des cotes récentes et les contraintes demandées n’est disponible. Je conserve cette liste : je n’ajoute pas d’autres matchs. ${
+              available.missing.join(" ")
+            }`
+            : !available.candidates.length
+            ? `Aucune sélection ne dispose actuellement d’un marché autorisé, d’une cote récente et de lectures exploitables dans ce périmètre. ${
+              available.missing.join(" ")
+            }`
+            : input.intent.action === "alternative"
             ? "Aucune composition différente n’a été trouvée avec ces contraintes et les données disponibles. Le ticket précédent est conservé. Vous pouvez choisir une autre date, un autre marché autorisé ou ajuster l’objectif."
             : "Les données vérifiées ne permettent pas de respecter votre demande. Vous pouvez élargir la date ou ajuster l’objectif.";
         }

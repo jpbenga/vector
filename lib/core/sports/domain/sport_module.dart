@@ -16,6 +16,15 @@ enum SportCapability {
   outcomeBilan,
 }
 
+class SportMarketDefinition {
+  const SportMarketDefinition({
+    required this.id,
+    required this.label,
+    required this.description,
+  });
+  final String id, label, description;
+}
+
 class SportReadingDefinition {
   const SportReadingDefinition({
     required this.id,
@@ -55,6 +64,7 @@ class SportModuleDefinition {
     required this.stage,
     required this.capabilities,
     this.readings = const [],
+    this.markets = const [],
     this.participantOrder = SportParticipantOrder.homeAway,
     this.dataPolicy = const SportDataPolicy(),
     this.provider,
@@ -68,6 +78,7 @@ class SportModuleDefinition {
   final SportModuleStage stage;
   final Set<SportCapability> capabilities;
   final List<SportReadingDefinition> readings;
+  final List<SportMarketDefinition> markets;
   final List<SportScenarioDefinition> scenarios;
 }
 

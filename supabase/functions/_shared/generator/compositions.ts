@@ -88,6 +88,9 @@ export function composeWorkshop(
       targetIndex: i,
       reference: reference?.picks,
       preserveFixtures: intent.preserveFixtures,
+      requiredFixtureKeys: intent.fixtureFocus?.map((m) =>
+        `${m.sport}:${m.matchId}`
+      ),
       excludedCompositions: [...excluded],
       maxAlternatives: intent.tickets.length === 1 ? 3 : 1,
       maxExpansions: 40000,

@@ -163,6 +163,7 @@ export interface WorkshopOptions {
   maxAlternatives?: number;
   /** Keep every reference fixture, while reconsidering its market/selection. */
   preserveFixtures?: boolean;
+  requiredFixtureKeys?: string[];
   /** Retained selections for a targeted substitution. */
   fixed?: Candidate[];
   maxComputeMs?: number;
@@ -326,7 +327,9 @@ export function exploreCompositions(
   if (options.reference) excluded.add(compositionKey(options.reference));
   const exclusions: { candidateId: string; reasons: string[] }[] = [];
   const requiredFixtures = options.preserveFixtures
-    ? new Set((options.reference ?? []).map(fixtureKey))
+    ? new Set(
+      options.requiredFixtureKeys ?? (options.reference ?? []).map(fixtureKey),
+    )
     : null;
   const report = {
     inputCandidates: candidates.length,
@@ -367,7 +370,9 @@ export function exploreCompositions(
   };
   if (
     !target || target.stake === null || target.stake <= 0 ||
-    target.stake > context.budget || target.kind === "unspecified" ||
+    target.stake > context.budget ||
+    (target.kind === "unspecified" &&
+      (target.minimum !== null || target.maximum !== null)) ||
     (requiredFixtures !== null &&
       (!requiredFixtures.size || requiredFixtures.size > maxSelections))
   ) return finish();

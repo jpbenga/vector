@@ -34,7 +34,8 @@ export function compatible(picks: Candidate[], next: Candidate) {
   return picks.every((p) =>
     !(p.sport === next.sport && p.matchId === next.matchId) &&
     p.bookmaker === next.bookmaker &&
-    !p.teams.some((team) => next.teams.includes(team))
+    (p.sport !== next.sport ||
+      !p.teams.some((team) => next.teams.includes(team)))
   );
 }
 /** Stable business identity: order, prices, bookmaker and publication are irrelevant. */

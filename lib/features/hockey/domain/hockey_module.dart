@@ -21,6 +21,26 @@ abstract final class HockeyModule {
       SportCapability.playerRadar,
       SportCapability.readings,
     },
+    markets: [
+      SportMarketDefinition(
+        id: 'result_regulation',
+        label: 'Résultat à 60 minutes (1N2)',
+        description:
+            'Domicile, nul ou extérieur après trois périodes. Prolongation et tirs au but exclus.',
+      ),
+      SportMarketDefinition(
+        id: 'double_chance_regulation',
+        label: 'Double chance à 60 minutes',
+        description:
+            'Deux issues sur les trois du temps réglementaire. Prolongation et tirs au but exclus.',
+      ),
+      SportMarketDefinition(
+        id: 'total_goals_regulation',
+        label: 'Total de buts à 60 minutes',
+        description:
+            'Plus ou moins de buts sur la ligne proposée, pendant les trois périodes. Une cote seule ne suffit pas à déclencher une sélection du Générateur.',
+      ),
+    ],
     readings: [
       SportReadingDefinition(
         id: 'standing_advantage',

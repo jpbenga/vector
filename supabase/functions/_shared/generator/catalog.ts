@@ -1,3 +1,4 @@
+import { freshHockeyQuotes, hockeyCandidates } from "./hockey_markets.ts";
 import { playerSignals, teamSignals } from "./radar.ts";
 import {
   matchRadarSignals,
@@ -238,6 +239,25 @@ export function buildCatalog(
         if (isRadar && !radar.length) continue;
         seen.add(identity);
         matchCount++;
+        const matchEvidence = [
+          ...evidence(rows(fixture.readings), source, pref.readings),
+          ...radar,
+        ];
+        const priced = hockeyCandidates(
+          fixture,
+          source,
+          pref.markets,
+          matchEvidence,
+          now,
+        ).filter((c) =>
+          !isRadar ||
+          radar.some((e) =>
+            e.subject === (c.selectionCode?.startsWith("home")
+              ? String(obj(fixture.home).id)
+              : String(obj(fixture.away).id))
+          )
+        );
+        candidates.push(...priced);
         matches.push({
           id: String(fixture.id),
           sport: "hockey",
@@ -245,7 +265,11 @@ export function buildCatalog(
           home: String(obj(fixture.home).name),
           away: String(obj(fixture.away).name),
           kickoff: String(fixture.startsAt),
-          quoteAvailability: "not_collected",
+          quoteAvailability: freshHockeyQuotes(fixture, now).length
+            ? "recent"
+            : fixture.quotesCollectedAt
+            ? "unavailable"
+            : "not_collected",
           evidence: [
             ...evidence(rows(fixture.readings), source, pref.readings).map(
               (e) => ({
@@ -259,11 +283,11 @@ export function buildCatalog(
         });
         for (const signal of radar) signals.set(signal.id, signal);
       }
-      // Current hockey publication deliberately contains no market catalogue.
-      // Supporting a provider route is not proof a quote was collected.
-      missing.add(
-        "Hockey : les publications actuelles ne contiennent pas de marchés et cotes horodatés. Aucun pari hockey n’est complété artificiellement.",
-      );
+      if (!candidates.some((c) => c.sport === "hockey")) {
+        missing.add(
+          "Hockey : aucune sélection avec marché autorisé, cote récente et lecture directement pertinente dans ce périmètre. Les disponibilités varient selon les rencontres.",
+        );
+      }
       continue;
     }
     const raw = obj(source.payload.raw),

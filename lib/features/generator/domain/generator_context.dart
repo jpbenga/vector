@@ -77,9 +77,7 @@ class GeneratorContext {
   ) => {
     'competitions': preferences.competitionKeys.toList(),
     'readings': preferences.readingIds.toList(),
-    // No permanent hockey market preference or quote catalogue exists yet.
-    // The generator must not silently authorize markets on the user's behalf.
-    'markets': <String>[],
+    'markets': preferences.marketIds.toList(),
   };
 }
 

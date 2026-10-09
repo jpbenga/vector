@@ -1,3 +1,4 @@
+import '../domain/sport_market_quote.dart';
 import '../../domain/lector_head_to_head_policy.dart';
 import '../domain/sport_player_activity.dart';
 import '../domain/sport_match_history.dart';
@@ -604,6 +605,20 @@ abstract final class SportPublicationCodec {
         clock: item['clock'] as String?,
         capturedAt: capturedAt,
         scores: scores,
+        quotes: [
+          for (final raw in (item['quotes'] as List?) ?? const [])
+            if (raw is Map<String, dynamic>)
+              SportMarketQuote(
+                match: matchId,
+                marketCode: text(raw['marketCode']),
+                selectionCode: text(raw['selectionCode']),
+                scope: SportScoreScope(text(raw['scope'])),
+                bookmaker: text(raw['bookmaker']),
+                decimalOdds: (raw['decimalOdds'] as num).toDouble(),
+                capturedAt: date(raw['capturedAt']),
+                line: (raw['line'] as num?)?.toDouble(),
+              ),
+        ],
         headToHead: history(item['headToHead'], item, cutoff),
         matchEvents: eventRows,
         matchEventsCapturedAt: currentEvents == null

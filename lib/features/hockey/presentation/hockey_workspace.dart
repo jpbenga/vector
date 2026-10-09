@@ -246,6 +246,10 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
             navigationContext: spaceContext,
             section: SportPreferenceSection.readings,
           ),
+          onOpenMarkets: () => _openPreferences(
+            navigationContext: spaceContext,
+            section: SportPreferenceSection.markets,
+          ),
           onOpenAccount: () => showLectorAccountSheet(spaceContext),
         ),
       ),

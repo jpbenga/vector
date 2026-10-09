@@ -274,7 +274,7 @@ Deno.test("hockey without collected odds abstains, with no fake football market"
   };
   const result = buildCatalog([h], context, intent.date, now);
   assert.equal(result.candidates.length, 0);
-  assert.match(result.missing.join(), /horodatés/);
+  assert.match(result.missing.join(), /cote récente/);
 });
 Deno.test("exact currency arithmetic and total-versus-net targets", () => {
   assert.equal(totals([pick("fractional", 1.005)], 50).returnTotal, 50.25);

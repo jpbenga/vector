@@ -92,7 +92,7 @@ void main() {
         await tester.tap(find.byTooltip('Paramètres'));
         await tester.pumpAndSettle();
         expect(find.byType(SportSpacePage), findsOneWidget);
-        expect(find.byType(LectorSpaceActionCard), findsNWidgets(4));
+        expect(find.byType(LectorSpaceActionCard), findsNWidgets(5));
         expect(find.byType(AppearancePage), findsNothing);
 
         await tester.tap(find.text('Apparence'));
@@ -147,7 +147,25 @@ void main() {
         await tester.tap(find.byKey(const ValueKey('save-sport-preferences')));
         await tester.pumpAndSettle();
         expect(find.text('1 compétition(s) · 1 lecture(s)'), findsOneWidget);
+        await tester.ensureVisible(
+          find.byKey(const ValueKey('sport-space-markets')),
+        );
+        await tester.tap(find.byKey(const ValueKey('sport-space-markets')));
+        await tester.pumpAndSettle();
+        expect(find.text('Mes marchés · Hockey'), findsOneWidget);
+        expect(find.byType(CheckboxListTile), findsNothing);
+        final market = find.byKey(
+          const ValueKey('preference-market-result_regulation'),
+        );
+        expect(tester.widget<SwitchListTile>(market).value, isFalse);
+        await tester.tap(market);
+        await tester.ensureVisible(
+          find.byKey(const ValueKey('save-sport-preferences')),
+        );
+        await tester.tap(find.byKey(const ValueKey('save-sport-preferences')));
+        await tester.pumpAndSettle();
         final saved = await store.load(scope, SportId.hockey);
+        expect(saved.marketIds, {'result_regulation'});
         expect(saved.competitionKeys, _configured().competitionKeys);
         expect(saved.readingIds, {'winning_streak'});
         expect(

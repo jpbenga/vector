@@ -66,6 +66,9 @@ export interface Intent {
   requireEachSport: boolean;
   maxSelections?: number | null;
   referenceTicketId?: string | null;
+  referenceAnalysisAt?: string | null;
+  /** Derived only from a saved, validated analysis by resolveIntent. */
+  fixtureFocus?: { sport: Sport; matchId: string; match: string }[];
   preserveConstraints?: boolean;
   ticketIndex: number | null;
   selectionIndex: number | null;
@@ -106,6 +109,8 @@ export interface Candidate {
   awayLogo?: string;
   teams: string[];
   kickoff: string;
+  scope?: "regulation" | "final";
+  selectionCode?: string;
   marketId: string;
   market: string;
   selection: string;
@@ -160,6 +165,13 @@ export interface Analysis {
     candidate: Candidate;
     reason: string;
     vigilance: string;
+    references: string[];
+  }[];
+  observations?: {
+    matchId: string;
+    sport: Sport;
+    match: string;
+    reason: string;
     references: string[];
   }[];
   comparedMatchIds: string[];
@@ -377,6 +389,7 @@ export function intentFrom(value: unknown): Intent {
         ...keys,
         "maxSelections",
         "referenceTicketId",
+        "referenceAnalysisAt",
         "preserveConstraints",
         "goalMode",
         "preserveFixtures",
@@ -399,6 +412,9 @@ export function intentFrom(value: unknown): Intent {
     (v.maxSelections !== undefined && v.maxSelections !== null &&
       (!Number.isInteger(v.maxSelections) || Number(v.maxSelections) < 1 ||
         Number(v.maxSelections) > 6)) ||
+    (v.referenceAnalysisAt != null &&
+      (typeof v.referenceAnalysisAt !== "string" ||
+        !Number.isFinite(Date.parse(v.referenceAnalysisAt)))) ||
     (v.referenceTicketId != null &&
       (typeof v.referenceTicketId !== "string" ||
         v.referenceTicketId.length > 100)) ||

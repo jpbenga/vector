@@ -25,6 +25,7 @@ on:
           - lector-generator-workshop
           - lector-generator-radar-update
           - lector-generator-sport-publications
+          - lector-generator-hockey-odds
 
 permissions:
   contents: read
@@ -134,3 +135,20 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           GH_TOKEN: ${{ github.token }}
         run: python3 tool/deploy_sport_publications_remote.py
+
+  hockey-odds:
+    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-hockey-odds'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: supabase/setup-cli@v1
+        with:
+          version: '2.120.0'
+      - name: Install hockey prices and demo conversation continuity
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tool/deploy_hockey_odds_remote.py

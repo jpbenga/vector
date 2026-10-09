@@ -212,6 +212,7 @@ class SportLiveController extends ChangeNotifier {
       clock: current.clock,
       capturedAt: current.capturedAt,
       scores: current.scores,
+      quotes: base.quotes,
       homeForm: base.homeForm,
       awayForm: base.awayForm,
       headToHead: base.headToHead,

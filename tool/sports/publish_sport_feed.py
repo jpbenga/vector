@@ -25,6 +25,12 @@ def configuration():
     return values
 
 
+def without_prices(payload):
+    if payload is None:
+        return None
+    return {**payload, 'items': [{k:v for k,v in f.items() if k not in ('quotes','quotesCollectedAt')} for f in payload['items']]}
+
+
 def verify_publication(payload, values):
     req = urllib.request.Request(PROJECT_URL + '/rest/v1/rpc/read_sport_feed',
         data=json.dumps({'p_sport': payload['sport'], 'p_section': 'full',
@@ -32,8 +38,9 @@ def verify_publication(payload, values):
         headers={'apikey': values['SUPABASE_ANON_KEY'], 'Content-Type': 'application/json'}, method='POST')
     with urllib.request.urlopen(req, timeout=60) as response:
         stored = json.load(response)
-    if stored != payload:
+    if without_prices(stored) != without_prices(payload):
         raise ValueError('Shared server publication differs from the displayed compact')
+    return stored
 
 
 def main():
@@ -42,8 +49,10 @@ def main():
         raise ValueError('Existing server sync secret is required. No keychain fallback.')
     path = ROOT / 'var/sports/hockey/published.json'
     with tempfile.TemporaryDirectory(prefix='lector-publication-') as staging:
+        source = Path(staging) / 'calendar.json'
+        source.write_text(json.dumps(without_prices(json.loads(path.read_text()))))
         prepared = Path(staging) / 'hockey.json'
-        subprocess.run(['dart', 'run', 'tool/sports/prepare_hockey_publication.dart', str(path), str(prepared)], cwd=ROOT, check=True)
+        subprocess.run(['dart', 'run', 'tool/sports/prepare_hockey_publication.dart', str(source), str(prepared)], cwd=ROOT, check=True)
         text = prepared.read_text()
         payload = json.loads(text)
         req = urllib.request.Request(PROJECT_URL + '/functions/v1/publish-sport-feed',
@@ -65,10 +74,10 @@ def main():
             raise RuntimeError(f'Publication rejected (HTTP {error.code}){diagnostic}') from None
         if not receipt.get('ok'):
             raise ValueError('Server publication was not confirmed')
-        verify_publication(payload, values)
+        hydrated = verify_publication(payload, values)
         # Local collector/browser and server now retain exactly the same object.
         temporary = path.with_suffix('.bridge.tmp')
-        temporary.write_text(text)
+        temporary.write_text(json.dumps(hydrated, separators=(',',':')))
         temporary.replace(path)
         print(json.dumps({'shared_publication': receipt['publication'], 'verified': True}))
 

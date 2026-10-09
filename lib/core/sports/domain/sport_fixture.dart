@@ -1,3 +1,4 @@
+import 'sport_market_quote.dart';
 import '../../domain/lector_temporal_state.dart';
 import 'sport_match_history.dart';
 import 'sport_competition_context.dart';
@@ -63,10 +64,12 @@ class SportFixture {
     this.headToHead,
     this.matchEvents = const [],
     this.matchEventsCapturedAt,
+    Iterable<SportMarketQuote> quotes = const [],
     Map<SportScoreScope, SportScore> scores = const {},
     Iterable<SportFormResult> homeForm = const [],
     Iterable<SportFormResult> awayForm = const [],
-  }) : scores = Map.unmodifiable(scores),
+  }) : quotes = List.unmodifiable(quotes),
+       scores = Map.unmodifiable(scores),
        homeForm = List.unmodifiable(homeForm),
        awayForm = List.unmodifiable(awayForm) {
     if (id.kind != SportEntityKind.match ||
@@ -82,11 +85,15 @@ class SportFixture {
         'Fixture identities must belong to the same sport and provider.',
       );
     }
+    if (this.quotes.any((quote) => quote.match != id)) {
+      throw ArgumentError('Quotes must belong to this match.');
+    }
     if (scores.keys.any((scope) => scope.key.trim().isEmpty)) {
       throw ArgumentError('A score needs an explicit scope.');
     }
   }
 
+  final List<SportMarketQuote> quotes;
   final SportEntityId id;
   final SportEntityId competition;
   final String competitionName;
