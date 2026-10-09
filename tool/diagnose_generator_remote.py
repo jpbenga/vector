@@ -23,14 +23,14 @@ def main():
         c.state->'intent' as intent, c.state#>'{{context,budget}}' as budget,
         c.state->'messages' as messages, c.state->'catalog'->'matchCount' as match_count
         from public.lector_generator_conversations c join auth.users u on u.id=c.user_id
-        where {account} and c.updated_at >= now() - interval '6 hours'
-        order by c.updated_at desc limit 3""")
-    cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=6)
+        where {account} and c.updated_at >= now() - interval '12 hours'
+        order by c.updated_at desc limit 6""")
+    cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=12)
     def reported_pairs(messages):
         pairs = []
         for index, message in enumerate(messages or []):
             text = str(message.get("text", ""))
-            if message.get("role") != "user" or not re.search(r"\b(top|cinq|5|vendredi)\b", text, re.I):
+            if message.get("role") != "user" or not re.search(r"radar|\b(deux|2|viking|brann|lyon|lens)\b", text, re.I):
                 continue
             try:
                 if datetime.datetime.fromisoformat(message.get("at", "").replace("Z", "+00:00")) < cutoff:
@@ -39,15 +39,59 @@ def main():
                 continue
             following = messages[index+1] if index+1 < len(messages) else {}
             pairs.append({"at": message.get("at"), "request": text,
-                "reply": following.get("text") if following.get("role") == "assistant" else None})
+                "reply": following.get("text") if following.get("role") == "assistant" else None,
+                "analysis": following.get("analysis") if following.get("role") == "assistant" else None})
         return pairs[-4:]
     print(json.dumps({"incident_conversations": [{"revision": r["revision"], "updated_at": r["updated_at"], "intent": r["intent"], "budget": r["budget"], "message_count": len(r.get("messages") or []), "match_count": r["match_count"], "reported_pairs": reported_pairs(r.get("messages"))} for r in rows]}, ensure_ascii=False))
     turns = query(f"""select t.conversation_id, t.started_at, t.status, t.usage,
-        t.response->'intent' as intent from public.lector_generator_turns t
+        t.response->'intent' as intent, t.response->'context' as context,
+        t.response->'catalog' as catalog, t.response->'messages' as messages from public.lector_generator_turns t
         join auth.users u on u.id=t.user_id where {account}
-        and t.started_at >= now() - interval '6 hours'
-        order by t.started_at desc limit 8""")
-    print(json.dumps({"incident_turns": [{k: v for k, v in t.items() if k != "conversation_id"} for t in turns]}, ensure_ascii=False))
+        and t.started_at >= now() - interval '12 hours'
+        order by t.started_at desc limit 12""")
+    for turn in turns:
+        messages = turn.pop("messages", []) or []
+        pairs = reported_pairs(messages)
+        if not pairs:
+            continue
+        turn.pop("conversation_id", None)
+        turn["reported_pairs"] = pairs[-1:]
+        # API summaries are not needed to diagnose the scope/date/tool steps.
+        if isinstance(turn.get("usage"), dict):
+            turn["usage"].pop("summary", None)
+        print(json.dumps({"incident_turn": turn}, ensure_ascii=False))
+    selections = [selection for turn in turns for pair in turn.get("reported_pairs", [])
+                  for selection in (pair.get("analysis") or {}).get("selections", [])]
+    snapshots = {}
+    for selection in selections:
+        candidate = selection.get("candidate", {})
+        source = str(candidate.get("snapshotId", ""))
+        fixture = str(candidate.get("matchId", "")).removeprefix("api-fixture-")
+        if not re.fullmatch(r"[0-9a-zA-Z-]+", source) or not fixture.isdigit():
+            continue
+        snapshots.setdefault(source, set()).add(fixture)
+    for source, fixtures in snapshots.items():
+        fixture_ids = ",".join("'" + fixture + "'" for fixture in sorted(fixtures))
+        original = query(f"""with document as materialized (
+            select id,captured_at,payload||'{{}}'::jsonb payload
+            from public.match_feed_analysis_snapshots where id::text='{source}'
+        ), selected as materialized (
+            select *, coalesce((select jsonb_agg(f) from jsonb_array_elements(coalesce(payload#>'{{raw,fixtures}}','[]')) f
+            where f#>>'{{fixture,id}}' in ({fixture_ids})), '[]') fixtures from document
+        ), teams as materialized (
+            select *, array(select distinct team from jsonb_array_elements(fixtures) f
+            cross join lateral (values(f#>>'{{teams,home,id}}'),(f#>>'{{teams,away,id}}')) t(team)) ids from selected
+        ) select id,captured_at,fixtures,
+            coalesce((select jsonb_agg(f) from jsonb_array_elements(coalesce(payload#>'{{computed,fixtures}}','[]')) f
+            where f->>'fixture_id' in ({fixture_ids})), '[]') readings,
+            coalesce((select jsonb_agg(jsonb_build_object('team',r->'team','league',r->'league','matches',
+            (select coalesce(jsonb_agg(jsonb_build_object('fixture',m->'fixture','date',m->'date','result',m->'result','venue',m->'venue','opponent',m->'opponent','goals',m->'goals')), '[]')
+            from jsonb_array_elements(coalesce(r->'matches','[]')) m))) from jsonb_array_elements(coalesce(payload#>'{{raw,recent_league_matches}}','[]')) r
+            where r#>>'{{team,id}}'=any(ids)), '[]') team_histories,
+            coalesce((select jsonb_agg(jsonb_build_object('player',r->'player','team',r->'team','activity',(select coalesce(jsonb_agg(jsonb_build_object('played_at',a->'played_at','goals',a->'goals','assists',a->'assists')), '[]') from jsonb_array_elements(coalesce(r->'activity','[]')) a)))
+            from jsonb_array_elements(coalesce(payload#>'{{raw,player_form_radar}}','[]')) r
+            where r#>>'{{team,id}}'=any(ids)), '[]') player_histories from teams""")
+        print(json.dumps({"selected_immutable_snapshot": original}, ensure_ascii=False))
     dates = sorted({str(r.get("intent", {}).get("date")) for r in rows if isinstance(r.get("intent"), dict) and r["intent"].get("date")})
     if not dates:
         today = datetime.datetime.now(datetime.timezone.utc).date()
