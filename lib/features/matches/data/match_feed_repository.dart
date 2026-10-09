@@ -64,6 +64,7 @@ class MatchFeedSnapshotMetadata {
     required this.capturedAt,
     required this.timezone,
     required this.matchCount,
+    this.sourceIds = const [],
     this.windowStart,
     this.windowEnd,
   });
@@ -83,6 +84,9 @@ class MatchFeedSnapshotMetadata {
 
     return MatchFeedSnapshotMetadata(
       source: snapshot['source']?.toString() ?? 'unknown',
+      sourceIds: (snapshot['radar_source_ids'] as List? ?? const [])
+          .map((id) => id.toString())
+          .toList(),
       capturedAt: capturedAt,
       timezone: snapshot['timezone']?.toString() ?? 'local',
       matchCount: matches.length,
@@ -92,6 +96,7 @@ class MatchFeedSnapshotMetadata {
   }
 
   final String source;
+  final List<String> sourceIds;
   final DateTime? capturedAt;
   final String timezone;
   final int matchCount;

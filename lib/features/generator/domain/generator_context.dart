@@ -1,3 +1,4 @@
+import '../../form_radar/domain/radar_scope.dart';
 import 'dart:math';
 
 import '../../onboarding/domain/compiled_decision_profile.dart';
@@ -21,8 +22,10 @@ class GeneratorContext {
     this.budget = 100,
     this.discovery = true,
     this.timezone = 'Europe/Paris',
+    this.radar = const {},
   });
   final String origin, timezone;
+  final Map<String, RadarScope> radar;
   final bool discovery;
   final double budget;
   final Map<String, Map<String, List<String>>> preferences;
@@ -35,15 +38,20 @@ class GeneratorContext {
     'timezone': timezone,
     'budget': budget,
     'preferences': preferences,
+    'radar': {for (final e in radar.entries) e.key: e.value.toJson()},
   };
-  GeneratorContext copyWith({double? budget, bool? discovery}) =>
-      GeneratorContext(
-        origin: origin,
-        preferences: preferences,
-        budget: budget ?? this.budget,
-        discovery: discovery ?? this.discovery,
-        timezone: timezone,
-      );
+  GeneratorContext copyWith({
+    double? budget,
+    bool? discovery,
+    Map<String, RadarScope>? radar,
+  }) => GeneratorContext(
+    origin: origin,
+    preferences: preferences,
+    budget: budget ?? this.budget,
+    discovery: discovery ?? this.discovery,
+    timezone: timezone,
+    radar: radar ?? this.radar,
+  );
 
   static Map<String, List<String>> football(CompiledDecisionProfile profile) =>
       {

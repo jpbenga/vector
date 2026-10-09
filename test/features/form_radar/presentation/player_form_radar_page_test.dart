@@ -1,3 +1,4 @@
+import 'package:copilot/features/form_radar/domain/radar_scope.dart';
 import 'package:copilot/core/widgets/lector_player_radar.dart';
 import 'package:copilot/core/widgets/lector_radar.dart';
 import 'package:copilot/app/theme/app_theme.dart';
@@ -12,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  setUp(RadarScopeSession.clear);
   setUp(() => SharedPreferences.setMockInitialValues({}));
   testWidgets(
     'uses the shared card and current profile across sign in and sign out',

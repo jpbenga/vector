@@ -1,3 +1,4 @@
+import 'package:copilot/features/form_radar/domain/radar_scope.dart';
 import 'package:copilot/core/identity/identity_scope.dart';
 import 'package:copilot/core/theme/app_theme.dart';
 import 'package:copilot/features/form_radar/presentation/form_radar_signal_panel.dart';
@@ -13,6 +14,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  setUp(RadarScopeSession.clear);
   testWidgets(
     'Radar discovers account readings in unfollowed leagues for players, teams and details',
     (tester) async {

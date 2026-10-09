@@ -1,3 +1,5 @@
+import '../domain/football_radar_selection.dart';
+import '../domain/radar_scope.dart';
 import '../../../core/widgets/lector_live_badge.dart';
 import '../../matches/presentation/widgets/live_fixture_builder.dart';
 import '../../../core/widgets/lector_player_radar.dart';
@@ -23,7 +25,6 @@ import 'player_form_radar_match_detail_sheet.dart';
 import 'team_form_radar_match_detail_sheet.dart';
 
 const _radarPageSize = 10;
-const _radarTopLimit = 50;
 
 class PlayerFormRadarPage extends StatefulWidget {
   const PlayerFormRadarPage({
@@ -34,6 +35,8 @@ class PlayerFormRadarPage extends StatefulWidget {
     this.personalizedMatches = const [],
     this.showProfileReadings = false,
     this.teamProfiles = const [],
+    this.sourceIds = const [],
+    this.capturedAt,
     this.identityScope = const IdentityScope.device(),
     this.filterStore = const SharedPreferencesRadarAudienceFilterStore(),
     super.key,
@@ -53,6 +56,8 @@ class PlayerFormRadarPage extends StatefulWidget {
   final DateTime selectedDate;
   final ValueChanged<MatchBoardItem> onOpenMatch;
   final List<TeamFormRadarProfile> teamProfiles;
+  final List<String> sourceIds;
+  final DateTime? capturedAt;
   final IdentityScope identityScope;
   final RadarAudienceFilterStore filterStore;
 
@@ -72,6 +77,23 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
   @override
   void initState() {
     super.initState();
+    final previous = RadarScopeSession.read(
+      widget.identityScope,
+      'football',
+      widget.selectedDate,
+    );
+    if (previous != null) {
+      _mode = previous.mode == 'teams'
+          ? _RadarContentMode.teams
+          : _RadarContentMode.players;
+      _scope = previous.category == 'national'
+          ? _RadarScope.nationalTeam
+          : _RadarScope.club;
+      _audienceFilter = RadarAudienceFilter(
+        includeWomen: previous.includeWomen,
+        includeYouth: previous.includeYouth,
+      );
+    }
     _restoreFilters();
   }
 
@@ -80,6 +102,8 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.identityScope != widget.identityScope ||
         oldWidget.filterStore != widget.filterStore) {
+      _mode = _RadarContentMode.players;
+      _scope = _RadarScope.club;
       _audienceFilter = const RadarAudienceFilter();
       _playerPage = 0;
       _teamPage = 0;
@@ -134,61 +158,40 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
         : null;
     final profiles =
         fixtureSnapshot?.profiles ??
-        _profilesForMatches(widget.radarSourceMatches);
+        footballRadarPlayerProfiles(widget.radarSourceMatches);
     final dataAsOf =
         fixtureSnapshot?.asOf ?? _latestRadarAsOf(widget.radarSourceMatches);
-    final ranked = PlayerFormRadarRanker.rank(profiles);
     final teamProfiles = formRadarFixtureEnabled
         ? _teamProfilesFromPlayerFixture(profiles, widget.matches)
         : widget.teamProfiles.isNotEmpty
         ? widget.teamProfiles
-        : _teamProfilesForMatches(widget.radarSourceMatches);
-    final rankedTeams = TeamFormRadarRanker.rank(teamProfiles);
-    final competitionNames = <int, String>{
-      for (final match in widget.radarSourceMatches)
-        if (match.competition.apiFootballLeagueId case final int id)
-          id: match.competition.name,
-    };
+        : footballRadarTeamProfiles(widget.radarSourceMatches);
     final isTeamRadar = _mode == _RadarContentMode.teams;
-    final allScoped = ranked
-        .where((entry) => _scope.includesLeague(entry.profile.leagueId))
-        .toList(growable: false);
-    final allScopedTeams = rankedTeams
-        .where((entry) => _scope.includesLeague(entry.profile.leagueId))
-        .toList(growable: false);
-    final scoped = allScoped
-        .where((entry) {
-          final profile = entry.profile;
-          final competitionName =
-              competitionNames[profile.leagueId] ??
-              profile.activity.reversed
-                  .map((match) => match.competitionName)
-                  .whereType<String>()
-                  .firstOrNull ??
-              '';
-          return _audienceFilter.includes(
-            leagueId: profile.leagueId,
-            teamName: profile.teamName,
-            competitionName: competitionName,
-          );
-        })
-        .toList(growable: false);
-    final scopedTeams = allScopedTeams
-        .where(
-          (entry) => _audienceFilter.includes(
-            leagueId: entry.profile.leagueId,
-            teamName: entry.profile.teamName,
-            competitionName: entry.profile.leagueName,
-          ),
-        )
-        .toList(growable: false);
+    final selection = FootballRadarSelection(
+      players: profiles,
+      teams: teamProfiles,
+      audience: _audienceFilter,
+      nationalTeams: _scope == _RadarScope.nationalTeam,
+      mode: isTeamRadar ? 'teams' : 'players',
+      capturedAt: widget.capturedAt ?? dataAsOf,
+      sourceIds: widget.sourceIds,
+      competitionNames: {
+        for (final m in widget.radarSourceMatches)
+          if (m.competition.apiFootballLeagueId case final int id)
+            id: m.competition.name,
+      },
+    );
+    RadarScopeSession.remember(
+      widget.identityScope,
+      'football',
+      widget.selectedDate,
+      selection.scope,
+    );
+    final scoped = selection.players, scopedTeams = selection.teams;
     final hiddenCount = isTeamRadar
-        ? allScopedTeams.length - scopedTeams.length
-        : allScoped.length - scoped.length;
-    final cappedPlayers = scoped.take(_radarTopLimit).toList(growable: false);
-    final cappedTeams = scopedTeams
-        .take(_radarTopLimit)
-        .toList(growable: false);
+        ? selection.hiddenTeams
+        : selection.hiddenPlayers;
+    final cappedPlayers = selection.players, cappedTeams = selection.teams;
     final playerPage = _playerPage
         .clamp(0, _lastPage(cappedPlayers.length, _radarPageSize))
         .toInt();
@@ -517,27 +520,10 @@ enum _RadarScope {
   };
 
   bool includesLeague(int leagueId) => switch (this) {
-    _RadarScope.club => !_nationalTeamCompetitionLeagueIds.contains(leagueId),
-    _RadarScope.nationalTeam => _nationalTeamCompetitionLeagueIds.contains(
-      leagueId,
-    ),
+    _RadarScope.club => !nationalTeamRadarLeagues.contains(leagueId),
+    _RadarScope.nationalTeam => nationalTeamRadarLeagues.contains(leagueId),
   };
 }
-
-const _nationalTeamCompetitionLeagueIds = <int>{
-  1, // Coupe du Monde
-  4, // Euro
-  5, // UEFA Nations League
-  6, // Coupe d’Afrique des Nations
-  7, // Coupe d’Asie
-  8, // Coupe du Monde féminine
-  9, // Copa America
-  10, // Matchs amicaux internationaux
-  22, // CONCACAF Gold Cup
-  32, // Qualifications Coupe du Monde Europe
-  38, // Euro U21
-  536, // CONCACAF Nations League
-};
 
 class _RadarModeToggle extends StatelessWidget {
   const _RadarModeToggle({required this.selected, required this.onChanged});
@@ -1141,19 +1127,6 @@ class _RadarCompetitionHeader extends StatelessWidget {
   );
 }
 
-List<PlayerFormRadarProfile> _profilesForMatches(List<MatchBoardItem> matches) {
-  final values = <String, PlayerFormRadarProfile>{};
-  for (final match in matches) {
-    for (final profile in match.analysis.playerFormRadarProfiles) {
-      values.putIfAbsent(
-        '${profile.leagueId}:${profile.teamId}:${profile.playerId}',
-        () => profile,
-      );
-    }
-  }
-  return values.values.toList(growable: false);
-}
-
 DateTime? _latestRadarAsOf(List<MatchBoardItem> matches) {
   DateTime? latest;
   for (final match in matches) {
@@ -1191,70 +1164,6 @@ String _radarDateLabel(DateTime value) {
   final local = value.toLocal();
   return '${local.day} ${months[local.month - 1]}';
 }
-
-List<TeamFormRadarProfile> _teamProfilesForMatches(
-  List<MatchBoardItem> matches,
-) {
-  final values = <String, TeamFormRadarProfile>{};
-  for (final match in matches) {
-    final leagueId = match.competition.apiFootballLeagueId;
-    if (leagueId == null) continue;
-    final knownTeams = <int, TeamInfo>{
-      if (match.homeTeam.apiFootballTeamId != null)
-        match.homeTeam.apiFootballTeamId!: match.homeTeam,
-      if (match.awayTeam.apiFootballTeamId != null)
-        match.awayTeam.apiFootballTeamId!: match.awayTeam,
-    };
-    final standingNames = <int, String>{
-      for (final standing in match.analysis.leagueStandings)
-        standing.teamId: standing.teamName,
-    };
-    for (final entry in match.analysis.leagueRecentLeagueMatches.entries) {
-      final teamId = entry.key;
-      final activity = entry.value;
-      if (activity.isEmpty) continue;
-      final ordered = [...activity]
-        ..sort((left, right) {
-          final leftDate =
-              left.playedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-          final rightDate =
-              right.playedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-          return leftDate.compareTo(rightDate);
-        });
-      final knownTeam = knownTeams[teamId];
-      final name =
-          knownTeam?.name ??
-          standingNames[teamId] ??
-          ordered
-              .map((item) => item.teamName)
-              .whereType<String>()
-              .firstOrNull ??
-          'Équipe';
-      final logoUrl =
-          knownTeam?.logoUrl ??
-          ordered
-              .map((item) => item.teamLogoUrl)
-              .whereType<String>()
-              .firstOrNull ??
-          _apiFootballTeamLogoUrl(teamId);
-      values.putIfAbsent(
-        '$leagueId:$teamId',
-        () => TeamFormRadarProfile(
-          teamId: teamId,
-          teamName: name,
-          logoUrl: logoUrl,
-          leagueId: leagueId,
-          leagueName: match.competition.name,
-          activity: ordered,
-        ),
-      );
-    }
-  }
-  return values.values.toList(growable: false);
-}
-
-String _apiFootballTeamLogoUrl(int teamId) =>
-    'https://media.api-sports.io/football/teams/$teamId.png';
 
 List<TeamFormRadarProfile> _teamProfilesFromPlayerFixture(
   List<PlayerFormRadarProfile> profiles,

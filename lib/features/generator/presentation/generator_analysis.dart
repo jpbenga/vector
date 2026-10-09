@@ -10,7 +10,11 @@ String generatorAnalysisScope(Map<String, dynamic> data) {
   final date = DateTime.tryParse(data['date']?.toString() ?? '');
   final view = switch (data['view']) {
     'profile' => 'Pour moi',
-    'radar' => 'Radar',
+    'radar' => switch (data['radarKind']) {
+      'teams' => 'Radar équipes',
+      'players' => 'Radar joueurs',
+      _ => 'Radar',
+    },
     'all' => 'Tous',
     _ => 'Pour moi + Radar',
   };

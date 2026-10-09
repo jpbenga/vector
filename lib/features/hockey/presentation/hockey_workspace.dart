@@ -1,3 +1,6 @@
+import '../../../app/sports/generator_radar_context.dart';
+import '../../form_radar/domain/radar_scope.dart';
+import '../domain/hockey_radar_selection.dart';
 import '../../generator/presentation/generator_decisions.dart';
 import '../../../core/widgets/lector_deferred_content.dart';
 import '../../../core/data/read_recovery.dart';
@@ -181,6 +184,11 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
       if (!mounted || generation != _preferenceRequest) return;
       setState(() {
         _scope = scope;
+        final radar = scope == null
+            ? null
+            : RadarScopeSession.read(scope, 'hockey', _date);
+        _teamsSelected = radar?.mode == 'teams';
+        _league = radar?.competitionId;
         _preferences = preferences;
         _preferencesReady = true;
       });
@@ -574,6 +582,11 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
     date: _date,
     scope: _scope ?? const IdentityScope.guest('unresolved'),
     configurationKey: _preferences.toJson().toString(),
+    loadRadarContext: () => loadGeneratorRadarScopes(
+      _scope ?? const IdentityScope.guest('unresolved'),
+      _date,
+      ['football', 'hockey'],
+    ),
     loadContext: () async {
       final scope = _scope;
       final profile = scope == null
@@ -864,6 +877,21 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
     );
   }
 
+  HockeyRadarSelection? get _radarSelection {
+    final snapshot = _feed?.snapshot;
+    if (snapshot == null) return null;
+    final selection = HockeyRadarSelection(
+      snapshot,
+      day: _date,
+      competitionId: _league,
+      mode: _teamsSelected ? 'teams' : 'players',
+    );
+    if (_scope != null) {
+      RadarScopeSession.remember(_scope!, 'hockey', _date, selection.scope);
+    }
+    return selection;
+  }
+
   Widget _radar(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
@@ -896,7 +924,7 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
   }
 
   Widget _playerRadar(BuildContext context) {
-    final top = _players().take(50).toList();
+    final top = _radarSelection?.players ?? <HockeyPlayerRadarEntry>[];
     final count = top.length;
     final page = _page.clamp(0, count == 0 ? 0 : (count - 1) ~/ 10);
     final teamIds = top.map((p) => p.profile.team.id.key).toSet();
@@ -1042,9 +1070,7 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
   }
 
   Widget _teamRadar(BuildContext context) {
-    final top = HockeyTeamRadarRanker.rank(
-      _filteredCompetitions,
-    ).take(50).toList();
+    final top = _radarSelection?.teams ?? <HockeyTeamRadarEntry>[];
     final count = top.length,
         pages = (count / 10).ceil(),
         page = _page.clamp(0, pages == 0 ? 0 : pages - 1),

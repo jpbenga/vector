@@ -12,6 +12,24 @@ export interface Preferences {
   markets: string[];
   scenarios?: string[];
 }
+export interface RadarMember {
+  id: string;
+  teamId: string;
+  rank: number;
+  matchIds: string[];
+}
+export interface RadarScope {
+  version: 1;
+  mode: "teams" | "players";
+  category: "club" | "national";
+  capturedAt: string;
+  sourceIds: string[];
+  includeWomen: boolean;
+  includeYouth: boolean;
+  competitionId: string | null;
+  teams: RadarMember[];
+  players: RadarMember[];
+}
 export interface Context {
   origin: "profile" | "explorer";
   scope: "discovery" | "strict";
@@ -20,6 +38,8 @@ export interface Context {
   preferences: Partial<Record<Sport, Preferences>>;
   /** Read scope for this request; never changes the saved preferences. */
   view?: "profile" | "radar" | "all";
+  radar?: Partial<Record<Sport, RadarScope>>;
+  radarKind?: "teams" | "players";
 }
 export interface Target {
   stake: number | null;
@@ -54,6 +74,7 @@ export interface Intent {
   goalMode?: "around" | "minimum" | "range" | "unconstrained";
   preserveFixtures?: boolean;
   view?: "current" | "profile" | "radar" | "all";
+  radarKind?: "current" | "teams" | "players";
 }
 export interface Evidence {
   id: string;
@@ -122,6 +143,17 @@ export interface Analysis {
     sports: Sport[];
     matchCount: number;
     candidateCount: number;
+    radarKind?: string;
+    radarScopes?: {
+      sport: Sport;
+      category: string;
+      capturedAt: string;
+      sourceIds: string[];
+      members: number;
+      includeWomen: boolean;
+      includeYouth: boolean;
+      competitionId: string | null;
+    }[];
   };
   text: string;
   selections: {
@@ -230,7 +262,74 @@ export function contextFrom(value: unknown): Context {
     timezone,
     budget,
     preferences,
+    radar: radarScopesFrom(c.radar),
   };
+}
+/** Scope identifiers are user inputs, not sports statistics or market authorizations. */
+export function radarScopesFrom(value: unknown): Context["radar"] {
+  const scopes: NonNullable<Context["radar"]> = {};
+  for (const sport of ["football", "hockey"] as const) {
+    const v = obj(obj(value)[sport]);
+    if (!Object.keys(v).length) continue;
+    const ids = strings(v.sourceIds);
+    if (
+      v.version !== 1 || !["teams", "players"].includes(String(v.mode)) ||
+      !["club", "national"].includes(String(v.category)) ||
+      typeof v.capturedAt !== "string" ||
+      !Number.isFinite(Date.parse(v.capturedAt)) ||
+      !Array.isArray(v.sourceIds) || ids.length !== v.sourceIds.length ||
+      ids.length > 150 ||
+      ids.some((id) =>
+        !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(
+          id,
+        )
+      ) ||
+      (v.competitionId != null &&
+        (typeof v.competitionId !== "string" ||
+          !/^\d{1,10}$/.test(v.competitionId)))
+    ) {
+      throw new Error("Le périmètre Radar transmis est invalide.");
+    }
+    const members = (key: string, count: number): RadarMember[] => {
+      const list = rows(v[key]);
+      if (!Array.isArray(v[key]) || list.length > 50) {
+        throw new Error("Liste Radar invalide.");
+      }
+      const seen = new Set<string>();
+      return list.map((m, i) => {
+        const matchIds = strings(m.matchIds), identity = `${m.teamId}:${m.id}`;
+        if (
+          typeof m.id !== "string" || (sport === "hockey" && key === "players"
+            ? m.id.length === 0 || m.id.length > 220 ||
+              /[\s\x00-\x1f]/.test(m.id)
+            : !/^\d{1,10}$/.test(m.id)) ||
+          typeof m.teamId !== "string" || !/^\d{1,10}$/.test(m.teamId) ||
+          m.rank !== i + 1 || seen.has(identity) ||
+          !Array.isArray(m.matchIds) ||
+          matchIds.length !== count || matchIds.length !== m.matchIds.length ||
+          new Set(matchIds).size !== count || matchIds.some((id) =>
+            !/^\d{1,12}$/.test(id)
+          ) ||
+          (key === "teams" && m.id !== m.teamId)
+        ) throw new Error("Références Radar invalides.");
+        seen.add(identity);
+        return { id: m.id, teamId: m.teamId, rank: i + 1, matchIds };
+      });
+    };
+    scopes[sport] = {
+      version: 1,
+      mode: v.mode as RadarScope["mode"],
+      category: v.category as RadarScope["category"],
+      capturedAt: v.capturedAt,
+      sourceIds: [...new Set(ids)],
+      includeWomen: v.includeWomen === true,
+      includeYouth: v.includeYouth === true,
+      competitionId: v.competitionId as string | null ?? null,
+      teams: members("teams", 5),
+      players: members("players", 3),
+    };
+  }
+  return scopes;
 }
 export function calendarDay(instant: string | Date, timezone: string): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -282,6 +381,7 @@ export function intentFrom(value: unknown): Intent {
         "goalMode",
         "preserveFixtures",
         "view",
+        "radarKind",
       ]
         .includes(k)
     ) ||
@@ -294,6 +394,8 @@ export function intentFrom(value: unknown): Intent {
       typeof v.preserveFixtures !== "boolean") ||
     (v.view !== undefined &&
       !["current", "profile", "radar", "all"].includes(String(v.view))) ||
+    (v.radarKind !== undefined &&
+      !["current", "teams", "players"].includes(String(v.radarKind))) ||
     (v.maxSelections !== undefined && v.maxSelections !== null &&
       (!Number.isInteger(v.maxSelections) || Number(v.maxSelections) < 1 ||
         Number(v.maxSelections) > 6)) ||

@@ -23,6 +23,7 @@ on:
           - lector-generator-update
           - lector-generator-diagnostic
           - lector-generator-workshop
+          - lector-generator-radar-update
 
 permissions:
   contents: read
@@ -85,6 +86,23 @@ jobs:
           path: /tmp/lector-generator-comparison.json
           if-no-files-found: ignore
           retention-days: 14
+
+  generator-radar-update:
+    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-radar-update'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: supabase/setup-cli@v1
+        with:
+          version: '2.120.0'
+      - name: Update only demo Radar scope without paid model calls
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tool/deploy_generator_scope_remote.py
 
   generator-diagnostic:
     if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-diagnostic'

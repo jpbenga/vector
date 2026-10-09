@@ -121,10 +121,20 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
       date: string,
       sports = Object.keys(context.preferences),
     ) =>
-      call(
-        "rpc/lector_generator_sources_filtered",
-        sourceQuery(context, date, sports),
-      ) as Promise<Source[]>;
+      context.view === "radar"
+        ? call("rpc/lector_generator_radar_sources", {
+          p_date: date,
+          p_timezone: context.timezone,
+          p_radar: Object.fromEntries(
+            Object.entries(context.radar ?? {}).filter(([sport]) =>
+              sports.includes(sport)
+            ),
+          ),
+        }) as Promise<Source[]>
+        : call(
+          "rpc/lector_generator_sources_filtered",
+          sourceQuery(context, date, sports),
+        ) as Promise<Source[]>;
     try {
       const auth = request.headers.get("authorization") ?? "";
       if (!auth.startsWith("Bearer ")) {
@@ -155,7 +165,7 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
         return reply({ error: "Demande trop longue." }, 413);
       }
       const input = obj(JSON.parse(text)), action = input.action;
-      if (action !== "transcribe" && text.length > 25000) {
+      if (action !== "transcribe" && text.length > 75000) {
         return reply({ error: "Demande trop longue." }, 413);
       }
       if (options.workshop && action === "decisions") {
@@ -588,7 +598,14 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
             previous?.tickets[intent.ticketIndex ?? 0]?.context ??
             previous?.context ?? context;
       const revisionContext = options.workshop
-        ? analysisContext(baseContext, intent)
+        ? analysisContext({
+          ...baseContext,
+          ...((intent.view === "current" || intent.view === undefined) &&
+              (!intent.radarKind || intent.radarKind === "current") &&
+              previous?.context.view === "radar"
+            ? { view: "radar" as const, radarKind: previous.context.radarKind }
+            : {}),
+        }, intent)
         : baseContext;
       if (
         ["replace", "remove"].includes(intent.action) &&

@@ -1,3 +1,4 @@
+import 'package:copilot/features/form_radar/domain/radar_scope.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -73,6 +74,7 @@ Widget screen(
   ScopedPersistence persistence, {
   Key? pageKey,
   ThemeData? theme,
+  Future<Map<String, RadarScope>> Function()? loadRadarContext,
 }) => MaterialApp(
   theme: theme ?? CopilotTheme.dark,
   home: Scaffold(
@@ -86,6 +88,7 @@ Widget screen(
         persistence: persistence,
         loadContext: () async =>
             GeneratorContext(origin: 'profile', preferences: {}),
+        loadRadarContext: loadRadarContext,
         onPreferences: () {},
         onOpenMatch: (_) {},
       ),
@@ -177,6 +180,62 @@ void main() {
       service.reply.complete({'state': conversation(1)});
       await tester.pumpAndSettle();
       expect(input.controller!.text, 'Une prochaine question');
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Radar request sends the exact UI membership lazily, with an explicit loading phase',
+    (tester) async {
+      final service = ConversationService();
+      final persistence = ScopedPersistence(store: MemoryLocalKeyValueStore());
+      var loads = 0;
+      final loading = Completer<Map<String, RadarScope>>();
+      await tester.pumpWidget(
+        screen(
+          service,
+          persistence,
+          loadRadarContext: () {
+            loads++;
+            return loading.future;
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(loads, 0);
+      await tester.enterText(
+        find.byType(TextField),
+        'Deux équipes du radar aujourd’hui',
+      );
+      await tester.pump();
+      await tester.tap(find.byTooltip('Envoyer la demande'));
+      await tester.pump();
+      expect(loads, 1);
+      expect(find.text('Consultation de votre Radar…'), findsOneWidget);
+      expect(service.requests.where((r) => r['action'] == 'chat'), isEmpty);
+      final displayed = RadarScope(
+        mode: 'teams',
+        category: 'club',
+        capturedAt: DateTime.utc(2026, 10, 9),
+        sourceIds: const ['11111111-1111-4111-8111-111111111111'],
+        teams: const [
+          RadarMember(
+            id: '2',
+            teamId: '2',
+            rank: 1,
+            matchIds: ['10', '11', '12', '13', '14'],
+          ),
+        ],
+        players: const [],
+      );
+      loading.complete({'football': displayed});
+      await tester.pump();
+      await tester.pump();
+      final body = service.requests.singleWhere((r) => r['action'] == 'chat');
+      final context = body['context'] as Map<String, Object?>;
+      expect((context['radar'] as Map)['football'], displayed.toJson());
+      service.reply.complete({'state': conversation(1)});
+      await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     },
   );

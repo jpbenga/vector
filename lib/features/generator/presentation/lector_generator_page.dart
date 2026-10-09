@@ -1,3 +1,4 @@
+import '../../form_radar/domain/radar_scope.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -30,6 +31,7 @@ class LectorGeneratorPage extends StatefulWidget {
     this.onUseProfile,
     this.onLegacyTickets,
     this.repository,
+    this.loadRadarContext,
     this.configurationKey = '',
     this.persistence = const ScopedPersistence(),
     this.voice,
@@ -49,6 +51,7 @@ class LectorGeneratorPage extends StatefulWidget {
   final VoidCallback? onUseProfile, onLegacyTickets;
   final void Function(Map<String, dynamic> pick) onOpenMatch;
   final GeneratorRepository? repository;
+  final Future<Map<String, RadarScope>> Function()? loadRadarContext;
   final ScopedPersistence persistence;
   final GeneratorVoice? voice;
   final bool embedded, durableSessions;
@@ -324,6 +327,17 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
     _scrollToEnd();
     _startProgress(requestId);
     try {
+      if (widget.loadRadarContext != null &&
+          (RegExp(r'\bradar\b', caseSensitive: false).hasMatch(message) ||
+              generatorMap(_conversation?.json['context'])['view'] ==
+                  'radar')) {
+        setState(() => _phase = 'Consultation de votre Radar…');
+        final scopes = await widget.loadRadarContext!();
+        if (!mounted || generation != _generation || _requestId != requestId) {
+          return;
+        }
+        _context = _context!.copyWith(radar: scopes);
+      }
       final result = await repository.request({
         ..._body('chat'),
         'message': message,

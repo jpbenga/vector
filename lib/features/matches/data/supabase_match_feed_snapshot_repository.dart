@@ -38,9 +38,19 @@ class SupabaseMatchFeedSnapshotRepository
     );
     if (merged != null) {
       _radarSelection = signature;
-      _radarPayload = merged;
+      _radarPayload = {
+        ...merged,
+        'radar_source_ids': [
+          for (final path
+              in (descriptor is Map
+                  ? descriptor['radarPaths'] as List? ?? const []
+                  : const []))
+            if (path is String && path.split('/').length == 4)
+              path.split('/')[2],
+        ],
+      };
     }
-    return merged;
+    return _radarPayload;
   }
 
   final _payloadRows = <String, Object?>{};
@@ -192,7 +202,10 @@ class SupabaseMatchFeedSnapshotRepository
     if (ids.any((id) => _payloadFromRow(rowsById[id]) == null)) {
       throw StateError('Incomplete snapshot payload response');
     }
-    final merged = mergeMatchFeedSnapshotRows(ids.map((id) => rowsById[id]));
+    final payload = mergeMatchFeedSnapshotRows(ids.map((id) => rowsById[id]));
+    final merged = payload == null
+        ? null
+        : {...payload, 'radar_source_ids': ids};
     _payloadRows.clear();
     // Retain only this selection, bounding memory independently of calendar use.
     _payloadRows.addEntries(ids.map((id) => MapEntry(id, rowsById[id])));

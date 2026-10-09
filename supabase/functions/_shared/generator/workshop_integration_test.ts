@@ -238,157 +238,209 @@ Deno.test("targeted substitution keeps other picks; removal does not fabricate r
   assert.deepEqual(removed[0].picks, t.picks.slice(1));
   assert.equal(t.picks.length, removed[0].picks.length + 1);
 });
-Deno.test("workshop chat connects scoped sources, actual tool work, progress and an owner-only analysis commit", async () => {
-  const oldFetch = globalThis.fetch, oldGet = Deno.env.get;
-  const owner = "00000000-0000-4000-8000-000000000002";
-  const id = "00000000-0000-4000-8000-000000000001";
-  const requestId = "00000000-0000-4000-8000-000000000003";
-  const future = new Date();
-  future.setUTCDate(future.getUTCDate() + 1);
-  const date = future.toISOString().slice(0, 10);
-  const publication = source();
-  publication.capturedAt = new Date().toISOString();
-  const raw = publication.payload.raw as {
-    fixtures: { fixture: { date: string } }[];
-    odds: { update: string }[];
-  };
-  raw.fixtures.forEach((f) => f.fixture.date = `${date}T18:00:00Z`);
-  raw.odds.forEach((o) => o.update = publication.capturedAt);
-  const parsed = {
-    ...intent,
-    action: "analyze",
-    date,
-    tickets: [],
-    maxSelections: 5,
-    view: "profile",
-  };
-  let paid = 0, committed: unknown = null;
-  const phases: string[] = [];
-  try {
-    Deno.env.get = (name: string) => ({
-      SUPABASE_URL: "https://example.test",
-      SUPABASE_ANON_KEY: "public",
-      SUPABASE_SERVICE_ROLE_KEY: "server",
-      OPENAI_API_KEY: "test",
-      LECTOR_WORKSHOP_MODEL: "gpt-6.1-sol",
-      LECTOR_WORKSHOP_ENABLED: "true",
-    }[name]);
-    globalThis.fetch = (async (url: unknown, init?: RequestInit) => {
-      const u = new URL(String(url)),
-        payload = init?.body ? JSON.parse(String(init.body)) : null;
-      if (u.pathname === "/auth/v1/user") return Response.json({ id: owner });
-      if (u.pathname === "/rest/v1/rpc/lector_generator_session") {
-        return Response.json({ expired: false });
-      }
-      if (u.pathname === "/rest/v1/lector_generator_conversations") {
-        assert.equal(u.searchParams.get("user_id"), `eq.${owner}`);
-        return Response.json([]);
-      }
-      if (u.pathname === "/rest/v1/rpc/lector_generator_workshop_reserve") {
-        return Response.json({ status: "reserved" });
-      }
-      if (u.pathname === "/rest/v1/lector_generator_turns") {
-        assert.equal(u.searchParams.get("user_id"), `eq.${owner}`);
-        if (init?.method === "PATCH") {
-          phases.push(payload.usage.phase);
-          return Response.json(null);
+for (const view of ["profile", "radar"] as const) {
+  Deno.test(`workshop ${view} chat connects scoped sources, actual tool work, progress and an owner-only analysis commit`, async () => {
+    const oldFetch = globalThis.fetch, oldGet = Deno.env.get;
+    const owner = "00000000-0000-4000-8000-000000000002";
+    const id = "00000000-0000-4000-8000-000000000001";
+    const requestId = "00000000-0000-4000-8000-000000000003";
+    const future = new Date();
+    future.setUTCDate(future.getUTCDate() + 1);
+    const date = future.toISOString().slice(0, 10);
+    const publication = source();
+    publication.id = "11111111-1111-4111-8111-111111111111";
+    const requestContext = {
+      ...context,
+      radar: view === "radar"
+        ? {
+          football: {
+            version: 1,
+            mode: "players",
+            category: "club",
+            sourceIds: [publication.id],
+            capturedAt: new Date().toISOString(),
+            includeWomen: false,
+            includeYouth: false,
+            competitionId: null,
+            teams: [{
+              id: "2",
+              teamId: "2",
+              rank: 1,
+              matchIds: ["10", "11", "12", "13", "14"],
+            }],
+            players: [],
+          },
         }
-        return Response.json([{ status: "pending" }]);
-      }
-      if (u.pathname === "/rest/v1/rpc/lector_generator_sources_filtered") {
-        assert.deepEqual(payload.p_competitions, ["61"]);
-        return Response.json([publication]);
-      }
-      if (u.pathname === "/rest/v1/rpc/match_reading_bilan_breakdown") {
-        return Response.json([]);
-      }
-      if (u.pathname === "/rest/v1/rpc/lector_generator_commit") {
-        assert.equal(payload.p_user, owner);
-        assert.equal(payload.p_request, requestId);
-        assert.equal(
-          payload.p_state.messages.at(-1).analysis.context.view,
-          "profile",
-        );
-        assert.equal(payload.p_state.tickets.length, 0);
-        assert.equal(payload.p_usage.ai.length, 3);
-        assert.ok(
-          payload.p_usage.steps.some((s: { phase: string }) =>
-            s.phase === "details"
-          ),
-        );
-        committed = payload.p_state;
-        return Response.json(payload.p_state);
-      }
-      if (u.hostname === "api.openai.com") {
-        paid++;
-        const response = (output: unknown[]) =>
-          Response.json({
-            id: `r-${paid}`,
-            status: "completed",
-            model: "gpt-6.1-sol",
-            usage: { input_tokens: 20, output_tokens: 30 },
-            output,
+        : undefined,
+    };
+    (publication.payload.raw as Record<string, unknown>).recent_league_matches =
+      [{
+        team: { id: 2, name: "Team" },
+        league: { id: 61 },
+        matches: [10, 11, 12, 13, 14].map((id, i) => ({
+          fixture: {
+            id,
+            date: new Date(Date.now() - (6 - i) * 86400000).toISOString(),
+          },
+          result: "W",
+        })),
+      }];
+    publication.capturedAt = new Date().toISOString();
+    const raw = publication.payload.raw as {
+      fixtures: { fixture: { date: string } }[];
+      odds: { update: string }[];
+    };
+    raw.fixtures.forEach((f) => f.fixture.date = `${date}T18:00:00Z`);
+    raw.odds.forEach((o) => o.update = publication.capturedAt);
+    const parsed = {
+      ...intent,
+      action: "analyze",
+      date,
+      tickets: [],
+      maxSelections: 5,
+      view,
+      radarKind: view === "radar" ? "teams" : "current",
+    };
+    let paid = 0, committed: unknown = null;
+    const phases: string[] = [];
+    try {
+      Deno.env.get = (name: string) => ({
+        SUPABASE_URL: "https://example.test",
+        SUPABASE_ANON_KEY: "public",
+        SUPABASE_SERVICE_ROLE_KEY: "server",
+        OPENAI_API_KEY: "test",
+        LECTOR_WORKSHOP_MODEL: "gpt-6.1-sol",
+        LECTOR_WORKSHOP_ENABLED: "true",
+      }[name]);
+      globalThis.fetch = (async (url: unknown, init?: RequestInit) => {
+        const u = new URL(String(url)),
+          payload = init?.body ? JSON.parse(String(init.body)) : null;
+        if (u.pathname === "/auth/v1/user") return Response.json({ id: owner });
+        if (u.pathname === "/rest/v1/rpc/lector_generator_session") {
+          return Response.json({ expired: false });
+        }
+        if (u.pathname === "/rest/v1/lector_generator_conversations") {
+          assert.equal(u.searchParams.get("user_id"), `eq.${owner}`);
+          return Response.json([]);
+        }
+        if (u.pathname === "/rest/v1/rpc/lector_generator_workshop_reserve") {
+          return Response.json({ status: "reserved" });
+        }
+        if (u.pathname === "/rest/v1/lector_generator_turns") {
+          assert.equal(u.searchParams.get("user_id"), `eq.${owner}`);
+          if (init?.method === "PATCH") {
+            phases.push(payload.usage.phase);
+            return Response.json(null);
+          }
+          return Response.json([{ status: "pending" }]);
+        }
+        if (u.pathname === "/rest/v1/rpc/lector_generator_sources_filtered") {
+          assert.equal(view, "profile");
+          assert.deepEqual(payload.p_competitions, ["61"]);
+          return Response.json([publication]);
+        }
+        if (u.pathname === "/rest/v1/rpc/lector_generator_radar_sources") {
+          assert.equal(view, "radar");
+          assert.deepEqual(payload.p_radar, requestContext.radar);
+          assert.equal(payload.p_date, date);
+          return Response.json([publication]);
+        }
+        if (u.pathname === "/rest/v1/rpc/match_reading_bilan_breakdown") {
+          return Response.json([]);
+        }
+        if (u.pathname === "/rest/v1/rpc/lector_generator_commit") {
+          assert.equal(payload.p_user, owner);
+          assert.equal(payload.p_request, requestId);
+          assert.equal(
+            payload.p_state.messages.at(-1).analysis.context.view,
+            view,
+          );
+          assert.equal(payload.p_state.tickets.length, 0);
+          assert.equal(payload.p_usage.ai.length, 3);
+          assert.ok(
+            payload.p_usage.steps.some((s: { phase: string }) =>
+              s.phase === "details"
+            ),
+          );
+          committed = payload.p_state;
+          return Response.json(payload.p_state);
+        }
+        if (u.hostname === "api.openai.com") {
+          paid++;
+          const response = (output: unknown[]) =>
+            Response.json({
+              id: `r-${paid}`,
+              status: "completed",
+              model: "gpt-6.1-sol",
+              usage: { input_tokens: 20, output_tokens: 30 },
+              output,
+            });
+          if (paid === 1) {
+            return response([{
+              type: "message",
+              content: [{ type: "output_text", text: JSON.stringify(parsed) }],
+            }]);
+          }
+          if (paid === 2) {
+            return response([{
+              type: "function_call",
+              name: "get_match_details",
+              call_id: "details",
+              arguments: '{"matchIds":["api-fixture-1"]}',
+            }]);
+          }
+          const content = JSON.stringify({
+            text: "Voici une rencontre à examiner.",
+            selections: [{
+              candidateId: `football:1:1:Home:1:${publication.id}`,
+              reason: "La série à domicile soutient la victoire.",
+              vigilance: "L’adversaire a un avantage au classement.",
+              references: [
+                `${publication.id}:strong_home_team:2`,
+                ...(view === "radar"
+                  ? ["radar:football:teams:2:2:10-11-12-13-14"]
+                  : []),
+              ],
+            }],
+            comparedMatchIds: ["api-fixture-1"],
+            limitations: [],
           });
-        if (paid === 1) {
           return response([{
             type: "message",
-            content: [{ type: "output_text", text: JSON.stringify(parsed) }],
+            content: [{ type: "output_text", text: content }],
           }]);
         }
-        if (paid === 2) {
-          return response([{
-            type: "function_call",
-            name: "get_match_details",
-            call_id: "details",
-            arguments: '{"matchIds":["api-fixture-1"]}',
-          }]);
-        }
-        const content = JSON.stringify({
-          text: "Voici une rencontre à examiner.",
-          selections: [{
-            candidateId: "football:1:1:Home:1:publication-test",
-            reason: "La série à domicile soutient la victoire.",
-            vigilance: "L’adversaire a un avantage au classement.",
-            references: ["publication-test:strong_home_team:2"],
-          }],
-          comparedMatchIds: ["api-fixture-1"],
-          limitations: [],
-        });
-        return response([{
-          type: "message",
-          content: [{ type: "output_text", text: content }],
-        }]);
-      }
-      throw new Error(`Unexpected call ${u.pathname}`);
-    }) as typeof fetch;
-    const response = await generatorHandler({ workshop: true })(
-      new Request("https://example.test", {
-        method: "POST",
-        headers: { authorization: "Bearer session-test" },
-        body: JSON.stringify({
-          action: "chat",
-          conversationId: id,
-          requestId,
-          revision: 0,
-          context,
-          date,
-          message: "Top 5 dans Pour moi",
+        throw new Error(`Unexpected call ${u.pathname}`);
+      }) as typeof fetch;
+      const response = await generatorHandler({ workshop: true })(
+        new Request("https://example.test", {
+          method: "POST",
+          headers: { authorization: "Bearer session-test" },
+          body: JSON.stringify({
+            action: "chat",
+            conversationId: id,
+            requestId,
+            revision: 0,
+            context: requestContext,
+            date,
+            message: "Top 5 dans Pour moi",
+          }),
         }),
-      }),
-    );
-    assert.equal(
-      response.status,
-      200,
-      JSON.stringify(await response.clone().json()),
-    );
-    assert.ok(committed);
-    assert.equal(paid, 3);
-    assert.ok(phases.includes("details"));
-  } finally {
-    globalThis.fetch = oldFetch;
-    Deno.env.get = oldGet;
-  }
-});
+      );
+      assert.equal(
+        response.status,
+        200,
+        JSON.stringify(await response.clone().json()),
+      );
+      assert.ok(committed);
+      assert.equal(paid, 3);
+      assert.ok(phases.includes("details"));
+    } finally {
+      globalThis.fetch = oldFetch;
+      Deno.env.get = oldGet;
+    }
+  });
+}
 Deno.test("retained choices use authenticated ownership and server identifiers; expired sessions cannot pay for a turn", async () => {
   const originalFetch = globalThis.fetch, originalGet = Deno.env.get;
   const owner = "11111111-1111-4111-8111-111111111111",

@@ -1,5 +1,10 @@
 import { playerSignals, teamSignals } from "./radar.ts";
 import {
+  matchRadarSignals,
+  scopedRadarEvidence,
+  sourceInRadar,
+} from "./radar_scope.ts";
+import {
   type AnalysisMatch,
   calendarDay,
   type Candidate,
@@ -159,14 +164,26 @@ export function buildCatalog(
   const matches: AnalysisMatch[] = [];
   const seen = new Set<string>(), sourceIds = new Set<string>();
   const signals = new Map<string, Evidence>();
+  const isRadar = context.view === "radar";
+  const scopedSignals = isRadar
+    ? scopedRadarEvidence(sources, context)
+    : new Map<string, Evidence[]>();
+  if (isRadar && !scopedSignals.size) {
+    missing.add(
+      "Le périmètre de votre Radar est vide ou ses publications ne sont plus disponibles. Ouvrez le Radar pour actualiser les données ; aucune autre équipe n’est ajoutée.",
+    );
+  }
   let matchCount = 0;
   for (
     const source of [...sources].sort((a, b) =>
       b.capturedAt.localeCompare(a.capturedAt)
     )
   ) {
+    if (isRadar && !sourceInRadar(source, context)) continue;
     const pref = context.preferences[source.sport];
-    if (!pref || (!pref.readings.length && !pref.scenarios?.length)) {
+    if (
+      !pref || (!isRadar && !pref.readings.length && !pref.scenarios?.length)
+    ) {
       missing.add(
         `Préférences ${
           source.sport === "hockey" ? "hockey" : "football"
@@ -202,6 +219,21 @@ export function buildCatalog(
             `hockey:api-hockey:competition:${fixture.competitionId}`,
           )
         ) continue;
+        const radar = isRadar
+          ? matchRadarSignals(
+            scopedSignals,
+            "hockey",
+            String(obj(fixture.home).id),
+            String(obj(fixture.away).id),
+          )
+          : [
+            ...playerSignals(source, [
+              String(obj(fixture.home).id),
+              String(obj(fixture.away).id),
+            ], String(fixture.startsAt)),
+            ...teamSignals(source, fixture),
+          ];
+        if (isRadar && !radar.length) continue;
         seen.add(identity);
         matchCount++;
         matches.push({
@@ -212,19 +244,18 @@ export function buildCatalog(
           away: String(obj(fixture.away).name),
           kickoff: String(fixture.startsAt),
           quoteAvailability: "not_collected",
-          evidence: evidence(rows(fixture.readings), source, pref.readings).map(
-            (e) => ({ ...e, supportsMarket: false, role: "context" as const }),
-          ),
+          evidence: [
+            ...evidence(rows(fixture.readings), source, pref.readings).map(
+              (e) => ({
+                ...e,
+                supportsMarket: false,
+                role: "context" as const,
+              }),
+            ),
+            ...radar,
+          ],
         });
-        for (
-          const signal of playerSignals(source, [
-            String(obj(fixture.home).id),
-            String(obj(fixture.away).id),
-          ], String(fixture.startsAt))
-        ) signals.set(signal.id, signal);
-        for (const signal of teamSignals(source, fixture)) {
-          signals.set(signal.id, signal);
-        }
+        for (const signal of radar) signals.set(signal.id, signal);
       }
       // Current hockey publication deliberately contains no market catalogue.
       // Supporting a provider route is not proof a quote was collected.
@@ -270,15 +301,22 @@ export function buildCatalog(
           pref.readings.includes(aliases[String(r.id)]) ||
           scenarioReadings.has(String(r.id))
         );
-      if (!selected.length && !scenarios.length) continue;
-      const radar = [
-        ...playerSignals(
-          source,
-          [String(home.id), String(away.id)],
-          kickoff,
-        ),
-        ...teamSignals(source, fixture, selected),
-      ];
+      if (!isRadar && !selected.length && !scenarios.length) continue;
+      const radar = isRadar
+        ? matchRadarSignals(
+          scopedSignals,
+          "football",
+          String(home.id),
+          String(away.id),
+        )
+        : [
+          ...playerSignals(
+            source,
+            [String(home.id), String(away.id)],
+            kickoff,
+          ),
+          ...teamSignals(source, fixture, selected),
+        ];
       // Outside followed competitions, only a factual Radar opportunity may
       // supplement Pour moi. A matching reading alone never scans all leagues.
       if (context.view === "radar" && !radar.length) continue;
@@ -357,6 +395,13 @@ export function buildCatalog(
                 : value.startsWith("Away") || value === "Draw/Away"
                 ? "away"
                 : "match";
+              // A Radar member may bring its opponent into view, but never
+              // authorizes a recommendation on that opponent.
+              if (
+                isRadar && side !== "match" && !scopedSignals.has(
+                  `football:${side === "home" ? home.id : away.id}`,
+                )
+              ) continue;
               const ev = evidence(support, source, [
                 ...pref.readings,
                 ...scenarioReadings,
