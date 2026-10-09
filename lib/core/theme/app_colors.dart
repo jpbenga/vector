@@ -1,5 +1,26 @@
 import 'package:flutter/material.dart';
 
+/// Permanent feature identities, independent from the selected app accent.
+class AppFeatureColors {
+  static const radarAccent = Color(0xFF62BD94);
+  static const radarFill = Color(0xFF18362D);
+  static const radarLightAccent = Color(0xFF256347);
+  static const radarLightFill = Color(0xFFDBEEE4);
+  static const generatorAccent = Color(0xFFB69ADD);
+  static const generatorFill = Color(0xFF32273F);
+  static const generatorLightAccent = Color(0xFF674485);
+  static const generatorLightFill = Color(0xFFECE2F4);
+  static const liveScoreFill = Color(0xFF321B21);
+  static const liveScoreLightFill = Color(0xFFFAE6E8);
+  static const radarConfirmedLiveFill = Color(0xFF174B38);
+  static const radarConfirmedFinalFill = Color(0xFF193D30);
+  static const radarConfirmedBorder = Color(0xFF359B70);
+  static const radarConfirmedText = Color(0xFFEEFBF4);
+  static const radarConfirmedSecondary = Color(0xFFB4D9C7);
+  static const radarConfirmedCount = Color(0xFFCBEBDB);
+  const AppFeatureColors._();
+}
+
 class AppColors {
   static const background = Color(0xFF0B1015);
   static const backgroundSecondary = Color(0xFF11181F);

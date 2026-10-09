@@ -58,9 +58,11 @@ class _LectorFormRadarSignalPanelState
             decoration: widget.decisiveCount > 0
                 ? BoxDecoration(
                     color: widget.isLive
-                        ? const Color(0xff174b38)
-                        : const Color(0xff193d30),
-                    border: Border.all(color: const Color(0xff359b70)),
+                        ? context.features.radarConfirmedLiveFill
+                        : context.features.radarConfirmedFinalFill,
+                    border: Border.all(
+                      color: context.features.radarConfirmedBorder,
+                    ),
                     borderRadius: BorderRadius.circular(9),
                   )
                 : null,
@@ -80,7 +82,7 @@ class _LectorFormRadarSignalPanelState
                         'Signaux Form Radar',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: widget.decisiveCount > 0
-                              ? const Color(0xffeefbf4)
+                              ? context.features.radarConfirmedText
                               : context.textColors.primary,
                           fontWeight: FontWeight.w900,
                         ),
@@ -95,7 +97,7 @@ class _LectorFormRadarSignalPanelState
                             : '$count signaux de forme',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: widget.decisiveCount > 0
-                              ? const Color(0xffb4d9c7)
+                              ? context.features.radarConfirmedSecondary
                               : context.textColors.secondary,
                           fontWeight: FontWeight.w800,
                         ),
@@ -118,7 +120,7 @@ class _LectorFormRadarSignalPanelState
                   Text(
                     '${widget.decisiveCount} joueur${widget.decisiveCount == 1 ? '' : 's'} signalé${widget.decisiveCount == 1 ? '' : 's'} décisif${widget.decisiveCount == 1 ? '' : 's'}',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: const Color(0xffcbebdb),
+                      color: context.features.radarConfirmedCount,
                       fontWeight: FontWeight.w700,
                     ),
                   ),

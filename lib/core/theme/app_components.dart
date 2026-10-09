@@ -1296,7 +1296,39 @@ String _canonicalOpportunityId(String id) {
   return id;
 }
 
+/// Feature identities stay green/violet across themes; light surfaces retain
+/// contrast. They do not represent the current destination or sports outcomes.
+@immutable
+class AppFeaturePalette {
+  const AppFeaturePalette(this.brightness);
+  final Brightness brightness;
+  bool get _light => brightness == Brightness.light;
+  Color get radarAccent =>
+      _light ? AppFeatureColors.radarLightAccent : AppFeatureColors.radarAccent;
+  Color get radarFill =>
+      _light ? AppFeatureColors.radarLightFill : AppFeatureColors.radarFill;
+  Color get generatorAccent => _light
+      ? AppFeatureColors.generatorLightAccent
+      : AppFeatureColors.generatorAccent;
+  Color get generatorFill => _light
+      ? AppFeatureColors.generatorLightFill
+      : AppFeatureColors.generatorFill;
+  Color get selectedFeatureText =>
+      _light ? AppLightColors.textPrimary : AppColors.textPrimary;
+  Color get liveScoreFill => _light
+      ? AppFeatureColors.liveScoreLightFill
+      : AppFeatureColors.liveScoreFill;
+  Color get radarConfirmedLiveFill => AppFeatureColors.radarConfirmedLiveFill;
+  Color get radarConfirmedFinalFill => AppFeatureColors.radarConfirmedFinalFill;
+  Color get radarConfirmedBorder => AppFeatureColors.radarConfirmedBorder;
+  Color get radarConfirmedText => AppFeatureColors.radarConfirmedText;
+  Color get radarConfirmedSecondary => AppFeatureColors.radarConfirmedSecondary;
+  Color get radarConfirmedCount => AppFeatureColors.radarConfirmedCount;
+}
+
 extension AppThemeComponents on BuildContext {
+  AppFeaturePalette get features =>
+      AppFeaturePalette(Theme.of(this).brightness);
   AppBrandPalette get brand {
     return Theme.of(this).extension<AppBrandPalette>() ??
         AppBrandPalette.vectorDark;

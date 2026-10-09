@@ -121,9 +121,7 @@ class LectorScore extends StatelessWidget {
     padding: const EdgeInsets.symmetric(horizontal: 5),
     decoration: isLive
         ? BoxDecoration(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? const Color(0xff321b21)
-                : const Color(0xfffae6e8),
+            color: context.features.liveScoreFill,
             border: Border.all(
               color: context.semantic.live.withValues(alpha: .40),
             ),

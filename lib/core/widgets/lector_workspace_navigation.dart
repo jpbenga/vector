@@ -72,16 +72,13 @@ class _WorkspaceTab extends StatelessWidget {
         section == LectorWorkspaceSection.radar ||
         section == LectorWorkspaceSection.generator;
     final radar = section == LectorWorkspaceSection.radar;
-    final identity = radar ? const Color(0xff62bd94) : const Color(0xffb69add);
     final dark = Theme.of(context).brightness == Brightness.dark;
     final featureFill = radar
-        ? (dark ? const Color(0xff18362d) : const Color(0xffdbeee4))
-        : (dark ? const Color(0xff32273f) : const Color(0xffece2f4));
-    final featureText = dark
-        ? identity
-        : radar
-        ? const Color(0xff256347)
-        : const Color(0xff674485);
+        ? context.features.radarFill
+        : context.features.generatorFill;
+    final featureText = radar
+        ? context.features.radarAccent
+        : context.features.generatorAccent;
     final active = feature ? featureText : context.brand.accent;
     final label = switch (section) {
       LectorWorkspaceSection.forMe => 'Pour moi',
@@ -104,7 +101,9 @@ class _WorkspaceTab extends StatelessWidget {
         maxLines: 1,
         style: Theme.of(context).textTheme.labelLarge?.copyWith(
           color: selected
-              ? (feature && dark ? Colors.white : active)
+              ? (feature && dark
+                    ? context.features.selectedFeatureText
+                    : active)
               : context.textColors.secondary,
           fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
           fontSize: compact ? 11.5 : 13,

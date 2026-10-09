@@ -72,7 +72,14 @@ void main() {
       repository.emit!(state(1, '2H'));
       repository.emit!(state(3, 'FT'));
       await tester.pump();
-      expect(find.text('● Live 1'), findsOneWidget);
+      expect(find.text('Live 1'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('temporal-filter-live')),
+          matching: find.byIcon(Icons.circle),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('À venir 1'), findsOneWidget);
       expect(find.text('Terminés 1'), findsOneWidget);
       expect(
