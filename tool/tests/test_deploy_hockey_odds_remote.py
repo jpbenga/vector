@@ -18,6 +18,25 @@ class HockeyOddsDeployTests(unittest.TestCase):
         with self.assertRaises(ValueError): deploy.validate_environment({**env,'GITHUB_REF':'refs/heads/main'})
         with self.assertRaises(ValueError): deploy.require_ci([], 'abc')
 
+class GeneratorReadAccessTests(unittest.TestCase):
+    def test_verification_uses_the_existing_backend_read_role(self):
+        source=[{'sport':'hockey','payload':{'items':[{'quotes':[{'decimalOdds':2.1}]}]}}]
+        opener=unittest.mock.Mock()
+        opener.open.return_value=io.BytesIO(json.dumps(source).encode())
+        with patch.object(deploy,'request',return_value=[{'name':'service_role','api_key':'server-test'}]) as management,patch('deploy_hockey_odds_remote.urllib.request.build_opener',return_value=opener):
+            result=deploy.generator_price_coverage('management-test','2026-10-10')
+        self.assertEqual(result,{'day':'2026-10-10','matches':1,'prices':1})
+        self.assertEqual(management.call_args.args[0],f'https://api.supabase.com/v1/projects/{deploy.PROJECT}/api-keys')
+        req=opener.open.call_args.args[0]
+        self.assertEqual(req.full_url,f'https://{deploy.PROJECT}.supabase.co/rest/v1/rpc/lector_generator_shared_sources')
+        self.assertEqual(req.get_header('Apikey'),'server-test')
+        self.assertEqual(json.loads(req.data)['p_sports'],['hockey'])
+        self.assertNotIn('server-test',json.dumps(result))
+
+    def test_does_not_fallback_to_another_credential(self):
+        with patch.object(deploy,'request',return_value=[{'name':'anon','api_key':'public-test'}]),self.assertRaises(ValueError):
+            deploy.generator_price_coverage('management-test','2026-10-10')
+
 class QuoteProjectionTests(unittest.TestCase):
     def setUp(self):
         self.base={'sport':'hockey','capturedAt':'2026-10-09T12:00:00Z','collectionId':'source','items':[{'id':'100','competitionId':'35','season':'2026','startsAt':'2026-10-10T18:00:00Z','home':{'id':'2'},'away':{'id':'3'},'readings':[{'id':'form','value':1}]}]}

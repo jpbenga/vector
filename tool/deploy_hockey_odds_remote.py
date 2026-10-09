@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import urllib.request
 from deploy_generator_remote import PROJECT, request, require_ci
 from deploy_generator_scope_remote import validate_environment
 
@@ -11,6 +12,25 @@ MIGRATIONS = (
     Path('supabase/migrations/20261009213000_hockey_quotes_compact_reader.sql'),
 )
 FUNCTIONS = ('sync-hockey-odds', 'lector-generator-workshop')
+
+
+def generator_price_coverage(access_token, day):
+    # The Management read-only SQL role cannot execute service-only RPCs. Verify
+    # the same endpoint and role as the Edge backend, without broadening grants.
+    keys = request(f'https://api.supabase.com/v1/projects/{PROJECT}/api-keys', access_token)
+    key = next((k.get('api_key') for k in keys if k.get('name') == 'service_role'), None)
+    if not key:
+        raise ValueError('Existing server API credential unavailable.')
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *args, **kwargs):
+            return None
+    req = urllib.request.Request(f'https://{PROJECT}.supabase.co/rest/v1/rpc/lector_generator_shared_sources',
+        data=json.dumps({'p_date':day,'p_timezone':'Europe/Paris','p_sports':['hockey']}).encode(),
+        headers={'apikey':key,'Authorization':'Bearer '+key,'Content-Type':'application/json'},method='POST')
+    with urllib.request.build_opener(NoRedirect).open(req,timeout=30) as response:
+        sources = json.load(response)
+    fixtures = [f for source in sources if source.get('sport') == 'hockey' for f in source.get('payload',{}).get('items',[])]
+    return {'day':day,'matches':sum(bool(f.get('quotes')) for f in fixtures),'prices':sum(len(f.get('quotes',[])) for f in fixtures)}
 
 
 def main():
@@ -57,12 +77,15 @@ def main():
     schedule = query("select jobname,schedule,active from cron.job where jobname='lector-hockey-odds'", True)
     if schedule != [{'jobname':'lector-hockey-odds','schedule':'17 */6 * * *','active':True}]:
         raise ValueError('Hockey price schedule is not active.')
-    generator = query("""select count(*) filter(where jsonb_array_length(f->'quotes')>0) as matches,
-        coalesce(sum(jsonb_array_length(f->'quotes')),0) as prices
-        from generate_series(current_date,current_date+7,interval '1 day') d
-        cross join lateral jsonb_array_elements(lector_generator_shared_sources(d::date,'Europe/Paris',array['hockey'])) s
-        cross join lateral jsonb_array_elements(s#>'{payload,items}') f""", True)
-    if sum(row['prices'] or 0 for row in coverage) and not generator[0]['prices']:
+    days = query("""with head as (
+        select overview from sport_feed_snapshots where sport='hockey' order by captured_at desc limit 1
+        ) select ((f->>'startsAt')::timestamptz at time zone 'Europe/Paris')::date::text as day
+        from head cross join lateral jsonb_array_elements(overview->'items') f
+        join hockey_market_quotes q on q.fixture_id=f->>'id'
+        where jsonb_array_length(q.quotes)>0 and (f->>'startsAt')::timestamptz>now()
+        group by day order by day limit 1""", True)
+    generator = generator_price_coverage(token, days[0]['day']) if days else {'matches':0,'prices':0}
+    if days and not generator['prices']:
         raise ValueError('Collected prices are missing from the Generator projection.')
     print(json.dumps({'schedule':schedule,'generator_quote_coverage':generator,'functions':FUNCTIONS,'acl':acl,'collection':collection,'coverage':coverage,'paid_model_calls':0,'revision':env['GITHUB_SHA']}))
     if not collection.get('ok'):
