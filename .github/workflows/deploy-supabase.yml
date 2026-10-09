@@ -28,6 +28,11 @@ on:
           - lector-generator-hockey-odds
           - lector-generator-conversation-update
           - lector-visual-live-update
+      diagnostic_since:
+        description: Début du diagnostic en ISO 8601 avec fuseau (facultatif)
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -119,6 +124,7 @@ jobs:
       - name: Inspect the reported generator incident without paid calls
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          GENERATOR_DIAGNOSTIC_SINCE: ${{ inputs.diagnostic_since }}
         run: python3 tool/diagnose_generator_remote.py
 
   sport-publications:
