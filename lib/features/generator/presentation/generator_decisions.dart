@@ -387,7 +387,9 @@ class _DecisionCard extends StatelessWidget {
               Text(
                 tracked
                     ? '${generatorVerdict(result['status'])} · $verified/${picks.length} vérifiées'
-                    : 'Jugée pertinente · sans suivi',
+                    : row['relevant'] == true
+                    ? 'Jugée pertinente · sans suivi'
+                    : 'Conservée · sans suivi',
               ),
               if (row['played_at'] != null)
                 const Text('Pari déclaré placé par vous'),

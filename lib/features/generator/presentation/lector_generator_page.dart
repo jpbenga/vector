@@ -1082,7 +1082,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
                           title: const Text('Données et conservation'),
                           content: const SingleChildScrollView(
                             child: Text(
-                              'Votre conversation temporaire expire 24 h après la dernière activité, avec une durée maximale de 7 jours. Les délais sont configurables côté serveur.\n\nLes tickets enregistrés et sélections conservées restent dans Mes suivis jusqu’à leur suppression par vous. Leurs cotes et arguments d’origine sont conservés.\n\nLes propositions générées et les reçus techniques sont conservés séparément pendant 30 jours pour l’audit, sans les messages du chat. La pertinence est un avis ; le suivi n’est pas un pari placé. Aucun apprentissage prédictif automatique n’est activé.\n\nVous pouvez supprimer une session depuis ce menu et chaque élément conservé depuis son détail.',
+                              'Par défaut, votre conversation temporaire expire 24 h après la dernière activité, avec une durée maximale de 7 jours. Les délais sont configurables côté serveur.\n\nLes tickets enregistrés et sélections conservées restent dans Mes suivis jusqu’à leur suppression par vous. Leurs cotes et arguments d’origine sont conservés.\n\nLes propositions générées et les reçus techniques sont conservés séparément pendant 30 jours pour l’audit, sans les messages du chat. La pertinence est un avis ; le suivi n’est pas un pari placé. Aucun apprentissage prédictif automatique n’est activé.\n\nVous pouvez supprimer une session depuis ce menu et chaque élément conservé depuis son détail.',
                             ),
                           ),
                           actions: [
