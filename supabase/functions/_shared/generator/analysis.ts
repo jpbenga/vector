@@ -209,6 +209,9 @@ export async function analyzeDay(
           category: s!.category,
           capturedAt: s!.capturedAt,
           sourceIds: s!.sourceIds,
+          includeWomen: s!.includeWomen,
+          includeYouth: s!.includeYouth,
+          competitionId: s!.competitionId,
           members: (input.context.radarKind ?? s!.mode) === "teams"
             ? s!.teams.length
             : s!.players.length,
