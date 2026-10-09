@@ -162,6 +162,7 @@ export function buildCatalog(
   context: Context,
   date: string,
   now: Date,
+  options: { includePastAndLive?: boolean } = {},
 ): Catalog {
   const candidates: Candidate[] = [], missing = new Set<string>();
   const matches: AnalysisMatch[] = [];
@@ -200,7 +201,9 @@ export function buildCatalog(
       );
     }
     const age = now.getTime() - Date.parse(source.capturedAt);
-    if (!Number.isFinite(age) || age < -60000 || age > 36 * 3600000) {
+    const freshSource = Number.isFinite(age) && age >= -60000 &&
+      age <= 36 * 3600000;
+    if (!freshSource && !options.includePastAndLive) {
       missing.add(
         "Une publication est trop ancienne pour la préparation avant match.",
       );
@@ -209,8 +212,10 @@ export function buildCatalog(
     sourceIds.add(source.id);
     if (source.sport === "hockey") {
       const fixtures = rows(source.payload.items).filter((f) =>
-        f.status === "scheduled" && typeof f.startsAt === "string" &&
-        Date.parse(f.startsAt) > now.getTime() &&
+        (options.includePastAndLive || f.status === "scheduled" &&
+            Date.parse(String(f.startsAt)) > now.getTime()) &&
+        typeof f.startsAt === "string" &&
+        Number.isFinite(Date.parse(f.startsAt)) &&
         calendarDay(String(f.startsAt), context.timezone) === date
       );
       for (const fixture of fixtures) {
@@ -243,20 +248,23 @@ export function buildCatalog(
           ...evidence(rows(fixture.readings), source, pref.readings),
           ...radar,
         ];
-        const priced = hockeyCandidates(
-          fixture,
-          source,
-          pref.markets,
-          matchEvidence,
-          now,
-        ).filter((c) =>
-          !isRadar ||
-          radar.some((e) =>
-            e.subject === (c.selectionCode?.startsWith("home")
-              ? String(obj(fixture.home).id)
-              : String(obj(fixture.away).id))
+        const priced = (freshSource && fixture.status === "scheduled" &&
+            Date.parse(String(fixture.startsAt)) > now.getTime()
+          ? hockeyCandidates(
+            fixture,
+            source,
+            pref.markets,
+            matchEvidence,
+            now,
           )
-        );
+          : []).filter((c) =>
+            !isRadar ||
+            radar.some((e) =>
+              e.subject === (c.selectionCode?.startsWith("home")
+                ? String(obj(fixture.home).id)
+                : String(obj(fixture.away).id))
+            )
+          );
         candidates.push(...priced);
         matches.push({
           id: String(fixture.id),
@@ -302,9 +310,10 @@ export function buildCatalog(
         competitionId = String(league.id),
         kickoff = String(f.date);
       if (
-        seen.has(id) || obj(f.status).short !== "NS" ||
+        seen.has(id) ||
+        (!options.includePastAndLive && obj(f.status).short !== "NS") ||
         !Number.isFinite(Date.parse(kickoff)) ||
-        Date.parse(kickoff) <= now.getTime() ||
+        (!options.includePastAndLive && Date.parse(kickoff) <= now.getTime()) ||
         calendarDay(kickoff, context.timezone) !== date
       ) continue;
       seen.add(id);
@@ -382,6 +391,11 @@ export function buildCatalog(
         ],
       });
       for (const signal of radar) signals.set(signal.id, signal);
+      // Historical/live data remain readable, but never become prematch candidates.
+      if (
+        !freshSource || obj(f.status).short !== "NS" ||
+        Date.parse(kickoff) <= now.getTime()
+      ) continue;
       for (const price of prices) {
         const oddsAt = String(price.update ?? ""),
           oddsAge = now.getTime() - Date.parse(oddsAt);

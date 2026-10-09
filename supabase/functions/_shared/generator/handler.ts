@@ -14,6 +14,7 @@ import {
 } from "./contracts.ts";
 import { type Source } from "./catalog.ts";
 import { interpret } from "./openai.ts";
+import { converse } from "./conversation.ts";
 import {
   analysisContext,
   type AnalysisProgress,
@@ -140,7 +141,12 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
           options.workshop
             ? "rpc/lector_generator_shared_sources"
             : "rpc/lector_generator_sources_filtered",
-          sourceQuery(context, date, sports),
+          {
+            ...sourceQuery(context, date, sports),
+            ...(options.workshop && context.view === "all"
+              ? { p_readings: null, p_scenarios: [] }
+              : {}),
+          },
         ) as Promise<Source[]>;
     try {
       const auth = request.headers.get("authorization") ?? "";
@@ -529,6 +535,117 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
         });
         reservation = null;
         return reply(result);
+      }
+      if (options.workshop) {
+        if (
+          input.referenceTicketId !== undefined &&
+          !uuid(input.referenceTicketId)
+        ) {
+          throw new Error("Référence de ticket invalide.");
+        }
+        stage = "conversation";
+        const conversation = await converse({
+          message: String(input.message).trim(),
+          date,
+          context,
+          state: previous,
+          today: calendarDay(now, context.timezone),
+          now,
+          id,
+          ...(input.referenceTicketId
+            ? { referenceTicketId: String(input.referenceTicketId) }
+            : {}),
+        }, {
+          key,
+          model,
+          onReceipt: (r) => receipts.push(r),
+          onProgress: (event) => progress(event.phase, event),
+          reads: {
+            sources: (scope, day, sports) => sourcesFor(scope, day, sports),
+            matchData: async (sport, day, matchId, capturedAt) => {
+              const found = await Promise.allSettled([
+                call("rpc/read_sport_feed", {
+                  p_sport: sport,
+                  p_day: day,
+                  p_section: "match",
+                  p_match: matchId,
+                  p_captured_at: capturedAt,
+                }),
+                call(
+                  sport === "hockey"
+                    ? `sport_live_states?sport=eq.hockey&provider=eq.api-hockey&fixture_id=eq.${matchId}&select=fixture_id,captured_at,payload&limit=1`
+                    : `match_live_states?fixture_id=eq.${matchId}&select=fixture_id,status,elapsed,extra,home_goals,away_goals,captured_at,statistics,statistics_captured_at,events,events_captured_at&limit=1`,
+                ),
+              ]);
+              return {
+                publication: found[0].status === "fulfilled"
+                  ? found[0].value
+                  : null,
+                live: found[1].status === "fulfilled"
+                  ? found[1].value[0] ?? null
+                  : null,
+              };
+            },
+            bilan: async () => {
+              // These are stable read RPCs. Verification/saving endpoints are never capabilities of the model.
+              const found = await Promise.allSettled([
+                call(
+                  "rpc/match_reading_bilan_breakdown",
+                  {
+                    p_since: new Date(now.getTime() - 90 * 86400000)
+                      .toISOString(),
+                    p_until: now.toISOString(),
+                  },
+                  "POST",
+                  3000,
+                ),
+                call("rpc/lector_generator_decision_list", {
+                  p_user: user.id,
+                  p_offset: 0,
+                }),
+              ]);
+              return {
+                readings: found[0].status === "fulfilled"
+                  ? found[0].value
+                  : null,
+                personal: found[1].status === "fulfilled"
+                  ? found[1].value
+                  : null,
+                limitations: found.some((r) => r.status === "rejected")
+                  ? ["Une partie du Bilan est indisponible."]
+                  : [],
+                semantics:
+                  "Résultats descriptifs, aucune probabilité de pari ni vérification déclenchée.",
+              };
+            },
+            archivedTicket: async (ticketId) => {
+              const archived = await call(
+                `lector_generator_ticket_drafts?id=eq.${ticketId}&conversation_id=eq.${id}&user_id=eq.${user.id}&select=ticket`,
+              );
+              return archived[0]?.ticket ?? null;
+            },
+          },
+        });
+        await progress("commit");
+        const state = await call("rpc/lector_generator_commit", {
+          p_user: user.id,
+          p_conversation: id,
+          p_revision: revision,
+          p_state: conversation.next,
+          p_request: reservation,
+          p_usage: {
+            protocol: "lector-conversation-v2",
+            model,
+            ai: receipts,
+            timings_ms: timings,
+            elapsed_ms: Math.round(performance.now() - started),
+            search: conversation.search,
+            consultations: conversation.consultations,
+            ...progressState,
+          },
+        });
+        reservation = null;
+        return reply({ state });
       }
       await progress("interpret");
       stage = "interpret";

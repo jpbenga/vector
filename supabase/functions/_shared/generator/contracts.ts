@@ -65,6 +65,8 @@ export interface Intent {
   diversify: boolean;
   requireEachSport: boolean;
   maxSelections?: number | null;
+  /** Independent decimal odds goal; never converted into an invented stake. */
+  targetOdds?: number | null;
   referenceTicketId?: string | null;
   referenceAnalysisAt?: string | null;
   /** Derived only from a saved, validated analysis by resolveIntent. */
@@ -189,7 +191,12 @@ export interface Ticket {
   target: Target;
   constraints?: Pick<
     Intent,
-    "maxSelections" | "marketIds" | "requireEachSport" | "sports" | "goalMode"
+    | "maxSelections"
+    | "targetOdds"
+    | "marketIds"
+    | "requireEachSport"
+    | "sports"
+    | "goalMode"
   >;
   context: Context;
   warnings: string[];
@@ -240,6 +247,38 @@ export interface State {
   compositions?: string[];
   saved: boolean;
   updatedAt: string;
+  conversation?: {
+    version: 1;
+    workingIntent: Intent;
+    focus: { sport: Sport; matchId: string; match: string }[];
+    turns: {
+      at: string;
+      request: string;
+      response: string;
+      constraints: Intent;
+      focus: { sport: Sport; matchId: string; match: string }[];
+      ticketIds: string[];
+      selections?: {
+        key: string;
+        candidateId: string;
+        marketId: string;
+        selection: string;
+        odds: number;
+        oddsAt: string;
+        reason: string;
+        vigilance: string;
+        references: string[];
+      }[];
+    }[];
+    consultations: {
+      key: string;
+      date: string;
+      view: string;
+      sports: Sport[];
+      sources: string[];
+    }[];
+    olderTurns: number;
+  };
   catalog?: Pick<
     Catalog,
     "matchCount" | "radarCount" | "missing" | "sources" | "signals"
@@ -388,6 +427,7 @@ export function intentFrom(value: unknown): Intent {
       [
         ...keys,
         "maxSelections",
+        "targetOdds",
         "referenceTicketId",
         "referenceAnalysisAt",
         "preserveConstraints",
@@ -412,6 +452,9 @@ export function intentFrom(value: unknown): Intent {
     (v.maxSelections !== undefined && v.maxSelections !== null &&
       (!Number.isInteger(v.maxSelections) || Number(v.maxSelections) < 1 ||
         Number(v.maxSelections) > 6)) ||
+    (v.targetOdds != null && (typeof v.targetOdds !== "number" ||
+      !Number.isFinite(v.targetOdds) || v.targetOdds <= 1 ||
+      v.targetOdds > 10000)) ||
     (v.referenceAnalysisAt != null &&
       (typeof v.referenceAnalysisAt !== "string" ||
         !Number.isFinite(Date.parse(v.referenceAnalysisAt)))) ||

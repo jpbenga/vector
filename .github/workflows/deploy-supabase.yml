@@ -26,6 +26,7 @@ on:
           - lector-generator-radar-update
           - lector-generator-sport-publications
           - lector-generator-hockey-odds
+          - lector-generator-conversation-update
 
 permissions:
   contents: read
@@ -152,3 +153,35 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           GH_TOKEN: ${{ github.token }}
         run: python3 tool/deploy_hockey_odds_remote.py
+
+  generator-conversation-update:
+    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-conversation-update'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: supabase/setup-cli@v1
+        with:
+          version: '2.120.0'
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Check conversation continuity with both requested models on synthetic publications
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: deno run --allow-env=OPENAI_API_KEY,GITHUB_ACTIONS --allow-net=api.openai.com --allow-write=/tmp/lector-generator-conversation.json tool/evaluate_generator_conversation.ts
+      - name: Preserve conversation evaluation receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lector-generator-conversation-evaluation
+          path: /tmp/lector-generator-conversation.json
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Update only the demo conversation with read capabilities
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tool/deploy_generator_conversation_remote.py

@@ -154,23 +154,28 @@ export function applyIntent(
     now: Date;
     id: string;
     workshop?: boolean;
+    /** Only the server conversation planner can resolve references and focus. */
+    conversationResolved?: boolean;
     onWorkshop?: (report: unknown) => void;
   },
 ): State {
   const previous = input.state;
-  input.intent = resolveIntent(input.intent, previous);
+  if (!input.conversationResolved) {
+    input.intent = resolveIntent(input.intent, previous);
+  }
   // Revisions always use the original frozen configuration. A changed current
   // profile applies only when asking for a fresh generation.
-  const context =
-    ["generate", "explore", "analyze"].includes(input.intent.action)
-      ? input.context
-      : (input.intent.referenceTicketId
-        ? [...(previous?.tickets ?? []), ...(previous?.drafts ?? [])].find((
-          t,
-        ) => t.id === input.intent.referenceTicketId)?.context
-        : undefined) ??
-        previous?.tickets[input.intent.ticketIndex ?? 0]?.context ??
-        previous?.context ?? input.context;
+  const context = input.conversationResolved
+    ? input.context
+    : ["generate", "explore", "analyze"].includes(input.intent.action)
+    ? input.context
+    : (input.intent.referenceTicketId
+      ? [...(previous?.tickets ?? []), ...(previous?.drafts ?? [])].find((
+        t,
+      ) => t.id === input.intent.referenceTicketId)?.context
+      : undefined) ??
+      previous?.tickets[input.intent.ticketIndex ?? 0]?.context ??
+      previous?.context ?? input.context;
   const error = validateIntent(input.intent, context, input.now);
   let reply = error ?? "", tickets = previous?.tickets ?? [], pending = null;
   const versions = [...(previous?.versions ?? [])];
@@ -235,7 +240,13 @@ export function applyIntent(
         reply =
           "Un marché demandé ne fait pas partie de vos marchés autorisés. Modifiez vos préférences explicitement avant de l’utiliser.";
       } else if (["generate", "alternative"].includes(input.intent.action)) {
-        const history = { tickets: drafts, compositions: [...compositions] };
+        const reuse = input.conversationResolved &&
+          input.intent.action === "generate";
+        const history = {
+          tickets: drafts,
+          compositions: reuse ? [] : [...compositions],
+          allowSameComposition: reuse,
+        };
         const workshop = input.workshop
           ? composeWorkshop(
             available.candidates,
@@ -255,16 +266,17 @@ export function applyIntent(
           : available.candidates;
         const composed = workshop?.tickets ??
           compose(focusedPool, input.intent, context, history);
-        const proposed = input.intent.fixtureFocus
-          ? composed.filter((t) =>
-            t.picks.length === input.intent.fixtureFocus!.length &&
-            input.intent.fixtureFocus!.every((m) =>
-              t.picks.some((p) =>
-                p.sport === m.sport && p.matchId === m.matchId
+        const proposed =
+          input.intent.fixtureFocus && input.intent.preserveFixtures
+            ? composed.filter((t) =>
+              t.picks.length === input.intent.fixtureFocus!.length &&
+              input.intent.fixtureFocus!.every((m) =>
+                t.picks.some((p) =>
+                  p.sport === m.sport && p.matchId === m.matchId
+                )
               )
             )
-          )
-          : composed;
+            : composed;
         proposals = workshop?.proposals ?? [];
         proposalIds = proposals.length > 1 ? proposals.map((t) => t.id) : [];
         if (proposed.length) {

@@ -54,7 +54,7 @@ export function analysisCandidates(
   return [...choices.values()];
 }
 const arrayOfStrings = { type: "array", items: { type: "string" } };
-const schema = {
+export const analysisSchema = {
   type: "object",
   additionalProperties: false,
   required: [
@@ -336,7 +336,7 @@ export async function analyzeDay(
           type: "json_schema",
           name: "lector_day_analysis",
           strict: true,
-          schema,
+          schema: analysisSchema,
         },
       },
     });
@@ -481,9 +481,13 @@ export function validateAnalysis(value: Record<string, unknown>, allowed: {
   const checked = selections.map((s) => {
     const c = allowed.byCandidate.get(String(s.candidateId)),
       references = strings(s.references);
+    const qualified = c
+      ? `${c.sport}:${c.matchId.replace(/^api-fixture-/, "")}`
+      : "";
+    const key = c && allowed.byMatch.has(qualified) ? qualified : c?.matchId;
     if (
-      !c || seen.has(c.matchId) || !allowed.detailsRead.has(c.matchId) ||
-      !compared.includes(c.matchId) || typeof s.reason !== "string" ||
+      !c || !key || seen.has(key) || !allowed.detailsRead.has(key) ||
+      !compared.includes(key) || typeof s.reason !== "string" ||
       !s.reason.trim() || s.reason.length > 1500 ||
       typeof s.vigilance !== "string" || s.vigilance.length > 1000 ||
       !references.length || references.some((r) =>
@@ -502,7 +506,7 @@ export function validateAnalysis(value: Record<string, unknown>, allowed: {
         "Une sélection IA ne dispose pas de références vérifiées.",
       );
     }
-    seen.add(c.matchId);
+    seen.add(key);
     return {
       candidate: c,
       reason: s.reason,
@@ -511,14 +515,15 @@ export function validateAnalysis(value: Record<string, unknown>, allowed: {
     };
   });
   const observations = rows(value.observations).map((o) => {
-    const m = allowed.byMatch.get(String(o.matchId)) as
+    const key = String(o.matchId);
+    const m = allowed.byMatch.get(key) as
         | AnalysisMatch
         | undefined,
       refs = strings(o.references);
     if (
-      !m || !Array.isArray(m.evidence) || seen.has(m.id) ||
-      !allowed.detailsRead.has(m.id) ||
-      !compared.includes(m.id) || typeof o.reason !== "string" ||
+      !m || !Array.isArray(m.evidence) || seen.has(key) ||
+      !allowed.detailsRead.has(key) ||
+      !compared.includes(key) || typeof o.reason !== "string" ||
       !o.reason.trim() || o.reason.length > 1500 || !refs.length ||
       refs.some((id) => !m.evidence.some((e) => e.id === id)) ||
       (allowed.context.view === "radar" &&
@@ -530,7 +535,7 @@ export function validateAnalysis(value: Record<string, unknown>, allowed: {
         "Une observation IA ne dispose pas de références vérifiées.",
       );
     }
-    seen.add(m.id);
+    seen.add(key);
     return {
       matchId: m.id,
       sport: m.sport,

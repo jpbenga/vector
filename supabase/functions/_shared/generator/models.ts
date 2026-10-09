@@ -23,7 +23,7 @@ export const modelRegistry: Record<
   },
 };
 export interface ModelReceipt {
-  stage: "interpret" | "review" | "analyze";
+  stage: "interpret" | "review" | "analyze" | "conversation";
   requestedModel: string;
   returnedModel: string | null;
   responseId: string | null;

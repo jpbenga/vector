@@ -49,6 +49,7 @@ function ticketFrom(
     context: structuredClone(context),
     constraints: {
       maxSelections: intent.maxSelections ?? 6,
+      targetOdds: intent.targetOdds,
       marketIds: intent.marketIds,
       requireEachSport: intent.requireEachSport,
       sports: intent.sports,
@@ -71,7 +72,11 @@ export function composeWorkshop(
   candidates: Candidate[],
   intent: Intent,
   context: Context,
-  history: { tickets?: Ticket[]; compositions?: string[] } = {},
+  history: {
+    tickets?: Ticket[];
+    compositions?: string[];
+    allowSameComposition?: boolean;
+  } = {},
   now = new Date(),
 ) {
   const reference = intent.referenceTicketId
@@ -92,6 +97,7 @@ export function composeWorkshop(
         `${m.sport}:${m.matchId}`
       ),
       excludedCompositions: [...excluded],
+      allowSameComposition: history.allowSameComposition,
       maxAlternatives: intent.tickets.length === 1 ? 3 : 1,
       maxExpansions: 40000,
       maxComputeMs: 650 / intent.tickets.length,
@@ -149,6 +155,7 @@ export function reviseWorkshop(
         sports: original.constraints?.sports ?? intent.sports,
         maxSelections: original.picks.length,
         goalMode: original.constraints?.goalMode ?? "minimum",
+        targetOdds: original.constraints?.targetOdds,
       },
       original.context,
       {

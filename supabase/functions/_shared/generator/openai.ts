@@ -45,6 +45,7 @@ export const intentSchema = {
     "diversify",
     "requireEachSport",
     "maxSelections",
+    "targetOdds",
     "referenceTicketId",
     "referenceAnalysisAt",
     "preserveConstraints",
@@ -89,6 +90,11 @@ export const intentSchema = {
     },
     preserveConstraints: { type: "boolean" },
     maxSelections: { type: ["integer", "null"], minimum: 1, maximum: 6 },
+    targetOdds: {
+      type: ["number", "null"],
+      description:
+        "Cote cumulée explicitement visée, indépendante de la mise et du retour. Null sans demande de cote.",
+    },
     ticketIndex: { type: ["integer", "null"] },
     selectionIndex: { type: ["integer", "null"] },
     marketIds: { type: "array", items: { type: "string" } },

@@ -156,6 +156,8 @@ export interface WorkshopOptions {
   targetIndex?: number;
   reference?: Candidate[];
   excludedCompositions?: string[];
+  /** A changed stake/constraint may legitimately reuse a composition as a new version. */
+  allowSameComposition?: boolean;
   maxFixtures?: number;
   maxBookmakers?: number;
   beamWidth?: number;
@@ -178,6 +180,14 @@ type Node = {
   metrics: CompositionMetrics;
 };
 export function targetBounds(intent: Intent, target: Target) {
+  if (intent.targetOdds != null && target.stake != null) {
+    const goal = intent.targetOdds * target.stake -
+      (target.kind === "net" ? target.stake : 0);
+    return {
+      minimum: Math.round(goal * .9 * 100) / 100,
+      maximum: Math.round(goal * 1.1 * 100) / 100,
+    };
+  }
   if (
     intent.goalMode === "around" && target.minimum !== null &&
     target.maximum === null
@@ -315,6 +325,15 @@ export function exploreCompositions(
 ) {
   const started = performance.now();
   const target = intent.tickets[options.targetIndex ?? 0];
+  const metricsTarget =
+    target && intent.targetOdds != null && target.stake != null
+      ? {
+        ...target,
+        kind: "total" as const,
+        minimum: intent.targetOdds * target.stake,
+        maximum: null,
+      }
+      : target;
   const bounds = target
     ? targetBounds(intent, target)
     : { minimum: null, maximum: null };
@@ -324,7 +343,9 @@ export function exploreCompositions(
   const beamWidth = Math.max(6, options.beamWidth ?? 48);
   const maxExpansions = Math.max(1, options.maxExpansions ?? 500000);
   const excluded = new Set(options.excludedCompositions ?? []);
-  if (options.reference) excluded.add(compositionKey(options.reference));
+  if (options.reference && !options.allowSameComposition) {
+    excluded.add(compositionKey(options.reference));
+  }
   const exclusions: { candidateId: string; reasons: string[] }[] = [];
   const requiredFixtures = options.preserveFixtures
     ? new Set(
@@ -497,7 +518,7 @@ export function exploreCompositions(
       product: fixedProduct,
       last: -1,
       key: JSON.stringify(fixed.map(selectionKey).sort()),
-      metrics: metrics(fixed, fixedAssessments, fixedProduct, target),
+      metrics: metrics(fixed, fixedAssessments, fixedProduct, metricsTarget),
     }];
     const bookLimit = Math.min(
       maxExpansions,
@@ -540,7 +561,7 @@ export function exploreCompositions(
             product,
             last: i,
             key: JSON.stringify(picks.map(selectionKey).sort()),
-            metrics: metrics(picks, assessments, product, target),
+            metrics: metrics(picks, assessments, product, metricsTarget),
           };
           expanded.push(next);
           if (
@@ -592,7 +613,8 @@ export function exploreCompositions(
   const add = (nodes: Node[], approach: CompositionProposal["approach"]) => {
     const chosen = nodes.find((node) =>
       selected.every((old) => different(old.picks, node.picks)) &&
-      (!options.reference || different(options.reference, node.picks))
+      (!options.reference || options.allowSameComposition ||
+        different(options.reference, node.picks))
     );
     if (!chosen || alternatives.length >= (options.maxAlternatives ?? 3)) {
       return;

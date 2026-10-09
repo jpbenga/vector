@@ -379,33 +379,61 @@ for (const view of ["profile", "radar"] as const) {
             });
           if (paid === 1) {
             return response([{
-              type: "message",
-              content: [{ type: "output_text", text: JSON.stringify(parsed) }],
+              type: "function_call",
+              name: "search_matches",
+              call_id: "search",
+              arguments: JSON.stringify({
+                date,
+                sports: ["football"],
+                view,
+                radarKind: "teams",
+                query: null,
+                offset: 0,
+                limit: 60,
+              }),
             }]);
           }
           if (paid === 2) {
             return response([{
               type: "function_call",
-              name: "get_match_details",
+              name: "read_matches",
               call_id: "details",
-              arguments: '{"matchIds":["api-fixture-1"]}',
+              arguments: '{"queryId":"q1","matchKeys":["football:1"]}',
             }]);
           }
           const content = JSON.stringify({
-            text: "Voici une rencontre à examiner.",
-            selections: [{
-              candidateId: `football:1:1:Home:1:${publication.id}`,
-              reason: "La série à domicile soutient la victoire.",
-              vigilance: "L’adversaire a un avantage au classement.",
-              references: [
-                `${publication.id}:strong_home_team:2`,
-                ...(view === "radar"
-                  ? ["radar:football:teams:2:2:10-11-12-13-14"]
-                  : []),
+            plan: {
+              intent: parsed,
+              changedFields: [
+                "date",
+                "sports",
+                "maxSelections",
+                "view",
+                "radarKind",
               ],
-            }],
-            comparedMatchIds: ["api-fixture-1"],
-            limitations: [],
+              newTask: true,
+              focusMode: "clear",
+              focusKeys: [],
+            },
+            queryId: "q1",
+            projectionId: null,
+            text: "Voici une rencontre à examiner.",
+            analysis: {
+              text: "Voici une rencontre à examiner.",
+              selections: [{
+                candidateId: `football:1:1:Home:1:${publication.id}`,
+                reason: "La série à domicile soutient la victoire.",
+                vigilance: "L’adversaire a un avantage au classement.",
+                references: [
+                  `${publication.id}:strong_home_team:2`,
+                  ...(view === "radar"
+                    ? ["radar:football:teams:2:2:10-11-12-13-14"]
+                    : []),
+                ],
+              }],
+              comparedMatchIds: ["football:1"],
+              limitations: [],
+            },
           });
           return response([{
             type: "message",
