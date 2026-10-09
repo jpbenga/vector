@@ -841,7 +841,11 @@ Deno.test("failed tools are returned as read errors; invented tickets, details o
             );
           return result([
             output({
-              plan: { ...p, changedFields: ["maxSelections"] },
+              plan: {
+                ...p,
+                intent: { ...p.intent, maxSelections: 2 },
+                changedFields: ["maxSelections"],
+              },
               text: "Ticket",
               analysis: null,
               queryId: null,
