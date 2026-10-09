@@ -62,10 +62,22 @@ export function publicationHandler(ports: {
       }
       const publication = await ports.publish(payload);
       return Response.json({ ok: true, publication });
-    } catch {
+    } catch (error) {
+      const storage = error instanceof Error
+        ? error.message.match(
+          /^Storage (\d{3})\/([A-Z0-9]{5,10}|unknown): (Invalid shared publication|Duplicate match identity|Invalid match boundary|Publication version is immutable|Publication storage rejected)$/,
+        )
+        : null;
       // Never echo received bodies, credentials or provider diagnostic data.
       return Response.json({
         error: "Publication rejected; retained versions are unchanged",
+        ...(storage
+          ? {
+            storageStatus: Number(storage[1]),
+            storageCode: storage[2],
+            reason: storage[3],
+          }
+          : {}),
       }, { status: 500 });
     }
   };

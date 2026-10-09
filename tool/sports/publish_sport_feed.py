@@ -54,7 +54,15 @@ def main():
                 receipt = json.load(response)
         except urllib.error.HTTPError as error:
             # Server errors never expose credentials or submitted provider data.
-            raise RuntimeError(f'Publication rejected (HTTP {error.code})') from None
+            try:
+                detail = json.load(error)
+                status = detail.get('storageStatus')
+                code = detail.get('storageCode')
+                reason = detail.get('reason')
+                diagnostic = f"; storage {status}/{code}: {reason}" if status and code and reason else ''
+            except (ValueError, AttributeError):
+                diagnostic = ''
+            raise RuntimeError(f'Publication rejected (HTTP {error.code}){diagnostic}') from None
         if not receipt.get('ok'):
             raise ValueError('Server publication was not confirmed')
         verify_publication(payload, values)

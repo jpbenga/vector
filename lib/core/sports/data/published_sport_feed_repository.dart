@@ -135,7 +135,9 @@ class PublishedSportFeedRepository
 
   @override
   void prefetch(DateTime date) {
-    if (delivery == null) return;
+    if (delivery == null && source is! ProgressiveSportPublicationSource) {
+      return;
+    }
     final days = navigationFeedDays(date, _navigation.clock());
     _navigation.preload([
       for (final day in days)
