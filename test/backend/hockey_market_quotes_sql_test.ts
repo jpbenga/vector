@@ -18,6 +18,11 @@ Deno.test("hockey prices join both public and Generator views without renewing f
         "supabase/migrations/20261009210000_hockey_market_quotes.sql",
       )).split("-- Hosted scheduler")[0],
     );
+    await db.exec(
+      await Deno.readTextFile(
+        "supabase/migrations/20261009213000_hockey_quotes_compact_reader.sql",
+      ),
+    );
     const time = new Date(Date.now() - 60000).toISOString(),
       day = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
     const f = {
@@ -105,6 +110,12 @@ Deno.test("hockey prices join both public and Generator views without renewing f
       (await db.query<{ payload: any }>(
         "select payload from sport_feed_snapshots",
       )).rows[0].payload,
+      payload,
+    );
+    assert.deepEqual(
+      (await db.query<{ v: any }>(
+        "select read_sport_feed('hockey',null,'full') v",
+      )).rows[0].v,
       payload,
     );
     await db.exec("set role anon");

@@ -32,15 +32,34 @@ def without_prices(payload):
 
 
 def verify_publication(payload, values):
-    req = urllib.request.Request(PROJECT_URL + '/rest/v1/rpc/read_sport_feed',
-        data=json.dumps({'p_sport': payload['sport'], 'p_section': 'full',
-                         'p_captured_at': payload['capturedAt']}).encode(),
-        headers={'apikey': values['SUPABASE_ANON_KEY'], 'Content-Type': 'application/json'}, method='POST')
-    with urllib.request.urlopen(req, timeout=60) as response:
-        stored = json.load(response)
+    def read(section):
+        req = urllib.request.Request(PROJECT_URL + '/rest/v1/rpc/read_sport_feed',
+            data=json.dumps({'p_sport': payload['sport'], 'p_section': section,
+                             'p_captured_at': payload['capturedAt']}).encode(),
+            headers={'apikey': values['SUPABASE_ANON_KEY'], 'Content-Type': 'application/json'}, method='POST')
+        with urllib.request.urlopen(req, timeout=60) as response:
+            return json.load(response)
+    stored = read('full')
     if without_prices(stored) != without_prices(payload):
         raise ValueError('Shared server publication differs from the displayed compact')
-    return stored
+    if payload['sport'] != 'hockey':
+        return stored
+    # Quote observations do not require rebuilding the large analytical export
+    # in PostgreSQL. Read them from its lightweight, exact-version projection.
+    quoted = read('radar')
+    if quoted is None or any(quoted.get(k) != stored.get(k) for k in ('sport', 'capturedAt', 'collectionId')):
+        raise ValueError('Quote projection differs from the verified publication')
+    prices = {f['id']: f for f in quoted['items']}
+    if len(prices) != len(quoted['items']) or set(prices) != {f['id'] for f in stored['items']}:
+        raise ValueError('Quote projection has different fixture identities')
+    hydrated = []
+    for f in stored['items']:
+        q = prices[f['id']]
+        if any(q.get(k) != f.get(k) for k in ('competitionId', 'season', 'startsAt')) or any(q.get(side, {}).get('id') != f.get(side, {}).get('id') for side in ('home', 'away')):
+            raise ValueError('Quote identity differs from the verified fixture')
+        base = {k: v for k, v in f.items() if k not in ('quotes', 'quotesCollectedAt')}
+        hydrated.append({**base, **{k: q[k] for k in ('quotes', 'quotesCollectedAt') if k in q}})
+    return {**stored, 'items': hydrated}
 
 
 def main():
