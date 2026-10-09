@@ -910,6 +910,71 @@ Deno.test("incomplete model output and cancellation leave the old session intact
   );
   assert.equal(calls, 0);
 });
+Deno.test("a completed answer with invalid evidence may correct its contract once, without displaying or persisting the rejected answer", async () => {
+  const p = plan({ ...intent, action: "generate" }, [], { focusMode: "clear" });
+  let step = 0;
+  let projectionId = "";
+  const receipts: ModelReceipt[] = [];
+  const before = baseState(), unchanged = JSON.stringify(before);
+  const answer = await converse(input(before), {
+    key: "test",
+    model: "gpt-6-luna",
+    reads: readPort(),
+    onReceipt: (r) => receipts.push(r),
+    fetcher: (async (_url, init) => {
+      const body = JSON.parse(String(init?.body));
+      if (++step === 1) {
+        return result([toolCall("read_composition_options", { plan: p })]);
+      }
+      if (step === 2) {
+        projectionId = JSON.parse(
+          body.input.findLast((m: any) => m.type === "function_call_output")
+            .output,
+        ).projectionId;
+        return result([
+          output({
+            ...analysisResponse(p),
+            text: "Réponse rejetée avec référence inventée",
+            projectionId,
+            analysis: {
+              text: "Réponse rejetée",
+              selections: [{
+                candidateId,
+                reason: "Argument",
+                vigilance: "Limite",
+                references: ["invented-reference"],
+              }],
+              observations: [],
+              comparedMatchIds: ["football:1"],
+              limitations: [],
+            },
+          }),
+        ]);
+      }
+      const feedback = JSON.parse(body.input.at(-1).content);
+      assert.equal(feedback.type, "lector_validation_feedback");
+      assert.match(feedback.error, /références vérifiées/);
+      assert.equal(feedback.projections[0].id, projectionId);
+      return result([
+        output({
+          plan: p,
+          text: "Voici la composition calculée et ses preuves vérifiées.",
+          projectionId,
+          queryId: null,
+          analysis: null,
+        }),
+      ]);
+    }) as typeof fetch,
+  });
+  assert.equal(step, 3);
+  assert.equal(receipts.length, 3);
+  assert.equal(answer.next.messages.length, 2);
+  assert.ok(answer.next.tickets.length);
+  assert.equal(answer.next.conversation!.turns.length, 1);
+  assert.ok(!JSON.stringify(answer.next).includes("invented-reference"));
+  assert.ok(!JSON.stringify(answer.next).includes("Réponse rejetée"));
+  assert.equal(JSON.stringify(before), unchanged);
+});
 Deno.test("conversation ledger bounds long sessions while preserving exact active constraints and references", () => {
   let state = baseState();
   const focus = [{

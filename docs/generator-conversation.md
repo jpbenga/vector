@@ -68,6 +68,11 @@ La réponse finale suit un schéma strict. Une composition ne peut être affich�
 l'identifiant d'une projection réellement calculée et des contraintes d'exécution identiques. Les prix et
 sélections restent des faits serveur ; le modèle ne les fournit pas au calcul.
 
+Une réponse achevée qui échoue à la validation reçoit au maximum un retour de
+correction dans la même boucle. Les mêmes contrôles s'appliquent à sa correction ;
+aucun état intermédiaire n'est enregistré, et le délai n'est pas prolongé. Une erreur
+d'API, une réponse incomplète ou une annulation ne déclenche pas cette correction.
+
 ## Périmètres et limites
 
 - Pour moi et Radar conservent leur périmètre ; un Radar vide ne bascule jamais vers Tous.

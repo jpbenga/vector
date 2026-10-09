@@ -85,7 +85,7 @@ Une forte forme ne justifie pas tous les marchés. Répétition de signaux issus
 Quand l’utilisateur veut composer ou modifier, lis read_composition_options avec le plan. Ce calcul ne fait aucune écriture ; il vérifie cotes, fraîcheur, lectures, contraintes et comparaison. Présente uniquement les tickets retournés, avec projectionId exact et un plan identique à celui de la projection retenue. Tu peux examiner plusieurs projections et expliquer les compromis, puis en retenir une. Si le calcul ne trouve rien, explique son résultat au lieu d’ajouter des matchs fragiles ou d’inventer une composition. Ne dis jamais qu’un ticket est sauvegardé ou qu’un pari est placé. L’application présentera les objets calculés, en conservant leurs anciennes versions.
 Focus : keep reprend les rencontres discutées ; choose utilise des focusKeys consultées et permet de retenir un sous-ensemble ; clear repart sans ces rencontres. Un maximum plus petit n’exige pas que l’utilisateur désigne chaque retrait : compare les données et choisis une liste cohérente, explique les changements. preserveFixtures est résolu par le serveur. referenceTicketId pointe le ticket réellement concerné, pas systématiquement le dernier. alternative construit une variante indépendante ; replace/remove ciblent un ticket/une sélection existants et produisent une proposition à examiner, jamais une application automatique. Les contraintes d’un objet ancien sont récupérées par read_session et référence exacte. restore ne sauvegarde rien.
 Les objectifs sont distincts : stake=mise réellement donnée ; minimum/maximum=retour total ou bénéfice net ; kind=unspecified si ambigu. Une analyse n’a besoin ni de mise ni d’objectif. targetOdds est la cote cumulée explicitement visée, indépendante de la mise : ne transforme jamais 3,50 en 3,50 € et n’invente pas une mise. Une mise connue reste acquise si seul le sport, la date, le nombre ou la cote change. Un objectif de cote remplaçant un objectif de retour doit vider les bornes de retour en conservant la mise. Une clarification préserve les contraintes de la tâche en cours.
-text est ta réponse visible, précise et lisible. Explique les choix réels et les différences ; les cartes affichent les chiffres vérifiés. Si projectionId est fourni, sa réponse calculée est la référence factuelle. Ne révèle pas de raisonnement privé ; seuls les résumés API et les étapes de consultation réelles peuvent être affichés.`;
+text est ta réponse visible, précise et lisible. Explique les choix réels et les différences ; les cartes affichent les chiffres vérifiés. Si projectionId est fourni, sa réponse calculée est la référence factuelle ; analysis et queryId sont null car les preuves et limites figurent déjà dans les objets calculés. Ne duplique pas une analyse structurée dans la présentation d’une composition. Ne révèle pas de raisonnement privé ; seuls les résumés API et les étapes de consultation réelles peuvent être affichés.`;
 
 /** Stateless Responses loop with manual history and replayable tool/reasoning items. */
 export async function converse(
@@ -184,7 +184,7 @@ export async function converse(
   ];
   const deadline = performance.now() + 110000;
   const rounds = Math.min(10, Math.max(2, options.maxRounds ?? 10));
-  let summary = "";
+  let summary = "", validationRepairs = 0;
   for (let round = 0; round < rounds; round++) {
     const remaining = Math.floor(deadline - performance.now());
     if (remaining < 1000) {
@@ -308,175 +308,202 @@ export async function converse(
       }
       continue;
     }
-    const text = output.flatMap((o) => rows(o.content)).filter((c) =>
-      c.type === "output_text"
-    ).map((c) => String(c.text)).join("");
-    const value = obj(JSON.parse(text));
-    if (
-      Object.keys(value).sort().join() !==
-        ["plan", "text", "analysis", "queryId", "projectionId"].sort().join() ||
-      (value.queryId !== null && typeof value.queryId !== "string") ||
-      (value.projectionId !== null && typeof value.projectionId !== "string")
-    ) {
-      throw new Error("Contrat de réponse de conversation invalide.");
-    }
-    const plan = validatePlan(value.plan);
-    if (
-      input.referenceTicketId &&
-      plan.intent.referenceTicketId !== input.referenceTicketId
-    ) {
-      throw new Error(
-        "La réponse doit conserver le ticket explicitement désigné.",
-      );
-    }
-    if (
-      typeof value.text !== "string" || !value.text.trim() ||
-      value.text.length > 7000
-    ) throw new Error("Réponse de conversation invalide.");
-    let intent: Intent, context: Context, next: State, search: unknown = null;
-    if (value.projectionId !== null) {
-      const preview = reader.previews.get(String(value.projectionId));
-      const resolved = preview ? await reader.resolve(plan) : null;
+    try {
+      const text = output.flatMap((o) => rows(o.content)).filter((c) =>
+        c.type === "output_text"
+      ).map((c) => String(c.text)).join("");
+      const value = obj(JSON.parse(text));
       if (
-        !preview || JSON.stringify(canonical(execution(preview.intent))) !==
-          JSON.stringify(canonical(execution(resolved!.intent)))
+        Object.keys(value).sort().join() !==
+          ["plan", "text", "analysis", "queryId", "projectionId"].sort()
+            .join() ||
+        (value.queryId !== null && typeof value.queryId !== "string") ||
+        (value.projectionId !== null && typeof value.projectionId !== "string")
       ) {
-        options.onContractError?.({
-          projectionId: value.projectionId,
-          expected: preview ? execution(preview.intent) : null,
-          received: resolved ? execution(resolved.intent) : null,
+        throw new Error("Contrat de réponse de conversation invalide.");
+      }
+      const plan = validatePlan(value.plan);
+      if (
+        input.referenceTicketId &&
+        plan.intent.referenceTicketId !== input.referenceTicketId
+      ) {
+        throw new Error(
+          "La réponse doit conserver le ticket explicitement désigné.",
+        );
+      }
+      if (
+        typeof value.text !== "string" || !value.text.trim() ||
+        value.text.length > 7000
+      ) throw new Error("Réponse de conversation invalide.");
+      let intent: Intent, context: Context, next: State, search: unknown = null;
+      if (value.projectionId !== null) {
+        const preview = reader.previews.get(String(value.projectionId));
+        const resolved = preview ? await reader.resolve(plan) : null;
+        if (
+          !preview || JSON.stringify(canonical(execution(preview.intent))) !==
+            JSON.stringify(canonical(execution(resolved!.intent)))
+        ) {
+          options.onContractError?.({
+            projectionId: value.projectionId,
+            expected: preview ? execution(preview.intent) : null,
+            received: resolved ? execution(resolved.intent) : null,
+          });
+          throw new Error(
+            "Cette composition ne correspond pas aux contraintes examinées.",
+          );
+        }
+        ({ intent, context } = preview);
+        next = structuredClone(preview.next);
+        search = preview.report;
+      } else {
+        if (
+          ["generate", "alternative", "replace", "remove", "restore"].includes(
+            plan.intent.action,
+          )
+        ) {
+          throw new Error(
+            "Le ticket doit être calculé et consulté avant sa présentation.",
+          );
+        }
+        intent = resolvePlan(
+          plan,
+          reader.sessionState(),
+          input.context,
+          input.date,
+        );
+        context = analysisContext(input.context, intent);
+        next = applyIntent({
+          state: reader.sessionState(),
+          context,
+          intent,
+          sources: [],
+          message: input.message,
+          now: input.now,
+          id: input.id,
+          workshop: true,
+          conversationResolved: true,
         });
-        throw new Error(
-          "Cette composition ne correspond pas aux contraintes examinées.",
-        );
       }
-      ({ intent, context, next } = preview);
-      search = preview.report;
-    } else {
-      if (
-        ["generate", "alternative", "replace", "remove", "restore"].includes(
-          plan.intent.action,
-        )
-      ) {
-        throw new Error(
-          "Le ticket doit être calculé et consulté avant sa présentation.",
+      let analysis: Analysis | undefined;
+      if (value.analysis !== null) {
+        const q = reader.queries.get(String(value.queryId));
+        if (
+          !q || q.date !== intent.date || q.context.view !== context.view ||
+          (context.view === "radar" &&
+            q.context.radarKind !== context.radarKind) ||
+          [...q.sports].sort().join() !== [...intent.sports].sort().join()
+        ) throw new Error("L’analyse ne correspond pas au périmètre demandé.");
+        const matches = q.catalog.matches ?? [],
+          candidates = analysisCandidates(q.catalog, intent, input.now);
+        analysis = validateAnalysis(
+          { ...obj(value.analysis), text: value.text },
+          {
+            context: {
+              date: q.date,
+              view: q.context.view ?? "profile",
+              sports: q.sports,
+              matchCount: matches.length,
+              candidateCount: candidates.length,
+              radarKind: q.context.radarKind,
+            },
+            byMatch: new Map(matches.map((m) => [matchKey(m.sport, m.id), m])),
+            byCandidate: new Map(candidates.map((c) => [c.id, c])),
+            detailsRead: new Set(
+              [...reader.detailsRead].filter((k) => k.startsWith(`${q.id}:`))
+                .map(
+                  (k) => k.slice(q.id.length + 1),
+                ),
+            ),
+            limit: intent.maxSelections ?? 6,
+            missing: q.catalog.missing,
+            summary,
+          },
         );
+        next.messages.at(-1)!.analysis = analysis;
+        next.catalog = {
+          matchCount: q.catalog.matchCount,
+          radarCount: q.catalog.radarCount,
+          missing: q.catalog.missing,
+          sources: q.catalog.sources,
+          signals: q.catalog.signals,
+        };
       }
-      intent = resolvePlan(
-        plan,
-        reader.sessionState(),
-        input.context,
-        input.date,
-      );
-      context = analysisContext(input.context, intent);
-      next = applyIntent({
-        state: reader.sessionState(),
-        context,
-        intent,
-        sources: [],
-        message: input.message,
-        now: input.now,
-        id: input.id,
-        workshop: true,
-        conversationResolved: true,
+      const attachments = next.messages.at(-1)!;
+      attachments.text = value.text;
+      // Preserve factual review notes, without a second isolated LLM narrative call.
+      const tickets = [
+        ...new Map(
+          [
+            ...(next.proposals ?? []),
+            ...(next.drafts ?? []),
+            ...(next.pending ?? []),
+          ]
+            .filter((t) =>
+              attachments.ticketIds?.includes(t.id) ||
+              attachments.proposalIds?.includes(t.id)
+            ).map((t) => [t.id, t]),
+        ).values(),
+      ];
+      if (tickets.length) {
+        const brief = buildReviewBrief(tickets, input.now);
+        attachReview(tickets, fallbackReview(brief), brief);
+      }
+      const focus = analysis
+        ? [
+          ...analysis.selections.map((s) => ({
+            sport: s.candidate.sport,
+            matchId: s.candidate.matchId,
+            match: `${s.candidate.home} — ${s.candidate.away}`,
+          })),
+          ...(analysis.observations ?? []).map((o) => ({
+            sport: o.sport,
+            matchId: o.matchId,
+            match: o.match,
+          })),
+        ]
+        : tickets.length
+        ? tickets[0].picks.map((p) => ({
+          sport: p.sport,
+          matchId: p.matchId,
+          match: `${p.home} — ${p.away}`,
+        }))
+        : intent.fixtureFocus ??
+          (plan.focusMode === "clear" || plan.newTask ||
+              plan.changedFields.some((f) =>
+                ["date", "sports", "view", "radarKind"].includes(f)
+              )
+            ? []
+            : knownFocus(input.state));
+      rememberTurn(next, input.state, intent, focus, reader.consultations());
+      return {
+        next,
+        search,
+        consultations: reader.consultations(),
+        summaries: summary ? [summary] : [],
+      };
+    } catch (error) {
+      // One bounded correction of a completed response. No state is committed
+      // until the corrected contract passes exactly the same validators.
+      if (validationRepairs >= 1 || round >= rounds - 1) throw error;
+      validationRepairs++;
+      await options.onProgress?.({
+        phase: "analyze",
+        detail: "Ajustement de la réponse aux données vérifiées",
+      });
+      messages.push({
+        role: "user",
+        content: JSON.stringify({
+          type: "lector_validation_feedback",
+          error: error instanceof Error ? error.message : "Réponse non validée",
+          projections: [...reader.previews].map(([id, p]) => ({
+            id,
+            constraints: execution(p.intent),
+          })),
+          note:
+            "Corrige uniquement le contrat final en utilisant les faits et identifiants déjà consultés. Consulte les détails manquants si nécessaire. Pour présenter une projection calculée, analysis et queryId sont null : ses preuves sont déjà attachées aux tickets. Aucune écriture n’a été effectuée ; ne change pas la demande de l’utilisateur.",
+        }),
       });
     }
-    let analysis: Analysis | undefined;
-    if (value.analysis !== null) {
-      const q = reader.queries.get(String(value.queryId));
-      if (
-        !q || q.date !== intent.date || q.context.view !== context.view ||
-        (context.view === "radar" &&
-          q.context.radarKind !== context.radarKind) ||
-        [...q.sports].sort().join() !== [...intent.sports].sort().join()
-      ) throw new Error("L’analyse ne correspond pas au périmètre demandé.");
-      const matches = q.catalog.matches ?? [],
-        candidates = analysisCandidates(q.catalog, intent, input.now);
-      analysis = validateAnalysis(
-        { ...obj(value.analysis), text: value.text },
-        {
-          context: {
-            date: q.date,
-            view: q.context.view ?? "profile",
-            sports: q.sports,
-            matchCount: matches.length,
-            candidateCount: candidates.length,
-            radarKind: q.context.radarKind,
-          },
-          byMatch: new Map(matches.map((m) => [matchKey(m.sport, m.id), m])),
-          byCandidate: new Map(candidates.map((c) => [c.id, c])),
-          detailsRead: new Set(
-            [...reader.detailsRead].filter((k) => k.startsWith(`${q.id}:`)).map(
-              (k) => k.slice(q.id.length + 1),
-            ),
-          ),
-          limit: intent.maxSelections ?? 6,
-          missing: q.catalog.missing,
-          summary,
-        },
-      );
-      next.messages.at(-1)!.analysis = analysis;
-      next.catalog = {
-        matchCount: q.catalog.matchCount,
-        radarCount: q.catalog.radarCount,
-        missing: q.catalog.missing,
-        sources: q.catalog.sources,
-        signals: q.catalog.signals,
-      };
-    }
-    const attachments = next.messages.at(-1)!;
-    attachments.text = value.text;
-    // Preserve factual review notes, without a second isolated LLM narrative call.
-    const tickets = [
-      ...new Map(
-        [
-          ...(next.proposals ?? []),
-          ...(next.drafts ?? []),
-          ...(next.pending ?? []),
-        ]
-          .filter((t) =>
-            attachments.ticketIds?.includes(t.id) ||
-            attachments.proposalIds?.includes(t.id)
-          ).map((t) => [t.id, t]),
-      ).values(),
-    ];
-    if (tickets.length) {
-      const brief = buildReviewBrief(tickets, input.now);
-      attachReview(tickets, fallbackReview(brief), brief);
-    }
-    const focus = analysis
-      ? [
-        ...analysis.selections.map((s) => ({
-          sport: s.candidate.sport,
-          matchId: s.candidate.matchId,
-          match: `${s.candidate.home} — ${s.candidate.away}`,
-        })),
-        ...(analysis.observations ?? []).map((o) => ({
-          sport: o.sport,
-          matchId: o.matchId,
-          match: o.match,
-        })),
-      ]
-      : tickets.length
-      ? tickets[0].picks.map((p) => ({
-        sport: p.sport,
-        matchId: p.matchId,
-        match: `${p.home} — ${p.away}`,
-      }))
-      : intent.fixtureFocus ??
-        (plan.focusMode === "clear" || plan.newTask ||
-            plan.changedFields.some((f) =>
-              ["date", "sports", "view", "radarKind"].includes(f)
-            )
-          ? []
-          : knownFocus(input.state));
-    rememberTurn(next, input.state, intent, focus, reader.consultations());
-    return {
-      next,
-      search,
-      consultations: reader.consultations(),
-      summaries: summary ? [summary] : [],
-    };
   }
   throw new Error(
     "La consultation n’a pas produit de réponse exploitable. La session précédente est conservée.",
