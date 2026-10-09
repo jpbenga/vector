@@ -2,6 +2,7 @@ import '../../form_radar/domain/radar_scope.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:intl/intl.dart';
 import '../../../core/di/service_locator.dart';
 import '../../../core/identity/identity_scope.dart';
@@ -82,6 +83,8 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
   bool _busy = false;
   bool _initializing = true, _positioning = false;
   bool _followingLatest = true, _showLatest = false, _autoScrolling = false;
+  bool _userScrolling = false;
+  int _scrollRequest = 0;
   int _generation = 0;
   static const _key =
       String.fromEnvironment(
@@ -133,6 +136,8 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
       _followingLatest = true;
       _showLatest = false;
       _autoScrolling = false;
+      _userScrolling = false;
+      _scrollRequest++;
       _decisions.clear();
       _preparation = null;
       _context = null;
@@ -769,16 +774,55 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
       return;
     }
     final show = _scroll.position.extentAfter > 100;
-    _followingLatest = !show;
     if (show != _showLatest) setState(() => _showLatest = show);
+  }
+
+  bool _onConversationNotification(Notification notification) {
+    if (notification is ScrollMetricsNotification &&
+        notification.depth == 0 &&
+        _followingLatest &&
+        !_userScrolling &&
+        !_autoScrolling &&
+        _conversation?.messages.isNotEmpty == true) {
+      _scrollToEnd(animated: false);
+    }
+    if (notification is! ScrollNotification || notification.depth != 0) {
+      return false;
+    }
+    if ((notification is ScrollStartNotification &&
+            notification.dragDetails != null) ||
+        (notification is UserScrollNotification &&
+            notification.direction != ScrollDirection.idle)) {
+      // A touch gesture, wheel or trackpad takes priority immediately, even
+      // within the 100px threshold used only to show the latest-message button.
+      _userScrolling = true;
+      _followingLatest = false;
+      _autoScrolling = false;
+      _scrollRequest++;
+    }
+    if (notification is ScrollEndNotification) {
+      _userScrolling = false;
+      if (!_autoScrolling && !_positioning && !_initializing) {
+        _followingLatest = notification.metrics.extentAfter <= 1;
+        _updateScrollPosition();
+      }
+    }
+    return false;
   }
 
   void _scrollToEnd({bool animated = true}) {
     final generation = _generation;
+    final request = ++_scrollRequest;
     _followingLatest = true;
     _autoScrolling = true;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted || generation != _generation) return;
+      if (!mounted ||
+          generation != _generation ||
+          request != _scrollRequest ||
+          !_followingLatest ||
+          _userScrolling) {
+        return;
+      }
       if (_scroll.hasClients) {
         if (animated && !MediaQuery.disableAnimationsOf(context)) {
           await _scroll.animateTo(
@@ -790,11 +834,13 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
           _scroll.jumpTo(_scroll.position.maxScrollExtent);
         }
       }
-      if (!mounted || generation != _generation) return;
+      if (!mounted || generation != _generation || request != _scrollRequest) {
+        return;
+      }
       _autoScrolling = false;
       setState(() {
         _positioning = false;
-        _showLatest = false;
+        _showLatest = _scroll.hasClients && _scroll.position.extentAfter > 100;
       });
     });
   }
@@ -1228,15 +1274,8 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
                 )
               : Stack(
                   children: [
-                    NotificationListener<ScrollMetricsNotification>(
-                      onNotification: (notification) {
-                        if (_followingLatest &&
-                            !_autoScrolling &&
-                            _conversation?.messages.isNotEmpty == true) {
-                          _scrollToEnd(animated: false);
-                        }
-                        return false;
-                      },
+                    NotificationListener<Notification>(
+                      onNotification: _onConversationNotification,
                       child: ListView(
                         key: const ValueKey('generator-conversation-scroll'),
                         controller: _scroll,

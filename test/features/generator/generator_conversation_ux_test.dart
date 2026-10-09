@@ -13,6 +13,7 @@ import 'package:copilot/features/generator/domain/generator_context.dart';
 import 'package:copilot/features/generator/presentation/lector_generator_page.dart';
 import 'package:copilot/features/generator/presentation/generator_analysis.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -156,6 +157,104 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets(
+    'a slow upward gesture keeps control when the mobile viewport changes',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final service = ConversationService();
+      final persistence = await savedReference();
+      service.restored.complete({'state': conversation()});
+      await tester.pumpWidget(screen(service, persistence));
+      await tester.pumpAndSettle();
+      final list = find.byKey(const ValueKey('generator-conversation-scroll'));
+      final gesture = await tester.startGesture(tester.getCenter(list));
+      await gesture.moveBy(const Offset(0, 50));
+      await tester.pump();
+      final offset = position(tester).pixels;
+      expect(position(tester).extentAfter, inExclusiveRange(1, 100));
+
+      // Mobile browser bars and keyboard dismissal change the viewport while
+      // the user's finger is still moving. That must not reclaim the scroll.
+      tester.view.physicalSize = const Size(390, 824);
+      await tester.pump();
+      await tester.pump();
+      expect(position(tester).pixels, closeTo(offset, 1));
+      for (var i = 0; i < 30; i++) {
+        await gesture.moveBy(const Offset(0, 8));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(position(tester).pixels, lessThan(offset - 100));
+      expect(find.byTooltip('Aller aux derniers messages'), findsOneWidget);
+      await tester.tap(find.byTooltip('Aller aux derniers messages'));
+      await tester.pumpAndSettle();
+      expect(position(tester).extentAfter, lessThan(1));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'a small manual scroll interrupts following before an answer arrives',
+    (tester) async {
+      final service = ConversationService();
+      final persistence = await savedReference();
+      service.restored.complete({'state': conversation()});
+      await tester.pumpWidget(screen(service, persistence));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Compare ces rencontres');
+      await tester.pump();
+      await tester.tap(find.byTooltip('Envoyer la demande'));
+      // Start reading before the automatic send animation has finished.
+      await tester.pump(const Duration(milliseconds: 40));
+      final list = find.byKey(const ValueKey('generator-conversation-scroll'));
+      final gesture = await tester.startGesture(tester.getCenter(list));
+      await gesture.moveBy(const Offset(0, 50));
+      await tester.pump(const Duration(milliseconds: 300));
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 300));
+      final offset = position(tester).pixels;
+      expect(position(tester).extentAfter, greaterThan(1));
+      service.reply.complete({'state': conversation(15)});
+      await tester.pumpAndSettle();
+      expect(position(tester).pixels, closeTo(offset, 1));
+      expect(find.byTooltip('Aller aux derniers messages'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('mouse wheel scrolling is preserved across layout changes', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final service = ConversationService();
+    final persistence = await savedReference();
+    service.restored.complete({'state': conversation()});
+    await tester.pumpWidget(screen(service, persistence));
+    await tester.pumpAndSettle();
+    final list = find.byKey(const ValueKey('generator-conversation-scroll'));
+    await tester.sendEventToBinding(
+      PointerScrollEvent(
+        position: tester.getCenter(list),
+        scrollDelta: const Offset(0, -50),
+        kind: PointerDeviceKind.mouse,
+      ),
+    );
+    await tester.pumpAndSettle();
+    final offset = position(tester).pixels;
+    expect(position(tester).extentAfter, inExclusiveRange(1, 100));
+    tester.view.physicalSize = const Size(390, 824);
+    await tester.pumpAndSettle();
+    expect(position(tester).pixels, closeTo(offset, 1));
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'suggestions send immediately and leave an editable empty composer',
