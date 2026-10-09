@@ -122,6 +122,7 @@ export interface ConversationReadPort {
     date: string,
     id: string,
     capturedAt: string,
+    sourceId: string,
   ): Promise<unknown>;
   bilan?(): Promise<unknown>;
   archivedTicket?(id: string): Promise<State["tickets"][number] | null>;
@@ -470,7 +471,13 @@ export class ConversationReader {
         const q = this.getQuery(args.queryId),
           m = this.details(q, String(args.matchKey));
         const response = obj(
-          await this.port.matchData?.(m.sport, q.date, m.id, m.capturedAt),
+          await this.port.matchData?.(
+            m.sport,
+            q.date,
+            m.id,
+            m.capturedAt,
+            m.sourceId,
+          ),
         );
         const payload = obj(
             "publication" in response ? response.publication : response,

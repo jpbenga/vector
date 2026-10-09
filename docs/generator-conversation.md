@@ -81,7 +81,7 @@ sélections restent des faits serveur ; le modèle ne les fournit pas au calcul.
 - Par échange : huit contextes de recherche, 3 000 rencontres, 32 consultations,
   dix tours de modèle et un délai de 110 secondes. Les limites sont signalées, pas
   remplacées par des données inventées.
-- Le registre est limité à 50 Ko et l'état à 210 Ko. Les échanges les plus anciens
+- Le registre est limité à 50 000 caractères et l'état à 210 000 caractères. Les échanges les plus anciens
   peuvent être compactés ou supprimés ; les contraintes actives sont conservées.
 - Une erreur ou une annulation conserve la session précédente ; les reçus d'appels IA
   sont enregistrés pour les appels effectivement facturables, y compris les réponses incomplètes.

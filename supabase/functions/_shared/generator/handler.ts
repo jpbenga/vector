@@ -16,6 +16,10 @@ import { type Source } from "./catalog.ts";
 import { interpret } from "./openai.ts";
 import { converse } from "./conversation.ts";
 import {
+  footballDetailColumns,
+  projectFootballMatch,
+} from "./conversation_data.ts";
+import {
   analysisContext,
   type AnalysisProgress,
   analyzeDay,
@@ -562,15 +566,25 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
           onProgress: (event) => progress(event.phase, event),
           reads: {
             sources: (scope, day, sports) => sourcesFor(scope, day, sports),
-            matchData: async (sport, day, matchId, capturedAt) => {
+            matchData: async (sport, day, matchId, capturedAt, sourceId) => {
               const found = await Promise.allSettled([
-                call("rpc/read_sport_feed", {
-                  p_sport: sport,
-                  p_day: day,
-                  p_section: "match",
-                  p_match: matchId,
-                  p_captured_at: capturedAt,
-                }),
+                sport === "football"
+                  ? (uuid(sourceId)
+                    ? call(
+                      `match_feed_analysis_snapshots?id=eq.${sourceId}&captured_at=eq.${
+                        encodeURIComponent(capturedAt)
+                      }&select=${footballDetailColumns}&limit=1`,
+                    ).then((r) =>
+                      projectFootballMatch(r[0], sourceId, capturedAt, matchId)
+                    )
+                    : Promise.resolve(null))
+                  : call("rpc/read_sport_feed", {
+                    p_sport: sport,
+                    p_day: day,
+                    p_section: "match",
+                    p_match: matchId,
+                    p_captured_at: capturedAt,
+                  }),
                 call(
                   sport === "hockey"
                     ? `sport_live_states?sport=eq.hockey&provider=eq.api-hockey&fixture_id=eq.${matchId}&select=fixture_id,captured_at,payload&limit=1`
