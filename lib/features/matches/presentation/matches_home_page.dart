@@ -58,6 +58,7 @@ import 'lector_space_page.dart';
 import 'match_detail_page.dart';
 import 'opportunity_decision_presenter.dart';
 import 'reading_bilan_section.dart';
+import '../../generator/presentation/generator_decisions.dart';
 import '../../form_radar/presentation/player_form_radar_page.dart';
 import 'widgets/copilot_calendar.dart';
 import 'widgets/match_feed_card.dart';
@@ -1484,7 +1485,16 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                             child: KeyedSubtree(
                               key: ValueKey(contentKey),
                               child: widget.mode == _ScoresRedesignMode.bilan
-                                  ? const ReadingBilanSection()
+                                  ? const String.fromEnvironment(
+                                              'LECTOR_GENERATOR_ENDPOINT',
+                                            ) ==
+                                            'lector-generator-workshop'
+                                        ? GeneratorBilanSection(
+                                            scope: widget.identityScope,
+                                            readings:
+                                                const ReadingBilanSection(),
+                                          )
+                                        : const ReadingBilanSection()
                                   : widget.isLoading
                                   ? ListenableBuilder(
                                       listenable: widget.readRecovery,

@@ -14,6 +14,7 @@ import 'generator_ticket_card.dart';
 import 'generator_compositions.dart';
 import 'generator_analysis.dart';
 import 'generator_selection_sheet.dart';
+import 'generator_decisions.dart';
 import '../domain/generator_context.dart';
 
 /// One native Lector conversation surface in every sport. No generated markup.
@@ -30,6 +31,12 @@ class LectorGeneratorPage extends StatefulWidget {
     this.configurationKey = '',
     this.voice,
     this.embedded = false,
+    this.durableSessions =
+        const String.fromEnvironment(
+          'LECTOR_GENERATOR_ENDPOINT',
+          defaultValue: 'lector-generator',
+        ) ==
+        'lector-generator-workshop',
     super.key,
   });
   final DateTime date;
@@ -40,18 +47,20 @@ class LectorGeneratorPage extends StatefulWidget {
   final void Function(Map<String, dynamic> pick) onOpenMatch;
   final GeneratorRepository? repository;
   final GeneratorVoice? voice;
-  final bool embedded;
+  final bool embedded, durableSessions;
   final String configurationKey;
   @override
   State<LectorGeneratorPage> createState() => _LectorGeneratorPageState();
 }
 
-class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
+class _LectorGeneratorPageState extends State<LectorGeneratorPage>
+    with WidgetsBindingObserver {
   final _message = TextEditingController();
   final _scroll = ScrollController();
   final _defaultVoice = GeneratorVoice();
   GeneratorVoice get _voice => widget.voice ?? _defaultVoice;
-  Timer? _progressTimer, _voiceTimer;
+  Timer? _progressTimer, _voiceTimer, _sessionTimer;
+  final Map<String, Map<String, dynamic>> _decisions = {};
   String? _requestId, _retryMessage, _retryRequestId, _retryReferenceTicketId;
   String _phase = 'Analyse de votre demande…';
   Map<String, dynamic> _progress = {};
@@ -84,7 +93,14 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initialize();
+    if (widget.durableSessions) {
+      _sessionTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+        _expireSessionIfNeeded();
+        if (mounted && _conversation != null) setState(() {});
+      });
+    }
   }
 
   @override
@@ -102,6 +118,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
       _retryRequestId = null;
       _retryReferenceTicketId = null;
       _conversation = null;
+      _decisions.clear();
       _preparation = null;
       _context = null;
       _busy = false;
@@ -132,13 +149,38 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _generation++;
     _progressTimer?.cancel();
     _voiceTimer?.cancel();
     _voice.cancel();
+    _sessionTimer?.cancel();
     _scroll.dispose();
     _message.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _expireSessionIfNeeded();
+  }
+
+  void _expireSessionIfNeeded() {
+    if (!mounted || !widget.durableSessions || _conversation == null) return;
+    final deadline = DateTime.tryParse(
+      _conversation!.json['expiresAt']?.toString() ?? '',
+    );
+    if (deadline == null || deadline.isAfter(DateTime.now())) return;
+    _generation++;
+    _progressTimer?.cancel();
+    setState(() {
+      _conversation = null;
+      _id = generatorUuid();
+      _busy = false;
+      _submittedMessage = null;
+      _error =
+          'Votre session a expiré. Vos éléments conservés restent dans Mes suivis.';
+    });
   }
 
   Future<void> _initialize() async {
@@ -181,6 +223,22 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
         }
       }
       await _prepare(generation);
+      if (widget.durableSessions &&
+          widget.scope.isAccount &&
+          _repository != null) {
+        try {
+          final result = await _repository!.request({'action': 'decisions'});
+          if (mounted && generation == _generation) {
+            setState(() {
+              for (final row in generatorRows(result['decisions'])) {
+                _decisions['${row['kind']}:${row['source_id']}'] = row;
+              }
+            });
+          }
+        } on Object {
+          /* Calendar and conversation remain usable. */
+        }
+      }
     } on Object {
       if (mounted && generation == _generation) {
         setState(
@@ -212,6 +270,15 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
   Future<void> _send([String? preset, String? referenceTicketId]) async {
     final message = preset ?? _message.text.trim();
     if (_busy || _context == null || message.isEmpty) return;
+    final expires = DateTime.tryParse(
+      _conversation?.json['expiresAt']?.toString() ?? '',
+    );
+    if (widget.durableSessions &&
+        expires != null &&
+        !expires.isAfter(DateTime.now())) {
+      _conversation = null;
+      _id = generatorUuid();
+    }
     if (!widget.scope.isAccount) {
       setState(
         () => _error =
@@ -323,25 +390,65 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
       final selected = await showModalBottomSheet<Map<String, dynamic>>(
         context: context,
         showDragHandle: true,
-        builder: (context) => SafeArea(
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              const ListTile(title: Text('Vos brouillons')),
-              if (generatorRows(result['history']).isEmpty)
-                const ListTile(title: Text('Aucun brouillon enregistré.')),
-              for (final row in generatorRows(result['history']))
-                ListTile(
-                  leading: const Icon(Icons.receipt_long_outlined),
-                  title: Text(
-                    '${generatorRows(row['tickets']).length} composition(s)',
-                  ),
-                  subtitle: Text(
-                    generatorMap(row['intent'])['date']?.toString() ?? '',
-                  ),
-                  onTap: () => Navigator.pop(context, row),
+        isScrollControlled: true,
+        useSafeArea: true,
+        builder: (context) => SizedBox(
+          height: MediaQuery.sizeOf(context).height * .8,
+          child: DefaultTabController(
+            length: widget.durableSessions ? 2 : 1,
+            child: Column(
+              children: [
+                TabBar(
+                  tabs: [
+                    Tab(
+                      text: widget.durableSessions
+                          ? 'Sessions actives'
+                          : 'Vos brouillons',
+                    ),
+                    if (widget.durableSessions)
+                      const Tab(text: 'Mes éléments sauvegardés'),
+                  ],
                 ),
-            ],
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      ListView(
+                        children: [
+                          if (generatorRows(result['history']).isEmpty)
+                            const ListTile(
+                              title: Text('Aucune session à reprendre.'),
+                            ),
+                          for (final row in generatorRows(result['history']))
+                            ListTile(
+                              leading: const Icon(Icons.chat_bubble_outline),
+                              title: Text(
+                                '${generatorRows(row['tickets']).length} composition(s)',
+                              ),
+                              subtitle: Text(
+                                widget.durableSessions
+                                    ? _expiration(row)
+                                    : generatorMap(
+                                            row['intent'],
+                                          )['date']?.toString() ??
+                                          '',
+                              ),
+                              onTap: () => Navigator.pop(context, row),
+                            ),
+                        ],
+                      ),
+                      if (widget.durableSessions)
+                        SingleChildScrollView(
+                          padding: const EdgeInsets.all(16),
+                          child: GeneratorFollowups(
+                            scope: widget.scope,
+                            repository: _repository,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -355,6 +462,167 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
               _error = 'Les brouillons ne sont pas accessibles pour le moment.',
         );
       }
+    }
+  }
+
+  String _expiration(Map<String, dynamic> value) {
+    final deadline = DateTime.tryParse(value['expiresAt']?.toString() ?? '');
+    if (deadline == null) {
+      return 'Session temporaire · 24 h après la dernière activité';
+    }
+    final remaining = deadline.difference(DateTime.now());
+    if (remaining.isNegative) {
+      return 'Session expirée · vos suivis sont conservés';
+    }
+    return 'Expire dans ${remaining.inHours} h ${(remaining.inMinutes % 60)} min';
+  }
+
+  Map<String, dynamic> _decisionFor(Map<String, dynamic> pick) =>
+      _decisions['selection:${pick['id']}'] ?? {};
+  Future<Map<String, dynamic>> _keep(
+    String kind,
+    String sourceId,
+    String choice,
+  ) async {
+    if (_repository == null ||
+        !widget.scope.isAccount ||
+        _conversation == null) {
+      throw StateError('Connectez-vous pour conserver cette proposition.');
+    }
+    final generation = _generation;
+    final result = await _repository!.request({
+      ..._body('keep'),
+      'kind': kind,
+      'sourceId': sourceId,
+      'choice': choice,
+    });
+    final decision = generatorMap(result['decision']);
+    if (mounted && generation == _generation) {
+      setState(() {
+        _decisions['$kind:$sourceId'] = decision;
+        if (decision['sessionExpiresAt'] != null && _conversation != null) {
+          _conversation = GeneratorConversation({
+            ..._conversation!.json,
+            'expiresAt': decision['sessionExpiresAt'],
+          });
+        }
+      });
+    }
+    return decision;
+  }
+
+  Future<void> _saveTicket(Map<String, dynamic> ticket) async {
+    try {
+      await _keep('ticket', ticket['id'].toString(), 'save');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ticket conservé dans Mes suivis.')),
+        );
+      }
+    } on Object {
+      if (mounted) {
+        setState(() => _error = 'Le ticket n’a pas pu être enregistré.');
+      }
+    }
+  }
+
+  Future<void> _deleteSession() async {
+    if (_conversation == null || _repository == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Supprimer cette session ?'),
+        content: const Text(
+          'Les messages et brouillons seront supprimés. Vos tickets enregistrés et sélections suivies resteront dans le Bilan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await _repository!.request(_body('delete_session'));
+      if (mounted) {
+        setState(() {
+          _conversation = null;
+          _id = generatorUuid();
+        });
+      }
+    } on Object {
+      if (mounted) {
+        setState(() => _error = 'La session n’a pas pu être supprimée.');
+      }
+    }
+  }
+
+  Future<void> _newSession() async {
+    final tickets = _conversation?.tickets ?? [];
+    final unsaved = tickets
+        .where((t) => _decisions['ticket:${t['id']}']?['saved_at'] == null)
+        .toList();
+    if (widget.durableSessions && unsaved.isNotEmpty) {
+      final choice = await showDialog<String>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: const Text('Conserver une composition ?'),
+          content: const Text(
+            'Les compositions non enregistrées disparaîtront à l’expiration de la session. Vous pouvez conserver le ticket actuel pour vérifier ses résultats.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c, 'stay'),
+              child: const Text('Revenir aux tickets'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(c, 'skip'),
+              child: const Text('Pas maintenant'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(c, 'save'),
+              child: const Text('Enregistrer le ticket actuel'),
+            ),
+          ],
+        ),
+      );
+      if (choice == null || choice == 'stay' || !mounted) return;
+      if (choice == 'save') {
+        try {
+          await _keep('ticket', unsaved.first['id'].toString(), 'save');
+        } on Object {
+          if (mounted) {
+            setState(() => _error = 'Le ticket n’a pas pu être conservé.');
+          }
+          return;
+        }
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _conversation = null;
+      _id = generatorUuid();
+      _error = null;
+      _submittedMessage = null;
+      _retryMessage = null;
+      _retryRequestId = null;
+      _retryReferenceTicketId = null;
+      _voice.cancel();
+      _voiceTimer?.cancel();
+      _recording = false;
+    });
+    if (widget.scope.isUserOwned) {
+      await const ScopedPersistence().write(
+        widget.scope,
+        _key,
+        jsonEncode({'id': _id, 'date': generatorDay(widget.date)}),
+      );
     }
   }
 
@@ -715,6 +983,8 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
   Widget _ticket(Map<String, dynamic> ticket) => LectorTicketCard(
     ticket: ticket,
     enabled: !_busy,
+    onSave: widget.durableSessions ? () => _saveTicket(ticket) : null,
+    saved: _decisions['ticket:${ticket['id']}']?['saved_at'] != null,
     pending: _conversation?.pending.any((t) => t['id'] == ticket['id']) == true,
     onDetail: () => _examine(ticket),
     onSelection: (index) => _examine(ticket, selection: index),
@@ -734,6 +1004,10 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
     inTicket:
         _conversation?.tickets.any((t) => t['id'] == ticket['id']) == true,
     onOpenMatch: widget.onOpenMatch,
+    onChoice: widget.durableSessions
+        ? (pick, choice) => _keep('selection', pick['id'].toString(), choice)
+        : null,
+    decisionFor: _decisionFor,
     onReplace: (index) => _prompt(
       'Remplace uniquement la sélection ${index + 1} du ticket ${ticket['number']}. Conserve les autres sélections, la mise et les contraintes.',
     ),
@@ -778,7 +1052,9 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
                       ),
                     ),
                     Text(
-                      'Votre assistant de composition',
+                      widget.durableSessions && conversation != null
+                          ? _expiration(conversation.json)
+                          : 'Votre assistant de composition',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: context.textColors.secondary,
                       ),
@@ -787,7 +1063,9 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
                 ),
               ),
               IconButton(
-                tooltip: 'Vos brouillons',
+                tooltip: widget.durableSessions
+                    ? 'Sessions et éléments sauvegardés'
+                    : 'Vos brouillons',
                 onPressed: _busy ? null : _history,
                 icon: const Icon(Icons.history_rounded),
               ),
@@ -796,18 +1074,27 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
                 onSelected: (value) {
                   switch (value) {
                     case 'new':
-                      setState(() {
-                        _conversation = null;
-                        _id = generatorUuid();
-                        _error = null;
-                        _submittedMessage = null;
-                        _retryMessage = null;
-                        _retryRequestId = null;
-                        _retryReferenceTicketId = null;
-                        _voice.cancel();
-                        _voiceTimer?.cancel();
-                        _recording = false;
-                      });
+                      _newSession();
+                    case 'retention':
+                      showDialog<void>(
+                        context: context,
+                        builder: (c) => AlertDialog(
+                          title: const Text('Données et conservation'),
+                          content: const SingleChildScrollView(
+                            child: Text(
+                              'Votre conversation temporaire expire 24 h après la dernière activité, avec une durée maximale de 7 jours. Les délais sont configurables côté serveur.\n\nLes tickets enregistrés et sélections conservées restent dans Mes suivis jusqu’à leur suppression par vous. Leurs cotes et arguments d’origine sont conservés.\n\nLes propositions générées et les reçus techniques sont conservés séparément pendant 30 jours pour l’audit, sans les messages du chat. La pertinence est un avis ; le suivi n’est pas un pari placé. Aucun apprentissage prédictif automatique n’est activé.\n\nVous pouvez supprimer une session depuis ce menu et chaque élément conservé depuis son détail.',
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(c),
+                              child: const Text('Fermer'),
+                            ),
+                          ],
+                        ),
+                      );
+                    case 'delete_session':
+                      _deleteSession();
                     case 'settings':
                       _settings();
                     case 'preferences':
@@ -815,7 +1102,12 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
                     case 'profile':
                       _useProfile();
                     case 'save':
-                      _operation('save');
+                      if (widget.durableSessions) {
+                        final ticket = conversation?.tickets.firstOrNull;
+                        if (ticket != null) _saveTicket(ticket);
+                      } else {
+                        _operation('save');
+                      }
                     case 'legacy':
                       widget.onLegacyTickets?.call();
                   }
@@ -826,6 +1118,17 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
                     enabled: !_busy,
                     child: const Text('Nouvelle conversation'),
                   ),
+                  if (widget.durableSessions)
+                    const PopupMenuItem(
+                      value: 'retention',
+                      child: Text('Données et conservation'),
+                    ),
+                  if (widget.durableSessions && conversation != null)
+                    PopupMenuItem(
+                      value: 'delete_session',
+                      enabled: !_busy,
+                      child: const Text('Supprimer cette session'),
+                    ),
                   PopupMenuItem(
                     value: 'settings',
                     enabled: !_busy,
@@ -846,7 +1149,9 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
                       value: 'save',
                       enabled: !_busy,
                       child: Text(
-                        conversation!.saved
+                        widget.durableSessions
+                            ? 'Enregistrer le ticket actuel'
+                            : conversation!.saved
                             ? 'Brouillon enregistré'
                             : 'Enregistrer le brouillon',
                       ),
@@ -950,6 +1255,14 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage> {
                       pick: pick,
                       inTicket: false,
                       analysisOnly: true,
+                      onChoice: widget.durableSessions
+                          ? (choice) => _keep(
+                              'selection',
+                              pick['id'].toString(),
+                              choice,
+                            )
+                          : null,
+                      decision: _decisionFor(pick),
                       onOpenMatch: () => widget.onOpenMatch(pick),
                       onReplace: () => _send(
                         'Compare les autres marchés autorisés pour ${pick['home']} contre ${pick['away']}, dans le même périmètre et la même journée.',

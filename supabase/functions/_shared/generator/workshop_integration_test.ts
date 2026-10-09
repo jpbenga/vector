@@ -175,6 +175,9 @@ Deno.test("workshop handler uses its uncapped reservation and replays without a 
       if (path === "/auth/v1/user") {
         return Promise.resolve(Response.json({ id: userId }));
       }
+      if (path === "/rest/v1/rpc/lector_generator_session") {
+        return Promise.resolve(Response.json({ expired: false }));
+      }
       if (path === "/rest/v1/lector_generator_conversations") {
         return Promise.resolve(Response.json([]));
       }
@@ -212,6 +215,7 @@ Deno.test("workshop handler uses its uncapped reservation and replays without a 
     });
     assert.deepEqual(paths, [
       "/auth/v1/user",
+      "/rest/v1/rpc/lector_generator_session",
       "/rest/v1/lector_generator_conversations",
       "/rest/v1/rpc/lector_generator_workshop_reserve",
     ]);
@@ -273,6 +277,9 @@ Deno.test("workshop chat connects scoped sources, actual tool work, progress and
       const u = new URL(String(url)),
         payload = init?.body ? JSON.parse(String(init.body)) : null;
       if (u.pathname === "/auth/v1/user") return Response.json({ id: owner });
+      if (u.pathname === "/rest/v1/rpc/lector_generator_session") {
+        return Response.json({ expired: false });
+      }
       if (u.pathname === "/rest/v1/lector_generator_conversations") {
         assert.equal(u.searchParams.get("user_id"), `eq.${owner}`);
         return Response.json([]);
@@ -380,5 +387,94 @@ Deno.test("workshop chat connects scoped sources, actual tool work, progress and
   } finally {
     globalThis.fetch = oldFetch;
     Deno.env.get = oldGet;
+  }
+});
+Deno.test("retained choices use authenticated ownership and server identifiers; expired sessions cannot pay for a turn", async () => {
+  const originalFetch = globalThis.fetch, originalGet = Deno.env.get;
+  const owner = "11111111-1111-4111-8111-111111111111",
+    conversation = "33333333-3333-4333-8333-333333333333";
+  let expired = false;
+  const requests: { path: string; body: any }[] = [];
+  try {
+    Deno.env.get = (
+      key: string,
+    ) => ({
+      SUPABASE_URL: "https://example.test",
+      SUPABASE_ANON_KEY: "public",
+      SUPABASE_SERVICE_ROLE_KEY: "server",
+    }[key]);
+    globalThis.fetch = (async (url, init) => {
+      const path = new URL(String(url)).pathname;
+      const body = init?.body ? JSON.parse(String(init.body)) : {};
+      requests.push({ path, body });
+      if (path === "/auth/v1/user") return Response.json({ id: owner });
+      if (path === "/rest/v1/rpc/lector_generator_session") {
+        return Response.json({ expired });
+      }
+      if (path === "/rest/v1/rpc/lector_generator_keep") {
+        return Response.json({ id: "saved", snapshot: { original: true } });
+      }
+      if (path === "/rest/v1/rpc/lector_generator_verify") {
+        return Response.json(0);
+      }
+      if (path === "/rest/v1/rpc/lector_generator_decision_list") {
+        return Response.json({ decisions: [], hasMore: false });
+      }
+      throw new Error("Unexpected path " + path);
+    }) as typeof fetch;
+    const handler = generatorHandler({ workshop: true });
+    const invoke = (body: any) =>
+      handler(
+        new Request("https://example.test", {
+          method: "POST",
+          headers: { authorization: "Bearer token" },
+          body: JSON.stringify(body),
+        }),
+      );
+    const response = await invoke({
+      action: "keep",
+      conversationId: conversation,
+      revision: 1,
+      kind: "selection",
+      sourceId: "real-id",
+      choice: "follow",
+      userId: "forged",
+      snapshot: { odds: 99 },
+    });
+    assert.equal(response.status, 200);
+    const keep = requests.find((r) =>
+      r.path.endsWith("lector_generator_keep")
+    )!.body;
+    assert.equal(keep.p_user, owner);
+    assert.equal(keep.p_source, "real-id");
+    assert.equal(keep.snapshot, undefined);
+    const list = await invoke({ action: "decisions", userId: "forged" });
+    assert.equal(list.status, 200);
+    assert.equal(
+      requests.find((r) => r.path.endsWith("lector_generator_decision_list"))!
+        .body.p_user,
+      owner,
+    );
+    expired = true;
+    requests.length = 0;
+    const chat = await invoke({
+      action: "chat",
+      conversationId: conversation,
+      revision: 1,
+      message: "new",
+      requestId: conversation,
+    });
+    assert.equal(chat.status, 410);
+    assert.equal(requests.length, 2);
+    assert.ok(!requests.some((r) => r.path.includes("reserve")));
+    const read = await invoke({
+      action: "read",
+      conversationId: conversation,
+      revision: 1,
+    });
+    assert.deepEqual(await read.json(), { state: null, expired: true });
+  } finally {
+    globalThis.fetch = originalFetch;
+    Deno.env.get = originalGet;
   }
 });

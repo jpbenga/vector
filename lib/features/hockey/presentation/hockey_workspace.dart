@@ -1,3 +1,4 @@
+import '../../generator/presentation/generator_decisions.dart';
 import '../../../core/widgets/lector_deferred_content.dart';
 import '../../../core/data/read_recovery.dart';
 import '../../../core/widgets/lector_loading.dart';
@@ -529,6 +530,15 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
               else if (_section == LectorWorkspaceSection.generator &&
                   const bool.fromEnvironment('LECTOR_GENERATOR_UI'))
                 _generator(context)
+              else if (_section == LectorWorkspaceSection.bilan &&
+                  const String.fromEnvironment('LECTOR_GENERATOR_ENDPOINT') ==
+                      'lector-generator-workshop')
+                GeneratorBilanSection(
+                  scope: _scope ?? const IdentityScope.guest('unresolved'),
+                  readings: _notice(
+                    'Le bilan des lectures hockey sera disponible après validation. Vos tickets et sélections conservés sont accessibles dans Mes suivis.',
+                  ),
+                )
               else if (_section == LectorWorkspaceSection.generator ||
                   _section == LectorWorkspaceSection.bilan)
                 _notice(

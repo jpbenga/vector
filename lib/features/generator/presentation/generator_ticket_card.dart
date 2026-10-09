@@ -9,6 +9,7 @@ import '../domain/generator_context.dart';
 import 'generator_formatters.dart';
 import 'generator_compositions.dart';
 import 'generator_selection_sheet.dart';
+import 'generator_decisions.dart';
 export 'generator_formatters.dart';
 export 'generator_selection_sheet.dart' show GeneratorSelectionEvidence;
 
@@ -164,12 +165,16 @@ class LectorTicketCard extends StatelessWidget {
     required this.onAlternative,
     this.pending = false,
     this.enabled = true,
+    this.onSave,
+    this.saved = false,
     super.key,
   });
   final Map<String, dynamic> ticket;
   final VoidCallback onDetail, onModify, onAlternative;
   final ValueChanged<int> onSelection;
   final bool pending, enabled;
+  final VoidCallback? onSave;
+  final bool saved;
   @override
   Widget build(BuildContext context) {
     final picks = generatorRows(ticket['picks']);
@@ -254,6 +259,20 @@ class LectorTicketCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           LectorTicketSummary(ticket: ticket),
+          if (onSave != null)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: enabled && !saved ? onSave : null,
+                icon: Icon(
+                  saved ? Icons.bookmark : Icons.bookmark_add_outlined,
+                ),
+                label: Text(
+                  saved ? 'Ticket enregistré' : 'Enregistrer le ticket',
+                ),
+              ),
+            ),
+
           GeneratorCompositionAnalysis(ticket: ticket),
           const SizedBox(height: 4),
           for (final entry in picks.indexed) ...[
@@ -535,6 +554,8 @@ Future<void> showGeneratorTicketDetail(
   bool inTicket = true,
   required ValueChanged<Map<String, dynamic>> onOpenMatch,
   required ValueChanged<int> onReplace,
+  Future<Map<String, dynamic>> Function(Map<String, dynamic>, String)? onChoice,
+  Map<String, dynamic> Function(Map<String, dynamic>)? decisionFor,
 }) {
   final picks = generatorRows(ticket['picks']);
   if (selection != null && selection >= 0 && selection < picks.length) {
@@ -544,6 +565,10 @@ Future<void> showGeneratorTicketDetail(
       inTicket: inTicket,
       onOpenMatch: () => onOpenMatch(picks[selection]),
       onReplace: () => onReplace(selection),
+      onChoice: onChoice == null
+          ? null
+          : (choice) => onChoice(picks[selection], choice),
+      decision: decisionFor?.call(picks[selection]) ?? const {},
     );
   }
   return showModalBottomSheet<void>(
@@ -603,6 +628,11 @@ Future<void> showGeneratorTicketDetail(
                     ),
                     children: [
                       GeneratorSelectionEvidence(pick: entry.$2),
+                      if (onChoice != null)
+                        GeneratorDecisionActions(
+                          onChoice: (choice) => onChoice(entry.$2, choice),
+                          initial: decisionFor?.call(entry.$2) ?? const {},
+                        ),
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 8,

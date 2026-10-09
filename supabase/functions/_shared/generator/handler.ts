@@ -63,6 +63,11 @@ async function rest(
   if (!result.ok) {
     const failure = await result.json().catch(() => ({}));
     const safe = String(failure.message ?? "");
+    if (/session expired/i.test(safe)) {
+      throw new Error(
+        "Cette session a expiré. Vos éléments conservés restent dans Mes suivis.",
+      );
+    }
     if (/test budget limit/i.test(safe)) {
       throw new Error(
         "Le plafond de tests IA est atteint. Rechargez l’enveloppe avant de poursuivre les générations.",
@@ -153,11 +158,63 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
       if (action !== "transcribe" && text.length > 25000) {
         return reply({ error: "Demande trop longue." }, 413);
       }
-      if (action === "history") {
-        const history = await call(
-          `lector_generator_conversations?user_id=eq.${user.id}&select=id,state,updated_at&state->>saved=eq.true&order=updated_at.desc&limit=20`,
+      if (options.workshop && action === "decisions") {
+        await call("rpc/lector_generator_verify", { p_user: user.id });
+        if (
+          input.offset !== undefined &&
+          (!Number.isInteger(input.offset) || Number(input.offset) < 0 ||
+            Number(input.offset) > 100000)
+        ) return reply({ error: "Page invalide." }, 400);
+        return reply(
+          await call("rpc/lector_generator_decision_list", {
+            p_user: user.id,
+            p_offset: input.offset ?? 0,
+          }),
         );
-        return reply({ history: history.map((h: Json) => h.state) });
+      }
+      if (options.workshop && action === "decision") {
+        if (!uuid(input.decisionId)) {
+          return reply({ error: "Référence invalide." }, 400);
+        }
+        const rows = await call(
+          `lector_generator_decisions?id=eq.${input.decisionId}&user_id=eq.${user.id}&select=*`,
+        );
+        return rows.length
+          ? reply({ decision: rows[0] })
+          : reply({ error: "Cet élément n’est pas disponible." }, 404);
+      }
+
+      if (options.workshop && action === "decision_action") {
+        if (
+          !uuid(input.decisionId) ||
+          !["played", "unplayed", "unfollow", "irrelevant", "delete"].includes(
+            String(input.choice),
+          )
+        ) {
+          return reply({ error: "Action invalide." }, 400);
+        }
+        return reply({
+          decision: await call("rpc/lector_generator_decision_action", {
+            p_user: user.id,
+            p_id: input.decisionId,
+            p_action: input.choice,
+          }),
+        });
+      }
+      if (action === "history") {
+        const filter = options.workshop
+          ? `&mode=eq.workshop&expires_at=gt.${
+            encodeURIComponent(new Date().toISOString())
+          }`
+          : "&state->>saved=eq.true";
+        const history = await call(
+          `lector_generator_conversations?user_id=eq.${user.id}&select=id,state,updated_at${filter}&order=updated_at.desc&limit=20`,
+        );
+        return reply({
+          history: history.filter((h: Json) => obj(h.state).id).map((h: Json) =>
+            h.state
+          ),
+        });
       }
       if (
         !uuid(input.conversationId) || !Number.isInteger(input.revision) ||
@@ -195,13 +252,58 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
           },
         });
       }
+      const session = options.workshop
+        ? await call("rpc/lector_generator_session", {
+          p_user: user.id,
+          p_conversation: id,
+          p_create: ["chat", "transcribe"].includes(String(action)),
+        })
+        : null;
+      if (session?.expired) {
+        return action === "read"
+          ? reply({ state: null, expired: true })
+          : reply({
+            error:
+              "Cette session a expiré. Vos éléments enregistrés restent dans Mes suivis.",
+            expired: true,
+          }, 410);
+      }
+      if (options.workshop && action === "keep") {
+        if (
+          !["ticket", "selection"].includes(String(input.kind)) ||
+          typeof input.sourceId !== "string" || input.sourceId.length > 300 ||
+          !["save", "follow", "relevant"].includes(String(input.choice)) ||
+          (input.supersedes !== undefined && !uuid(input.supersedes))
+        ) {
+          return reply({ error: "Référence invalide." }, 400);
+        }
+        const decision = await call("rpc/lector_generator_keep", {
+          p_user: user.id,
+          p_conversation: id,
+          p_kind: input.kind,
+          p_source: input.sourceId,
+          p_action: input.choice,
+          p_supersedes: input.supersedes ?? null,
+        });
+        return reply({ decision });
+      }
+      if (options.workshop && action === "delete_session") {
+        await call(
+          `lector_generator_conversations?id=eq.${id}&user_id=eq.${user.id}&mode=eq.workshop`,
+          undefined,
+          "DELETE",
+        );
+        return reply({ state: null });
+      }
       const states = await call(
         `lector_generator_conversations?id=eq.${id}&user_id=eq.${user.id}&select=state,revision`,
       );
       const previous = states.length && Object.keys(states[0].state).length
         ? states[0].state as State
         : null;
-      if (action === "read") return reply({ state: previous });
+      if (action === "read") {
+        return reply({ state: previous ? { ...previous, ...session } : null });
+      }
       if (options.workshop && action === "audit") {
         const turns = await call(
           `lector_generator_turns?user_id=eq.${user.id}&conversation_id=eq.${id}&select=request_id,started_at,status,usage&order=started_at.desc&limit=10`,

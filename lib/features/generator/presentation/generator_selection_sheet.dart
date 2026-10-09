@@ -5,6 +5,7 @@ import '../../../core/theme/app_radius.dart';
 import '../../../core/widgets/sports_asset_badge.dart';
 import '../domain/generator_context.dart';
 import 'generator_formatters.dart';
+import 'generator_decisions.dart';
 
 Future<void> showGeneratorSelectionDetail(
   BuildContext context, {
@@ -13,6 +14,8 @@ Future<void> showGeneratorSelectionDetail(
   required VoidCallback onReplace,
   bool inTicket = true,
   bool analysisOnly = false,
+  Future<Map<String, dynamic>> Function(String)? onChoice,
+  Map<String, dynamic> decision = const {},
 }) {
   FocusManager.instance.primaryFocus?.unfocus();
   return showModalBottomSheet<void>(
@@ -35,6 +38,8 @@ Future<void> showGeneratorSelectionDetail(
           pick: pick,
           inTicket: inTicket,
           analysisOnly: analysisOnly,
+          onChoice: onChoice,
+          decision: decision,
           onClose: () => Navigator.pop(context),
           onOpenMatch: () {
             Navigator.pop(context);
@@ -59,12 +64,16 @@ class GeneratorSelectionSheet extends StatefulWidget {
     required this.onReplace,
     this.inTicket = true,
     this.analysisOnly = false,
+    this.onChoice,
+    this.decision = const {},
     super.key,
   });
   final Map<String, dynamic> pick;
   final VoidCallback onClose, onOpenMatch, onReplace;
   final bool inTicket;
   final bool analysisOnly;
+  final Future<Map<String, dynamic>> Function(String)? onChoice;
+  final Map<String, dynamic> decision;
   @override
   State<GeneratorSelectionSheet> createState() =>
       _GeneratorSelectionSheetState();
@@ -98,6 +107,13 @@ class _GeneratorSelectionSheetState extends State<GeneratorSelectionSheet> {
               inTicket: widget.inTicket,
               analysisOnly: widget.analysisOnly,
             ),
+            if (widget.onChoice != null) ...[
+              const SizedBox(height: 12),
+              GeneratorDecisionActions(
+                onChoice: widget.onChoice!,
+                initial: widget.decision,
+              ),
+            ],
             const SizedBox(height: 14),
             Container(
               decoration: BoxDecoration(
