@@ -1,3 +1,5 @@
+import '../../../core/widgets/lector_recorded_radar_panel.dart';
+import '../../../core/domain/lector_radar_contributions.dart';
 import '../../../app/sports/generator_radar_context.dart';
 import '../../form_radar/domain/radar_scope.dart';
 import '../domain/hockey_radar_selection.dart';
@@ -728,16 +730,26 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
         'AP' || 'APEN' => 'Terminé · Tirs au but',
         _ => null,
       },
-      contextPanel: HockeyPlayerSignalPanel(
-        entries: _players(before: fixture.startsAt)
-            .where(
-              (e) =>
-                  e.profile.competition == fixture.competition &&
-                  (e.profile.team.id == fixture.home.id ||
-                      e.profile.team.id == fixture.away.id),
+      contextPanel: current.radarSnapshot != null
+          ? LectorRecordedRadarPanel(
+              snapshot: current.radarSnapshot!,
+              contributions: hockeyRadarContributions(
+                current.radarSnapshot!,
+                current.matchEvents,
+                current.matchEventsCapturedAt,
+              ),
+              isLive: current.temporal.isLive,
             )
-            .toList(),
-      ),
+          : HockeyPlayerSignalPanel(
+              entries: _players(before: fixture.startsAt)
+                  .where(
+                    (e) =>
+                        e.profile.competition == fixture.competition &&
+                        (e.profile.team.id == fixture.home.id ||
+                            e.profile.team.id == fixture.away.id),
+                  )
+                  .toList(),
+            ),
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (_) => LectorDeferredContent<SportFeedResult>(

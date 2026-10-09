@@ -1,3 +1,4 @@
+import '../../domain/lector_recorded_radar.dart';
 import '../domain/sport_market_quote.dart';
 import '../../domain/lector_head_to_head_policy.dart';
 import '../domain/sport_player_activity.dart';
@@ -620,6 +621,11 @@ abstract final class SportPublicationCodec {
               ),
         ],
         headToHead: history(item['headToHead'], item, cutoff),
+        radarSnapshot: LectorRecordedRadar.parse(
+          item['radarSnapshot'],
+          sport.key,
+          matchId.value,
+        ),
         matchEvents: eventRows,
         matchEventsCapturedAt: currentEvents == null
             ? null

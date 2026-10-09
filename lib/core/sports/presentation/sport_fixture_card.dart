@@ -47,6 +47,7 @@ class SportFixtureCard extends StatelessWidget {
       name: p.name,
       logoUrl: p.logoUrl,
       score: points,
+      isLive: fixture.temporal.isLive,
       role: role,
     );
     return Padding(
@@ -64,7 +65,9 @@ class SportFixtureCard extends StatelessWidget {
                 child: LectorLiveBadge(state: fixture.temporal),
               )
             : LectorMatchTimeHeader(
-                timeLabel: fixture.startsAt == null
+                timeLabel: fixture.status == SportFixtureStatus.finished
+                    ? 'Terminé'
+                    : fixture.startsAt == null
                     ? 'Horaire à confirmer'
                     : DateFormat('HH:mm').format(fixture.startsAt!.toLocal()),
                 trailing: Text(

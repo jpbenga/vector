@@ -57,12 +57,14 @@ class LectorTeamLine extends StatelessWidget {
     required this.name,
     this.logoUrl,
     this.score,
+    this.isLive = false,
     this.role,
     super.key,
   });
   final String name;
   final String? logoUrl;
   final int? score;
+  final bool isLive;
   final String? role;
   @override
   Widget build(BuildContext context) => Row(
@@ -100,14 +102,40 @@ class LectorTeamLine extends StatelessWidget {
       ),
       if (score != null) ...[
         const SizedBox(width: 8),
-        Text(
-          '$score',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
-        ),
+        LectorScore(value: score!, isLive: isLive),
       ],
     ],
+  );
+}
+
+/// Scores keep their position and dimensions when a game becomes final.
+class LectorScore extends StatelessWidget {
+  const LectorScore({required this.value, this.isLive = false, super.key});
+  final int value;
+  final bool isLive;
+  @override
+  Widget build(BuildContext context) => Container(
+    key: ValueKey('match-score-${isLive ? 'live' : 'neutral'}'),
+    constraints: const BoxConstraints(minWidth: 32, minHeight: 28),
+    alignment: Alignment.center,
+    padding: const EdgeInsets.symmetric(horizontal: 5),
+    decoration: isLive
+        ? BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xff321b21)
+                : const Color(0xfffae6e8),
+            border: Border.all(
+              color: context.semantic.live.withValues(alpha: .40),
+            ),
+            borderRadius: BorderRadius.circular(7),
+          )
+        : null,
+    child: Text(
+      '$value',
+      style: Theme.of(
+        context,
+      ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+    ),
   );
 }
 

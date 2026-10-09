@@ -1,3 +1,4 @@
+import '../../../core/domain/lector_recorded_radar.dart';
 import '../../../core/domain/lector_temporal_state.dart';
 import '../data/match_reading_bilan_repository.dart';
 import 'match_board_item.dart';
@@ -18,12 +19,18 @@ class LiveMatchState {
     this.statisticsCapturedAt,
     this.statisticsIsFinal = false,
     this.events = const [],
+    this.radarSnapshot,
     this.eventsCapturedAt,
     this.readings = const [],
   });
 
   factory LiveMatchState.fromJson(Map<String, dynamic> json) => LiveMatchState(
     fixtureId: (json['fixture_id'] as num).toInt(),
+    radarSnapshot: LectorRecordedRadar.parse(
+      json['radar_snapshot'],
+      'football',
+      '${json['fixture_id']}',
+    ),
     status: json['status'] as String? ?? 'NS',
     capturedAt: DateTime.tryParse('${json['captured_at']}'),
     elapsed: (json['elapsed'] as num?)?.toInt(),
@@ -50,6 +57,7 @@ class LiveMatchState {
   );
 
   final int fixtureId;
+  final LectorRecordedRadar? radarSnapshot;
   final String status;
   final DateTime? capturedAt;
   final int? elapsed;

@@ -1,4 +1,9 @@
 import {
+  compactHockeyEvents,
+  type HockeyEnrichedFixture,
+  type HockeyMeeting,
+} from "./hockey_enrichment.ts";
+import {
   calendarDate,
   compactHockeyGames,
   hockeyLeagueIds,
@@ -74,4 +79,44 @@ export async function collectHockeyLive(
     }
   }
   return { states, deferred: false };
+}
+
+/** Optional event collection never prevents the grouped score publication. */
+export async function collectHockeyRadarEvents(
+  states: { fixture: PublicFixture; capturedAt: string }[],
+  due: string[],
+  ports: { reserve(): Promise<boolean>; request(id: string): Promise<unknown> },
+): Promise<{ requests: number; deferred: boolean }> {
+  let requests = 0, deferred = false;
+  for (
+    const state of states.filter((s) =>
+      due.includes(s.fixture.id) &&
+      ["live", "finished"].includes(s.fixture.status)
+    ).slice(0, 4)
+  ) {
+    if (!await ports.reserve()) {
+      deferred = true;
+      break;
+    }
+    requests++;
+    try {
+      const f = state.fixture;
+      const events = compactHockeyEvents(
+        await ports.request(f.id),
+        { ...f, events: [], eventsCollected: false } as HockeyMeeting,
+      );
+      // A partial ledger can confirm a supplied goal, but cannot prove that a
+      // player was absent or had zero contributions. No such verdict is emitted.
+      (f as PublicFixture & HockeyEnrichedFixture & { matchEvents: unknown })
+        .matchEvents = {
+          collectedAt: state.capturedAt,
+          events,
+          complete: false,
+          isFinal: f.status === "finished",
+        };
+    } catch {
+      deferred = true;
+    }
+  }
+  return { requests, deferred };
 }

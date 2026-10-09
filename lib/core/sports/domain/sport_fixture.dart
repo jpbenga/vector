@@ -1,3 +1,4 @@
+import '../../domain/lector_recorded_radar.dart';
 import 'sport_market_quote.dart';
 import '../../domain/lector_temporal_state.dart';
 import 'sport_match_history.dart';
@@ -61,6 +62,7 @@ class SportFixture {
     this.period,
     this.clock,
     this.capturedAt,
+    this.radarSnapshot,
     this.headToHead,
     this.matchEvents = const [],
     this.matchEventsCapturedAt,
@@ -107,6 +109,7 @@ class SportFixture {
   final String? providerStatus;
   final String? period, clock;
   final DateTime? capturedAt;
+  final LectorRecordedRadar? radarSnapshot;
   LectorTemporalState get temporal => LectorTemporalState(
     phase: switch (status) {
       SportFixtureStatus.live => LectorMatchPhase.live,

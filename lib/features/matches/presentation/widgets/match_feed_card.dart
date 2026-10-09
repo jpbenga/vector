@@ -1,3 +1,5 @@
+import '../../../../core/widgets/lector_recorded_radar_panel.dart';
+import '../../../../core/domain/lector_radar_contributions.dart';
 import '../../../../core/widgets/lector_reading_pill.dart';
 import '../../../../core/widgets/lector_live_badge.dart';
 import '../../../../core/domain/lector_temporal_state.dart';
@@ -174,7 +176,17 @@ class _MatchFeedCardContent extends StatelessWidget {
                     .toSet(),
               ),
             ),
-      contextPanel: visibleRadarEntries.isEmpty
+      contextPanel: liveState?.radarSnapshot != null
+          ? LectorRecordedRadarPanel(
+              snapshot: liveState!.radarSnapshot!,
+              contributions: footballRadarContributions(
+                liveState!.radarSnapshot!,
+                liveState!.events,
+                liveState!.eventsCapturedAt,
+              ),
+              isLive: liveState!.isLive,
+            )
+          : visibleRadarEntries.isEmpty
           ? null
           : FormRadarSignalPanel(
               entries: visibleRadarEntries,
@@ -637,10 +649,12 @@ class _StoryTeams extends StatelessWidget {
       first: _StoryTeamLine(
         team: match.homeTeam,
         score: match.fixture.score?.home,
+        isLive: match.fixture.status == FixtureStatus.live,
       ),
       second: _StoryTeamLine(
         team: match.awayTeam,
         score: match.fixture.score?.away,
+        isLive: match.fixture.status == FixtureStatus.live,
       ),
       odds:
           match.fixture.status == FixtureStatus.scheduled &&
@@ -652,14 +666,20 @@ class _StoryTeams extends StatelessWidget {
 }
 
 class _StoryTeamLine extends StatelessWidget {
-  const _StoryTeamLine({required this.team, this.score});
+  const _StoryTeamLine({required this.team, this.score, this.isLive = false});
+  final bool isLive;
   final int? score;
 
   final TeamInfo team;
 
   @override
   Widget build(BuildContext context) {
-    return LectorTeamLine(name: team.name, logoUrl: team.logoUrl, score: score);
+    return LectorTeamLine(
+      name: team.name,
+      logoUrl: team.logoUrl,
+      score: score,
+      isLive: isLive,
+    );
   }
 }
 

@@ -21,23 +21,52 @@ class SupabaseLiveMatchRepository implements LiveMatchRepository {
   RealtimeChannel? _channel;
   String? _selection;
   int _generation = 0;
+  final Map<int, Map<String, dynamic>> _radar = {};
 
   @override
   Future<List<LiveMatchState>> load(Set<int> fixtureIds) async {
     final ids = fixtureIds.toList();
     final result = <LiveMatchState>[];
     for (var offset = 0; offset < ids.length; offset += 500) {
+      final chunk = ids.sublist(offset, (offset + 500).clamp(0, ids.length));
+      final radarFuture = _loadRadar(chunk);
       final rows = await client.rpc<List<dynamic>>(
         'match_live_for_fixtures',
         params: {
           'p_ids': ids.sublist(offset, (offset + 500).clamp(0, ids.length)),
         },
       );
+      await radarFuture;
       result.addAll(
-        rows.whereType<Map<String, dynamic>>().map(LiveMatchState.fromJson),
+        rows.whereType<Map<String, dynamic>>().map(
+          (row) => LiveMatchState.fromJson({
+            ...row,
+            'radar_snapshot': _radar[(row['fixture_id'] as num).toInt()],
+          }),
+        ),
       );
     }
     return result;
+  }
+
+  Future<void> _loadRadar(List<int> ids) async {
+    try {
+      final snapshots = await client
+          .rpc<List<dynamic>>(
+            'form_radar_for_fixtures',
+            params: {
+              'p_sport': 'football',
+              'p_ids': ids.map((id) => '$id').toList(),
+            },
+          )
+          .timeout(const Duration(seconds: 2));
+      for (final raw in snapshots.whereType<Map<String, dynamic>>()) {
+        final id = int.tryParse('${raw['fixtureId']}');
+        if (id != null && ids.contains(id)) _radar[id] = raw;
+      }
+    } on Object {
+      /* Optional Radar must not interrupt score delivery. */
+    }
   }
 
   @override
@@ -68,7 +97,13 @@ class SupabaseLiveMatchRepository implements LiveMatchRepository {
         ),
         callback: (payload) {
           if (payload.newRecord['fixture_id'] is num) {
-            onState(LiveMatchState.fromJson(payload.newRecord));
+            onState(
+              LiveMatchState.fromJson({
+                ...payload.newRecord,
+                'radar_snapshot':
+                    _radar[(payload.newRecord['fixture_id'] as num).toInt()],
+              }),
+            );
           }
         },
       );

@@ -10,11 +10,15 @@ class LectorFormRadarSignalPanel extends StatefulWidget {
     required this.rows,
     required this.periodLabel,
     this.isLocalPreview = false,
+    this.decisiveCount = 0,
+    this.isLive = false,
     super.key,
   });
   final List<Widget> rows;
   final Widget periodLabel;
   final bool isLocalPreview;
+  final int decisiveCount;
+  final bool isLive;
   @override
   State<LectorFormRadarSignalPanel> createState() =>
       _LectorFormRadarSignalPanelState();
@@ -42,43 +46,85 @@ class _LectorFormRadarSignalPanelState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(
-                Icons.bar_chart_rounded,
-                color: context.brand.accent,
-                size: 19,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  'Signaux Form Radar',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: context.textColors.primary,
-                    fontWeight: FontWeight.w900,
-                  ),
+          Container(
+            key: ValueKey(
+              widget.decisiveCount > 0
+                  ? 'radar-confirmed-header'
+                  : 'radar-normal-header',
+            ),
+            padding: widget.decisiveCount > 0
+                ? const EdgeInsets.all(9)
+                : EdgeInsets.zero,
+            decoration: widget.decisiveCount > 0
+                ? BoxDecoration(
+                    color: widget.isLive
+                        ? const Color(0xff174b38)
+                        : const Color(0xff193d30),
+                    border: Border.all(color: const Color(0xff359b70)),
+                    borderRadius: BorderRadius.circular(9),
+                  )
+                : null,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.bar_chart_rounded,
+                      color: context.brand.accent,
+                      size: 19,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Signaux Form Radar',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: widget.decisiveCount > 0
+                              ? const Color(0xffeefbf4)
+                              : context.textColors.primary,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    Flexible(
+                      child: Text(
+                        widget.decisiveCount > 0
+                            ? (widget.isLive ? 'LIVE' : 'Terminé')
+                            : count == 1
+                            ? '1 signal de forme'
+                            : '$count signaux de forme',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: widget.decisiveCount > 0
+                              ? const Color(0xffb4d9c7)
+                              : context.textColors.secondary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    if (widget.isLocalPreview) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        'aperçu local',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: context.brand.accent,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-              ),
-              Flexible(
-                child: Text(
-                  count == 1 ? '1 signal de forme' : '$count signaux de forme',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: context.textColors.secondary,
-                    fontWeight: FontWeight.w800,
+                if (widget.decisiveCount > 0) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    '${widget.decisiveCount} joueur${widget.decisiveCount == 1 ? '' : 's'} signalé${widget.decisiveCount == 1 ? '' : 's'} décisif${widget.decisiveCount == 1 ? '' : 's'}',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: const Color(0xffcbebdb),
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-              ),
-              if (widget.isLocalPreview) ...[
-                const SizedBox(width: 6),
-                Text(
-                  'aperçu local',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: context.brand.accent,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+                ],
               ],
-            ],
+            ),
           ),
           const SizedBox(height: 7),
           Align(alignment: Alignment.centerRight, child: widget.periodLabel),

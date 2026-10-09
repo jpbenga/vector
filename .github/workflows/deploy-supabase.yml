@@ -27,6 +27,7 @@ on:
           - lector-generator-sport-publications
           - lector-generator-hockey-odds
           - lector-generator-conversation-update
+          - lector-visual-live-update
 
 permissions:
   contents: read
@@ -38,7 +39,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/main' && !startsWith(inputs.function, 'lector-generator-')
+    if: github.ref == 'refs/heads/main' && !startsWith(inputs.function, 'lector-generator-') && inputs.function != 'lector-visual-live-update'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -185,3 +186,20 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           GH_TOKEN: ${{ github.token }}
         run: python3 tool/deploy_generator_conversation_remote.py
+
+  visual-live-update:
+    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-visual-live-update'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: supabase/setup-cli@v1
+        with:
+          version: '2.120.0'
+      - name: Install recorded Radar evidence and bounded hockey events
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tool/deploy_lector_visual_live_remote.py

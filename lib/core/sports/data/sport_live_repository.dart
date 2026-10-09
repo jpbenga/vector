@@ -29,6 +29,7 @@ class SupabaseSportLiveRepository
   final String publicKey;
   final http.Client? client;
   Duration _serverOffset = Duration.zero;
+  final Map<String, Map<String, dynamic>> _radar = {};
   @override
   DateTime get scoreTime => DateTime.now().add(_serverOffset);
   @override
@@ -49,6 +50,7 @@ class SupabaseSportLiveRepository
             'limit': '500',
           },
         );
+    final radarFuture = _loadRadar(sport, fixtureIds);
     final response = await (client?.get ?? http.get)(
       url,
       headers: {'apikey': publicKey},
@@ -68,6 +70,7 @@ class SupabaseSportLiveRepository
         // Retain the last trusted clock when a proxy omits a valid Date.
       }
     }
+    await radarFuture;
     final result = <SportFixture>[];
     final seen = <String>{};
     for (final raw in jsonDecode(response.body) as List) {
@@ -91,7 +94,12 @@ class SupabaseSportLiveRepository
         'capturedAt': row['captured_at'],
         'windowStart': payload['calendarDate'],
         'windowEnd': payload['calendarDate'],
-        'items': [payload],
+        'items': [
+          {
+            ...payload,
+            'radarSnapshot': _radar['${sport.key}:${row['fixture_id']}'],
+          },
+        ],
       }, sport);
       if (snapshot.capturedAt.isAfter(
         scoreTime.add(const Duration(seconds: 30)),
@@ -101,6 +109,28 @@ class SupabaseSportLiveRepository
       result.add(snapshot.items.single);
     }
     return result;
+  }
+
+  Future<void> _loadRadar(SportId sport, Set<String> fixtureIds) async {
+    try {
+      final radarResponse = await (client?.post ?? http.post)(
+        projectUrl.resolve('/rest/v1/rpc/form_radar_for_fixtures'),
+        headers: {'apikey': publicKey, 'Content-Type': 'application/json'},
+        body: jsonEncode({'p_sport': sport.key, 'p_ids': fixtureIds.toList()}),
+      ).timeout(const Duration(seconds: 2));
+      if (radarResponse.statusCode == 200) {
+        for (final raw
+            in (jsonDecode(radarResponse.body) as List)
+                .whereType<Map<String, dynamic>>()) {
+          if (raw['sport'] == sport.key &&
+              fixtureIds.contains(raw['fixtureId'])) {
+            _radar['${sport.key}:${raw['fixtureId']}'] = raw;
+          }
+        }
+      }
+    } on Object {
+      /* Optional Radar must not interrupt score delivery. */
+    }
   }
 }
 
@@ -216,8 +246,12 @@ class SportLiveController extends ChangeNotifier {
       homeForm: base.homeForm,
       awayForm: base.awayForm,
       headToHead: base.headToHead,
-      matchEvents: base.matchEvents,
-      matchEventsCapturedAt: base.matchEventsCapturedAt,
+      radarSnapshot: current.radarSnapshot ?? base.radarSnapshot,
+      matchEvents: current.matchEventsCapturedAt != null
+          ? current.matchEvents
+          : base.matchEvents,
+      matchEventsCapturedAt:
+          current.matchEventsCapturedAt ?? base.matchEventsCapturedAt,
     );
   }
 

@@ -66,25 +66,39 @@ class _LectorTemporalFeedState<T> extends State<LectorTemporalFeed<T>> {
                       child: ChoiceChip(
                         key: ValueKey('temporal-filter-${p?.name ?? 'all'}'),
                         selected: selected == p,
-                        selectedColor:
-                            (p == LectorMatchPhase.live
-                                    ? context.semantic.live
-                                    : context.brand.accent)
-                                .withValues(alpha: .12),
+                        selectedColor: context.brand.accent.withValues(
+                          alpha: .22,
+                        ),
                         side: BorderSide(
-                          color: p == LectorMatchPhase.live
-                              ? context.semantic.live
+                          color: selected == p
+                              ? context.brand.accent
                               : context.surfaces.border,
+                          width: selected == p ? 1.5 : 1,
                         ),
                         showCheckmark: false,
-                        label: Text(
-                          '${p == LectorMatchPhase.live ? '● ' : ''}${label(p)} ${p == null ? widget.items.length : groups[p]!.length}',
-                          style: TextStyle(
-                            color: p == LectorMatchPhase.live
-                                ? context.semantic.live
-                                : context.textColors.primary,
-                            fontWeight: FontWeight.w800,
-                          ),
+                        label: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (p == LectorMatchPhase.live) ...[
+                              Icon(
+                                Icons.circle,
+                                size: 7,
+                                color: context.semantic.live,
+                              ),
+                              const SizedBox(width: 5),
+                            ],
+                            Text(
+                              '${label(p)} ${p == null ? widget.items.length : groups[p]!.length}',
+                              style: TextStyle(
+                                color: selected == p
+                                    ? context.brand.accent
+                                    : context.textColors.secondary,
+                                fontWeight: selected == p
+                                    ? FontWeight.w900
+                                    : FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                         onSelected: (_) => setState(() => _selected = p),
                       ),

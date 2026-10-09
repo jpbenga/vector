@@ -1,4 +1,7 @@
-import { collectHockeyLive } from "../_shared/sports/hockey_live.ts";
+import {
+  collectHockeyLive,
+  collectHockeyRadarEvents,
+} from "../_shared/sports/hockey_live.ts";
 import { object } from "../_shared/sports/hockey_feed.ts";
 import { rpc, safeError } from "../_shared/ops_runtime.ts";
 
@@ -51,6 +54,47 @@ Deno.serve(async (request) => {
         return response.json();
       },
     }, new Date().toISOString());
+    const candidates = collection.states.filter((s) =>
+      ["live", "finished"].includes(s.fixture.status)
+    ).map((s) => s.fixture.id);
+    try {
+      const due = await rpc("hockey_radar_event_due", { p_ids: candidates });
+      if (Array.isArray(due)) {
+        const events = await collectHockeyRadarEvents(
+          collection.states,
+          due as string[],
+          {
+            reserve: async () =>
+              Date.now() < deadline &&
+              object(
+                  await rpc("hockey_live_reserve", {
+                    p_token: token,
+                    p_live: true,
+                  }),
+                ).allowed === true,
+            request: async (id) => {
+              requests++;
+              const url = new URL(
+                "https://v1.hockey.api-sports.io/games/events",
+              );
+              url.search = new URLSearchParams({ game: id }).toString();
+              const response = await fetch(url, {
+                headers: { "x-apisports-key": key },
+                redirect: "error",
+                signal: AbortSignal.timeout(
+                  Math.max(1, Math.min(10000, deadline - Date.now())),
+                ),
+              });
+              if (!response.ok) {
+                throw new Error(`API-Hockey events HTTP ${response.status}`);
+              }
+              return response.json();
+            },
+          },
+        );
+        collection.deferred ||= events.deferred;
+      }
+    } catch { /* Missing/failed optional events must not interrupt scores. */ }
     const published = await rpc("hockey_live_publish", {
       p_token: token,
       p_states: collection.states,

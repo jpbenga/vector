@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { collectHockeyLive } from "./hockey_live.ts";
+import { collectHockeyLive, collectHockeyRadarEvents } from "./hockey_live.ts";
 const game = (status = "FT") => ({
   id: 430525,
   date: "2026-10-05T14:00:00+00:00",
@@ -93,4 +93,41 @@ Deno.test("revoked quota prevents external requests and collection remains defer
       request: async () => envelope([]),
     }, "2026-10-05T18:00:00Z")
   );
+});
+
+Deno.test("Radar hockey events validate identity, respect quota and never prevent scores", async () => {
+  const states = (await collectHockeyLive(["2026-10-05"], {
+    reserve: async () => true,
+    request: async () => envelope([game("P2")]),
+  }, "2026-10-05T18:00:00Z")).states;
+  const event = {
+    game_id: 430525,
+    period: "P2",
+    minute: 13,
+    team: { id: 1487 },
+    type: "goal",
+    players: ["R. Player"],
+    assists: ["A. Player"],
+  };
+  const result = await collectHockeyRadarEvents(states, ["430525"], {
+    reserve: async () => true,
+    request: async () => envelope([event]),
+  });
+  assert.equal(result.requests, 1);
+  assert.equal((states[0].fixture as any).matchEvents.events[0].elapsed, 33);
+  const previous = (states[0].fixture as any).matchEvents;
+  const invalid = await collectHockeyRadarEvents(states, ["430525"], {
+    reserve: async () => true,
+    request: async () => envelope([{ ...event, game_id: 999 }]),
+  });
+  assert.equal(invalid.deferred, true);
+  assert.equal((states[0].fixture as any).matchEvents, previous);
+  const stopped = await collectHockeyRadarEvents(states, ["430525"], {
+    reserve: async () => false,
+    request: async () => {
+      throw new Error("must not call");
+    },
+  });
+  assert.equal(stopped.requests, 0);
+  assert.equal(stopped.deferred, true);
 });

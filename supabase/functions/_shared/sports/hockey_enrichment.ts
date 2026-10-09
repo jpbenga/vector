@@ -45,6 +45,7 @@ export type HockeyEnrichedFixture = {
     collectedAt: string;
     events: HockeyEvent[];
     complete: boolean;
+    isFinal?: boolean;
   };
   headToHead?: { collectedAt: string; meetings: HockeyMeeting[] };
 };
