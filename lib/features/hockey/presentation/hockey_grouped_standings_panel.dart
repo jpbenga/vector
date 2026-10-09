@@ -222,6 +222,8 @@ class _HockeyGroupedStandingsPanelState
   Widget overview() {
     final opposing = opposition();
     final groups = displayedGroups;
+    // A common conference table must not erase the opponents' local context.
+    final performanceGroups = _level == 0 ? matchGroups : groups;
     final compareFirst =
         _level == 0 &&
         comparison.relation != HockeyStandingRelation.sameDivision &&
@@ -299,10 +301,10 @@ class _HockeyGroupedStandingsPanelState
             subtitle:
                 'Points obtenus face aux équipes hors du groupe, rapportés au maximum possible. Ce n’est pas une mesure absolue de niveau.',
             child: pair([
-              for (final index in groups)
+              for (final index in performanceGroups)
                 performance(
                   data.groups.firstWhere((g) => g.tableIndex == index),
-                  side: groups.length == 1
+                  side: performanceGroups.length == 1
                       ? LectorStandingRole.none
                       : role(
                           c.tables[index].rows

@@ -23,6 +23,8 @@ Les positions de division et de conférence sont affichées séparément. Le rep
 
 Pour les oppositions entre groupes, ce repère apparaît avant les tableaux complets. Les barèmes à deux ou trois points proviennent du contexte de compétition existant ; aucune équivalence NHL/KHL/SHL n'est supposée.
 
+Dans la vue du match, les bilans face aux autres groupes conservent le niveau local des adversaires : afficher la conférence commune n'efface pas le contexte de leurs deux divisions. Dans une vue explicite « Conférences », les bilans portent sur les conférences sélectionnées.
+
 La synthèse « Lecture du contexte Lector » est descriptive : meilleur rendement comptable, éventuelle inversion de l'impression donnée par les rangs locaux, faible volume de résultats, bilan domicile/extérieur et forme récente uniquement si la phase et les cinq résultats finaux sont vérifiés. Elle ne prétend pas mesurer la force intrinsèque ni neutraliser la qualité des adversaires. La forme NHL dont la phase n'est pas attestée demeure explicitement exclue.
 
 Les lectures automatiques validées et leurs seuils de tiers ne sont pas modifiés. Un futur signal inter-conférences doit recevoir une politique distincte et validée ; un rang local ou un simple écart de points par match ne déclenche pas « avantage au classement ».

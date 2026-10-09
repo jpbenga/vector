@@ -117,6 +117,14 @@ void main() {
               .length,
           16,
         );
+        expect(
+          tester
+              .widgetList<LectorStandingGroupPerformance>(
+                find.byType(LectorStandingGroupPerformance),
+              )
+              .map((w) => w.name),
+          ['Atlantic Division', 'Metropolitan Division'],
+        );
         final divisions = find.byKey(const ValueKey('hockey-standing-level-1'));
         await tester.ensureVisible(divisions);
         await tester.tap(divisions);
