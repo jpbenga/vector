@@ -16,12 +16,14 @@ class LectorStandingTeamContext {
     required this.played,
     required this.points,
     this.logoUrl,
+    this.goalsDifference,
   });
   final String name, group;
   final String? logoUrl;
   final LectorStandingRole role;
   final int position, groupSize, played;
   final int? points;
+  final int? goalsDifference;
   double? get pointsPerGame =>
       played == 0 || points == null ? null : points! / played;
 }
@@ -299,6 +301,60 @@ class LectorStandingPositionComparison extends StatelessWidget {
   );
 }
 
+/// Two official levels remain distinct; a local rank is never a league rank.
+class LectorStandingHierarchyComparison extends StatelessWidget {
+  const LectorStandingHierarchyComparison({
+    required this.localTeams,
+    required this.conferenceTeams,
+    this.calculated = false,
+    super.key,
+  });
+  final List<LectorStandingTeamContext> localTeams, conferenceTeams;
+  final bool calculated;
+
+  @override
+  Widget build(BuildContext context) => LectorStandingContextCard(
+    title: calculated ? 'POSITIONS DANS CE PÉRIMÈTRE' : 'POSITIONS OFFICIELLES',
+    subtitle: calculated
+        ? 'Classements calculés à domicile ou à l’extérieur'
+        : 'Division et conférence · deux niveaux distincts',
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final (i, team) in localTeams.indexed) ...[
+          if (i > 0) const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                LectorStandingPositionCard(team: team),
+                if (conferenceTeams
+                        .where((t) => t.role == team.role)
+                        .firstOrNull
+                    case final LectorStandingTeamContext conference) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    conference.group,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.textColors.secondary,
+                    ),
+                  ),
+                  Text(
+                    '${conference.position}${conference.position == 1 ? 'er' : 'e'} / ${conference.groupSize}',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
 class LectorStandingPositionRail extends StatelessWidget {
   const LectorStandingPositionRail({
     required this.position,
@@ -408,12 +464,14 @@ class LectorStandingPaceComparison extends StatelessWidget {
     required this.maximum,
     required this.mean,
     this.competitionName,
+    this.summary,
     super.key,
   });
   final List<LectorStandingTeamContext> teams;
   final int? maximum;
   final double? mean;
   final String? competitionName;
+  final String? summary;
   @override
   Widget build(BuildContext context) => LectorGlassCard(
     padding: const EdgeInsets.all(14),
@@ -492,6 +550,13 @@ class LectorStandingPaceComparison extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                       ),
                     ),
+                    if (t.goalsDifference case final int difference) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Diff. buts : ${difference > 0 ? '+' : ''}$difference',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -510,6 +575,10 @@ class LectorStandingPaceComparison extends StatelessWidget {
             'Barème indisponible · moyenne de la ligue : ${lectorPointsPerGame(mean)} pts/match',
             style: Theme.of(context).textTheme.bodySmall,
           ),
+        if (summary != null) ...[
+          const SizedBox(height: 12),
+          Text(summary!, style: Theme.of(context).textTheme.bodySmall),
+        ],
       ],
     ),
   );

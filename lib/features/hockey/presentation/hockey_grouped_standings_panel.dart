@@ -5,6 +5,7 @@ import '../../../core/widgets/lector_standing_table.dart';
 import '../../../core/widgets/lector_standing_context.dart';
 import '../../../core/theme/app_components.dart';
 import '../domain/hockey_standing_view.dart';
+import '../domain/hockey_match_standing_context.dart';
 import '../domain/hockey_standing_tiers.dart';
 import 'hockey_standing_tier_presentation.dart';
 
@@ -26,10 +27,13 @@ class HockeyGroupedStandingsPanel extends StatefulWidget {
 
 class _HockeyGroupedStandingsPanelState
     extends State<HockeyGroupedStandingsPanel> {
-  int _group = -1, _scope = 0;
+  int _group = -1, _scope = 0, _level = 0;
   final _panelKey = GlobalKey();
   void selectGroup(int index) {
-    setState(() => _group = index);
+    setState(() {
+      _group = index;
+      if (index == -1) _level = 0;
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final target = _panelKey.currentContext;
       if (mounted && target != null) {
@@ -44,27 +48,28 @@ class _HockeyGroupedStandingsPanelState
 
   SportCompetitionContext get c => widget.competition;
   SportStandingContext get data => c.standingContext!;
-  List<int> get matchGroups => {
-    for (final id in teams)
-      if (HockeyStandingView.localGroup(c, id) case final int index) index,
-  }.toList();
-  int get activeGroup => _group >= 0
-      ? _group
-      : matchGroups.length == 1
-      ? matchGroups.single
-      : -1;
-  String get comparisonLabel {
-    final kinds = matchGroups
-        .map((i) => data.groups.firstWhere((g) => g.tableIndex == i).kind)
+  HockeyMatchStandingContext get comparison =>
+      HockeyMatchStandingContext(c, teams);
+  List<int> get matchGroups => comparison.localGroups;
+  int get activeGroup => _group;
+  List<int> get displayedGroups => switch (_level) {
+    1 => comparison.divisions,
+    2 => comparison.conferences,
+    _ => comparison.primaryGroups,
+  };
+  String get comparisonLabel => comparison.description;
+  String get pairedTitle {
+    final kinds = data.groups
+        .where((g) => displayedGroups.contains(g.tableIndex))
+        .map((g) => g.kind)
         .toSet();
-    if (kinds.length == 1 && kinds.single == SportStandingGroupKind.division) {
-      return 'Deux divisions différentes';
-    }
-    if (kinds.length == 1 &&
-        kinds.single == SportStandingGroupKind.conference) {
-      return 'Deux conférences différentes';
-    }
-    return 'Deux groupes différents';
+    return kinds.length != 1
+        ? 'LEURS CLASSEMENTS COMPLETS'
+        : kinds.single == SportStandingGroupKind.division
+        ? 'LEURS DIVISIONS COMPLÈTES'
+        : kinds.single == SportStandingGroupKind.conference
+        ? 'LEURS CONFÉRENCES COMPLÈTES'
+        : 'LEURS CLASSEMENTS COMPLETS';
   }
 
   List<SportEntityId> get teams => [
@@ -79,6 +84,7 @@ class _HockeyGroupedStandingsPanelState
         old.awayTeamId != widget.awayTeamId) {
       _group = -1;
       _scope = 0;
+      _level = 0;
     } else if (_group >= 0 && !data.groups.any((g) => g.tableIndex == _group)) {
       _group = -1;
     }
@@ -104,6 +110,9 @@ class _HockeyGroupedStandingsPanelState
         groupSize: c.tables[index].rows.length,
         played: row.played,
         points: row.points,
+        goalsDifference: row.goalsFor == null || row.goalsAgainst == null
+            ? null
+            : row.goalsFor! - row.goalsAgainst!,
       );
   List<(int, SportStandingRow)> opposition() => [
     for (final id in teams)
@@ -212,28 +221,56 @@ class _HockeyGroupedStandingsPanelState
 
   Widget overview() {
     final opposing = opposition();
-    final groups = matchGroups;
+    final groups = displayedGroups;
+    final compareFirst =
+        _level == 0 &&
+        comparison.relation != HockeyStandingRelation.sameDivision &&
+        comparison.relation != HockeyStandingRelation.sameGroup;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (opposing.isEmpty)
           const Text(
-            'Classement non disponible pour les équipes du match dans ce périmètre.',
+            'Classement complet non disponible dans ce périmètre. Les données manquantes ne sont pas remplacées par des zéros.',
           )
-        else ...[
+        else if (_level != 1 &&
+            comparison.completeLevel(SportStandingGroupKind.division) &&
+            comparison.completeLevel(SportStandingGroupKind.conference))
+          LectorStandingHierarchyComparison(
+            calculated: _scope != 0,
+            localTeams: [
+              for (final (index, row) in opposing) teamContext(row, index),
+            ],
+            conferenceTeams: [
+              for (final id in teams)
+                if (comparison.groupFor(id, SportStandingGroupKind.conference)
+                    case final int index)
+                  if (comparison.row(id, _scope, group: index)
+                      case final SportStandingRow row)
+                    teamContext(row, index),
+            ],
+          )
+        else if (matchGroups.length > 1)
           LectorStandingPositionComparison(
             title: positionTitle(opposing),
             teams: [
               for (final (index, row) in opposing) teamContext(row, index),
             ],
           ),
+        if (compareFirst && opposing.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          paceComparison(opposing),
         ],
         if (groups.isNotEmpty) ...[
           const SizedBox(height: 12),
-          LectorStandingContextCard(
-            title: 'LEURS CLASSEMENTS',
-            child: LayoutBuilder(
-              builder: (context, constraints) => Row(
+          if (groups.length == 1)
+            rankingCard(groups.single)
+          else
+            LectorStandingContextCard(
+              title: pairedTitle,
+              subtitle:
+                  'Chaque tableau conserve tous les membres de son groupe.',
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   for (final (i, index) in groups.indexed) ...[
@@ -245,18 +282,17 @@ class _HockeyGroupedStandingsPanelState
                 ],
               ),
             ),
-          ),
+          const SizedBox(height: 8),
+          if (groups.length == 1)
+            const Text(
+              'V : toutes les victoires · D : défaites en temps réglementaire · OT : défaites après prolongation ou tirs au but.',
+            ),
         ],
         if (opposing.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          LectorStandingPaceComparison(
-            teams: [
-              for (final (index, row) in opposing) teamContext(row, index),
-            ],
-            competitionName: c.name,
-            maximum: data.maximumPoints,
-            mean: HockeyStandingView.leagueMean(c, _scope),
-          ),
+          if (!compareFirst) ...[
+            const SizedBox(height: 12),
+            paceComparison(opposing),
+          ],
           const SizedBox(height: 12),
           LectorStandingContextCard(
             title: 'Face aux autres groupes',
@@ -279,8 +315,10 @@ class _HockeyGroupedStandingsPanelState
           ),
           const SizedBox(height: 12),
           LectorStandingContextCard(
-            title: 'Lecture du contexte',
-            child: Text(synthesis(opposing)),
+            title: 'LECTURE DU CONTEXTE LECTOR',
+            subtitle:
+                'Interprétation descriptive · distincte du classement officiel',
+            child: Text(synthesis()),
           ),
         ],
         const SizedBox(height: 12),
@@ -294,35 +332,48 @@ class _HockeyGroupedStandingsPanelState
     );
   }
 
-  String synthesis(List<(int, SportStandingRow)> opposition) {
-    if (opposition.length != 2 || opposition.any((t) => t.$2.played == 0)) {
-      return 'Pas encore assez de résultats pour comparer le rendement des deux équipes.';
+  Widget paceComparison(List<(int, SportStandingRow)> opposing) =>
+      LectorStandingPaceComparison(
+        teams: [for (final (index, row) in opposing) teamContext(row, index)],
+        competitionName: c.name,
+        maximum: data.maximumPoints,
+        mean: HockeyStandingView.leagueMean(c, _scope),
+        summary: comparison.commonFacts(_scope),
+      );
+
+  String synthesis() {
+    final facts = [comparison.interpretation(_scope)];
+    for (final id in teams) {
+      final row = comparison.row(id, 0);
+      final scope = id == widget.homeTeamId ? 1 : 2;
+      final venue = comparison.row(id, scope);
+      if (venue != null && venue.played > 0) {
+        facts.add(
+          '${venue.team.name} ${scope == 1 ? 'à domicile' : 'à l’extérieur'} : ${venue.wins + (venue.overtimeWins ?? 0)} victoires en ${venue.played} matchs.',
+        );
+      }
+      if (c.formPhaseVerified &&
+          row != null &&
+          row.form.length == 5 &&
+          row.form.every(
+            (g) =>
+                g.startsAt.isBefore(data.collectedAt) &&
+                ['FT', 'AOT', 'AP', 'APEN'].contains(g.providerStatus),
+          )) {
+        final wins = row.form
+            .where((g) => g.outcome == SportFormOutcome.win)
+            .length;
+        facts.add(
+          '${row.team.name} : $wins victoires sur les cinq derniers matchs vérifiés.',
+        );
+      }
     }
-    final a = opposition[0].$2, b = opposition[1].$2;
-    final gap = a.pointsPerGame - b.pointsPerGame;
-    final pace = gap.abs() < .005
-        ? 'Les deux équipes ont le même rendement en points par match.'
-        : '${gap > 0 ? a.team.name : b.team.name} obtient davantage de points par match.';
-    if (opposition[0].$1 == opposition[1].$1) {
-      return '$pace Les deux équipes évoluent dans le même groupe. Ces repères ne prédisent pas le résultat du match.';
+    if (!c.formPhaseVerified) {
+      facts.add(
+        'La forme récente n’est pas intégrée ici : sa phase de compétition n’est pas vérifiée.',
+      );
     }
-    final ga = data.groups.firstWhere((g) => g.tableIndex == opposition[0].$1),
-        gb = data.groups.firstWhere((g) => g.tableIndex == opposition[1].$1);
-    final ra = ga.forScope(_scope), rb = gb.forScope(_scope);
-    if (data.maximumPoints == null ||
-        ga.kind != gb.kind ||
-        ra == null ||
-        rb == null ||
-        ra.played < HockeyStandingView.minimumInterGroupGames ||
-        rb.played < HockeyStandingView.minimumInterGroupGames) {
-      return '$pace La comparaison entre groupes demande davantage de résultats vérifiés. Ces repères ne prédisent pas le résultat du match.';
-    }
-    final diff =
-        ra.share(data.maximumPoints!)! - rb.share(data.maximumPoints!)!;
-    final cross = diff.abs() < .005
-        ? 'Les groupes ont un rendement similaire face aux autres groupes.'
-        : '${c.tables[diff > 0 ? ga.tableIndex : gb.tableIndex].group} obtient une plus grande part des points possibles face aux autres ${kind(ga)}.';
-    return '$pace $cross Ces repères ne prédisent pas le résultat du match.';
+    return facts.join('\n\n');
   }
 
   Widget rankingCard(int index, {bool compact = false, bool canOpen = false}) {
@@ -344,7 +395,9 @@ class _HockeyGroupedStandingsPanelState
           : c.tables[index].stage,
       onOpen: canOpen ? () => selectGroup(index) : null,
       table: rows.isEmpty
-          ? const Text('Résultats non disponibles pour ce périmètre.')
+          ? Text(
+              'Classement complet indisponible : les ${c.tables[index].rows.length} équipes ne disposent pas toutes d’un bilan vérifié dans ce périmètre.',
+            )
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -429,7 +482,7 @@ class _HockeyGroupedStandingsPanelState
             ),
           ),
         ],
-        if (matchGroups.length > 1)
+        if (_group >= 0)
           TextButton(
             onPressed: () => selectGroup(-1),
             child: const Text('Retour à la vue du match'),
@@ -457,22 +510,62 @@ class _HockeyGroupedStandingsPanelState
     groupSelector: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (activeGroup >= 0)
-          OutlinedButton.icon(
-            onPressed: pick,
-            icon: const Icon(Icons.groups_outlined),
-            label: Text(
-              activeGroup < 0 ? 'Vue du match' : c.tables[activeGroup].group,
-            ),
-          ),
-        if (activeGroup < 0 && matchGroups.length > 1)
+        OutlinedButton.icon(
+          key: const ValueKey('all-standing-groups'),
+          onPressed: pick,
+          icon: const Icon(Icons.format_list_numbered),
+          label: const Text('Tous les classements'),
+        ),
+        if (teams.length == 2) ...[
+          const SizedBox(height: 8),
           Row(
             children: [
-              const Icon(Icons.info_outline, size: 16),
-              const SizedBox(width: 6),
-              Expanded(child: Text(comparisonLabel)),
+              for (final (index, label) in [
+                'Vue du match',
+                'Divisions',
+                'Conférences',
+              ].indexed)
+                if (index == 0 ||
+                    (index == 1 ? comparison.divisions : comparison.conferences)
+                        .isNotEmpty)
+                  Expanded(
+                    child: TextButton(
+                      key: ValueKey('hockey-standing-level-$index'),
+                      onPressed: () => setState(() {
+                        _group = -1;
+                        _level = index;
+                      }),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 10,
+                        ),
+                        backgroundColor: _group < 0 && _level == index
+                            ? context.brand.accent.withValues(alpha: .16)
+                            : null,
+                        foregroundColor: _group < 0 && _level == index
+                            ? context.brand.accent
+                            : context.textColors.secondary,
+                      ),
+                      child: Text(
+                        label,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                    ),
+                  ),
             ],
           ),
+          const SizedBox(height: 8),
+          Text(comparisonLabel, style: Theme.of(context).textTheme.bodySmall),
+        ],
+        if (activeGroup >= 0) ...[
+          const SizedBox(height: 8),
+          Text(
+            c.tables[activeGroup].group,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+        ],
         if (activeGroup >= 0)
           for (final row in HockeyStandingView.rows(
             c,

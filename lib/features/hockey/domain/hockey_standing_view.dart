@@ -42,6 +42,12 @@ abstract final class HockeyStandingView {
     final rows = (scope == 1 ? venue.home : venue.away)
         .where((r) => members.contains(r.team.id))
         .toList();
+    // A subset must not masquerade as a complete division/conference ranking.
+    if (rows.length != members.length ||
+        rows.map((r) => r.team.id).toSet().length != members.length ||
+        rows.any((r) => r.points == null)) {
+      return [];
+    }
     int compare(SportVenueStandingRow a, SportVenueStandingRow b) =>
         b.points!.compareTo(a.points!) != 0
         ? b.points!.compareTo(a.points!)
@@ -78,11 +84,16 @@ abstract final class HockeyStandingView {
 
   static double? leagueMean(SportCompetitionContext c, int scope) {
     final unique = <SportEntityId, SportStandingRow>{};
+    final members = c.tables
+        .expand((t) => t.rows)
+        .map((r) => r.team.id)
+        .toSet();
     for (final g in c.standingContext!.groups) {
       for (final r in rows(c, g.tableIndex, scope)) {
         unique[r.team.id] = r;
       }
     }
+    if (unique.length != members.length) return null;
     final played = unique.values.fold<int>(0, (n, r) => n + r.played);
     return played == 0
         ? null

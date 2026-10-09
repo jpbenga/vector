@@ -78,7 +78,7 @@ void main() {
       expect(ahl.standingContext!.groups.every((g) => g.all == null), isTrue);
     },
   );
-  for (final width in [360.0, 1100.0]) {
+  for (final width in [320.0, 390.0, 1100.0]) {
     testWidgets(
       'three-screen journey preserves team roles, table membership and scopes at $width',
       (tester) async {
@@ -103,6 +103,23 @@ void main() {
             ),
           ),
         );
+        await tester.pumpAndSettle();
+        expect(find.byType(LectorStandingHierarchyComparison), findsOneWidget);
+        expect(find.byType(LectorStandingDataTable), findsOneWidget);
+        expect(
+          tester
+              .widget<LectorStandingDataTable>(
+                find.byType(LectorStandingDataTable),
+              )
+              .groups
+              .single
+              .rows
+              .length,
+          16,
+        );
+        final divisions = find.byKey(const ValueKey('hockey-standing-level-1'));
+        await tester.ensureVisible(divisions);
+        await tester.tap(divisions);
         await tester.pumpAndSettle();
         expect(find.text('POSITION DANS LEUR DIVISION'), findsOneWidget);
         expect(find.byType(LectorStandingDataTable), findsNWidgets(2));
@@ -249,6 +266,9 @@ void main() {
         );
         await tester.ensureVisible(find.text('Retour à la vue du match'));
         await tester.tap(find.text('Retour à la vue du match'));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(divisions);
+        await tester.tap(divisions);
         await tester.pumpAndSettle();
         expect(find.text('POSITION DANS LEUR DIVISION'), findsOneWidget);
         final awayCard = find.byKey(
