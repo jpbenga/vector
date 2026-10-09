@@ -57,6 +57,27 @@ def main():
         turn["messages"] = messages_since(turn.get("messages"))
         print(json.dumps({"incident_turn": turn}, ensure_ascii=False))
 
+    # Public source dimensions and fixture boundaries at the incident start.
+    # No source documents or player profiles are emitted into workflow logs.
+    publication = query(f"""with head as (
+        select captured_at,overview from public.sport_feed_snapshots
+        where sport='hockey' and captured_at <= '{cutoff}'::timestamptz
+        order by captured_at desc limit 1
+      ) select captured_at,
+        length(coalesce(overview#>'{{playerRadar,profiles}}','[]')::text) as player_profile_characters,
+        jsonb_array_length(coalesce(overview#>'{{playerRadar,profiles}}','[]')) as player_profiles,
+        jsonb_array_length(overview->'items') as total_matches,
+        (select coalesce(jsonb_agg(jsonb_build_object(
+          'matchId',f->>'id','home',f#>>'{{home,name}}','away',f#>>'{{away,name}}',
+          'startsAt',f->>'startsAt','parisDay',((f->>'startsAt')::timestamptz at time zone 'Europe/Paris')::date,
+          'readings',jsonb_array_length(coalesce(f->'readings','[]'))
+        ) order by f->>'startsAt'),'[]') from jsonb_array_elements(overview->'items') f
+          where f->>'competitionId'='57'
+            and (f->>'startsAt')::timestamptz >= '{cutoff}'::timestamptz
+            and (f->>'startsAt')::timestamptz < '{cutoff}'::timestamptz + interval '14 hours'
+        ) as nhl_night_matches from head""")
+    print(json.dumps({"incident_publication_dimensions": publication}, ensure_ascii=False))
+
     # Retained application failure events only; no headers, credentials, request
     # bodies or unrelated user messages. The account-scoped turn IDs above
     # establish which events are pertinent to the incident.
