@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { type State } from "./contracts.ts";
+import { obj, type State } from "./contracts.ts";
 import { applyIntent } from "./service.ts";
 import { compositionKey } from "./engine.ts";
 import { interpret } from "./openai.ts";
@@ -334,18 +334,51 @@ for (const view of ["profile", "radar"] as const) {
           }
           return Response.json([{ status: "pending" }]);
         }
-        if (u.pathname === "/rest/v1/rpc/lector_generator_shared_sources") {
-          assert.equal(view, "profile");
-          assert.deepEqual(payload.p_competitions, ["61"]);
-          return Response.json([publication]);
-        }
-        if (
-          u.pathname === "/rest/v1/rpc/lector_generator_shared_radar_sources"
-        ) {
-          assert.equal(view, "radar");
-          assert.deepEqual(payload.p_radar, requestContext.radar);
+        if (u.pathname === "/rest/v1/rpc/lector_generator_day_manifest") {
+          assert.deepEqual(
+            payload.p_competitions,
+            view === "profile" ? ["61"] : null,
+          );
+          assert.deepEqual(
+            payload.p_radar,
+            view === "radar" ? requestContext.radar : null,
+          );
           assert.equal(payload.p_date, date);
-          return Response.json([publication]);
+          const sourceRef = {
+            id: publication.id,
+            sport: "football",
+            capturedAt: publication.capturedAt,
+          };
+          const matches = raw.fixtures.filter((f) =>
+            view !== "radar" || obj(f.fixture).id === 1
+          ).map((f) => ({
+            ...sourceRef,
+            matchId: String(obj(f.fixture).id),
+            key: `football:${obj(f.fixture).id}`,
+          }));
+          return Response.json({
+            version: 1,
+            date,
+            timezone: context.timezone,
+            total: matches.length,
+            sources: [sourceRef],
+            matches,
+          });
+        }
+        if (u.pathname === "/rest/v1/rpc/lector_generator_day_page") {
+          assert.equal(payload.p_date, date);
+          assert.deepEqual(payload.p_sources, [{
+            id: publication.id,
+            sport: "football",
+            capturedAt: publication.capturedAt,
+          }]);
+          const page = structuredClone(publication);
+          obj(page.payload.raw).fixtures = raw.fixtures.filter((f) =>
+            payload.p_matches.some((r: { matchId: string }) =>
+              r.matchId === String(obj(f.fixture).id)
+            )
+          );
+          return Response.json({ sources: [page] });
         }
         if (u.pathname === "/rest/v1/rpc/match_reading_bilan_breakdown") {
           return Response.json([]);
@@ -358,6 +391,14 @@ for (const view of ["profile", "radar"] as const) {
             view,
           );
           assert.equal(payload.p_state.tickets.length, 0);
+          assert.equal(
+            payload.p_state.conversation.consultations[0].coverage.complete,
+            true,
+          );
+          assert.equal(
+            payload.p_state.conversation.consultations[0].coverage.loaded,
+            view === "radar" ? 1 : raw.fixtures.length,
+          );
           assert.equal(payload.p_usage.ai.length, 3);
           assert.ok(
             payload.p_usage.steps.some((s: { phase: string }) =>

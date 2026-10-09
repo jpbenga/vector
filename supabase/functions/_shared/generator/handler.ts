@@ -10,6 +10,7 @@ import {
   contextFrom,
   type Json,
   obj,
+  type Sport,
   type State,
 } from "./contracts.ts";
 import { type Source } from "./catalog.ts";
@@ -33,6 +34,7 @@ import {
 import { validateIntent } from "./contracts.ts";
 import { decodeVoice, transcribe } from "./voice.ts";
 import { buildCatalog } from "./catalog.ts";
+import { type DayReadCoverage, loadDaySources } from "./day_sources.ts";
 const cors = {
   "access-control-allow-origin": "*",
   "access-control-allow-headers":
@@ -121,16 +123,27 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
           Math.round(performance.now() - began);
       }
     };
+    const daySourcesFor = (
+      context: ReturnType<typeof contextFrom>,
+      date: string,
+      sports: Sport[],
+      onCoverage?: (coverage: DayReadCoverage) => Promise<void>,
+    ) =>
+      loadDaySources(context, date, sports, {
+        manifest: (parameters) =>
+          call("rpc/lector_generator_day_manifest", parameters),
+        page: (parameters) => call("rpc/lector_generator_day_page", parameters),
+      }, onCoverage);
     const sourcesFor = (
       context: ReturnType<typeof contextFrom>,
       date: string,
       sports = Object.keys(context.preferences),
     ) =>
-      context.view === "radar"
+      options.workshop
+        ? daySourcesFor(context, date, sports as Sport[]).then((r) => r.sources)
+        : context.view === "radar"
         ? call(
-          options.workshop
-            ? "rpc/lector_generator_shared_radar_sources"
-            : "rpc/lector_generator_radar_sources",
+          "rpc/lector_generator_radar_sources",
           {
             p_date: date,
             p_timezone: context.timezone,
@@ -142,15 +155,8 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
           },
         ) as Promise<Source[]>
         : call(
-          options.workshop
-            ? "rpc/lector_generator_shared_sources"
-            : "rpc/lector_generator_sources_filtered",
-          {
-            ...sourceQuery(context, date, sports),
-            ...(options.workshop && context.view === "all"
-              ? { p_readings: null, p_scenarios: [] }
-              : {}),
-          },
+          "rpc/lector_generator_sources_filtered",
+          sourceQuery(context, date, sports),
         ) as Promise<Source[]>;
     try {
       const auth = request.headers.get("authorization") ?? "";
@@ -566,6 +572,8 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
           onProgress: (event) => progress(event.phase, event),
           reads: {
             sources: (scope, day, sports) => sourcesFor(scope, day, sports),
+            daySources: (scope, day, sports, onCoverage) =>
+              daySourcesFor(scope, day, sports, onCoverage),
             matchData: async (sport, day, matchId, capturedAt, sourceId) => {
               const found = await Promise.allSettled([
                 sport === "football"

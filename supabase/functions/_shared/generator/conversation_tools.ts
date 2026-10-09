@@ -24,6 +24,7 @@ import {
 } from "./conversation_memory.ts";
 import { intentSchema } from "./openai.ts";
 import { assessCandidate } from "./workshop.ts";
+import type { DayReadCoverage } from "./day_sources.ts";
 
 const array = { type: "array", items: { type: "string" } };
 export const planSchema = {
@@ -117,6 +118,12 @@ export const conversationTools = [
 /** A deliberately narrow capability interface. No SQL, URL, user ID, RPC or write method. */
 export interface ConversationReadPort {
   sources(context: Context, date: string, sports: Sport[]): Promise<Source[]>;
+  daySources?(
+    context: Context,
+    date: string,
+    sports: Sport[],
+    progress: (coverage: DayReadCoverage) => Promise<void>,
+  ): Promise<{ sources: Source[]; coverage: DayReadCoverage }>;
   matchData?(
     sport: Sport,
     date: string,
@@ -133,6 +140,7 @@ export interface ReadQuery {
   context: Context;
   sports: Sport[];
   sources: Source[];
+  coverage?: DayReadCoverage;
   catalog: Catalog;
   matches: {
     key: string;
@@ -253,8 +261,19 @@ export class ConversationReader {
         view === "profile" ? "Pour moi" : view === "radar" ? "Radar" : "Tous"
       } · ${date} · ${sports.join(" + ")}`,
     );
-    const sources = await this.port.sources(context, date, sports);
-    if (JSON.stringify(sources).length > 1500000) {
+    const day = this.port.daySources
+      ? await this.port.daySources(context, date, sports, async (coverage) => {
+        await this.progress(
+          "sources",
+          `${coverage.loaded}/${coverage.expected} rencontres récupérées · ${date}${
+            coverage.complete ? " · lecture complète" : ""
+          }`,
+        );
+      })
+      : null;
+    const sources = day?.sources ??
+      await this.port.sources(context, date, sports);
+    if (!day && JSON.stringify(sources).length > 1500000) {
       throw new Error("Publication trop volumineuse pour ce périmètre.");
     }
     const catalog = buildCatalog(sources, context, date, this.input.now, {
@@ -319,6 +338,7 @@ export class ConversationReader {
       context,
       sports,
       sources,
+      ...(day ? { coverage: day.coverage } : {}),
       catalog,
       matches,
     };
@@ -437,6 +457,10 @@ export class ConversationReader {
           total: found.length,
           offset: pagination.offset,
           hasMore: pagination.offset + pagination.limit < found.length,
+          nextOffset: pagination.offset + pagination.limit < found.length
+            ? pagination.offset + pagination.limit
+            : null,
+          ...(q.coverage ? { coverage: q.coverage } : {}),
           matches: found.slice(
             pagination.offset,
             pagination.offset + pagination.limit,
@@ -662,6 +686,7 @@ export class ConversationReader {
       view: q.context.view ?? "profile",
       sports: q.sports,
       sources: q.sources.map((s) => s.id),
+      ...(q.coverage ? { coverage: q.coverage } : {}),
     }));
   }
   sessionState() {

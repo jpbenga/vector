@@ -276,6 +276,13 @@ export interface State {
       view: string;
       sports: Sport[];
       sources: string[];
+      coverage?: {
+        expected: number;
+        loaded: number;
+        pages: number;
+        bytes: number;
+        complete: boolean;
+      };
     }[];
     olderTurns: number;
   };
