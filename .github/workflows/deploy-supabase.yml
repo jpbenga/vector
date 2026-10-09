@@ -27,6 +27,7 @@ on:
           - lector-generator-sport-publications
           - lector-generator-hockey-odds
           - lector-generator-conversation-update
+          - lector-generator-day-sources
           - lector-visual-live-update
       diagnostic_since:
         description: Début du diagnostic en ISO 8601 avec fuseau (facultatif)
@@ -192,6 +193,23 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           GH_TOKEN: ${{ github.token }}
         run: python3 tool/deploy_generator_conversation_remote.py
+
+  generator-day-sources:
+    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-day-sources'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: supabase/setup-cli@v1
+        with:
+          version: '2.120.0'
+      - name: Install and check paged public day reads without paid model calls
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tool/deploy_generator_day_sources_remote.py
 
   visual-live-update:
     if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-visual-live-update'
