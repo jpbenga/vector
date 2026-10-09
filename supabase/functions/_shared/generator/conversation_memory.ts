@@ -261,7 +261,12 @@ export function rememberTurn(
     response: next.messages.at(-1)?.text ?? "",
     constraints: structuredClone(intent),
     focus: structuredClone(focus),
-    ticketIds: next.messages.at(-1)?.ticketIds ?? [],
+    ticketIds: [
+      ...new Set([
+        ...(next.messages.at(-1)?.ticketIds ?? []),
+        ...(next.messages.at(-1)?.proposalIds ?? []),
+      ]),
+    ],
     selections: next.messages.at(-1)?.analysis?.selections.map((s) => ({
       key: matchKey(s.candidate.sport, s.candidate.matchId),
       candidateId: s.candidate.id,

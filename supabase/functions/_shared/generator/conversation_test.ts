@@ -639,6 +639,23 @@ Deno.test("natural analysis then stake clarification then ticket preserves chose
   assert.deepEqual(generated.tickets[0].picks.map((p) => p.matchId), [
     "api-fixture-1",
   ]);
+  generated.messages.push({ role: "user", text: "Autre proposition" }, {
+    role: "assistant",
+    text: "Proposition n°2",
+    proposalIds: ["44444444-4444-4444-8444-444444444444"],
+  });
+  rememberTurn(
+    generated,
+    structuredClone(generated),
+    generated.intent!,
+    knownFocus(generated),
+    [],
+  );
+  assert.ok(
+    generated.conversation!.turns.at(-1)!.ticketIds.includes(
+      "44444444-4444-4444-8444-444444444444",
+    ),
+  );
 });
 Deno.test("hockey analysis-to-ticket uses the same conversation memory and real regulation quotes", async () => {
   const hockeyContext: Context = {
