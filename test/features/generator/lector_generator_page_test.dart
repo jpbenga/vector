@@ -128,6 +128,12 @@ void main() {
     await tester.pump();
     expect(
       find.textContaining('41 rencontres dans ce périmètre'),
+      findsNothing,
+    );
+    await tester.tap(find.byKey(const ValueKey('generator-analysis-progress')));
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(
+      find.textContaining('41 rencontres dans ce périmètre'),
       findsOneWidget,
     );
     expect(find.textContaining('Pour moi'), findsNWidgets(2));

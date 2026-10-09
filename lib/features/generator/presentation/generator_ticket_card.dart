@@ -42,60 +42,63 @@ class GeneratorMessageBubble extends StatelessWidget {
   final String? at;
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: user ? MainAxisAlignment.end : MainAxisAlignment.start,
-      children: [
-        if (!user) ...[const GeneratorAvatar(), const SizedBox(width: 8)],
-        Flexible(
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 440),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: user
-                  ? context.brand.accent.withValues(alpha: .10)
-                  : context.surfaces.surface,
-              border: Border.all(
-                color: user
-                    ? context.brand.accent.withValues(alpha: .32)
-                    : context.surfaces.border,
-              ),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  text,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyLarge?.copyWith(height: 1.45),
-                ),
-                if (at != null) ...[
-                  const SizedBox(height: 6),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      DateTime.tryParse(at!) == null
-                          ? ''
-                          : DateFormat(
-                              'HH:mm',
-                              'fr',
-                            ).format(DateTime.parse(at!).toLocal()),
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: context.textColors.secondary,
-                      ),
-                    ),
+    padding: EdgeInsets.only(top: user ? 12 : 16, bottom: user ? 12 : 20),
+    child: LayoutBuilder(
+      builder: (context, constraints) => Align(
+        alignment: user ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          key: ValueKey(
+            user ? 'generator-user-message' : 'generator-assistant-message',
+          ),
+          constraints: BoxConstraints(
+            maxWidth: user
+                ? (constraints.maxWidth * .88).clamp(0, 560)
+                : constraints.maxWidth.clamp(0, 760),
+          ),
+          padding: user
+              ? const EdgeInsets.symmetric(horizontal: 16, vertical: 13)
+              : const EdgeInsets.symmetric(vertical: 2),
+          decoration: user
+              ? BoxDecoration(
+                  color: Color.alphaBlend(
+                    context.brand.accent.withValues(alpha: .17),
+                    context.surfaces.surface,
                   ),
-                ],
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(22),
+                    topRight: Radius.circular(22),
+                    bottomLeft: Radius.circular(22),
+                    bottomRight: Radius.circular(7),
+                  ),
+                )
+              : null,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                text,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: context.textColors.primary,
+                  height: 1.55,
+                ),
+              ),
+              if (at != null && DateTime.tryParse(at!) != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  DateFormat(
+                    'HH:mm',
+                    'fr',
+                  ).format(DateTime.parse(at!).toLocal()),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: context.textColors.weak,
+                  ),
+                ),
               ],
-            ),
+            ],
           ),
         ),
-        if (user) const SizedBox(width: 2),
-      ],
+      ),
     ),
   );
 }

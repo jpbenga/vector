@@ -4,7 +4,15 @@ import '../theme/app_components.dart';
 import '../theme/app_radius.dart';
 import 'lector_glass_card.dart';
 
-enum LectorSkeletonKind { matches, radar, detail, standings, statistics, bilan }
+enum LectorSkeletonKind {
+  matches,
+  radar,
+  detail,
+  standings,
+  statistics,
+  bilan,
+  conversation,
+}
 
 /// A single animation for the whole placeholder, with theme and accessibility
 /// tokens shared by every sport. No invented names, scores or match counts.
@@ -88,6 +96,31 @@ class _LectorLoadingState extends State<LectorLoading>
                     : .56 + _pulse.value * .34,
                 child: Column(
                   children: [
+                    if (widget.kind == LectorSkeletonKind.conversation)
+                      for (var exchange = 0; exchange < 3; exchange++) ...[
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: FractionallySizedBox(
+                            widthFactor: .72,
+                            child: _card(context, [
+                              _line(context, double.infinity),
+                              const SizedBox(height: 9),
+                              _line(context, 110, height: 10),
+                            ]),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        _line(context, double.infinity),
+                        const SizedBox(height: 10),
+                        _line(context, double.infinity),
+                        const SizedBox(height: 10),
+                        FractionallySizedBox(
+                          widthFactor: .65,
+                          alignment: Alignment.centerLeft,
+                          child: _line(context, double.infinity),
+                        ),
+                        const SizedBox(height: 30),
+                      ],
                     if (widget.kind == LectorSkeletonKind.detail) ...[
                       _card(context, [
                         _line(context, 130),
@@ -110,7 +143,12 @@ class _LectorLoadingState extends State<LectorLoading>
                     ],
                     for (
                       var i = 0;
-                      i < (widget.kind == LectorSkeletonKind.detail ? 2 : 3);
+                      i <
+                          (widget.kind == LectorSkeletonKind.conversation
+                              ? 0
+                              : widget.kind == LectorSkeletonKind.detail
+                              ? 2
+                              : 3);
                       i++
                     ) ...[
                       _card(

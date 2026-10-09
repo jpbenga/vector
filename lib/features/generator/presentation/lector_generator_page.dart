@@ -8,6 +8,8 @@ import '../../../core/identity/scoped_persistence.dart';
 import '../../../core/supabase/supabase_initializer.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/widgets/lector_match_card.dart';
+import '../../../core/widgets/lector_loading.dart';
+import 'generator_chat_widgets.dart';
 import '../data/generator_repository.dart';
 import '../data/generator_voice.dart';
 import 'generator_ticket_card.dart';
@@ -29,6 +31,7 @@ class LectorGeneratorPage extends StatefulWidget {
     this.onLegacyTickets,
     this.repository,
     this.configurationKey = '',
+    this.persistence = const ScopedPersistence(),
     this.voice,
     this.embedded = false,
     this.durableSessions =
@@ -46,6 +49,7 @@ class LectorGeneratorPage extends StatefulWidget {
   final VoidCallback? onUseProfile, onLegacyTickets;
   final void Function(Map<String, dynamic> pick) onOpenMatch;
   final GeneratorRepository? repository;
+  final ScopedPersistence persistence;
   final GeneratorVoice? voice;
   final bool embedded, durableSessions;
   final String configurationKey;
@@ -73,6 +77,8 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
   String? _error;
   String? _submittedMessage;
   bool _busy = false;
+  bool _initializing = true, _positioning = false;
+  bool _followingLatest = true, _showLatest = false, _autoScrolling = false;
   int _generation = 0;
   static const _key =
       String.fromEnvironment(
@@ -94,6 +100,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _scroll.addListener(_updateScrollPosition);
     _initialize();
     if (widget.durableSessions) {
       _sessionTimer = Timer.periodic(const Duration(minutes: 1), (_) {
@@ -118,6 +125,11 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
       _retryRequestId = null;
       _retryReferenceTicketId = null;
       _conversation = null;
+      _initializing = true;
+      _positioning = false;
+      _followingLatest = true;
+      _showLatest = false;
+      _autoScrolling = false;
       _decisions.clear();
       _preparation = null;
       _context = null;
@@ -188,7 +200,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
     try {
       final context = await widget.loadContext();
       final saved = widget.scope.isUserOwned
-          ? await const ScopedPersistence().read(widget.scope, _key)
+          ? await widget.persistence.read(widget.scope, _key)
           : null;
       if (!mounted || generation != _generation) return;
       // Local value is only a conversation reference. Private content remains
@@ -222,6 +234,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
           }
         }
       }
+      _finishInitialLoad(generation);
       await _prepare(generation);
       if (widget.durableSessions &&
           widget.scope.isAccount &&
@@ -245,6 +258,8 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
           () => _error = 'Votre contexte n’a pas pu être chargé. Réessayez.',
         );
       }
+    } finally {
+      if (_initializing) _finishInitialLoad(generation);
     }
   }
 
@@ -269,7 +284,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
 
   Future<void> _send([String? preset, String? referenceTicketId]) async {
     final message = preset ?? _message.text.trim();
-    if (_busy || _context == null || message.isEmpty) return;
+    if (_busy || _initializing || _context == null || message.isEmpty) return;
     final expires = DateTime.tryParse(
       _conversation?.json['expiresAt']?.toString() ?? '',
     );
@@ -326,8 +341,8 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
         _retryRequestId = null;
         _retryReferenceTicketId = null;
       });
-      _scrollToEnd();
-      await const ScopedPersistence().write(
+      if (_followingLatest) _scrollToEnd();
+      await widget.persistence.write(
         widget.scope,
         _key,
         jsonEncode({'id': conversation.id, 'date': generatorDay(widget.date)}),
@@ -453,7 +468,16 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
         ),
       );
       if (selected != null && mounted && generation == _generation) {
-        setState(() => _conversation = GeneratorConversation(selected));
+        setState(() {
+          _conversation = GeneratorConversation(selected);
+          _positioning = true;
+        });
+        _scrollToEnd(animated: false);
+        await widget.persistence.write(
+          widget.scope,
+          _key,
+          jsonEncode({'id': selected['id'], 'date': generatorDay(widget.date)}),
+        );
       }
     } on Object {
       if (mounted && generation == _generation) {
@@ -618,7 +642,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
       _recording = false;
     });
     if (widget.scope.isUserOwned) {
-      await const ScopedPersistence().write(
+      await widget.persistence.write(
         widget.scope,
         _key,
         jsonEncode({'id': _id, 'date': generatorDay(widget.date)}),
@@ -714,15 +738,50 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
     }
   }
 
-  void _scrollToEnd() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _scroll.hasClients) {
-        _scroll.animateTo(
-          _scroll.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-        );
+  void _finishInitialLoad(int generation) {
+    if (!mounted || generation != _generation) return;
+    setState(() {
+      _initializing = false;
+      _positioning = _conversation?.messages.isNotEmpty == true;
+    });
+    if (_positioning) _scrollToEnd(animated: false);
+  }
+
+  void _updateScrollPosition() {
+    if (!_scroll.hasClients ||
+        _autoScrolling ||
+        _positioning ||
+        _initializing) {
+      return;
+    }
+    final show = _scroll.position.extentAfter > 100;
+    _followingLatest = !show;
+    if (show != _showLatest) setState(() => _showLatest = show);
+  }
+
+  void _scrollToEnd({bool animated = true}) {
+    final generation = _generation;
+    _followingLatest = true;
+    _autoScrolling = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || generation != _generation) return;
+      if (_scroll.hasClients) {
+        if (animated && !MediaQuery.disableAnimationsOf(context)) {
+          await _scroll.animateTo(
+            _scroll.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+          );
+        } else {
+          _scroll.jumpTo(_scroll.position.maxScrollExtent);
+        }
       }
+      if (!mounted || generation != _generation) return;
+      _autoScrolling = false;
+      setState(() {
+        _positioning = false;
+        _showLatest = false;
+      });
     });
   }
 
@@ -975,10 +1034,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
     }
   }
 
-  void _prompt(String text) {
-    _message.text = text;
-    _message.selection = TextSelection.collapsed(offset: text.length);
-  }
+  void _prompt(String text) => _send(text);
 
   Widget _ticket(Map<String, dynamic> ticket) => LectorTicketCard(
     ticket: ticket,
@@ -1013,6 +1069,121 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
     ),
   );
 
+  Widget _conversationOptions() {
+    final conversation = _conversation, current = _context;
+    return PopupMenuButton<String>(
+      tooltip: 'Options de la conversation',
+      enabled: !_initializing,
+      icon: const Icon(Icons.add_rounded),
+      onSelected: (value) {
+        switch (value) {
+          case 'history':
+            _history();
+          case 'new':
+            _newSession();
+          case 'retention':
+            showDialog<void>(
+              context: context,
+              builder: (c) => AlertDialog(
+                title: const Text('Données et conservation'),
+                content: const SingleChildScrollView(
+                  child: Text(
+                    'Par défaut, votre conversation temporaire expire 24 h après la dernière activité, avec une durée maximale de 7 jours. Les délais sont configurables côté serveur.\n\nLes tickets enregistrés et sélections conservées restent dans Mes suivis jusqu’à leur suppression par vous. Leurs cotes et arguments d’origine sont conservés.\n\nLes propositions générées et les reçus techniques sont conservés séparément pendant 30 jours pour l’audit, sans les messages du chat. La pertinence est un avis ; le suivi n’est pas un pari placé. Aucun apprentissage prédictif automatique n’est activé.\n\nVous pouvez supprimer une session depuis ce menu et chaque élément conservé depuis son détail.',
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(c),
+                    child: const Text('Fermer'),
+                  ),
+                ],
+              ),
+            );
+          case 'delete_session':
+            _deleteSession();
+          case 'settings':
+            _settings();
+          case 'preferences':
+            widget.onPreferences();
+          case 'profile':
+            _useProfile();
+          case 'save':
+            if (widget.durableSessions) {
+              final ticket = conversation?.tickets.firstOrNull;
+              if (ticket != null) _saveTicket(ticket);
+            } else {
+              _operation('save');
+            }
+          case 'legacy':
+            widget.onLegacyTickets?.call();
+        }
+      },
+      itemBuilder: (_) => [
+        if (widget.durableSessions && conversation != null)
+          PopupMenuItem(
+            enabled: false,
+            child: Text(_expiration(conversation.json)),
+          ),
+        PopupMenuItem(
+          value: 'history',
+          enabled: !_busy,
+          child: Text(
+            widget.durableSessions
+                ? 'Sessions et éléments sauvegardés'
+                : 'Vos brouillons',
+          ),
+        ),
+        PopupMenuItem(
+          value: 'new',
+          enabled: !_busy,
+          child: const Text('Nouvelle conversation'),
+        ),
+        if (widget.durableSessions)
+          const PopupMenuItem(
+            value: 'retention',
+            child: Text('Données et conservation'),
+          ),
+        if (widget.durableSessions && conversation != null)
+          PopupMenuItem(
+            value: 'delete_session',
+            enabled: !_busy,
+            child: const Text('Supprimer cette session'),
+          ),
+        PopupMenuItem(
+          value: 'settings',
+          enabled: !_busy,
+          child: const Text('Ajuster le contexte'),
+        ),
+        const PopupMenuItem(
+          value: 'preferences',
+          child: Text('Mes préférences'),
+        ),
+        if (current?.origin == 'explorer' && widget.onUseProfile != null)
+          const PopupMenuItem(
+            value: 'profile',
+            child: Text('Utiliser mon profil'),
+          ),
+        if (conversation?.tickets.isNotEmpty == true)
+          PopupMenuItem(
+            value: 'save',
+            enabled: !_busy,
+            child: Text(
+              widget.durableSessions
+                  ? 'Enregistrer le ticket actuel'
+                  : conversation!.saved
+                  ? 'Brouillon enregistré'
+                  : 'Enregistrer le brouillon',
+            ),
+          ),
+        if (widget.onLegacyTickets != null)
+          const PopupMenuItem(
+            value: 'legacy',
+            child: Text('Mes tickets et stratégies'),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context), current = _context;
@@ -1031,333 +1202,271 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 6, 10),
-          child: Row(
-            children: [
-              Icon(
-                Icons.smart_toy_outlined,
-                size: 30,
-                color: context.brand.accent,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        Expanded(
+          child: _initializing
+              ? const SingleChildScrollView(
+                  padding: EdgeInsets.all(16),
+                  child: LectorLoading(
+                    key: ValueKey('generator-conversation-skeleton'),
+                    kind: LectorSkeletonKind.conversation,
+                    label: 'Chargement de votre conversation…',
+                  ),
+                )
+              : Stack(
                   children: [
-                    Text(
-                      'Générateur',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    Text(
-                      widget.durableSessions && conversation != null
-                          ? _expiration(conversation.json)
-                          : 'Votre assistant de composition',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: context.textColors.secondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                tooltip: widget.durableSessions
-                    ? 'Sessions et éléments sauvegardés'
-                    : 'Vos brouillons',
-                onPressed: _busy ? null : _history,
-                icon: const Icon(Icons.history_rounded),
-              ),
-              PopupMenuButton<String>(
-                tooltip: 'Options du générateur',
-                onSelected: (value) {
-                  switch (value) {
-                    case 'new':
-                      _newSession();
-                    case 'retention':
-                      showDialog<void>(
-                        context: context,
-                        builder: (c) => AlertDialog(
-                          title: const Text('Données et conservation'),
-                          content: const SingleChildScrollView(
-                            child: Text(
-                              'Par défaut, votre conversation temporaire expire 24 h après la dernière activité, avec une durée maximale de 7 jours. Les délais sont configurables côté serveur.\n\nLes tickets enregistrés et sélections conservées restent dans Mes suivis jusqu’à leur suppression par vous. Leurs cotes et arguments d’origine sont conservés.\n\nLes propositions générées et les reçus techniques sont conservés séparément pendant 30 jours pour l’audit, sans les messages du chat. La pertinence est un avis ; le suivi n’est pas un pari placé. Aucun apprentissage prédictif automatique n’est activé.\n\nVous pouvez supprimer une session depuis ce menu et chaque élément conservé depuis son détail.',
+                    NotificationListener<ScrollMetricsNotification>(
+                      onNotification: (notification) {
+                        if (_followingLatest &&
+                            !_autoScrolling &&
+                            _conversation?.messages.isNotEmpty == true) {
+                          _scrollToEnd(animated: false);
+                        }
+                        return false;
+                      },
+                      child: ListView(
+                        key: const ValueKey('generator-conversation-scroll'),
+                        controller: _scroll,
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 20),
+                        children: [
+                          if (conversation == null &&
+                              _submittedMessage == null) ...[
+                            GeneratorMessageBubble(
+                              text: current?.origin == 'explorer'
+                                  ? 'Votre configuration Explorateur est active. Posez une question sur les rencontres ou décrivez le ticket que vous souhaitez préparer.'
+                                  : 'Je m’appuie sur vos lectures, le Radar et vos marchés autorisés. Quelle journée souhaitez-vous analyser ou quelle composition voulez-vous préparer ?',
                             ),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(c),
-                              child: const Text('Fermer'),
+                            LectorMatchCardFrame(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    current?.origin == 'explorer'
+                                        ? 'Explorateur · configuration temporaire'
+                                        : 'Profil enregistré',
+                                    style: theme.textTheme.titleSmall,
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    '${DateFormat('EEEE d MMMM', 'fr').format(widget.date)} · ${current?.count('readings') ?? 0} lectures',
+                                    style: theme.textTheme.bodySmall,
+                                  ),
+                                  Text(
+                                    current?.discovery == true
+                                        ? 'Pour moi + pistes du Radar'
+                                        : 'Mes compétitions uniquement',
+                                    style: theme.textTheme.bodySmall,
+                                  ),
+                                  if (_preparation != null)
+                                    Text(
+                                      '${_preparation!['matchCount']} rencontres analysables',
+                                      style: theme.textTheme.bodySmall,
+                                    ),
+                                  if (_preparation != null)
+                                    for (final missing
+                                        in (generatorMap(
+                                                  _preparation,
+                                                )['missing']
+                                                as List? ??
+                                            []))
+                                      Text(
+                                        missing.toString(),
+                                        style: theme.textTheme.bodySmall,
+                                      ),
+                                  TextButton(
+                                    onPressed: _settings,
+                                    child: const Text('Ajuster le contexte'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                for (final suggestion in [
+                                  'Top 5 dans Pour moi',
+                                  'Préparer un ticket',
+                                  'Créer plusieurs tickets',
+                                  'Explorer les joueurs chauds',
+                                ])
+                                  ActionChip(
+                                    label: Text(suggestion),
+                                    onPressed: _busy
+                                        ? null
+                                        : () => _send(
+                                            '$suggestion pour ${generatorDay(widget.date)}.',
+                                          ),
+                                  ),
+                              ],
                             ),
                           ],
-                        ),
-                      );
-                    case 'delete_session':
-                      _deleteSession();
-                    case 'settings':
-                      _settings();
-                    case 'preferences':
-                      widget.onPreferences();
-                    case 'profile':
-                      _useProfile();
-                    case 'save':
-                      if (widget.durableSessions) {
-                        final ticket = conversation?.tickets.firstOrNull;
-                        if (ticket != null) _saveTicket(ticket);
-                      } else {
-                        _operation('save');
-                      }
-                    case 'legacy':
-                      widget.onLegacyTickets?.call();
-                  }
-                },
-                itemBuilder: (_) => [
-                  PopupMenuItem(
-                    value: 'new',
-                    enabled: !_busy,
-                    child: const Text('Nouvelle conversation'),
-                  ),
-                  if (widget.durableSessions)
-                    const PopupMenuItem(
-                      value: 'retention',
-                      child: Text('Données et conservation'),
-                    ),
-                  if (widget.durableSessions && conversation != null)
-                    PopupMenuItem(
-                      value: 'delete_session',
-                      enabled: !_busy,
-                      child: const Text('Supprimer cette session'),
-                    ),
-                  PopupMenuItem(
-                    value: 'settings',
-                    enabled: !_busy,
-                    child: const Text('Ajuster le contexte'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'preferences',
-                    child: Text('Mes préférences'),
-                  ),
-                  if (current?.origin == 'explorer' &&
-                      widget.onUseProfile != null)
-                    const PopupMenuItem(
-                      value: 'profile',
-                      child: Text('Utiliser mon profil'),
-                    ),
-                  if (conversation?.tickets.isNotEmpty == true)
-                    PopupMenuItem(
-                      value: 'save',
-                      enabled: !_busy,
-                      child: Text(
-                        widget.durableSessions
-                            ? 'Enregistrer le ticket actuel'
-                            : conversation!.saved
-                            ? 'Brouillon enregistré'
-                            : 'Enregistrer le brouillon',
+                          for (final message
+                              in conversation?.messages ??
+                                  <Map<String, dynamic>>[]) ...[
+                            GeneratorMessageBubble(
+                              text: message['text']?.toString() ?? '',
+                              user: message['role'] == 'user',
+                              at: message['at']?.toString(),
+                            ),
+                            if (message['analysis'] is Map)
+                              GeneratorAnalysisResult(
+                                analysis: generatorMap(message['analysis']),
+                                onInspect: (pick) => showGeneratorSelectionDetail(
+                                  context,
+                                  pick: pick,
+                                  inTicket: false,
+                                  analysisOnly: true,
+                                  onChoice: widget.durableSessions
+                                      ? (choice) => _keep(
+                                          'selection',
+                                          pick['id'].toString(),
+                                          choice,
+                                        )
+                                      : null,
+                                  decision: _decisionFor(pick),
+                                  onOpenMatch: () => widget.onOpenMatch(pick),
+                                  onReplace: () => _send(
+                                    'Compare les autres marchés autorisés pour ${pick['home']} contre ${pick['away']}, dans le même périmètre et la même journée.',
+                                  ),
+                                ),
+                              ),
+                            if ((message['proposalIds'] as List? ?? []).length >
+                                1)
+                              GeneratorCompositionOptions(
+                                tickets: [
+                                  for (final id
+                                      in message['proposalIds'] as List)
+                                    if (tickets[id.toString()] != null)
+                                      tickets[id.toString()]!,
+                                ],
+                                selectedId: conversation
+                                    ?.tickets
+                                    .firstOrNull?['id']
+                                    ?.toString(),
+                                onInspect: (ticket) => _examine(ticket),
+                                onChoose:
+                                    !_busy &&
+                                        (message['proposalIds'] as List).every(
+                                          (id) => generatorRows(
+                                            conversation?.json['proposals'],
+                                          ).any((t) => t['id'] == id),
+                                        )
+                                    ? (ticket) => _operation(
+                                        'apply',
+                                        ticketId: ticket['id'].toString(),
+                                      )
+                                    : null,
+                              ),
+                            for (final id
+                                in (message['ticketIds'] as List? ?? []))
+                              if (tickets[id.toString()] != null)
+                                _ticket(tickets[id.toString()]!)
+                              else
+                                TextButton.icon(
+                                  onPressed: () =>
+                                      _archivedTicket(id.toString()),
+                                  icon: const Icon(Icons.receipt_long_outlined),
+                                  label: const Text('Revoir ce ticket'),
+                                ),
+                          ],
+                          if (!hasAttachments)
+                            for (final ticket
+                                in conversation?.tickets ??
+                                    <Map<String, dynamic>>[])
+                              _ticket(ticket),
+                          if (conversation?.pending.isNotEmpty == true) ...[
+                            if (!hasAttachments)
+                              for (final ticket in conversation!.pending)
+                                _ticket(ticket),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: FilledButton.icon(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _operation('apply'),
+                                icon: const Icon(Icons.check_rounded),
+                                label: const Text(
+                                  'Appliquer le changement proposé',
+                                ),
+                              ),
+                            ),
+                            Text(
+                              'Le ticket initial reste conservé dans la conversation.',
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          ],
+                          if (_submittedMessage != null)
+                            GeneratorMessageBubble(
+                              text: _submittedMessage!,
+                              user: true,
+                            ),
+                          if (_busy)
+                            GeneratorAnalysisProgress(
+                              phase: _transcribing
+                                  ? 'Transcription en cours…'
+                                  : _phase,
+                              progress: _progress,
+                            ),
+                          if (_error != null)
+                            LectorMatchCardFrame(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _error!,
+                                    style: TextStyle(
+                                      color: context.semantic.warning,
+                                    ),
+                                  ),
+                                  if (_retryMessage != null && !_busy)
+                                    TextButton.icon(
+                                      onPressed: _retry,
+                                      icon: const Icon(Icons.refresh_rounded),
+                                      label: const Text('Réessayer'),
+                                    ),
+                                ],
+                              ),
+                            ),
+                        ],
                       ),
                     ),
-                  if (widget.onLegacyTickets != null)
-                    const PopupMenuItem(
-                      value: 'legacy',
-                      child: Text('Mes tickets et stratégies'),
-                    ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        Divider(height: 1, color: context.surfaces.border),
-        Expanded(
-          child: ListView(
-            controller: _scroll,
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 20),
-            children: [
-              if (conversation == null && _submittedMessage == null) ...[
-                GeneratorMessageBubble(
-                  text: current?.origin == 'explorer'
-                      ? 'Votre configuration Explorateur est active. Posez une question sur les rencontres ou décrivez le ticket que vous souhaitez préparer.'
-                      : 'Je m’appuie sur vos lectures, le Radar et vos marchés autorisés. Quelle journée souhaitez-vous analyser ou quelle composition voulez-vous préparer ?',
-                ),
-                LectorMatchCardFrame(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        current?.origin == 'explorer'
-                            ? 'Explorateur · configuration temporaire'
-                            : 'Profil enregistré',
-                        style: theme.textTheme.titleSmall,
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '${DateFormat('EEEE d MMMM', 'fr').format(widget.date)} · ${current?.count('readings') ?? 0} lectures',
-                        style: theme.textTheme.bodySmall,
-                      ),
-                      Text(
-                        current?.discovery == true
-                            ? 'Pour moi + pistes du Radar'
-                            : 'Mes compétitions uniquement',
-                        style: theme.textTheme.bodySmall,
-                      ),
-                      if (_preparation != null)
-                        Text(
-                          '${_preparation!['matchCount']} rencontres analysables',
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      if (_preparation != null)
-                        for (final missing
-                            in (generatorMap(_preparation)['missing']
-                                    as List? ??
-                                []))
-                          Text(
-                            missing.toString(),
-                            style: theme.textTheme.bodySmall,
+                    if (_positioning)
+                      Positioned.fill(
+                        child: ColoredBox(
+                          color: context.surfaces.background,
+                          child: const SingleChildScrollView(
+                            padding: EdgeInsets.all(16),
+                            child: LectorLoading(
+                              kind: LectorSkeletonKind.conversation,
+                              label: 'Chargement de votre conversation…',
+                            ),
                           ),
-                      TextButton(
-                        onPressed: _settings,
-                        child: const Text('Ajuster le contexte'),
+                        ),
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final suggestion in [
-                      'Top 5 dans Pour moi',
-                      'Préparer un ticket',
-                      'Créer plusieurs tickets',
-                      'Explorer les joueurs chauds',
-                    ])
-                      ActionChip(
-                        label: Text(suggestion),
-                        onPressed: () => _prompt(
-                          '$suggestion pour ${generatorDay(widget.date)}.',
+                    if (_showLatest && !_positioning)
+                      Positioned(
+                        bottom: 12,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: IconButton.filledTonal(
+                            tooltip: 'Aller aux derniers messages',
+                            onPressed: _scrollToEnd,
+                            icon: const Icon(Icons.arrow_downward_rounded),
+                          ),
                         ),
                       ),
                   ],
                 ),
-              ],
-              for (final message
-                  in conversation?.messages ?? <Map<String, dynamic>>[]) ...[
-                GeneratorMessageBubble(
-                  text: message['text']?.toString() ?? '',
-                  user: message['role'] == 'user',
-                  at: message['at']?.toString(),
-                ),
-                if (message['analysis'] is Map)
-                  GeneratorAnalysisResult(
-                    analysis: generatorMap(message['analysis']),
-                    onInspect: (pick) => showGeneratorSelectionDetail(
-                      context,
-                      pick: pick,
-                      inTicket: false,
-                      analysisOnly: true,
-                      onChoice: widget.durableSessions
-                          ? (choice) => _keep(
-                              'selection',
-                              pick['id'].toString(),
-                              choice,
-                            )
-                          : null,
-                      decision: _decisionFor(pick),
-                      onOpenMatch: () => widget.onOpenMatch(pick),
-                      onReplace: () => _send(
-                        'Compare les autres marchés autorisés pour ${pick['home']} contre ${pick['away']}, dans le même périmètre et la même journée.',
-                      ),
-                    ),
-                  ),
-                if ((message['proposalIds'] as List? ?? []).length > 1)
-                  GeneratorCompositionOptions(
-                    tickets: [
-                      for (final id in message['proposalIds'] as List)
-                        if (tickets[id.toString()] != null)
-                          tickets[id.toString()]!,
-                    ],
-                    selectedId: conversation?.tickets.firstOrNull?['id']
-                        ?.toString(),
-                    onInspect: (ticket) => _examine(ticket),
-                    onChoose:
-                        !_busy &&
-                            (message['proposalIds'] as List).every(
-                              (id) => generatorRows(
-                                conversation?.json['proposals'],
-                              ).any((t) => t['id'] == id),
-                            )
-                        ? (ticket) => _operation(
-                            'apply',
-                            ticketId: ticket['id'].toString(),
-                          )
-                        : null,
-                  ),
-                for (final id in (message['ticketIds'] as List? ?? []))
-                  if (tickets[id.toString()] != null)
-                    _ticket(tickets[id.toString()]!)
-                  else
-                    TextButton.icon(
-                      onPressed: () => _archivedTicket(id.toString()),
-                      icon: const Icon(Icons.receipt_long_outlined),
-                      label: const Text('Revoir ce ticket'),
-                    ),
-              ],
-              if (!hasAttachments)
-                for (final ticket
-                    in conversation?.tickets ?? <Map<String, dynamic>>[])
-                  _ticket(ticket),
-              if (conversation?.pending.isNotEmpty == true) ...[
-                if (!hasAttachments)
-                  for (final ticket in conversation!.pending) _ticket(ticket),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: FilledButton.icon(
-                    onPressed: _busy ? null : () => _operation('apply'),
-                    icon: const Icon(Icons.check_rounded),
-                    label: const Text('Appliquer le changement proposé'),
-                  ),
-                ),
-                Text(
-                  'Le ticket initial reste conservé dans la conversation.',
-                  style: theme.textTheme.bodySmall,
-                ),
-              ],
-              if (_submittedMessage != null)
-                GeneratorMessageBubble(text: _submittedMessage!, user: true),
-              if (_busy)
-                GeneratorAnalysisProgress(
-                  phase: _transcribing ? 'Transcription en cours…' : _phase,
-                  progress: _progress,
-                ),
-              if (_error != null)
-                LectorMatchCardFrame(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _error!,
-                        style: TextStyle(color: context.semantic.warning),
-                      ),
-                      if (_retryMessage != null && !_busy)
-                        TextButton.icon(
-                          onPressed: _retry,
-                          icon: const Icon(Icons.refresh_rounded),
-                          label: const Text('Réessayer'),
-                        ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
         ),
         SafeArea(
           top: false,
           child: Container(
             padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-            decoration: BoxDecoration(
-              color: context.surfaces.background,
-              border: Border(top: BorderSide(color: context.surfaces.border)),
-            ),
+            decoration: BoxDecoration(color: context.surfaces.background),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1380,63 +1489,16 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
                     ],
                   )
                 else
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _message,
-                          enabled: !_busy,
-                          minLines: 1,
-                          maxLines: 4,
-                          maxLength: 2000,
-                          textInputAction: TextInputAction.send,
-                          onSubmitted: (_) => _send(),
-                          decoration: const InputDecoration(
-                            hintText: 'Écrivez votre demande…',
-                            counterText: '',
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 14,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      IconButton.filled(
-                        tooltip: 'Dicter une demande',
-                        onPressed: _busy || !widget.scope.isAccount
-                            ? null
-                            : _dictate,
-                        icon: const Icon(Icons.mic_none_rounded),
-                      ),
-                      const SizedBox(width: 4),
-                      if (_busy && _requestId != null)
-                        IconButton(
-                          tooltip: 'Interrompre la génération',
-                          onPressed: _interrupt,
-                          icon: const Icon(Icons.stop_circle_outlined),
-                        )
-                      else
-                        ValueListenableBuilder<TextEditingValue>(
-                          valueListenable: _message,
-                          builder: (_, value, _) => IconButton(
-                            tooltip: 'Envoyer la demande',
-                            onPressed:
-                                _busy ||
-                                    current == null ||
-                                    value.text.trim().isEmpty
-                                ? null
-                                : _send,
-                            icon: Icon(
-                              Icons.send_rounded,
-                              color: value.text.trim().isEmpty
-                                  ? context.textColors.secondary
-                                  : context.brand.accent,
-                            ),
-                          ),
-                        ),
-                    ],
+                  GeneratorComposer(
+                    controller: _message,
+                    menu: _conversationOptions(),
+                    enabled:
+                        !_initializing && !_transcribing && current != null,
+                    busy: _busy,
+                    hasConversation: conversation?.messages.isNotEmpty == true,
+                    onSend: _send,
+                    onVoice: widget.scope.isAccount ? _dictate : null,
+                    onStop: _busy && _requestId != null ? _interrupt : null,
                   ),
               ],
             ),

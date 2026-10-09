@@ -4,6 +4,7 @@ import '../../../core/theme/app_components.dart';
 import '../../../core/widgets/lector_match_card.dart';
 import '../../../core/widgets/sports_asset_badge.dart';
 import '../domain/generator_context.dart';
+import 'generator_chat_widgets.dart';
 
 String generatorAnalysisScope(Map<String, dynamic> data) {
   final date = DateTime.tryParse(data['date']?.toString() ?? '');
@@ -39,86 +40,78 @@ class GeneratorAnalysisProgress extends StatelessWidget {
     final steps = generatorRows(progress['steps']);
     final summary = progress['summary']?.toString() ?? '';
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      child: LectorMatchCardFrame(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Semantics(
-              liveRegion: true,
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: context.brand.accent,
-                    ),
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Semantics(
+        liveRegion: true,
+        child: ExpansionTile(
+          key: const ValueKey('generator-analysis-progress'),
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: const EdgeInsets.fromLTRB(0, 8, 0, 14),
+          shape: const Border(),
+          collapsedShape: const Border(),
+          iconColor: context.textColors.secondary,
+          collapsedIconColor: context.textColors.secondary,
+          title: GeneratorActivityLabel(text: phase),
+          subtitle: steps.isEmpty
+              ? null
+              : Text(
+                  steps.last['detail']?.toString() ?? '',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.textColors.weak,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      phase,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: context.brand.accent,
+                ),
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (scope.isNotEmpty) ...[
+                    Text(
+                      generatorAnalysisScope(scope),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    Text(
+                      '${scope['matchCount'] ?? 0} rencontres dans ce périmètre',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  for (final (index, step) in steps.take(8).indexed)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            index == steps.length - 1
+                                ? Icons.more_horiz
+                                : Icons.check_rounded,
+                            size: 16,
+                            color: context.textColors.secondary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              step['detail']?.toString() ?? '',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
+                  if (summary.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'Résumé de l’analyse en cours',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(summary, style: Theme.of(context).textTheme.bodySmall),
+                  ],
                 ],
               ),
             ),
-            if (scope.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                generatorAnalysisScope(scope),
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              Text(
-                '${scope['matchCount'] ?? 0} rencontres dans ce périmètre',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-            if (steps.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              for (final step in steps.take(8))
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 3),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        steps.last == step
-                            ? Icons.more_horiz
-                            : Icons.check_rounded,
-                        size: 16,
-                        color: context.brand.accent,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          step['detail']?.toString() ?? '',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-            if (summary.isNotEmpty)
-              ExpansionTile(
-                tilePadding: EdgeInsets.zero,
-                title: const Text('Résumé de l’analyse en cours'),
-                children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      summary,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                ],
-              ),
           ],
         ),
       ),
