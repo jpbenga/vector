@@ -25,6 +25,14 @@ import {
 import { intentSchema } from "./openai.ts";
 import { assessCandidate } from "./workshop.ts";
 import type { DayReadCoverage } from "./day_sources.ts";
+import {
+  type DayEvaluation,
+  evaluateMatches,
+  evaluationOverview,
+  type MatchSheet,
+  prepareMatchSheets,
+} from "./match_evaluation.ts";
+import type { ModelOptions } from "./models.ts";
 
 const array = { type: "array", items: { type: "string" } };
 export const planSchema = {
@@ -80,6 +88,24 @@ export const conversationTools = [
       view: { type: "string", enum: ["profile", "radar", "all"] },
       radarKind: { type: "string", enum: ["teams", "players"] },
       query: { type: ["string", "null"] },
+      offset: { type: "integer" },
+      limit: { type: "integer" },
+    },
+  ),
+  tool(
+    "evaluate_matches",
+    "Évaluer individuellement toutes les rencontres d’une recherche selon un critère naturel, puis lire l’ensemble des évaluations pour les comparer. Aucune présélection : matchKeys=null couvre la recherche entière, y compris les pages non affichées. Sinon évaluer exactement les clés demandées. Ne pas confondre récupération et évaluation. Le résultat indique toute couverture incomplète. Lecture et analyse en mémoire uniquement.",
+    {
+      queryId: { type: "string" },
+      criteria: { type: "string" },
+      matchKeys: { anyOf: [array, { type: "null" }] },
+    },
+  ),
+  tool(
+    "read_match_evaluations",
+    "Lire les évaluations individuelles déjà réalisées, leurs références et limites, y compris les rencontres non retenues. Aucun nouvel appel IA.",
+    {
+      evaluationId: { type: "string" },
       offset: { type: "integer" },
       limit: { type: "integer" },
     },
@@ -184,6 +210,14 @@ export class ConversationReader {
     }
   >();
   readonly detailsRead = new Set<string>();
+  readonly evaluations = new Map<string, DayEvaluation>();
+  private sheets = new Map<string, MatchSheet[]>();
+  matchSheets(q: ReadQuery) {
+    if (!this.sheets.has(q.id)) {
+      this.sheets.set(q.id, prepareMatchSheets(q, this.input.now));
+    }
+    return this.sheets.get(q.id)!;
+  }
   private requests = new Map<string, Promise<ReadQuery>>();
   private reads = 0;
   private totalMatches = 0;
@@ -200,6 +234,7 @@ export class ConversationReader {
     private port: ConversationReadPort,
     private progress: (phase: string, detail: string) => Promise<void> =
       async () => {},
+    private evaluator?: ModelOptions & { deadline: number },
   ) {
     this.state = input.state ? structuredClone(input.state) : null;
   }
@@ -359,6 +394,7 @@ export class ConversationReader {
     return {
       ...q.catalog.matches?.find((m) => matchKey(m.sport, m.id) === key),
       ...match,
+      evidence: this.matchSheets(q).find((s) => s.key === key)?.facts ?? [],
       candidates: analysisCandidates(
         q.catalog,
         { ...this.input.state?.intent, marketIds: [] } as Intent,
@@ -419,6 +455,93 @@ export class ConversationReader {
           semantics:
             "Configuration active transmise par l’application ; lecture seule, jamais modifiée par Hector.",
         };
+      case "evaluate_matches": {
+        exact(args, ["queryId", "criteria", "matchKeys"]);
+        const q = this.getQuery(args.queryId);
+        if (!this.evaluator) {
+          throw new Error(
+            "Évaluation individuelle IA indisponible dans cette session.",
+          );
+        }
+        if (
+          typeof args.criteria !== "string" || !args.criteria.trim() ||
+          args.criteria.length > 1200
+        ) {
+          throw new Error("Critère d’évaluation invalide.");
+        }
+        let query = q;
+        if (args.matchKeys !== null) {
+          if (
+            !Array.isArray(args.matchKeys) || !args.matchKeys.length ||
+            strings(args.matchKeys).length !== args.matchKeys.length ||
+            new Set(args.matchKeys).size !== args.matchKeys.length ||
+            args.matchKeys.some((k) => !q.matches.some((m) => m.key === k))
+          ) {
+            throw new Error(
+              "Rencontres d’évaluation hors périmètre ou dupliquées.",
+            );
+          }
+          query = {
+            ...q,
+            matches: q.matches.filter((m) =>
+              (args.matchKeys as string[]).includes(m.key)
+            ),
+          };
+        }
+        if (query.matches.length > 750) {
+          throw new Error(
+            "Ce protocole compare au maximum 750 fiches par recherche ; précisez le périmètre. Aucune rencontre n’a été omise.",
+          );
+        }
+        const previous = [...this.evaluations.values()].find((r) =>
+          r.queryId === q.id && r.criteria === args.criteria &&
+          r.expected === query.matches.length && [
+            ...r.rows.map((r) => r.key),
+            ...r.failed.flatMap((f) => f.keys),
+          ]
+            .every((key) => query.matches.some((m) => m.key === key))
+        );
+        if (previous) return evaluationOverview(previous, q);
+        if (this.evaluations.size >= 2) {
+          throw new Error(
+            "Deux critères ont déjà été évalués dans cet échange ; poursuivez au message suivant.",
+          );
+        }
+        const report = await evaluateMatches({
+          id: `e${this.evaluations.size + 1}`,
+          query,
+          criteria: args.criteria.trim(),
+          now: this.input.now,
+          deadline: this.evaluator.deadline,
+          onProgress: (n, total) =>
+            this.progress(
+              "evaluate",
+              `${n} / ${total} rencontres évaluées selon votre critère`,
+            ),
+        }, this.evaluator);
+        this.evaluations.set(report.id, report);
+        for (const row of report.rows) {
+          this.detailsRead.add(`${q.id}:${row.key}`);
+        }
+        return evaluationOverview(report, q);
+      }
+      case "read_match_evaluations": {
+        exact(args, ["evaluationId", "offset", "limit"]);
+        const p = page(args, 40),
+          report = this.evaluations.get(String(args.evaluationId));
+        if (!report) throw new Error("Évaluation inconnue dans cet échange.");
+        return {
+          evaluationId: report.id,
+          criteria: report.criteria,
+          total: report.rows.length,
+          rows: report.rows.slice(p.offset, p.offset + p.limit),
+          nextOffset: p.offset + p.limit < report.rows.length
+            ? p.offset + p.limit
+            : null,
+          complete: report.complete,
+          failed: report.failed,
+        };
+      }
       case "search_matches": {
         exact(args, [
           "date",

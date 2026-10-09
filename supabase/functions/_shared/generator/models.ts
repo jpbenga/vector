@@ -37,6 +37,7 @@ export interface ModelReceipt {
   estimatedUsd: { minimum: number; maximum: number } | null;
   pricingDate: "2026-10-08";
   usage: unknown;
+  evaluationBatch?: { queryId: string; keys: string[] };
 }
 export interface ModelOptions {
   key: string;
@@ -94,6 +95,8 @@ export async function structuredResponse(
     schema: unknown;
     name: string;
     effort?: "low" | "medium";
+    /** Caller-owned deadline for a bounded parallel evaluation. */
+    signal?: AbortSignal;
   },
   options: ModelOptions,
 ) {
@@ -132,7 +135,9 @@ export async function structuredResponse(
       {
         method: "POST",
         redirect: "error",
-        signal: AbortSignal.timeout(45000),
+        signal: input.signal
+          ? AbortSignal.any([input.signal, AbortSignal.timeout(45000)])
+          : AbortSignal.timeout(45000),
         headers: {
           authorization: `Bearer ${options.key}`,
           "content-type": "application/json",

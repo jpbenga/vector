@@ -477,6 +477,11 @@ export function validateAnalysis(value: Record<string, unknown>, allowed: {
     !Array.isArray(value.comparedMatchIds) ||
     compared.some((id) => !allowed.byMatch.has(id))
   ) throw new Error("L’analyse IA ne respecte pas le périmètre demandé.");
+  if (compared.some((id) => !allowed.detailsRead.has(id))) {
+    throw new Error(
+      "Les rencontres comparées ne disposent pas de références vérifiées.",
+    );
+  }
   const seen = new Set<string>();
   const checked = selections.map((s) => {
     const c = allowed.byCandidate.get(String(s.candidateId)),

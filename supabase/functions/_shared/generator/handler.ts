@@ -499,6 +499,7 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
           compose: "Construction des compositions",
           review: "Comparaison des arguments et des compromis",
           analyze: "Comparaison des rencontres",
+          evaluate: "Évaluation individuelle des rencontres",
           details: "Examen des lectures et marchés",
           commit: "Préparation de la réponse",
         };
@@ -663,6 +664,7 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
             elapsed_ms: Math.round(performance.now() - started),
             search: conversation.search,
             consultations: conversation.consultations,
+            evaluations: conversation.evaluations,
             ...progressState,
           },
         });

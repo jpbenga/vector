@@ -150,6 +150,13 @@ export interface Analysis {
     sports: Sport[];
     matchCount: number;
     candidateCount: number;
+    evaluation?: {
+      id: string;
+      criteria: string;
+      expected: number;
+      evaluated: number;
+      complete: boolean;
+    };
     radarKind?: string;
     radarScopes?: {
       sport: Sport;
