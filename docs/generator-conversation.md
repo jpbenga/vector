@@ -65,7 +65,7 @@ ni affiché ni sauvegardé. Seuls les résumés API et les étapes de consultati
 effectuées alimentent l'avancement existant de l'interface.
 
 La réponse finale suit un schéma strict. Une composition ne peut être affichée qu'avec
-l'identifiant d'une projection réellement calculée et un plan identique. Les prix et
+l'identifiant d'une projection réellement calculée et des contraintes d'exécution identiques. Les prix et
 sélections restent des faits serveur ; le modèle ne les fournit pas au calcul.
 
 ## Périmètres et limites

@@ -34,6 +34,23 @@ const context: Context = {
     },
   },
 };
+function displayedTickets(state: State) {
+  const message = state.messages.at(-1),
+    ids = new Set([
+      ...(message?.ticketIds ?? []),
+      ...(message?.proposalIds ?? []),
+    ]);
+  return [
+    ...new Map(
+      [
+        ...(state.proposals ?? []),
+        ...(state.pending ?? []),
+        ...(state.drafts ?? []),
+        ...state.tickets,
+      ].filter((t) => ids.has(t.id)).map((t) => [t.id, t]),
+    ).values(),
+  ];
+}
 function publications(day: string): Source[] {
   const football = source();
   for (const f of (football.payload.raw as any).fixtures) {
@@ -116,7 +133,7 @@ const cases: {
       assert.equal(i.requireEachSport, true);
       assert.equal(i.date, "2026-10-10");
       assert.ok(
-        s.tickets.some((t) =>
+        displayedTickets(s).some((t) =>
           t.picks.some((p) => p.sport === "hockey") &&
           t.picks.some((p) => p.sport === "football")
         ),
@@ -127,11 +144,18 @@ const cases: {
     name: "football_only_shorter",
     message:
       "Finalement enlève le hockey, uniquement du football, avec deux rencontres maximum. Garde la mise et la journée.",
-    accepts(i) {
+    accepts(i, s) {
       assert.deepEqual(i.sports, ["football"]);
       assert.equal(i.tickets[0]?.stake, 20);
       assert.equal(i.maxSelections, 2);
       assert.equal(i.date, "2026-10-10");
+      const proposed = displayedTickets(s);
+      assert.ok(proposed.length);
+      assert.ok(
+        proposed.every((t) =>
+          t.picks.length <= 2 && t.picks.every((p) => p.sport === "football")
+        ),
+      );
     },
   },
   {
@@ -175,6 +199,7 @@ for (const model of comparisonModels) {
   let state: State | null = null;
   for (const evaluation of cases) {
     const began = performance.now(), priorReceipts = receipts.length;
+    const contractErrors: unknown[] = [];
     try {
       const result = await converse({
         message: evaluation.message,
@@ -187,6 +212,7 @@ for (const model of comparisonModels) {
       }, {
         key,
         model,
+        onContractError: (detail) => contractErrors.push(detail),
         onReceipt: (r) => receipts.push(r),
         reads: {
           sources: async (_scope, day, sports) =>
@@ -205,7 +231,7 @@ for (const model of comparisonModels) {
         intent: state.conversation!.workingIntent,
         response: state.messages.at(-1)?.text,
         consultations: result.consultations,
-        tickets: state.tickets.map((t) => ({
+        tickets: displayedTickets(state).map((t) => ({
           id: t.id,
           stake: t.stake,
           totalOdds: t.totalOdds,
@@ -232,6 +258,7 @@ for (const model of comparisonModels) {
         error: error instanceof Error ? error.message : "evaluation_failed",
         intent: state?.conversation?.workingIntent,
         response: state?.messages.at(-1)?.text,
+        contractErrors,
       });
       console.log(
         JSON.stringify({

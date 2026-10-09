@@ -621,7 +621,10 @@ Deno.test("natural analysis then stake clarification then ticket preserves chose
             plan: {
               ...ticketPlan,
               intent: Object.fromEntries(
-                Object.entries(ticketPlan.intent).reverse(),
+                Object.entries({
+                  ...ticketPlan.intent,
+                  message: "Même exécution avec une explication reformulée.",
+                }).reverse(),
               ),
             },
             text: "Voici la composition calculée sur la rencontre retenue.",
