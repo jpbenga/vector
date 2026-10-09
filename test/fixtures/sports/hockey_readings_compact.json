@@ -1,0 +1,340 @@
+{
+  "schemaVersion": 1,
+  "sport": "hockey",
+  "provider": "api-hockey",
+  "competitionId": "multi",
+  "season": "multi",
+  "capturedAt": "2026-10-05T00:00:00Z",
+  "windowStart": "2026-09-28",
+  "windowEnd": "2026-10-18",
+  "timezone": "Europe/Paris",
+  "collectionId": "fixture",
+  "competitions": [
+    {
+      "id": "35",
+      "name": "KHL",
+      "season": "2026",
+      "country": "Test",
+      "formPhaseVerified": true,
+      "tables": [
+        {
+          "stage": "Regular Season",
+          "group": "Conference",
+          "rows": [
+            {
+              "team": {
+                "id": "Home",
+                "name": "Home"
+              },
+              "rank": 1,
+              "played": 12,
+              "points": 22,
+              "wins": 8,
+              "overtimeWins": 0,
+              "losses": 4,
+              "overtimeLosses": 0,
+              "form": [],
+              "formHistory": []
+            },
+            {
+              "team": {
+                "id": "Middle 0",
+                "name": "Middle 0"
+              },
+              "rank": 2,
+              "played": 12,
+              "points": 21,
+              "wins": 8,
+              "overtimeWins": 0,
+              "losses": 4,
+              "overtimeLosses": 0,
+              "form": [],
+              "formHistory": []
+            },
+            {
+              "team": {
+                "id": "Middle 1",
+                "name": "Middle 1"
+              },
+              "rank": 3,
+              "played": 12,
+              "points": 20,
+              "wins": 8,
+              "overtimeWins": 0,
+              "losses": 4,
+              "overtimeLosses": 0,
+              "form": [],
+              "formHistory": []
+            },
+            {
+              "team": {
+                "id": "Middle 2",
+                "name": "Middle 2"
+              },
+              "rank": 4,
+              "played": 12,
+              "points": 19,
+              "wins": 8,
+              "overtimeWins": 0,
+              "losses": 4,
+              "overtimeLosses": 0,
+              "form": [],
+              "formHistory": []
+            },
+            {
+              "team": {
+                "id": "Middle 3",
+                "name": "Middle 3"
+              },
+              "rank": 5,
+              "played": 12,
+              "points": 18,
+              "wins": 8,
+              "overtimeWins": 0,
+              "losses": 4,
+              "overtimeLosses": 0,
+              "form": [],
+              "formHistory": []
+            },
+            {
+              "team": {
+                "id": "Middle 4",
+                "name": "Middle 4"
+              },
+              "rank": 6,
+              "played": 12,
+              "points": 17,
+              "wins": 8,
+              "overtimeWins": 0,
+              "losses": 4,
+              "overtimeLosses": 0,
+              "form": [],
+              "formHistory": []
+            },
+            {
+              "team": {
+                "id": "Middle 5",
+                "name": "Middle 5"
+              },
+              "rank": 7,
+              "played": 12,
+              "points": 16,
+              "wins": 8,
+              "overtimeWins": 0,
+              "losses": 4,
+              "overtimeLosses": 0,
+              "form": [],
+              "formHistory": []
+            },
+            {
+              "team": {
+                "id": "Middle 6",
+                "name": "Middle 6"
+              },
+              "rank": 8,
+              "played": 12,
+              "points": 15,
+              "wins": 8,
+              "overtimeWins": 0,
+              "losses": 4,
+              "overtimeLosses": 0,
+              "form": [],
+              "formHistory": []
+            },
+            {
+              "team": {
+                "id": "Middle 7",
+                "name": "Middle 7"
+              },
+              "rank": 9,
+              "played": 12,
+              "points": 14,
+              "wins": 8,
+              "overtimeWins": 0,
+              "losses": 4,
+              "overtimeLosses": 0,
+              "form": [],
+              "formHistory": []
+            },
+            {
+              "team": {
+                "id": "Middle 8",
+                "name": "Middle 8"
+              },
+              "rank": 10,
+              "played": 12,
+              "points": 13,
+              "wins": 8,
+              "overtimeWins": 0,
+              "losses": 4,
+              "overtimeLosses": 0,
+              "form": [],
+              "formHistory": []
+            },
+            {
+              "team": {
+                "id": "Middle 9",
+                "name": "Middle 9"
+              },
+              "rank": 11,
+              "played": 12,
+              "points": 12,
+              "wins": 8,
+              "overtimeWins": 0,
+              "losses": 4,
+              "overtimeLosses": 0,
+              "form": [],
+              "formHistory": []
+            },
+            {
+              "team": {
+                "id": "Away",
+                "name": "Away"
+              },
+              "rank": 12,
+              "played": 12,
+              "points": 8,
+              "wins": 8,
+              "overtimeWins": 0,
+              "losses": 4,
+              "overtimeLosses": 0,
+              "form": [],
+              "formHistory": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "items": [
+    {
+      "id": "upcoming-35",
+      "competitionId": "35",
+      "competitionName": "KHL",
+      "season": "2026",
+      "startsAt": "2026-10-05T20:00:00Z",
+      "calendarDate": "2026-10-05",
+      "home": {
+        "id": "Home",
+        "name": "Home"
+      },
+      "away": {
+        "id": "Away",
+        "name": "Away"
+      },
+      "status": "scheduled",
+      "providerStatus": "NS",
+      "scores": {},
+      "recentForm": {
+        "home": [
+          {
+            "id": "Home-0",
+            "startsAt": "2026-09-30T00:00:00Z",
+            "home": true,
+            "opponent": "Opponent",
+            "scored": 3,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "Home-1",
+            "startsAt": "2026-10-01T00:00:00Z",
+            "home": true,
+            "opponent": "Opponent",
+            "scored": 3,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "Home-2",
+            "startsAt": "2026-10-02T00:00:00Z",
+            "home": true,
+            "opponent": "Opponent",
+            "scored": 3,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "Home-3",
+            "startsAt": "2026-10-03T00:00:00Z",
+            "home": true,
+            "opponent": "Opponent",
+            "scored": 3,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "Home-4",
+            "startsAt": "2026-10-04T00:00:00Z",
+            "home": true,
+            "opponent": "Opponent",
+            "scored": 3,
+            "conceded": 1,
+            "outcome": "win",
+            "providerStatus": "FT"
+          }
+        ],
+        "away": [
+          {
+            "id": "Away-0",
+            "startsAt": "2026-09-30T00:00:00Z",
+            "home": false,
+            "opponent": "Opponent",
+            "scored": 1,
+            "conceded": 3,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "Away-1",
+            "startsAt": "2026-10-01T00:00:00Z",
+            "home": false,
+            "opponent": "Opponent",
+            "scored": 1,
+            "conceded": 3,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "Away-2",
+            "startsAt": "2026-10-02T00:00:00Z",
+            "home": false,
+            "opponent": "Opponent",
+            "scored": 1,
+            "conceded": 3,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "Away-3",
+            "startsAt": "2026-10-03T00:00:00Z",
+            "home": false,
+            "opponent": "Opponent",
+            "scored": 1,
+            "conceded": 3,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          },
+          {
+            "id": "Away-4",
+            "startsAt": "2026-10-04T00:00:00Z",
+            "home": false,
+            "opponent": "Opponent",
+            "scored": 1,
+            "conceded": 3,
+            "outcome": "loss",
+            "providerStatus": "FT"
+          }
+        ]
+      }
+    }
+  ],
+  "playerRadar": {
+    "profiles": [],
+    "coverage": []
+  }
+}

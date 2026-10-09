@@ -334,12 +334,14 @@ for (const view of ["profile", "radar"] as const) {
           }
           return Response.json([{ status: "pending" }]);
         }
-        if (u.pathname === "/rest/v1/rpc/lector_generator_sources_filtered") {
+        if (u.pathname === "/rest/v1/rpc/lector_generator_shared_sources") {
           assert.equal(view, "profile");
           assert.deepEqual(payload.p_competitions, ["61"]);
           return Response.json([publication]);
         }
-        if (u.pathname === "/rest/v1/rpc/lector_generator_radar_sources") {
+        if (
+          u.pathname === "/rest/v1/rpc/lector_generator_shared_radar_sources"
+        ) {
           assert.equal(view, "radar");
           assert.deepEqual(payload.p_radar, requestContext.radar);
           assert.equal(payload.p_date, date);

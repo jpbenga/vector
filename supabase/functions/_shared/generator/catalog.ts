@@ -76,8 +76,10 @@ function evidence(raw: Json[], source: Source, readings: string[]): Evidence[] {
       label: String(e.label ?? ""),
       value: String(e.value ?? ""),
     })),
-    text: rows(r.evidence).map((e) => String(e.label ?? "")).join(" ") ||
-      String(r.explanation ?? ""),
+    text: source.sport === "hockey"
+      ? String(r.explanation ?? "")
+      : rows(r.evidence).map((e) => String(e.label ?? "")).join(" ") ||
+        String(r.explanation ?? ""),
   }));
 }
 // Explicit scope: result/double chance use team direction, goals use goal readings.

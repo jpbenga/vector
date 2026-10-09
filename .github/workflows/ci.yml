@@ -54,7 +54,7 @@ jobs:
           supabase/functions/_shared
 
       - name: Test Bilan SQL migration
-        run: deno test --node-modules-dir=none --no-lock --allow-read test/backend/lector_generator_sql_test.ts test/backend/generator_radar_scope_sql_test.ts test/backend/generator_decisions_sql_test.ts test/backend/feed_delivery_sql_test.ts test/backend/reading_bilan_sql_test.ts test/backend/live_match_sql_test.ts test/backend/sport_feed_sql_test.ts test/backend/hockey_live_sql_test.ts
+        run: deno test --node-modules-dir=none --no-lock --allow-read test/backend/lector_generator_sql_test.ts test/backend/generator_radar_scope_sql_test.ts test/backend/shared_sport_publications_sql_test.ts test/backend/generator_decisions_sql_test.ts test/backend/feed_delivery_sql_test.ts test/backend/reading_bilan_sql_test.ts test/backend/live_match_sql_test.ts test/backend/sport_feed_sql_test.ts test/backend/hockey_live_sql_test.ts
 
       - name: Test remote deployment guards
         run: python3 -m unittest discover -s tool/tests -p 'test_deploy*remote.py'

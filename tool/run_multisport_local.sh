@@ -49,6 +49,7 @@ PY
 }
 
 launch_app() {
+  python3 tool/sports/publish_sport_feed.py
   echo "Application : http://localhost:$port/sports/hockey"
   # A local run must return OAuth to the same origin, even when .env contains
   # an old LAN address or a production APP_PUBLIC_URL.

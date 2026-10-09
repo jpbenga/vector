@@ -87,11 +87,17 @@ class SportWorkspaceRegistry {
     }
     _feedConfig = config;
     final url = config?.sportFeedBaseUrl;
+    // Hosted hockey uses the shared server head. Local previews can still use
+    // their collector; its exact version is also published for the Generator.
+    final useSharedPublication =
+        config?.isSupabaseConfigured == true &&
+        (url == null || url.scheme == 'https');
     return _retainedHockeyFeed = ValidatedSportFeedRepository(
       delegate: PublishedSportFeedRepository(
         sport: SportId.hockey,
         delivery:
-            config?.isSupabaseConfigured == true &&
+            !useSharedPublication &&
+                config?.isSupabaseConfigured == true &&
                 (url == null || config?.feedDeliveryBaseUrl != null)
             ? PublishedFeedDelivery(
                 projectUrl: config!.supabaseUrl!,
@@ -99,7 +105,12 @@ class SportWorkspaceRegistry {
                 hostedBaseUrl: config.feedDeliveryBaseUrl,
               )
             : null,
-        source: url != null
+        source: useSharedPublication
+            ? SupabaseSportPublicationSource(
+                projectUrl: config!.supabaseUrl!,
+                publicKey: config.supabaseAnonKey!,
+              )
+            : url != null
             ? HttpSportPublicationSource(url)
             : config?.isSupabaseConfigured == true
             ? SupabaseSportPublicationSource(

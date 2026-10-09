@@ -27,6 +27,11 @@ if payload.get('sport') != 'hockey' or payload.get('schemaVersion') != 1:
 if not payload.get('competitions') or not isinstance(payload.get('items'), list):
     raise SystemExit('Missing hockey data')
 
+# A demo must never ship a hockey version that its Generator cannot read.
+sys.path.insert(0, str(ROOT / 'tool/sports'))
+from publish_sport_feed import verify_publication
+verify_publication(payload, values)
+
 # Only public project configuration is compiled. No provider or server secret.
 subprocess.run([
     'flutter', 'build', 'web', '--release', '--no-wasm-dry-run',

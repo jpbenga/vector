@@ -122,17 +122,24 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
       sports = Object.keys(context.preferences),
     ) =>
       context.view === "radar"
-        ? call("rpc/lector_generator_radar_sources", {
-          p_date: date,
-          p_timezone: context.timezone,
-          p_radar: Object.fromEntries(
-            Object.entries(context.radar ?? {}).filter(([sport]) =>
-              sports.includes(sport)
+        ? call(
+          options.workshop
+            ? "rpc/lector_generator_shared_radar_sources"
+            : "rpc/lector_generator_radar_sources",
+          {
+            p_date: date,
+            p_timezone: context.timezone,
+            p_radar: Object.fromEntries(
+              Object.entries(context.radar ?? {}).filter(([sport]) =>
+                sports.includes(sport)
+              ),
             ),
-          ),
-        }) as Promise<Source[]>
+          },
+        ) as Promise<Source[]>
         : call(
-          "rpc/lector_generator_sources_filtered",
+          options.workshop
+            ? "rpc/lector_generator_shared_sources"
+            : "rpc/lector_generator_sources_filtered",
           sourceQuery(context, date, sports),
         ) as Promise<Source[]>;
     try {
