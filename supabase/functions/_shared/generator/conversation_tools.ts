@@ -102,6 +102,11 @@ export const conversationTools = [
     },
   ),
   tool(
+    "continue_match_evaluation",
+    "Reprendre uniquement les lots non évalués d’une évaluation incomplète de cet échange, avec exactement le même critère, les mêmes sources et le même périmètre. Conserve les évaluations validées et retourne la couverture cumulée de l’ensemble original. Un appel supplémentaire borné, jamais une relance de toute la journée. Aucun changement de données ou de profil.",
+    { evaluationId: { type: "string" } },
+  ),
+  tool(
     "read_match_evaluations",
     "Lire les évaluations individuelles déjà réalisées dans cette conversation (evaluationId ou latest), leurs références et limites, y compris les rencontres non retenues. Aucun nouvel appel IA.",
     {
@@ -497,7 +502,7 @@ export class ConversationReader {
             "Ce protocole compare au maximum 750 fiches par recherche ; précisez le périmètre. Aucune rencontre n’a été omise.",
           );
         }
-        const previous = [...this.evaluations.values()].find((r) =>
+        const previous = [...this.evaluations.values()].findLast((r) =>
           r.queryId === q.id && r.criteria === args.criteria &&
           r.expected === query.matches.length && [
             ...r.rows.map((r) => r.key),
@@ -508,7 +513,7 @@ export class ConversationReader {
         if (previous) return evaluationOverview(previous, q);
         if (this.evaluations.size >= 2) {
           throw new Error(
-            "Deux critères ont déjà été évalués dans cet échange ; poursuivez au message suivant.",
+            "Deux évaluations ont déjà été réalisées dans cet échange ; poursuivez au message suivant.",
           );
         }
         const report = await evaluateMatches({
@@ -523,6 +528,66 @@ export class ConversationReader {
               `${n} / ${total} rencontres évaluées selon votre critère`,
             ),
         }, this.evaluator);
+        this.evaluations.set(report.id, report);
+        for (const row of report.rows) {
+          this.detailsRead.add(`${q.id}:${row.key}`);
+        }
+        await this.evaluator.onEvaluation?.(report);
+        return evaluationOverview(report, q);
+      }
+      case "continue_match_evaluation": {
+        exact(args, ["evaluationId"]);
+        const previous = this.evaluations.get(String(args.evaluationId));
+        if (!previous || !this.evaluator) {
+          throw new Error("Évaluation inconnue dans cet échange.");
+        }
+        const q = this.getQuery(previous.queryId);
+        if (previous.complete) return evaluationOverview(previous, q);
+        if (this.evaluations.size >= 2) {
+          throw new Error(
+            "Limite de deux évaluations atteinte dans cet échange.",
+          );
+        }
+        const missing = new Set(previous.failed.flatMap((f) => f.keys));
+        const retryQuery = {
+          ...q,
+          matches: q.matches.filter((m) => missing.has(m.key)),
+        };
+        if (!missing.size || retryQuery.matches.length !== missing.size) {
+          throw new Error("Périmètre de reprise invalide.");
+        }
+        const retry = await evaluateMatches({
+          id: crypto.randomUUID(),
+          query: retryQuery,
+          criteria: previous.criteria,
+          now: this.input.now,
+          deadline: this.evaluator.deadline,
+          onProgress: (n) =>
+            this.progress(
+              "evaluate",
+              `${
+                previous.evaluated + n
+              } / ${previous.expected} rencontres évaluées selon votre critère`,
+            ),
+        }, this.evaluator);
+        const completed = new Map(
+          [...previous.rows, ...retry.rows].map((r) => [r.key, r]),
+        );
+        const report: DayEvaluation = {
+          ...retry,
+          scope: previous.scope,
+          expected: previous.expected,
+          prepared: previous.prepared,
+          evaluated: completed.size,
+          complete: completed.size === previous.expected &&
+            !retry.failed.length,
+          rows: q.matches.flatMap((m) =>
+            completed.has(m.key) ? [completed.get(m.key)!] : []
+          ),
+          elapsedMs: previous.elapsedMs + retry.elapsedMs,
+          inputBytes: previous.inputBytes + retry.inputBytes,
+          batches: previous.batches + retry.batches,
+        };
         this.evaluations.set(report.id, report);
         for (const row of report.rows) {
           this.detailsRead.add(`${q.id}:${row.key}`);

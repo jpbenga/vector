@@ -3,6 +3,7 @@ import { ConversationReader, conversationTools } from "./conversation_tools.ts";
 import { context, now } from "./evaluation_cases.ts";
 import {
   evaluateMatches,
+  evaluationSchema,
   prepareMatchSheets,
   validateEvaluations,
 } from "./match_evaluation.ts";
@@ -11,21 +12,22 @@ import { obj } from "./contracts.ts";
 import { largeQuery } from "./match_evaluation_cases.ts";
 
 export const evaluationFor = (body: any) => ({
-  evaluations: JSON.parse(body.input).matches.map((m: any) => ({
-    key: m.key,
-    fit: m.facts.some((f: any) => f.text.includes("15/15"))
-      ? 4
-      : m.facts.length
-      ? 1
-      : 0,
-    status: m.facts.length ? "supported" : "insufficient",
-    candidate: m.candidates[0]?.id ?? null,
-    references: m.candidates[0]?.direct.slice(0, 1) ??
-      (m.facts[0] ? [m.facts[0].id] : []),
-    vigilanceReferences: m.candidates[0]?.vigilance ?? [],
-    reason: "Écart de forme documenté dans la fenêtre publiée.",
-    limitations: [],
-  })),
+  evaluations: Object.fromEntries(
+    JSON.parse(body.input).matches.map((m: any) => [m.key, {
+      fit: m.facts.some((f: any) => f.text.includes("15/15"))
+        ? 4
+        : m.facts.length
+        ? 1
+        : 0,
+      status: m.facts.length ? "supported" : "insufficient",
+      candidate: m.candidates[0]?.citations[0] ?? null,
+      references: m.candidates[0]?.direct.slice(0, 1) ??
+        (m.facts[0] ? [m.facts[0].id] : []),
+      vigilanceReferences: m.candidates[0]?.vigilance ?? [],
+      reason: "Écart de forme documenté dans la fenêtre publiée.",
+      limitations: [],
+    }]),
+  ),
 });
 export const modelResponse = (value: unknown) =>
   Response.json({
@@ -60,7 +62,7 @@ Deno.test("all 500 sheets are evaluated with bounded concurrency, local aliases 
       assert.equal(body.store, false);
       assert.equal(body.reasoning.effort, "low");
       const data = JSON.parse(body.input);
-      assert.ok(data.matches.length <= 24);
+      assert.ok(data.matches.length <= 12);
       assert.ok(!body.input.includes("publication-test"));
       calls++;
       maximum = Math.max(maximum, ++active);
@@ -89,7 +91,9 @@ Deno.test("missing, duplicate, invented references and unrelated markets invalid
     key: `m${i}`,
     fit: 3,
     status: "supported",
-    candidate: "c0",
+    candidate: `c0/f${
+      s.facts.findIndex((f) => f.id === s.candidates[0].evidence[0].id)
+    }`,
     references: [
       `f${s.facts.findIndex((f) => f.id === s.candidates[0].evidence[0].id)}`,
     ],
@@ -97,8 +101,11 @@ Deno.test("missing, duplicate, invented references and unrelated markets invalid
     reason: "Fait cité",
     limitations: [],
   }));
+  const responseRows = (rs: typeof good) => ({
+    evaluations: Object.fromEntries(rs.map(({ key, ...row }) => [key, row])),
+  });
   assert.equal(
-    validateEvaluations({ evaluations: good }, sheets, now).length,
+    validateEvaluations(responseRows(good), sheets, now).length,
     4,
   );
   for (
@@ -109,7 +116,7 @@ Deno.test("missing, duplicate, invented references and unrelated markets invalid
       good.map((r) => ({ ...r, candidate: "c99" })),
     ]
   ) {
-    assert.throws(() => validateEvaluations({ evaluations: bad }, sheets, now));
+    assert.throws(() => validateEvaluations(responseRows(bad), sheets, now));
   }
   const report = await evaluateMatches({
     id: "e1",
@@ -121,11 +128,50 @@ Deno.test("missing, duplicate, invented references and unrelated markets invalid
     key: "test",
     model: "gpt-6-luna",
     fetcher: (async () =>
-      modelResponse({ evaluations: good.slice(1) })) as typeof fetch,
+      modelResponse(responseRows(good.slice(1)))) as typeof fetch,
   });
   assert.equal(report.evaluated, 0);
   assert.equal(report.complete, false);
   assert.equal(report.failed[0].keys.length, 4);
+});
+Deno.test("constrained output ties each market choice to its explicitly cited direct proof; context facts cannot substitute for it", async () => {
+  const { query } = await largeQuery(2),
+    sheets = prepareMatchSheets(query, now);
+  sheets[0].facts.push({
+    ...sheets[0].facts[0],
+    id: "context-only",
+    supportsMarket: false,
+    role: "context",
+  });
+  const schema = evaluationSchema(sheets, now);
+  const alternatives = schema.properties.evaluations.properties;
+  assert.deepEqual(schema.properties.evaluations.required, ["m0", "m1"]);
+  assert.deepEqual(Object.keys(alternatives), ["m0", "m1"]);
+  const contextCitation = `c0/f${sheets[0].facts.length - 1}`;
+  assert.ok(
+    !alternatives.m0.properties.candidate.enum.includes(contextCitation),
+  );
+  const body = {
+    input: JSON.stringify({
+      matches: sheets.map((s, i) => ({
+        key: `m${i}`,
+        facts: [{ id: "f0", text: "15/15" }],
+        candidates: [{ citations: ["c0/f0"], direct: ["f0"], vigilance: [] }],
+      })),
+    }),
+  };
+  const valid = evaluationFor(body);
+  valid.evaluations.m0.references = [];
+  assert.ok(
+    validateEvaluations(valid, sheets, now)[0].references.includes(
+      sheets[0].facts[0].id,
+    ),
+  );
+  valid.evaluations.m0.candidate = contextCitation;
+  assert.throws(
+    () => validateEvaluations(valid, sheets, now),
+    /soutien direct/,
+  );
 });
 Deno.test("no price, no data and elapsed deadlines remain distinct from a full evaluation", async () => {
   const { query } = await largeQuery(4);
@@ -251,6 +297,77 @@ Deno.test("published histories are deduplicated and exclude future results, pres
   assert.equal(f.sample, 1);
   assert.ok(f.text.includes("1 rencontres"));
   assert.equal(f.supportsMarket, false);
+});
+Deno.test("resuming a failed batch preserves the original criterion and full coverage, pays only for missing matches and retains both audits", async () => {
+  const { publication } = await largeQuery(26);
+  const batches: number[] = [], criteria: string[] = [], audits: unknown[] = [];
+  const reader = new ConversationReader(
+    {
+      context,
+      date: "2026-10-10",
+      state: null,
+      now,
+      id: "t",
+      message: "forme",
+    },
+    { sources: async () => [publication] },
+    async () => {},
+    {
+      key: "test",
+      model: "gpt-6-luna",
+      deadline: performance.now() + 10000,
+      onEvaluation: async (report) => {
+        audits.push(report);
+      },
+      fetcher: (async (_u, init) => {
+        const body = JSON.parse(String(init?.body)),
+          data = JSON.parse(body.input);
+        batches.push(data.matches.length);
+        criteria.push(data.criteria);
+        const value = evaluationFor(body);
+        if (batches.length === 1) value.evaluations.m0.references = ["f999"];
+        return modelResponse(value);
+      }) as typeof fetch,
+    },
+  );
+  await reader.query("2026-10-10", ["football"], "profile", "teams");
+  const first = await reader.execute("evaluate_matches", {
+    queryId: "q1",
+    criteria: "écart de forme",
+    matchKeys: null,
+  }) as any;
+  assert.equal(first.coverage.evaluated, 26 - batches[0]);
+  assert.equal(first.coverage.complete, false);
+  const next = await reader.execute("continue_match_evaluation", {
+    evaluationId: first.evaluationId,
+  }) as any;
+  assert.equal(next.coverage.expected, 26);
+  assert.equal(next.coverage.evaluated, 26);
+  assert.equal(next.coverage.complete, true);
+  assert.equal(batches.at(-1), batches[0]);
+  assert.equal(batches.reduce((a, b) => a + b, 0), 26 + batches[0]);
+  assert.ok(criteria.every((c) => c === "écart de forme"));
+  assert.equal(audits.length, 2);
+  await reader.execute("continue_match_evaluation", {
+    evaluationId: next.evaluationId,
+  });
+  assert.equal(batches.length, 4);
+  await assert.rejects(
+    () =>
+      reader.execute("continue_match_evaluation", {
+        evaluationId: first.evaluationId,
+        sql: "select *",
+      }),
+    /non autorisés/,
+  );
+  assert.equal(reader.detailsRead.size, 26);
+  const cached = await reader.execute("evaluate_matches", {
+    queryId: "q1",
+    criteria: "écart de forme",
+    matchKeys: null,
+  }) as any;
+  assert.equal(cached.coverage.evaluated, 26);
+  assert.equal(batches.length, 4);
 });
 Deno.test("same numeric match in two sports keeps disjoint facts, candidates and audit identities", async () => {
   const { query } = await largeQuery(2);
