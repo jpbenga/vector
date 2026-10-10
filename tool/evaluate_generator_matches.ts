@@ -66,12 +66,13 @@ for (const model of comparisonModels) {
         }
       },
     });
-    assert.equal(
-      answer.evaluations.length,
-      1,
+    assert.ok(
+      answer.evaluations.length > 0,
       "The agent must use the complete individual evaluation capability.",
     );
-    const evaluation = answer.evaluations[0];
+    // A conversational agent may repair a failed evaluation within its two
+    // bounded attempts. Require the final full scope; count every paid attempt.
+    const evaluation = answer.evaluations.at(-1)!;
     assert.equal(evaluation.expected, 500);
     assert.equal(evaluation.evaluated, 500);
     assert.equal(evaluation.complete, true);
