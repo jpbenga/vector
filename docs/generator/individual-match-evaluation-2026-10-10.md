@@ -15,7 +15,7 @@ Le football sur main et les collecteurs ne sont pas modifiés.
 
 ## Bornes techniques explicites
 
-- Lots de 24 fiches maximum, divisés aussi selon un plafond de 34 Ko de données utiles.
+- Lots de 12 fiches maximum, divisés aussi selon un plafond de 24 Ko de données utiles (une fiche isolée peut aller jusqu’à 34 Ko). Le schéma contraint les identités et références propres à chaque rencontre ; un choix de marché cite explicitement une de ses preuves directes.
 - Vingt-quatre appels parallèles maximum ; un appel ne peut dépasser 45 secondes. La concurrence reste bornée : un refus de quota est enregistré comme un lot non évalué, sans relance automatique.
 - La conversation actuelle reste bornée à 130 secondes ; 35 secondes sont réservées après les évaluations à la comparaison/réponse. Un dépassement rend la couverture partielle, jamais exhaustive. Ce protocole est un premier jalon mesurable, pas un worker durable sur plusieurs minutes.
 - L’enveloppe de comparaison est bornée à 1,2 Mo afin de conserver la vue complète des 500 évaluations et les échanges d’outils de Responses. Ce plafond en octets est distinct de la limite de contexte du fournisseur en tokens.
