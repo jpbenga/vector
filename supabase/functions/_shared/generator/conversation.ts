@@ -75,6 +75,7 @@ const execution = (i: Intent) => ({
   date: i.date,
   sports: [...i.sports].sort(),
   tickets: i.tickets,
+  minSelections: i.minSelections ?? 1,
   maxSelections: i.maxSelections ?? 6,
   targetOdds: i.targetOdds ?? null,
   marketIds: [...i.marketIds].sort(),

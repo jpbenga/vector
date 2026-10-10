@@ -494,6 +494,7 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
         context?: AnalysisProgress["context"];
         evaluations?: DayEvaluation[];
       } = { phase: "interpret", steps: [] };
+      let lastProgressAt = 0, lastProgressPhase = "", publishedEvaluations = 0;
       const progress = async (phase: string, event?: AnalysisProgress) => {
         const labels: Record<string, string> = {
           interpret: "Compréhension de votre demande",
@@ -521,6 +522,17 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
         progressState.phase = phase;
         if (event?.context) progressState.context = event.context;
         if (event?.summary) progressState.summary = event.summary;
+        // Batch evaluation callbacks can arrive together. Publishing every item
+        // adds two database round trips to every result; keep terminal reports.
+        const clock = performance.now();
+        const reportCount = progressState.evaluations?.length ?? 0;
+        if (
+          phase === "evaluate" && lastProgressPhase === phase &&
+          reportCount === publishedEvaluations && clock - lastProgressAt < 1000
+        ) return;
+        lastProgressAt = clock;
+        lastProgressPhase = phase;
+        publishedEvaluations = reportCount;
         await rest(
           `lector_generator_turns?request_id=eq.${reservation}&user_id=eq.${user.id}&status=eq.pending`,
           { usage: options.workshop ? progressState : { phase } },
@@ -572,6 +584,14 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
           key,
           model,
           onReceipt: (r) => receipts.push(r),
+          onContractError: (error) => {
+            console.error(
+              JSON.stringify({
+                event: "generator_contract_error",
+                detail: error,
+              }),
+            );
+          },
           onProgress: (event) => progress(event.phase, event),
           onEvaluation: async (report) => {
             progressState.evaluations = [
@@ -987,6 +1007,10 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
       if (reservation) {
         const failure = {
           failure_stage: stage,
+          failure_name: error instanceof Error ? error.name : "unknown",
+          failure_message: error instanceof Error
+            ? error.message.slice(0, 1000)
+            : "unknown",
           elapsed_ms: Math.round(performance.now() - started),
           ai_usage: aiUsage,
           ai: receipts,

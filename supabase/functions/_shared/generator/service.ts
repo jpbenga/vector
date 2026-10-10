@@ -128,6 +128,9 @@ export function resolveIntent(intent: Intent, state: State | null): Intent {
     tickets: intent.preserveConstraints !== false
       ? [reference.target]
       : intent.tickets,
+    minSelections: intent.preserveConstraints !== false
+      ? reference.constraints?.minSelections ?? previous?.minSelections ?? null
+      : intent.minSelections,
     maxSelections: intent.preserveConstraints !== false
       ? reference.constraints?.maxSelections ?? previous?.maxSelections ?? 6
       : intent.maxSelections,

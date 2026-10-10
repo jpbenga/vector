@@ -565,6 +565,7 @@ export function exploreCompositions(
           };
           expanded.push(next);
           if (
+            picks.length >= (intent.minSelections ?? 1) &&
             (bounds.minimum === null || value >= bounds.minimum - .005) &&
             (!intent.requireEachSport ||
               intent.sports.every((sport) =>

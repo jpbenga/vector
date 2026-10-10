@@ -416,7 +416,6 @@ export class ConversationReader {
     if (!match) throw new Error("Rencontre extérieure au périmètre consulté.");
     this.detailsRead.add(`${q.id}:${key}`);
     return {
-      ...q.catalog.matches?.find((m) => matchKey(m.sport, m.id) === key),
       ...match,
       evidence: this.matchSheets(q).find((s) => s.key === key)?.facts ?? [],
       candidates: analysisCandidates(
@@ -426,6 +425,11 @@ export class ConversationReader {
       )
         .filter((c) => matchKey(c.sport, c.matchId) === key).map((c) => ({
           ...c,
+          // Facts are supplied once per encounter; quotes reference those facts.
+          evidence: c.evidence.map((e) => ({
+            id: e.id,
+            supportsMarket: e.supportsMarket,
+          })),
           assessment: assessCandidate(c, this.input.now),
         })),
     };

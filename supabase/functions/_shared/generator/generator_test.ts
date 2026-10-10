@@ -487,7 +487,7 @@ Deno.test("the explicit maximum constrains the search and invalid total goals cl
     3,
   );
   assert.throws(() => intentFrom({ ...intent, maxSelections: 0 }), /invalide/);
-  assert.throws(() => intentFrom({ ...intent, maxSelections: 7 }), /invalide/);
+  assert.throws(() => intentFrom({ ...intent, maxSelections: 21 }), /invalide/);
   const impossible = {
     ...intent,
     tickets: [{ stake: 50, minimum: 50, maximum: 50, kind: "total" as const }],

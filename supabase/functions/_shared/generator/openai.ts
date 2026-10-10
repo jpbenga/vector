@@ -44,6 +44,7 @@ export const intentSchema = {
     "tickets",
     "diversify",
     "requireEachSport",
+    "minSelections",
     "maxSelections",
     "targetOdds",
     "referenceTicketId",
@@ -89,7 +90,8 @@ export const intentSchema = {
         "Horodatage exact d’une analyse précédente pour construire un ticket sur les rencontres qu’elle a retenues. Null pour une demande indépendante.",
     },
     preserveConstraints: { type: "boolean" },
-    maxSelections: { type: ["integer", "null"], minimum: 1, maximum: 6 },
+    minSelections: { type: ["integer", "null"], minimum: 1, maximum: 20 },
+    maxSelections: { type: ["integer", "null"], minimum: 1, maximum: 20 },
     targetOdds: {
       type: ["number", "null"],
       description:
@@ -138,7 +140,7 @@ export async function interpret(
     schema: intentSchema,
     instructions: instructions + "\n" + targetInstructions +
       " Pour une analyse, un classement de rencontres, un top N, une comparaison ou une question sur les données de la journée, action=analyze, sans demander de mise ni créer de ticket. Pour découvrir les joueurs/équipes chauds, explore. La demande de cinq rencontres/paris à examiner, même pour un futur combiné, est analyze tant que l'utilisateur ne demande pas de construire un ticket avec une mise. view=profile pour l'écran Pour moi, radar pour Radar, all pour Tous ; current si aucun périmètre n'est précisé. Une simple relance de l'analyse précédente conserve sa date, son sport, son view et son nombre demandé. Une analyse n'a jamais besoin de clarification sur mise/retour. Les données seront consultées APRÈS cette interprétation : ne dis pas que tu n'y as pas accès et ne demande pas leur liste. maxSelections sert aussi au nombre de rencontres demandé pour analyze, null si absent. Pour analyze/explore, tickets=[] et goalMode=unconstrained. " +
-      " Une demande de découverte des joueurs ou équipes chauds utilise explore ; elle ne nécessite ni mise ni objectif de retour. maxSelections est le maximum de matchs par ticket explicitement demandé, entre 1 et 6 ; null si absent. Une réponse courte à une clarification reprend les contraintes de previousIntent. Elle change uniquement la précision fournie et utilise generate si la demande est complète. Conserve les contraintes connues même si une clarification reste nécessaire. Pour ‘environ’ ou ‘autour de’, goalMode=around ; pour ‘au moins’, goalMode=minimum ; sinon range si deux bornes explicites, unconstrained sans objectif. Pour « fais un ticket là-dessus », « avec ces rencontres » ou une relance qui transforme une analyse en ticket, referenceAnalysisAt reprend le at exact du message d’analyse fourni, et preserveFixtures=true. Reprends sa date, ses sports et son périmètre. Une précision de mise conserve referenceAnalysisAt de previousIntent. Une nouvelle journée, un autre périmètre ou une demande indépendante utilise referenceAnalysisAt=null. Les rencontres examinées ne sont pas toutes retenues : seules selections et observations constituent la liste choisie. preserveFixtures=true également si l’utilisateur demande les mêmes rencontres avec d’autres marchés. Ne confonds pas ce choix avec preserveConstraints qui conserve la mise, la date et les autres contraintes.",
+      " Une demande de découverte des joueurs ou équipes chauds utilise explore ; elle ne nécessite ni mise ni objectif de retour. minSelections est le minimum de matchs explicitement demandé ; null si absent. Un nombre exact exige minSelections=maxSelections. Ne transforme jamais un nombre exact en simple maximum. maxSelections est le maximum de matchs par ticket explicitement demandé, entre 1 et 20 ; null si absent. Une réponse courte à une clarification reprend les contraintes de previousIntent. Elle change uniquement la précision fournie et utilise generate si la demande est complète. Conserve les contraintes connues même si une clarification reste nécessaire. Pour ‘environ’ ou ‘autour de’, goalMode=around ; pour ‘au moins’, goalMode=minimum ; sinon range si deux bornes explicites, unconstrained sans objectif. Pour « fais un ticket là-dessus », « avec ces rencontres » ou une relance qui transforme une analyse en ticket, referenceAnalysisAt reprend le at exact du message d’analyse fourni, et preserveFixtures=true. Reprends sa date, ses sports et son périmètre. Une précision de mise conserve referenceAnalysisAt de previousIntent. Une nouvelle journée, un autre périmètre ou une demande indépendante utilise referenceAnalysisAt=null. Les rencontres examinées ne sont pas toutes retenues : seules selections et observations constituent la liste choisie. preserveFixtures=true également si l’utilisateur demande les mêmes rencontres avec d’autres marchés. Ne confonds pas ce choix avec preserveConstraints qui conserve la mise, la date et les autres contraintes.",
     input: {
       today: input.today,
       selectedDate: input.date,

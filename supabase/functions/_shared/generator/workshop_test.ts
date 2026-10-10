@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { type Candidate, type Context, type Intent } from "./contracts.ts";
+import { composeWorkshop } from "./compositions.ts";
 import { compose, compositionKey, totals } from "./engine.ts";
 import {
   assessCandidate,
@@ -297,4 +298,67 @@ Deno.test("bounded search reports its limits and is invariant to input order", (
     new Set(one.alternatives.map((a) => a.fingerprint)).size,
     one.alternatives.length,
   );
+});
+
+Deno.test("exact cardinality does not collapse an unconstrained accumulator into a single", () => {
+  const candidates = Array.from(
+    { length: 8 },
+    (_, i) => pick(`exact-${i}`, 1.5),
+  );
+  const request: Intent = {
+    ...intent,
+    minSelections: 4,
+    maxSelections: 4,
+    tickets: [{ stake: 25, minimum: null, maximum: null, kind: "unspecified" }],
+    goalMode: "unconstrained",
+  };
+  const result = exploreCompositions(candidates, request, context, { now });
+  assert.ok(result.alternatives.length);
+  assert.ok(result.alternatives.every((p) => p.picks.length === 4));
+  const unavailable = exploreCompositions(
+    candidates.slice(0, 3),
+    request,
+    context,
+    { now },
+  );
+  assert.equal(unavailable.alternatives.length, 0);
+});
+
+Deno.test("four different tickets retain four matches and individual stakes without implicit disjointness", () => {
+  const candidates = Array.from(
+    { length: 8 },
+    (_, i) => pick(`batch-${i}`, 1.5),
+  );
+  const request: Intent = {
+    ...intent,
+    minSelections: 4,
+    maxSelections: 4,
+    tickets: Array.from(
+      { length: 4 },
+      () => ({
+        stake: 25,
+        minimum: null,
+        maximum: null,
+        kind: "unspecified" as const,
+      }),
+    ),
+    diversify: true,
+    goalMode: "unconstrained",
+  };
+  const result = composeWorkshop(
+    candidates,
+    request,
+    { ...context, budget: 100 },
+    {},
+    now,
+  );
+  assert.equal(result.tickets.length, 4);
+  assert.ok(
+    result.tickets.every((t) => t.picks.length === 4 && t.stake === 25),
+  );
+  assert.equal(
+    new Set(result.tickets.map((t) => compositionKey(t.picks))).size,
+    4,
+  );
+  assert.ok(result.tickets.every((t) => t.returnTotal === 126.56));
 });

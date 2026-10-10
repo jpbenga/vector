@@ -48,6 +48,7 @@ function ticketFrom(
     target: intent.tickets[index],
     context: structuredClone(context),
     constraints: {
+      minSelections: intent.minSelections ?? 1,
       maxSelections: intent.maxSelections ?? 6,
       targetOdds: intent.targetOdds,
       marketIds: intent.marketIds,
@@ -86,7 +87,7 @@ export function composeWorkshop(
     tickets: Ticket[] = [],
     proposals: Ticket[] = [],
     reports = [];
-  let pool = candidates;
+  const pool = candidates;
   for (let i = 0; i < intent.tickets.length; i++) {
     const result = exploreCompositions(pool, intent, context, {
       now,
@@ -117,15 +118,15 @@ export function composeWorkshop(
       }
     }
     for (const option of options) excluded.add(compositionKey(option.picks));
-    if (intent.diversify && intent.tickets.length > 1) {
-      const fixtures = new Set(
-        options[0].picks.map((p) => `${p.sport}:${p.matchId}`),
-      );
-      pool = pool.filter((p) => !fixtures.has(`${p.sport}:${p.matchId}`));
-    }
+    // Different compositions may share encounters. Disjointness is not implied
+    // by a request for different tickets; semantic fingerprints stay excluded.
   }
   if (tickets.reduce((n, t) => n + t.stake, 0) > context.budget + .001) {
     throw new Error("Les mises dépassent le budget.");
+  }
+  // Do not present a partial batch as fulfillment of the requested portfolio.
+  if (tickets.length !== intent.tickets.length) {
+    return { tickets: [], proposals: [], reports };
   }
   return { tickets, proposals, reports };
 }
@@ -153,6 +154,7 @@ export function reviseWorkshop(
         ...intent,
         tickets: [original.target],
         sports: original.constraints?.sports ?? intent.sports,
+        minSelections: original.picks.length,
         maxSelections: original.picks.length,
         goalMode: original.constraints?.goalMode ?? "minimum",
         targetOdds: original.constraints?.targetOdds,

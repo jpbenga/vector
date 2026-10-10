@@ -64,6 +64,7 @@ export interface Intent {
   tickets: Target[];
   diversify: boolean;
   requireEachSport: boolean;
+  minSelections?: number | null;
   maxSelections?: number | null;
   /** Independent decimal odds goal; never converted into an invented stake. */
   targetOdds?: number | null;
@@ -198,6 +199,7 @@ export interface Ticket {
   target: Target;
   constraints?: Pick<
     Intent,
+    | "minSelections"
     | "maxSelections"
     | "targetOdds"
     | "marketIds"
@@ -440,6 +442,7 @@ export function intentFrom(value: unknown): Intent {
     !Object.keys(v).every((k) =>
       [
         ...keys,
+        "minSelections",
         "maxSelections",
         "targetOdds",
         "referenceTicketId",
@@ -463,9 +466,12 @@ export function intentFrom(value: unknown): Intent {
       !["current", "profile", "radar", "all"].includes(String(v.view))) ||
     (v.radarKind !== undefined &&
       !["current", "teams", "players"].includes(String(v.radarKind))) ||
+    (v.minSelections != null &&
+      (!Number.isInteger(v.minSelections) || Number(v.minSelections) < 1 ||
+        Number(v.minSelections) > Number(v.maxSelections ?? 6))) ||
     (v.maxSelections !== undefined && v.maxSelections !== null &&
       (!Number.isInteger(v.maxSelections) || Number(v.maxSelections) < 1 ||
-        Number(v.maxSelections) > 6)) ||
+        Number(v.maxSelections) > 20)) ||
     (v.targetOdds != null && (typeof v.targetOdds !== "number" ||
       !Number.isFinite(v.targetOdds) || v.targetOdds <= 1 ||
       v.targetOdds > 10000)) ||
@@ -532,9 +538,16 @@ export function validateIntent(
   if (
     i.maxSelections != null &&
     (!Number.isInteger(i.maxSelections) || i.maxSelections < 1 ||
-      i.maxSelections > 6)
+      i.maxSelections > 20)
   ) {
-    return "Choisissez entre un et six matchs maximum par composition.";
+    return "Choisissez entre un et vingt matchs maximum par composition.";
+  }
+  if (
+    i.minSelections != null &&
+    (!Number.isInteger(i.minSelections) || i.minSelections < 1 ||
+      i.minSelections > (i.maxSelections ?? 6))
+  ) {
+    return "Le nombre minimum de matchs doit respecter le maximum demandé.";
   }
   if (!i.tickets.length || i.tickets.length > 4) {
     return "Précisez entre un et quatre tickets.";
