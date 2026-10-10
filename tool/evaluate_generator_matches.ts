@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { converse } from "../supabase/functions/_shared/generator/conversation.ts";
 import { mixedDay } from "../supabase/functions/_shared/generator/match_evaluation_cases.ts";
+import type { DayEvaluation } from "../supabase/functions/_shared/generator/match_evaluation.ts";
 import {
   context,
   now,
@@ -22,6 +23,7 @@ let failed = false;
 for (const model of comparisonModels) {
   const { sources, context } = await mixedDay(),
     receipts: ModelReceipt[] = [],
+    evaluations: DayEvaluation[] = [],
     started = performance.now();
   let last = "",
     answer: Awaited<ReturnType<typeof converse>> | undefined,
@@ -41,6 +43,16 @@ for (const model of comparisonModels) {
       model,
       reads: { sources: async () => sources },
       onReceipt: (r) => receipts.push(r),
+      onEvaluation: async (r) => {
+        evaluations.push(r);
+        console.log(JSON.stringify({
+          model,
+          expected: r.expected,
+          evaluated: r.evaluated,
+          complete: r.complete,
+          failedReasons: [...new Set(r.failed.map((b) => b.reason))],
+        }));
+      },
       onProgress: async (p) => {
         if (p.phase === "evaluate" && p.detail !== last) {
           last = p.detail ?? "";
@@ -98,7 +110,13 @@ for (const model of comparisonModels) {
       minimum: receipts.reduce((n, r) => n + (r.estimatedUsd?.minimum ?? 0), 0),
       maximum: receipts.reduce((n, r) => n + (r.estimatedUsd?.maximum ?? 0), 0),
     },
-    evaluations: answer?.evaluations,
+    coverage: evaluations.map((r) => ({
+      expected: r.expected,
+      evaluated: r.evaluated,
+      complete: r.complete,
+      failedBatches: r.failed.length,
+    })),
+    evaluations,
     receipts,
     analysis: answer?.next.messages.at(-1)?.analysis,
   };
