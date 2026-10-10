@@ -94,10 +94,23 @@ for (const model of comparisonModels) {
     assert.equal(evaluation.complete, true);
     const analysis = answer.next.messages.at(-1)?.analysis;
     assert.ok(analysis);
-    assert.equal(analysis.selections.length, 6);
-    const chosen = analysis.selections.map((s) =>
-      `${s.candidate.sport}:${s.candidate.matchId.replace("api-fixture-", "")}`
-    ).sort();
+    // The request is for six encounters, with supported markets when available.
+    // A final-win streak need not justify the hockey regulation-win market.
+    // Keeping that encounter as an evidenced observation is a valid refusal to
+    // invent a market, not an omitted encounter or a relaxed coverage check.
+    assert.equal(
+      analysis.selections.length + (analysis.observations?.length ?? 0),
+      6,
+    );
+    const chosen = [
+      ...analysis.selections.map((s) =>
+        `${s.candidate.sport}:${
+          s.candidate.matchId.replace("api-fixture-", "")
+        }`
+      ),
+      ...(analysis.observations ?? []).map((s) => `${s.sport}:${s.matchId}`),
+    ].sort();
+    assert.equal(new Set(chosen).size, 6);
     assert.deepEqual(
       chosen,
       [
