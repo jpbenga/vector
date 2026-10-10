@@ -31,6 +31,12 @@ export interface MatchEvaluation {
 export interface DayEvaluation {
   id: string;
   queryId: string;
+  scope: {
+    date: string;
+    view: string;
+    sports: string[];
+    sources: { id: string; capturedAt: string }[];
+  };
   criteria: string;
   model: string;
   expected: number;
@@ -347,6 +353,15 @@ export async function evaluateMatches(input: {
   const report: DayEvaluation = {
     id: input.id,
     queryId: input.query.id,
+    scope: {
+      date: input.query.date,
+      view: input.query.context.view ?? "profile",
+      sports: input.query.sports,
+      sources: input.query.sources.map((s) => ({
+        id: s.id,
+        capturedAt: s.capturedAt,
+      })),
+    },
     criteria: input.criteria,
     model: options.model,
     expected: sheets.length,

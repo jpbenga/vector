@@ -103,7 +103,7 @@ export const conversationTools = [
   ),
   tool(
     "read_match_evaluations",
-    "Lire les évaluations individuelles déjà réalisées, leurs références et limites, y compris les rencontres non retenues. Aucun nouvel appel IA.",
+    "Lire les évaluations individuelles déjà réalisées dans cette conversation (evaluationId ou latest), leurs références et limites, y compris les rencontres non retenues. Aucun nouvel appel IA.",
     {
       evaluationId: { type: "string" },
       offset: { type: "integer" },
@@ -159,6 +159,7 @@ export interface ConversationReadPort {
   ): Promise<unknown>;
   bilan?(): Promise<unknown>;
   archivedTicket?(id: string): Promise<State["tickets"][number] | null>;
+  evaluation?(id: string): Promise<DayEvaluation | null>;
 }
 export interface ReadQuery {
   id: string;
@@ -234,7 +235,10 @@ export class ConversationReader {
     private port: ConversationReadPort,
     private progress: (phase: string, detail: string) => Promise<void> =
       async () => {},
-    private evaluator?: ModelOptions & { deadline: number },
+    private evaluator?: ModelOptions & {
+      deadline: number;
+      onEvaluation?: (r: DayEvaluation) => Promise<void>;
+    },
   ) {
     this.state = input.state ? structuredClone(input.state) : null;
   }
@@ -508,7 +512,7 @@ export class ConversationReader {
           );
         }
         const report = await evaluateMatches({
-          id: `e${this.evaluations.size + 1}`,
+          id: crypto.randomUUID(),
           query,
           criteria: args.criteria.trim(),
           now: this.input.now,
@@ -523,16 +527,25 @@ export class ConversationReader {
         for (const row of report.rows) {
           this.detailsRead.add(`${q.id}:${row.key}`);
         }
+        await this.evaluator.onEvaluation?.(report);
         return evaluationOverview(report, q);
       }
       case "read_match_evaluations": {
         exact(args, ["evaluationId", "offset", "limit"]);
-        const p = page(args, 40),
-          report = this.evaluations.get(String(args.evaluationId));
+        const p = page(args, 40), evaluationId = String(args.evaluationId);
+        if (
+          evaluationId !== "latest" && !/^[0-9a-f-]{36}$/i.test(evaluationId)
+        ) throw new Error("Référence d’évaluation invalide.");
+        const report =
+          (evaluationId === "latest"
+            ? [...this.evaluations.values()].at(-1)
+            : this.evaluations.get(evaluationId)) ??
+            await this.port.evaluation?.(evaluationId);
         if (!report) throw new Error("Évaluation inconnue dans cet échange.");
         return {
           evaluationId: report.id,
           criteria: report.criteria,
+          scope: report.scope,
           total: report.rows.length,
           rows: report.rows.slice(p.offset, p.offset + p.limit),
           nextOffset: p.offset + p.limit < report.rows.length

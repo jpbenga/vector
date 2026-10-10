@@ -32,6 +32,7 @@ import {
 import { type ModelOptions, modelRegistry, receiptFor } from "./models.ts";
 import { applyIntent } from "./service.ts";
 import { attachReview, buildReviewBrief, fallbackReview } from "./review.ts";
+import type { DayEvaluation } from "./match_evaluation.ts";
 
 export const conversationSchema = {
   type: "object",
@@ -104,6 +105,7 @@ export async function converse(
     onProgress?: (event: AnalysisProgress) => Promise<void>;
     maxRounds?: number;
     onContractError?: (detail: unknown) => void;
+    onEvaluation?: (report: DayEvaluation) => Promise<void>;
   },
 ) {
   const configuration = modelRegistry[options.model];

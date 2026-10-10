@@ -207,7 +207,7 @@ Deno.test("tool scope rejects forged keys and writes, caches the exact criterion
   await reader.execute("evaluate_matches", args);
   assert.equal(calls, 1);
   const audit = await reader.execute("read_match_evaluations", {
-    evaluationId: "e1",
+    evaluationId: report.evaluationId,
     offset: 2,
     limit: 2,
   }) as any;
@@ -314,6 +314,10 @@ Deno.test("cancelling progress aborts every active batch and does not keep launc
           if (n === 1) {
             return modelResponse(evaluationFor(JSON.parse(String(init?.body))));
           }
+          if (init?.signal?.aborted) {
+            aborted++;
+            throw Error("aborted");
+          }
           return await new Promise<Response>((_resolve, reject) => {
             init?.signal?.addEventListener("abort", () => {
               aborted++;
@@ -326,4 +330,164 @@ Deno.test("cancelling progress aborts every active batch and does not keep launc
   );
   assert.ok(calls <= 8);
   assert.equal(aborted, calls - 1);
+});
+Deno.test("conversation compares all 500 evaluations before selecting six late matches and retains the audit", async () => {
+  const { publication } = await largeQuery(500);
+  const { converse } = await import("./conversation.ts");
+  const { initialIntent } = await import("./conversation_memory.ts");
+  const p = {
+    intent: {
+      ...initialIntent(context, "2026-10-10"),
+      action: "analyze",
+      maxSelections: 6,
+    },
+    changedFields: ["maxSelections"],
+    newTask: true,
+    focusMode: "choose",
+    focusKeys: [495, 496, 497, 498, 499, 500].map((i) => `football:${i}`),
+  };
+  let round = 0;
+  const call = (name: string, args: unknown) =>
+    Response.json({
+      status: "completed",
+      model: "gpt-6-luna",
+      output: [
+        {
+          type: "function_call",
+          call_id: name,
+          name,
+          arguments: JSON.stringify(args),
+        },
+      ],
+    });
+  const answer = await converse({
+    context,
+    date: "2026-10-10",
+    today: "2026-10-08",
+    now,
+    state: null,
+    message: "Six plus grands écarts de forme sur tous les matchs de samedi",
+    id: "33333333-3333-4333-8333-333333333333",
+  }, {
+    key: "test",
+    model: "gpt-6-luna",
+    reads: { sources: async () => [publication] },
+    fetcher: (async (_u, init) => {
+      const b = JSON.parse(String(init?.body));
+      if (b.text.format.name === "lector_match_evaluations") {
+        return modelResponse(evaluationFor(b));
+      }
+      round++;
+      if (round === 1) {
+        return call("search_matches", {
+          date: "2026-10-10",
+          sports: ["football"],
+          view: "profile",
+          radarKind: "teams",
+          query: null,
+          offset: 0,
+          limit: 20,
+        });
+      }
+      if (round === 2) {
+        return call("evaluate_matches", {
+          queryId: "q1",
+          criteria: "grand écart de forme",
+          matchKeys: null,
+        });
+      }
+      const data = JSON.parse(
+        b.input.findLast((v: any) => v.type === "function_call_output").output,
+      );
+      if (round === 3) {
+        assert.equal(data.evaluations.length, 500);
+        assert.equal(data.coverage.complete, true);
+        return call("read_matches", { queryId: "q1", matchKeys: p.focusKeys });
+      }
+      assert.equal(data.length, 6);
+      return modelResponse({
+        plan: p,
+        text:
+          "Les six écarts les plus nets ont été comparés à l’ensemble des fiches.",
+        queryId: "q1",
+        projectionId: null,
+        analysis: {
+          text: "Six rencontres",
+          selections: data.map((m: any) => ({
+            candidateId: m.candidates[0].id,
+            reason: "Écart de forme élevé.",
+            vigilance: "Échantillon récent, pas de garantie.",
+            references: m.candidates[0].assessment.directReferences,
+          })),
+          observations: [],
+          comparedMatchIds: Array.from(
+            { length: 500 },
+            (_, i) => `football:${i + 1}`,
+          ),
+          limitations: [],
+        },
+      });
+    }) as typeof fetch,
+  });
+  assert.equal(answer.evaluations[0].evaluated, 500);
+  assert.equal(answer.next.messages.at(-1)?.analysis?.selections.length, 6);
+  assert.equal(
+    answer.next.messages.at(-1)?.analysis?.context.evaluation?.complete,
+    true,
+  );
+  assert.equal(round, 4);
+});
+Deno.test("a later message reads the owned archived evaluation without paying or consulting a new publication", async () => {
+  const { query } = await largeQuery(2);
+  const report = await evaluateMatches({
+    id: "33333333-3333-4333-8333-333333333333",
+    query,
+    criteria: "forme",
+    now,
+    deadline: performance.now() + 10000,
+  }, {
+    key: "test",
+    model: "gpt-6-luna",
+    fetcher: (async (_u, init) =>
+      modelResponse(
+        evaluationFor(JSON.parse(String(init?.body))),
+      )) as typeof fetch,
+  });
+  let reads = 0;
+  const reader = new ConversationReader({
+    context,
+    date: "2026-10-10",
+    state: null,
+    now,
+    id: "owned-session",
+    message: "Pourquoi ce choix ?",
+  }, {
+    sources: async () => {
+      throw Error("unexpected source read");
+    },
+    evaluation: async (id) => {
+      reads++;
+      assert.equal(id, "latest");
+      return report;
+    },
+  });
+  const page = await reader.execute("read_match_evaluations", {
+    evaluationId: "latest",
+    offset: 0,
+    limit: 1,
+  }) as any;
+  assert.equal(page.rows.length, 1);
+  assert.equal(page.nextOffset, 1);
+  assert.equal(page.scope.date, "2026-10-10");
+  await assert.rejects(
+    () =>
+      reader.execute("read_match_evaluations", {
+        evaluationId: "select * from users",
+        offset: 0,
+        limit: 1,
+      }),
+    /invalide/,
+  );
+  assert.equal(reads, 1);
+  assert.equal(reader.queries.size, 0);
 });

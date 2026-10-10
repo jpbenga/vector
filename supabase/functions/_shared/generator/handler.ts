@@ -16,6 +16,7 @@ import {
 import { type Source } from "./catalog.ts";
 import { interpret } from "./openai.ts";
 import { converse } from "./conversation.ts";
+import type { DayEvaluation } from "./match_evaluation.ts";
 import {
   footballDetailColumns,
   projectFootballMatch,
@@ -491,6 +492,7 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
         steps: { phase: string; detail: string; at: string }[];
         summary?: string;
         context?: AnalysisProgress["context"];
+        evaluations?: DayEvaluation[];
       } = { phase: "interpret", steps: [] };
       const progress = async (phase: string, event?: AnalysisProgress) => {
         const labels: Record<string, string> = {
@@ -571,6 +573,19 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
           model,
           onReceipt: (r) => receipts.push(r),
           onProgress: (event) => progress(event.phase, event),
+          onEvaluation: async (report) => {
+            progressState.evaluations = [
+              ...progressState.evaluations ?? [],
+              report,
+            ];
+            await progress("evaluate", {
+              phase: "evaluate",
+              detail:
+                `${report.evaluated} / ${report.expected} rencontres évaluées${
+                  report.complete ? "" : " · analyse partielle"
+                }`,
+            });
+          },
           reads: {
             sources: (scope, day, sports) => sourcesFor(scope, day, sports),
             daySources: (scope, day, sports, onCoverage) =>
@@ -640,6 +655,26 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
                 semantics:
                   "Résultats descriptifs, aucune probabilité de pari ni vérification déclenchée.",
               };
+            },
+            evaluation: async (evaluationId) => {
+              const filter = evaluationId === "latest"
+                ? ""
+                : `&usage->evaluations=cs.${
+                  encodeURIComponent(JSON.stringify([{ id: evaluationId }]))
+                }`;
+              const turns = await call(
+                `lector_generator_turns?user_id=eq.${user.id}&conversation_id=eq.${id}&select=usage&order=started_at.desc&limit=10${filter}`,
+              );
+              for (const turn of turns) {
+                const reports = Array.isArray(obj(turn.usage).evaluations)
+                  ? obj(turn.usage).evaluations as DayEvaluation[]
+                  : [];
+                const report = evaluationId === "latest"
+                  ? reports.at(-1)
+                  : reports.find((r) => r.id === evaluationId);
+                if (report) return report;
+              }
+              return null;
             },
             archivedTicket: async (ticketId) => {
               const archived = await call(
