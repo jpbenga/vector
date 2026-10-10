@@ -504,6 +504,8 @@ Deno.test("conversation compares all 500 evaluations before selecting six late m
       }
       largestRequest = Math.max(largestRequest, String(init?.body).length);
       round++;
+      assert.equal(b.parallel_tool_calls, true);
+      assert.equal(b.reasoning.effort, round <= 2 ? "low" : "medium");
       if (round === 1) {
         return call("search_matches", {
           date: "2026-10-10",

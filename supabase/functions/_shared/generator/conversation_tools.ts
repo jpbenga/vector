@@ -117,7 +117,7 @@ export const conversationTools = [
   ),
   tool(
     "read_matches",
-    "Lire les arguments, contradictions, échantillons et marchés admissibles de rencontres issues d’une recherche. Les clés sport:id évitent de confondre deux sports. Maximum huit rencontres.",
+    "Lire les arguments, contradictions, échantillons et marchés admissibles de rencontres issues d’une recherche. Les clés sport:id évitent de confondre deux sports. Regrouper jusqu’à huit rencontres par appel ; inutile de faire un appel séparé pour chaque clé.",
     { queryId: { type: "string" }, matchKeys: array },
   ),
   tool(
