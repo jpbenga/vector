@@ -21,8 +21,8 @@ void main() {
         'captured_at': '2026-10-10T06:28:00Z',
         'window_start': '2026-10-11',
         'window_end': '2026-10-11',
-        'raw': {'fixtures': []},
-        'computed': {'fixtures': []},
+        'raw': {'fixtures': <Object?>[]},
+        'computed': {'fixtures': <Object?>[]},
       };
       final old = {
         ...fresh,
