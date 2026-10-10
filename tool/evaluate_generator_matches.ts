@@ -56,6 +56,8 @@ for (const model of comparisonModels) {
           }));
         }
       },
+      onContractError: (detail) =>
+        console.log(JSON.stringify({ model, validation: detail })),
       onEvaluation: async (r) => {
         evaluations.push(r);
         console.log(JSON.stringify({
@@ -125,6 +127,12 @@ for (const model of comparisonModels) {
       minimum: receipts.reduce((n, r) => n + (r.estimatedUsd?.minimum ?? 0), 0),
       maximum: receipts.reduce((n, r) => n + (r.estimatedUsd?.maximum ?? 0), 0),
     },
+    selections: answer?.next.messages.at(-1)?.analysis?.selections.map((s) =>
+      `${s.candidate.sport}:${s.candidate.matchId}`
+    ),
+    observations: answer?.next.messages.at(-1)?.analysis?.observations?.map((
+      s,
+    ) => `${s.sport}:${s.matchId}`),
     coverage: evaluations.map((r) => ({
       expected: r.expected,
       evaluated: r.evaluated,
