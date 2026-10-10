@@ -36,6 +36,7 @@ import { validateIntent } from "./contracts.ts";
 import { decodeVoice, transcribe } from "./voice.ts";
 import { buildCatalog } from "./catalog.ts";
 import { type DayReadCoverage, loadDaySources } from "./day_sources.ts";
+import { GeneratorFailure, generatorTimeoutMessage } from "./failures.ts";
 const cors = {
   "access-control-allow-origin": "*",
   "access-control-allow-headers":
@@ -119,6 +120,8 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
       const began = performance.now();
       try {
         return await rest(path, body, method, timeoutMs);
+      } catch (error) {
+        throw new GeneratorFailure(error, operation);
       } finally {
         timings[operation] = (timings[operation] ?? 0) +
           Math.round(performance.now() - began);
@@ -1009,6 +1012,7 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
       reservation = null;
       return reply({ state });
     } catch (error) {
+      if (error instanceof GeneratorFailure) stage = error.stage;
       if (reservation) {
         const failure = {
           failure_stage: stage,
@@ -1046,9 +1050,7 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
       );
       return reply({
         error: timeout
-          ? (stage === "interpret"
-            ? "L’interprétation a pris trop de temps. Votre conversation est conservée ; vous pouvez réessayer."
-            : "La récupération des données a pris trop de temps. Votre conversation est conservée ; vous pouvez réessayer.")
+          ? generatorTimeoutMessage(stage)
           : error instanceof Error
           ? error.message
           : "La préparation a échoué. Aucune mise n’a été engagée.",

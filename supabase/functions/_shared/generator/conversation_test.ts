@@ -1006,3 +1006,99 @@ Deno.test("conversation ledger bounds long sessions while preserving exact activ
     /invalide/,
   );
 });
+
+Deno.test("repeated identical reads reuse the first output while preserving every Responses reasoning and call item", async () => {
+  const p = plan({ action: "analyze", maxSelections: 2 }, ["maxSelections"], {
+    newTask: true,
+    focusMode: "clear",
+  });
+  let calls = 0;
+  let firstOutput = "";
+  await converse(input(), {
+    key: "test",
+    model: "gpt-6-luna",
+    reads: readPort(),
+    fetcher: (async (_url, init) => {
+      const body = JSON.parse(String(init?.body));
+      calls++;
+      if (calls === 1) return result([toolCall("search_matches", search())]);
+      if (calls === 2) {
+        return result([
+          {
+            type: "reasoning",
+            encrypted_content: "unchanged-reasoning",
+            summary: [],
+          },
+          toolCall(
+            "read_matches",
+            { queryId: "q1", matchKeys: ["football:1"] },
+            "first-read",
+          ),
+        ]);
+      }
+      if (calls === 3) {
+        firstOutput = body.input.find((m: any) =>
+          m.call_id === "first-read" && m.type === "function_call_output"
+        ).output;
+        return result([
+          toolCall(
+            "read_matches",
+            { matchKeys: ["football:1"], queryId: "q1" },
+            "second-read",
+          ),
+        ]);
+      }
+      const repeated = body.input.find((m: any) =>
+        m.call_id === "second-read" && m.type === "function_call_output"
+      );
+      assert.equal(JSON.parse(repeated.output).previousCallId, "first-read");
+      assert.equal(
+        body.input.find((m: any) =>
+          m.call_id === "first-read" && m.type === "function_call_output"
+        ).output,
+        firstOutput,
+      );
+      assert.ok(
+        body.input.some((m: any) =>
+          m.encrypted_content === "unchanged-reasoning"
+        ),
+      );
+      assert.equal(
+        body.input.filter((m: any) => m.type === "function_call").length,
+        3,
+      );
+      return result([output(analysisResponse(p))]);
+    }) as typeof fetch,
+  });
+  assert.equal(calls, 4);
+});
+
+Deno.test("the conversation reserves the final response window instead of starting another consultation", async () => {
+  let tick = 0, calls = 0;
+  const start = performance.now();
+  await converse(input(), {
+    key: "test",
+    model: "gpt-6-luna",
+    reads: readPort(),
+    clock: () => start + (tick++ ? 100000 : 0),
+    fetcher: (async (_url, init) => {
+      calls++;
+      const body = JSON.parse(String(init?.body));
+      assert.equal(body.tool_choice, "none");
+      assert.ok(
+        body.input.some((m: any) =>
+          m.role === "developer" && String(m.content).includes("réponse finale")
+        ),
+      );
+      return result([output({
+        plan: plan({ action: "clarify" }),
+        text:
+          "Les données consultées ne permettent pas encore de présenter ce classement complet.",
+        analysis: null,
+        queryId: null,
+        projectionId: null,
+      })]);
+    }) as typeof fetch,
+  });
+  assert.equal(calls, 1);
+});

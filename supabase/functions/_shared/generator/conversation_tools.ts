@@ -21,11 +21,14 @@ import {
   type ConversationPlan,
   matchKey,
   resolvePlan,
-  ticketSummary,
   validatePlan,
 } from "./conversation_memory.ts";
 import { intentSchema } from "./openai.ts";
-import { assessCandidate } from "./workshop.ts";
+import {
+  modelCandidate,
+  modelEvidence,
+  modelTickets,
+} from "./conversation_projection.ts";
 import type { DayReadCoverage } from "./day_sources.ts";
 import {
   type DayEvaluation,
@@ -431,21 +434,15 @@ export class ConversationReader {
     this.detailsRead.add(`${q.id}:${key}`);
     return {
       ...match,
-      evidence: this.matchSheets(q).find((s) => s.key === key)?.facts ?? [],
+      evidence: (this.matchSheets(q).find((s) => s.key === key)?.facts ?? [])
+        .map(modelEvidence),
       candidates: analysisCandidates(
         q.catalog,
         { ...this.input.state?.intent, marketIds: [] } as Intent,
         this.input.now,
       )
-        .filter((c) => matchKey(c.sport, c.matchId) === key).map((c) => ({
-          ...c,
-          // Facts are supplied once per encounter; quotes reference those facts.
-          evidence: c.evidence.map((e) => ({
-            id: e.id,
-            supportsMarket: e.supportsMarket,
-          })),
-          assessment: assessCandidate(c, this.input.now),
-        })),
+        .filter((c) => matchKey(c.sport, c.matchId) === key)
+        .map((c) => modelCandidate(c, this.input.now)),
     };
   }
   async resolve(plan: ConversationPlan) {
@@ -840,7 +837,12 @@ export class ConversationReader {
         }
         const turns = this.state?.conversation?.turns ?? [];
         return {
-          ticket: ticket ? ticketSummary(ticket) : null,
+          ...(ticket
+            ? (() => {
+              const projected = modelTickets([ticket]);
+              return { ticket: projected.tickets[0], facts: projected.facts };
+            })()
+            : { ticket: null }),
           tickets: [
             ...new Map(all.map((t) => [t.id, { id: t.id, number: t.number }]))
               .values(),
@@ -932,7 +934,7 @@ export class ConversationReader {
           intent,
           result: attached.text,
           clarification: validateIntent(intent, context, this.input.now),
-          tickets: tickets.map(ticketSummary),
+          ...modelTickets(tickets),
           missing: query.catalog.missing,
           semantics:
             "Projection calculée en mémoire ; aucun ticket sauvegardé, aucun profil modifié, aucun pari placé.",

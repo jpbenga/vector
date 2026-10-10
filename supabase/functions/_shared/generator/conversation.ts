@@ -20,7 +20,6 @@ import {
   matchKey,
   rememberTurn,
   resolvePlan,
-  ticketSummary,
   validatePlan,
   workingIntent,
 } from "./conversation_memory.ts";
@@ -34,6 +33,7 @@ import { type ModelOptions, modelRegistry, receiptFor } from "./models.ts";
 import { applyIntent } from "./service.ts";
 import { attachReview, buildReviewBrief, fallbackReview } from "./review.ts";
 import type { DayEvaluation } from "./match_evaluation.ts";
+import { GeneratorFailure } from "./failures.ts";
 
 export const conversationSchema = {
   type: "object",
@@ -120,6 +120,7 @@ export async function converse(
     maxRounds?: number;
     onContractError?: (detail: unknown) => void;
     onEvaluation?: (report: DayEvaluation) => Promise<void>;
+    clock?: () => number;
   },
 ) {
   const configuration = modelRegistry[options.model];
@@ -128,7 +129,8 @@ export async function converse(
       "Le modèle de conversation doit prendre en charge le raisonnement et les outils.",
     );
   }
-  const deadline = performance.now() + 130000;
+  const clock = options.clock ?? (() => performance.now());
+  const deadline = clock() + 130000;
   const reader = new ConversationReader(
     input,
     options.reads,
@@ -204,17 +206,39 @@ export async function converse(
     { role: "user", content: input.message },
   ];
   const rounds = Math.min(10, Math.max(2, options.maxRounds ?? 10));
+  // Keep Responses replay intact. Only the first result is expanded; identical
+  // subsequent consultations point to that still-present function_call_output.
+  const toolResults = new Map<string, string>();
+  const reusableTools = new Set([
+    "read_matches",
+    "read_match_data",
+    "read_composition_options",
+    "read_match_evaluations",
+    "evaluate_matches",
+  ]);
+  let finalizing = false;
   let summary = "", validationRepairs = 0;
   for (let round = 0; round < rounds; round++) {
-    const remaining = Math.floor(deadline - performance.now());
+    const remaining = Math.floor(deadline - clock());
     if (remaining < 1000) {
-      throw new Error(
-        "La consultation a pris trop de temps. La session précédente est conservée.",
+      throw new GeneratorFailure(
+        new DOMException("Signal timed out.", "TimeoutError"),
+        "conversation/respond",
       );
+    }
+    if (!finalizing && (remaining <= 35000 || round === rounds - 1)) {
+      finalizing = true;
+      messages.push({
+        role: "developer",
+        content:
+          "Prépare maintenant la réponse finale avec les données déjà consultées, le périmètre de la dernière demande et les projections existantes. N’ouvre pas de nouvelle consultation. Si des détails ou une projection manquent, indique cette limite sans inventer de marché, de cote, de ticket ou de couverture complète.",
+      });
     }
     await options.onProgress?.({
       phase: "analyze",
-      detail: round
+      detail: finalizing
+        ? "Préparation de la réponse à partir des données vérifiées"
+        : round
         ? "Examen des données consultées et des possibilités"
         : "Compréhension de la demande dans la conversation",
     });
@@ -233,7 +257,7 @@ export async function converse(
       instructions: conversationInstructions,
       input: messages,
       tools: conversationTools,
-      tool_choice: round === rounds - 1 ? "none" : "auto",
+      tool_choice: finalizing ? "none" : "auto",
       parallel_tool_calls: true,
       text: {
         format: {
@@ -299,7 +323,9 @@ export async function converse(
           ),
         );
       }
-      throw error;
+      throw error instanceof GeneratorFailure
+        ? error
+        : new GeneratorFailure(error, "conversation/respond");
     }
     const output = rows(result.output),
       calls = output.filter((o) => o.type === "function_call");
@@ -316,10 +342,22 @@ export async function converse(
         ) throw new Error("Appel d’outil invalide.");
         let data: unknown;
         try {
-          data = await reader.execute(
-            String(call.name),
-            JSON.parse(call.arguments),
-          );
+          const args = JSON.parse(call.arguments);
+          const cacheKey = JSON.stringify([call.name, canonical(args)]);
+          const previousCallId = reusableTools.has(String(call.name))
+            ? toolResults.get(cacheKey)
+            : undefined;
+          data = previousCallId
+            ? {
+              alreadyConsulted: true,
+              previousCallId,
+              note:
+                "Résultat identique déjà présent dans la conversation sous ce call_id ; réutilisez ces faits sans les recompter comme des observations nouvelles.",
+            }
+            : await reader.execute(String(call.name), args);
+          if (!previousCallId && reusableTools.has(String(call.name))) {
+            toolResults.set(cacheKey, call.call_id);
+          }
         } catch (error) {
           data = {
             error: error instanceof Error
