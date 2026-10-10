@@ -213,8 +213,6 @@ export async function converse(
     "read_matches",
     "read_match_data",
     "read_composition_options",
-    "read_match_evaluations",
-    "evaluate_matches",
   ]);
   let finalizing = false;
   let summary = "", validationRepairs = 0;
