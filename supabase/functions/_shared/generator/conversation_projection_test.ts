@@ -23,6 +23,8 @@ Deno.test("model projection removes images and repeated identities while retaini
   assert.equal(projected.odds, c.odds);
   assert.equal(projected.oddsAt, c.oddsAt);
   assert.equal(projected.bookmaker, c.bookmaker);
+  assert.deepEqual(projected.teams, c.teams);
+  assert.equal(projected.competitionId, c.competitionId);
   assert.deepEqual(
     projected.evidence.map((e) => e.id),
     c.evidence.map((e) => e.id),
