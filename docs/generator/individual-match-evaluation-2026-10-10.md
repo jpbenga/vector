@@ -16,7 +16,7 @@ Le football sur main et les collecteurs ne sont pas modifiés.
 ## Bornes techniques explicites
 
 - Lots de 24 fiches maximum, divisés aussi selon un plafond de 34 Ko de données utiles.
-- Huit appels parallèles maximum ; un appel ne peut dépasser 45 secondes.
+- Vingt-quatre appels parallèles maximum ; un appel ne peut dépasser 45 secondes. La concurrence reste bornée : un refus de quota est enregistré comme un lot non évalué, sans relance automatique.
 - La conversation actuelle reste bornée à 110 secondes ; 25 secondes sont réservées après les évaluations à la comparaison/réponse. Un dépassement rend la couverture partielle, jamais exhaustive. Ce protocole est un premier jalon mesurable, pas un worker durable sur plusieurs minutes.
 - Jusqu’à 750 rencontres comparables par recherche ; au-delà, refus explicite sans omission silencieuse. Deux critères évalués maximum par échange ; résultats identiques mis en cache dans cet échange. Aucun crédit commercial ajouté.
 - Aucune relance payante automatique. Les lots incomplets/invalides et leurs identités restent dans l’audit. Une annulation interrompt les appels actifs.
