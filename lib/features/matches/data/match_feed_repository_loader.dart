@@ -257,6 +257,7 @@ class MatchFeedRepositoryLoader {
     // Public publications must not depend on the signed-in account JWT.
     return SupabaseMatchFeedSnapshotRepository(
       SupabaseClient(config.supabaseUrl.toString(), config.supabaseAnonKey!),
+      clock: clock,
       delivery: PublishedFeedDelivery(
         projectUrl: config.supabaseUrl!,
         publicKey: config.supabaseAnonKey!,

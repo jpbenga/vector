@@ -13,6 +13,130 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test(
+    'an obsolete demo day falls back to the newer public snapshots',
+    () async {
+      final calls = <String>[];
+      final fresh = {
+        'schema_version': 1,
+        'captured_at': '2026-10-10T06:28:00Z',
+        'window_start': '2026-10-11',
+        'window_end': '2026-10-11',
+        'raw': {'fixtures': []},
+        'computed': {'fixtures': []},
+      };
+      final old = {
+        ...fresh,
+        'captured_at': '2026-10-09T05:47:00Z',
+        'delivery': {'sport': 'football', 'day': '2026-10-11'},
+      };
+      final transport = MockClient((request) async {
+        calls.add(request.url.path);
+        Object result;
+        if (request.url.path.endsWith('manifest.json')) {
+          result = {
+            'schemaVersion': 1,
+            'sport': 'football',
+            'day': '2026-10-11',
+            'path': 'delivery/football/old/day.json',
+          };
+        } else if (request.url.path.endsWith('day.json')) {
+          result = old;
+        } else {
+          result = [
+            {
+              'id': 'new-head',
+              'scope': 'league',
+              'league_ids': [61],
+              if (request.url.queryParameters['select']!.contains('payload'))
+                'payload': fresh,
+            },
+          ];
+        }
+      return http.Response(
+        jsonEncode(result),
+        200,
+        headers: {'content-type': 'application/json'},
+        request: request,
+      );
+      });
+      final client = SupabaseClient(
+        'https://server.test',
+        'public',
+        httpClient: transport,
+      );
+      addTearDown(client.dispose);
+      final reader = SupabaseMatchFeedSnapshotRepository(
+        client,
+        clock: () => DateTime.utc(2026, 10, 10, 23),
+        delivery: PublishedFeedDelivery(
+          projectUrl: Uri.parse('https://server.test'),
+          publicKey: 'public',
+          hostedBaseUrl: Uri.parse('https://demo.test/'),
+          localOffset: (_) => const Duration(hours: 2),
+          client: transport,
+        ),
+      );
+      final result = await reader.loadLatestForDate(DateTime(2026, 10, 11));
+      expect(result!['captured_at'], fresh['captured_at']);
+      expect(
+        calls.where((path) => path == '/rest/v1/match_feed_analysis_snapshots'),
+        isNotEmpty,
+      );
+      expect(
+        await reader.loadDetails(DateTime(2026, 10, 11), 'api-fixture-1'),
+        isNull,
+      );
+    },
+  );
+
+  test('a historic demo day keeps its contemporaneous publication', () async {
+    final client = SupabaseClient(
+      'https://server.test',
+      'public',
+      httpClient: MockClient(
+        (_) async => throw StateError(
+          'Historical day must not download current snapshots',
+        ),
+      ),
+    );
+    addTearDown(client.dispose);
+    final reader = SupabaseMatchFeedSnapshotRepository(
+      client,
+      clock: () => DateTime(2026, 10, 11),
+      delivery: PublishedFeedDelivery(
+        projectUrl: Uri.parse('https://server.test'),
+        publicKey: 'public',
+        hostedBaseUrl: Uri.parse('https://demo.test/'),
+        localOffset: (_) => const Duration(hours: 2),
+        client: MockClient(
+          (request) async => http.Response(
+            jsonEncode(
+              request.url.path.endsWith('manifest.json')
+                  ? {
+                      'schemaVersion': 1,
+                      'sport': 'football',
+                      'day': '2026-10-04',
+                      'path': 'delivery/football/archive/day.json',
+                    }
+                  : {
+                      'captured_at': '2026-10-04T08:00:00Z',
+                      'window_start': '2026-10-04',
+                      'window_end': '2026-10-04',
+                      'delivery': {'sport': 'football', 'day': '2026-10-04'},
+                    },
+            ),
+            200,
+          ),
+        ),
+      ),
+    );
+    expect(
+      (await reader.loadLatestForDate(DateTime(2026, 10, 4)))!['captured_at'],
+      '2026-10-04T08:00:00Z',
+    );
+  });
+
+  test(
     'a missing day publication does not download full snapshots during warming',
     () async {
       final requests = <String>[];

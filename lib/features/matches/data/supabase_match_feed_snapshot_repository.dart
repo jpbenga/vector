@@ -1,5 +1,6 @@
 import 'dart:convert';
 import '../../../core/data/published_feed_delivery.dart';
+import 'match_feed_repository.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -9,8 +10,13 @@ abstract interface class MatchFeedSnapshotRemoteDataSource {
 
 class SupabaseMatchFeedSnapshotRepository
     implements MatchFeedSnapshotRemoteDataSource {
-  SupabaseMatchFeedSnapshotRepository(this._client, {this.delivery});
+  SupabaseMatchFeedSnapshotRepository(
+    this._client, {
+    this.delivery,
+    DateTime Function()? clock,
+  }) : clock = clock ?? DateTime.now;
   final PublishedFeedDelivery? delivery;
+  final DateTime Function() clock;
   final _delivered = <String, Map<String, Object?>>{};
   String? _radarSelection;
   Map<String, Object?>? _radarPayload;
@@ -70,16 +76,39 @@ class SupabaseMatchFeedSnapshotRepository
   /// Background warming must never fall back to a full archive download.
   /// A missing publication remains unavailable, rather than an empty calendar.
   Future<Map<String, Object?>?> loadPublishedForDate(DateTime date) async {
-    final overview = await delivery?.loadDay('football', date);
-    if (overview != null) {
-      final key = PublishedFeedDelivery.dateKey(date);
-      _delivered.remove(key);
-      _delivered[key] = overview;
-      while (_delivered.length > 24) {
-        _delivered.remove(_delivered.keys.first);
+    final key = PublishedFeedDelivery.dateKey(date);
+    final today = _dateOnly(clock());
+    final freshnessAt = _dateOnly(date).isBefore(today)
+        ? DateTime(date.year, date.month, date.day, 23, 59, 59)
+        : clock();
+    final transport = delivery;
+    if (transport != null) {
+      Map<String, Object?>? overview;
+      try {
+        overview = await transport.loadDay('football', date);
+      } on FormatException {
+        rethrow;
+      } on Object {
+        // A delivery outage must not prevent the public snapshot fallback.
+        _delivered.remove(key);
+        return null;
       }
-      return overview;
+      if (overview != null) {
+        final metadata = MatchFeedSnapshotMetadata.fromSnapshot(
+          overview,
+          matches: const [],
+        );
+        if (metadata.covers(date) && !metadata.isObsolete(freshnessAt)) {
+          _delivered.remove(key);
+          _delivered[key] = overview;
+          while (_delivered.length > 24) {
+            _delivered.remove(_delivered.keys.first);
+          }
+          return overview;
+        }
+      }
     }
+    _delivered.remove(key);
     return null;
   }
 
@@ -94,7 +123,7 @@ class SupabaseMatchFeedSnapshotRepository
     // A past calendar day must use the latest snapshot that was available at
     // the end of that day. Future days keep the latest available snapshot so
     // the Radar can clearly present the current state before kick-off.
-    if (_dateOnly(date).isBefore(_dateOnly(DateTime.now()))) {
+    if (_dateOnly(date).isBefore(_dateOnly(clock()))) {
       final endOfDay = _dateOnly(
         date,
       ).add(const Duration(days: 1)).toUtc().toIso8601String();
