@@ -249,6 +249,19 @@ Deno.test("tool scope rejects forged keys and writes, caches the exact criterion
   const args = { queryId: "q1", criteria: "forme", matchKeys: null };
   const report = await reader.execute("evaluate_matches", args) as any;
   assert.equal(report.coverage.complete, true);
+  assert.deepEqual(
+    reader.expandComparedKeys("q1", [report.comparisonReference]),
+    ["football:1", "football:2", "football:3", "football:4"],
+  );
+  assert.throws(
+    () => reader.expandComparedKeys("q2", [report.comparisonReference]),
+    /étrangère/,
+  );
+  assert.throws(
+    () => reader.expandComparedKeys("q1", ["evaluation:inconnue"]),
+    /étrangère/,
+  );
+  assert.throws(() => reader.expandComparedKeys("q1", [42]), /invalides/);
   assert.equal(reader.detailsRead.size, 4);
   await reader.execute("evaluate_matches", args);
   assert.equal(calls, 1);
@@ -485,6 +498,7 @@ Deno.test("conversation compares all 500 evaluations before selecting six late m
         },
       ],
     });
+  let comparisonReference = "";
   const answer = await converse({
     context,
     date: "2026-10-10",
@@ -505,7 +519,7 @@ Deno.test("conversation compares all 500 evaluations before selecting six late m
       largestRequest = Math.max(largestRequest, String(init?.body).length);
       round++;
       assert.equal(b.parallel_tool_calls, true);
-      assert.equal(b.reasoning.effort, round <= 2 ? "low" : "medium");
+      assert.equal(b.reasoning.effort, round === 2 ? "low" : "medium");
       if (round === 1) {
         return call("search_matches", {
           date: "2026-10-10",
@@ -530,6 +544,8 @@ Deno.test("conversation compares all 500 evaluations before selecting six late m
       if (round === 3) {
         assert.equal(data.evaluations.length, 500);
         assert.equal(data.coverage.complete, true);
+        comparisonReference = data.comparisonReference;
+        assert.match(comparisonReference, /^evaluation:/);
         return call("read_matches", { queryId: "q1", matchKeys: p.focusKeys });
       }
       assert.equal(data.length, 6);
@@ -548,16 +564,17 @@ Deno.test("conversation compares all 500 evaluations before selecting six late m
             references: m.candidates[0].assessment.directReferences,
           })),
           observations: [],
-          comparedMatchIds: Array.from(
-            { length: 500 },
-            (_, i) => `football:${i + 1}`,
-          ),
+          comparedMatchIds: [comparisonReference],
           limitations: [],
         },
       });
     }) as typeof fetch,
   });
   assert.equal(answer.evaluations[0].evaluated, 500);
+  assert.equal(
+    answer.next.messages.at(-1)?.analysis?.comparedMatchIds.length,
+    500,
+  );
   assert.ok(largestRequest > 380000 && largestRequest < 1200000);
   assert.equal(answer.next.messages.at(-1)?.analysis?.selections.length, 6);
   assert.equal(

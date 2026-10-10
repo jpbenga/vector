@@ -224,6 +224,21 @@ export class ConversationReader {
     }
     return this.sheets.get(q.id)!;
   }
+  /** Expand only verified reports from this exchange and this exact query. */
+  expandComparedKeys(queryId: string, ids: unknown): string[] {
+    if (!Array.isArray(ids) || ids.some((id) => typeof id !== "string")) {
+      throw new Error("Références de comparaison invalides.");
+    }
+    const keys = ids.flatMap((id: string) => {
+      if (!id.startsWith("evaluation:")) return [id];
+      const report = this.evaluations.get(id.slice("evaluation:".length));
+      if (!report || report.queryId !== queryId) {
+        throw new Error("Référence d’évaluation étrangère à cette recherche.");
+      }
+      return report.rows.map((row) => row.key);
+    });
+    return [...new Set(keys)];
+  }
   private requests = new Map<string, Promise<ReadQuery>>();
   private reads = 0;
   private totalMatches = 0;

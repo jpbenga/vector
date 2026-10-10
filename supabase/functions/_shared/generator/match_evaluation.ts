@@ -533,6 +533,7 @@ export function evaluationOverview(report: DayEvaluation, q: ReadQuery) {
   return {
     evaluationId: report.id,
     queryId: report.queryId,
+    comparisonReference: `evaluation:${report.id}`,
     criteria: report.criteria,
     coverage: {
       expected: report.expected,
