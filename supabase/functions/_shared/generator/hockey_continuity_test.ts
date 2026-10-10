@@ -248,3 +248,24 @@ Deno.test("football analysis → ticket preserves choices, not every examined ma
   });
   assert.deepEqual(result.tickets[0].picks.map((p) => p.matchId), [c.matchId]);
 });
+
+Deno.test("demo hockey uses published readings and supported quotes without market or reading opt-in", () => {
+  const unconfigured: Context = {
+    ...context,
+    configurationPolicy: "request",
+    scope: "discovery",
+    view: "all",
+    preferences: { hockey: { competitions: [], readings: [], markets: [] } },
+  };
+  const catalog = buildCatalog([source()], unconfigured, request.date, now);
+  assert.equal(catalog.candidates.length, 2);
+  assert.equal(catalog.matchCount, 1);
+  const expired = source();
+  (expired.payload.items as any[])[0].quotes.forEach((q: any) =>
+    q.capturedAt = "2026-10-01T10:00:00Z"
+  );
+  assert.equal(
+    buildCatalog([expired], unconfigured, request.date, now).candidates.length,
+    0,
+  );
+});

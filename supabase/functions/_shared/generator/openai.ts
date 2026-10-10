@@ -9,8 +9,29 @@ const nullableNumber = { type: ["number", "null"] };
 const target = {
   type: "object",
   additionalProperties: false,
-  required: ["stake", "minimum", "maximum", "kind"],
+  required: [
+    "stake",
+    "minimum",
+    "maximum",
+    "kind",
+    "minSelections",
+    "maxSelections",
+  ],
   properties: {
+    minSelections: {
+      type: ["integer", "null"],
+      minimum: 1,
+      maximum: 20,
+      description:
+        "Minimum pour CE ticket. Pour un nombre exact, identique à maxSelections. Null si non précisé.",
+    },
+    maxSelections: {
+      type: ["integer", "null"],
+      minimum: 1,
+      maximum: 20,
+      description:
+        "Maximum pour CE ticket, indépendant du nombre de rencontres d’un top N et des autres tickets. Null si non précisé.",
+    },
     stake: {
       ...nullableNumber,
       description:

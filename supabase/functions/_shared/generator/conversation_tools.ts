@@ -4,12 +4,14 @@ import {
   calendarDay,
   type Catalog,
   type Context,
+  focusFitsTargets,
   type Intent,
   obj,
   rows,
   type Sport,
   type State,
   strings,
+  usesRequestConfiguration,
   validateIntent,
 } from "./contracts.ts";
 import { applyIntent } from "./service.ts";
@@ -73,7 +75,7 @@ const tool = (
 export const conversationTools = [
   tool(
     "read_profile",
-    "Lire la configuration active de cette session et ses marchés autorisés. Aucune modification du profil.",
+    "Lire le contexte et les préférences de cette session, ainsi que leur rôle informatif ou contraignant indiqué par le serveur. Aucune modification du profil.",
     {},
   ),
   tool(
@@ -261,6 +263,18 @@ export class ConversationReader {
     },
   ) {
     this.state = input.state ? structuredClone(input.state) : null;
+    // Existing sessions/ticket revisions inherit the current server policy too.
+    if (this.state && usesRequestConfiguration(input.context)) {
+      this.state.context.configurationPolicy = "request";
+      for (
+        const ticket of [
+          ...this.state.tickets,
+          ...(this.state.drafts ?? []),
+          ...(this.state.proposals ?? []),
+          ...(this.state.pending ?? []),
+        ]
+      ) ticket.context.configurationPolicy = "request";
+    }
   }
   private validDay(date: unknown): string {
     if (
@@ -462,8 +476,10 @@ export class ConversationReader {
           match: `${match.home} — ${match.away}`,
         };
       });
-      intent.preserveFixtures =
-        intent.fixtureFocus.length <= (intent.maxSelections ?? 6);
+      intent.preserveFixtures = focusFitsTargets(
+        intent,
+        intent.fixtureFocus.length,
+      );
     }
     return { intent, context, query };
   }
@@ -477,11 +493,17 @@ export class ConversationReader {
         exact(args, []);
         return {
           preferences: structuredClone(this.input.context.preferences),
-          budget: this.input.context.budget,
+          budget: usesRequestConfiguration(this.input.context)
+            ? null
+            : this.input.context.budget,
+          configurationPolicy: this.input.context.configurationPolicy ??
+            "profile",
+          savedBudgetHint: this.input.context.budget,
           timezone: this.input.context.timezone,
           origin: this.input.context.origin,
-          semantics:
-            "Configuration active transmise par l’application ; lecture seule, jamais modifiée par Hector.",
+          semantics: usesRequestConfiguration(this.input.context)
+            ? "Préférences enregistrées en lecture seule. Mises, marchés et nombres de matchs viennent de la demande ; aucun plafond de mise du profil ne les bloque. Pour moi et Radar gardent leur périmètre de rencontres."
+            : "Configuration active transmise par l’application ; lecture seule, jamais modifiée par Hector.",
         };
       case "evaluate_matches": {
         exact(args, ["queryId", "criteria", "matchKeys"]);
@@ -535,10 +557,17 @@ export class ConversationReader {
             "Deux évaluations ont déjà été réalisées dans cet échange ; poursuivez au message suivant.",
           );
         }
+        const cachedReport = await this.port.evaluation?.("latest").catch(() =>
+          null
+        );
         const report = await evaluateMatches({
           id: crypto.randomUUID(),
           query,
           criteria: args.criteria.trim(),
+          cachedReports: [
+            ...this.evaluations.values(),
+            ...(cachedReport ? [cachedReport] : []),
+          ],
           now: this.input.now,
           deadline: this.evaluator.deadline,
           onProgress: (n, total) =>
@@ -603,6 +632,24 @@ export class ConversationReader {
           rows: q.matches.flatMap((m) =>
             completed.has(m.key) ? [completed.get(m.key)!] : []
           ),
+          reused: (previous.reused ?? 0) + (retry.reused ?? 0),
+          cache: retry.cache && previous.cache
+            ? {
+              createdAt: retry.cache.createdAt,
+              fingerprints: {
+                ...previous.cache.fingerprints,
+                ...retry.cache.fingerprints,
+              },
+              evaluatedAt: {
+                ...Object.fromEntries(previous.rows.map((r) => [
+                  r.key,
+                  previous.cache!.evaluatedAt?.[r.key] ??
+                    previous.cache!.createdAt,
+                ])),
+                ...retry.cache.evaluatedAt,
+              },
+            }
+            : retry.cache,
           elapsedMs: previous.elapsedMs + retry.elapsedMs,
           inputBytes: previous.inputBytes + retry.inputBytes,
           batches: previous.batches + retry.batches,

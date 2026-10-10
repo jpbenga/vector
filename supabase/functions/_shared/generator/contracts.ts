@@ -35,6 +35,8 @@ export interface Context {
   scope: "discovery" | "strict";
   timezone: string;
   budget: number;
+  /** Server policy: demo requests define stakes and markets; saved settings remain read-only. */
+  configurationPolicy?: "request";
   preferences: Partial<Record<Sport, Preferences>>;
   /** Read scope for this request; never changes the saved preferences. */
   view?: "profile" | "radar" | "all";
@@ -46,6 +48,8 @@ export interface Target {
   minimum: number | null;
   maximum: number | null;
   kind: "total" | "net" | "unspecified";
+  minSelections?: number | null;
+  maxSelections?: number | null;
 }
 export interface Intent {
   action:
@@ -81,6 +85,23 @@ export interface Intent {
   preserveFixtures?: boolean;
   view?: "current" | "profile" | "radar" | "all";
   radarKind?: "current" | "teams" | "players";
+}
+/** A count belongs to its ticket, independently of a top-N analysis. */
+export function selectionBounds(intent: Intent, target?: Target) {
+  return {
+    min: target?.minSelections ?? intent.minSelections ?? 1,
+    max: target?.maxSelections ?? intent.maxSelections ?? 6,
+  };
+}
+export function focusFitsTargets(intent: Intent, count: number): boolean {
+  return intent.tickets.length
+    ? intent.tickets.every((target) =>
+      count <= selectionBounds(intent, target).max
+    )
+    : count <= (intent.maxSelections ?? 6);
+}
+export function usesRequestConfiguration(context: Context): boolean {
+  return context.configurationPolicy === "request";
 }
 export interface Evidence {
   id: string;
@@ -499,7 +520,21 @@ export function intentFrom(value: unknown): Intent {
   for (const target of v.tickets) {
     const t = obj(target);
     if (
-      Object.keys(t).length !== 4 ||
+      !Object.keys(t).every((k) =>
+        [
+          "stake",
+          "minimum",
+          "maximum",
+          "kind",
+          "minSelections",
+          "maxSelections",
+        ].includes(k)
+      ) ||
+      !["stake", "minimum", "maximum", "kind"].every((k) => k in t) ||
+      ["minSelections", "maxSelections"].some((k) =>
+        t[k] != null &&
+        (!Number.isInteger(t[k]) || Number(t[k]) < 1 || Number(t[k]) > 20)
+      ) ||
       !["total", "net", "unspecified"].includes(String(t.kind)) ||
       !["stake", "minimum", "maximum"].every((k) =>
         k in t &&
@@ -557,6 +592,10 @@ export function validateIntent(
     if (t.stake === null || !Number.isFinite(t.stake) || t.stake <= 0) {
       return "Quelle mise souhaitez-vous prévoir pour chaque composition ?";
     }
+    const bounds = selectionBounds(i, t);
+    if (bounds.min < 1 || bounds.max > 20 || bounds.min > bounds.max) {
+      return "Précisez entre un et vingt matchs par ticket, avec un minimum inférieur ou égal au maximum.";
+    }
     budget += t.stake;
     if (Math.abs(t.stake * 100 - Math.round(t.stake * 100)) > 0.000001) {
       return "Précisez une mise en euros et centimes.";
@@ -575,7 +614,7 @@ export function validateIntent(
       return "Le retour total comprend la mise. Avec cette mise, l’objectif doit être supérieur à la mise pour composer un ticket. Précisez la mise ou l’objectif.";
     }
   }
-  return budget > context.budget + 0.001
+  return !usesRequestConfiguration(context) && budget > context.budget + 0.001
     ? "Les mises dépassent votre plafond. Réduisez-les ou demandez moins de compositions."
     : null;
 }

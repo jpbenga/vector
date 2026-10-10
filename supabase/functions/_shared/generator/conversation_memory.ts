@@ -1,6 +1,7 @@
 import {
   calendarDay,
   type Context,
+  focusFitsTargets,
   type Intent,
   intentFrom,
   type Sport,
@@ -134,7 +135,7 @@ export function validatePlan(value: unknown): ConversationPlan {
     typeof v.newTask !== "boolean" ||
     !["keep", "choose", "clear"].includes(v.focusMode) ||
     !Array.isArray(v.focusKeys) ||
-    v.focusKeys.length > 6 ||
+    v.focusKeys.length > 20 ||
     v.focusKeys.some((k) =>
       typeof k !== "string" || !/^(football|hockey):\d{1,12}$/.test(k)
     ) ||
@@ -201,6 +202,32 @@ export function resolvePlan(
       plan.intent[field as keyof Intent],
     );
   }
+  // Explicit conversational count changes must also update per-ticket counts.
+  // Complete ticket definitions win when both are supplied in the same plan.
+  if (
+    !plan.changedFields.includes("tickets") &&
+    plan.changedFields.some((f) =>
+      ["minSelections", "maxSelections"].includes(f)
+    )
+  ) {
+    intent.tickets = intent.tickets.map((t) => {
+      if (t.minSelections === undefined && t.maxSelections === undefined) {
+        return t;
+      }
+      const next = { ...t };
+      if (plan.changedFields.includes("minSelections")) {
+        next.minSelections = intent.minSelections;
+      }
+      if (plan.changedFields.includes("maxSelections")) {
+        next.maxSelections = intent.maxSelections;
+        if (
+          !plan.changedFields.includes("minSelections") &&
+          (next.minSelections ?? 1) > (next.maxSelections ?? 6)
+        ) next.minSelections = null;
+      }
+      return next;
+    });
+  }
   Object.assign(intent, {
     action: plan.intent.action,
     message: plan.intent.message,
@@ -231,7 +258,7 @@ export function resolvePlan(
   // With an explicit smaller maximum, choose a subset instead of demanding every previous match.
   if (
     intent.fixtureFocus &&
-    intent.fixtureFocus.length <= (intent.maxSelections ?? 6)
+    focusFitsTargets(intent, intent.fixtureFocus.length)
   ) intent.preserveFixtures = true;
   if (
     reference && intent.action === "alternative" && plan.focusMode === "keep" &&
@@ -242,8 +269,10 @@ export function resolvePlan(
       matchId: p.matchId,
       match: `${p.home} — ${p.away}`,
     }));
-    intent.preserveFixtures =
-      intent.fixtureFocus.length <= (intent.maxSelections ?? 6);
+    intent.preserveFixtures = focusFitsTargets(
+      intent,
+      intent.fixtureFocus.length,
+    );
   }
   return intent;
 }

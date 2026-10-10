@@ -428,6 +428,8 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
       }
       const context = contextFrom(input.context),
         date = String(input.date ?? "");
+      // This policy is assigned by the demo endpoint, never accepted from model/client input.
+      if (options.workshop) context.configurationPolicy = "request";
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
         return reply({ error: "Date invalide." }, 400);
       }
@@ -443,9 +445,9 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
         !uuid(input.requestId)
       ) return reply({ error: "Demande invalide." }, 400);
       const key = Deno.env.get("OPENAI_API_KEY"),
-        model = Deno.env.get(
-          options.workshop ? "LECTOR_WORKSHOP_MODEL" : "LECTOR_OPENAI_MODEL",
-        );
+        model = options.workshop
+          ? "gpt-6-luna"
+          : Deno.env.get("LECTOR_OPENAI_MODEL");
       if (
         Deno.env.get(
             options.workshop
@@ -584,6 +586,9 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
           key,
           model,
           onReceipt: (r) => receipts.push(r),
+          evaluationConcurrency: Number(
+            Deno.env.get("LECTOR_EVALUATION_CONCURRENCY") ?? 24,
+          ),
           onContractError: (error) => {
             console.error(
               JSON.stringify({

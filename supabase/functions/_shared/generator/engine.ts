@@ -3,8 +3,10 @@ import {
   type Candidate,
   type Context,
   type Intent,
+  selectionBounds,
   type Target,
   type Ticket,
+  usesRequestConfiguration,
 } from "./contracts.ts";
 // Deterministic money arithmetic; the model never computes or supplies prices.
 export function totals(picks: Candidate[], stake: number) {
@@ -97,6 +99,7 @@ export function compose(
   const sorted = rankCandidates(candidates, intent);
   for (const [index, target] of intent.tickets.entries()) {
     if (target.stake === null) break;
+    const bounds = selectionBounds(intent, target);
     const available = sorted.filter((c) =>
       !intent.diversify || !used.has(c.matchId)
     );
@@ -120,7 +123,7 @@ export function compose(
       const walk = (start: number, picks: Candidate[]) => {
         if (chosen || attempts++ >= 16000) return;
         if (
-          picks.length && within(picks, target) &&
+          picks.length >= bounds.min && within(picks, target) &&
           !excluded.has(compositionKey(picks)) &&
           (!intent.requireEachSport ||
             intent.sports.every((s) => picks.some((p) => p.sport === s)))
@@ -128,7 +131,7 @@ export function compose(
           chosen = picks;
           return;
         }
-        if (picks.length >= (intent.maxSelections ?? 6)) return;
+        if (picks.length >= bounds.max) return;
         if (
           target.maximum !== null &&
           (totals(picks, target.stake!).returnTotal -
@@ -162,7 +165,8 @@ export function compose(
       ...totals(picks, target.stake),
       target,
       constraints: {
-        maxSelections: intent.maxSelections ?? 6,
+        minSelections: bounds.min,
+        maxSelections: bounds.max,
         marketIds: intent.marketIds,
         requireEachSport: intent.requireEachSport,
         sports: intent.sports,
@@ -177,6 +181,7 @@ export function compose(
     for (const p of picks) used.add(p.matchId);
   }
   if (
+    !usesRequestConfiguration(context) &&
     result.reduce((total, t) => total + t.stake, 0) > context.budget + 0.001
   ) throw new Error("Budget exceeded");
   return result;

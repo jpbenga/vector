@@ -2,7 +2,9 @@ import {
   type Candidate,
   type Context,
   type Intent,
+  selectionBounds,
   type Ticket,
+  usesRequestConfiguration,
 } from "./contracts.ts";
 import { compositionKey, totals } from "./engine.ts";
 import {
@@ -48,8 +50,8 @@ function ticketFrom(
     target: intent.tickets[index],
     context: structuredClone(context),
     constraints: {
-      minSelections: intent.minSelections ?? 1,
-      maxSelections: intent.maxSelections ?? 6,
+      minSelections: selectionBounds(intent, intent.tickets[index]).min,
+      maxSelections: selectionBounds(intent, intent.tickets[index]).max,
       targetOdds: intent.targetOdds,
       marketIds: intent.marketIds,
       requireEachSport: intent.requireEachSport,
@@ -93,7 +95,9 @@ export function composeWorkshop(
       now,
       targetIndex: i,
       reference: reference?.picks,
-      preserveFixtures: intent.preserveFixtures,
+      preserveFixtures: intent.preserveFixtures &&
+        (intent.fixtureFocus?.length ?? reference?.picks.length ?? 0) <=
+          selectionBounds(intent, intent.tickets[i]).max,
       requiredFixtureKeys: intent.fixtureFocus?.map((m) =>
         `${m.sport}:${m.matchId}`
       ),
@@ -121,7 +125,10 @@ export function composeWorkshop(
     // Different compositions may share encounters. Disjointness is not implied
     // by a request for different tickets; semantic fingerprints stay excluded.
   }
-  if (tickets.reduce((n, t) => n + t.stake, 0) > context.budget + .001) {
+  if (
+    !usesRequestConfiguration(context) &&
+    tickets.reduce((n, t) => n + t.stake, 0) > context.budget + .001
+  ) {
     throw new Error("Les mises dépassent le budget.");
   }
   // Do not present a partial batch as fulfillment of the requested portfolio.

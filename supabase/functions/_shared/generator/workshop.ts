@@ -6,7 +6,9 @@ import {
   type Candidate,
   type Context,
   type Intent,
+  selectionBounds,
   type Target,
+  usesRequestConfiguration,
 } from "./contracts.ts";
 import { compatible, compositionKey, totals } from "./engine.ts";
 
@@ -337,7 +339,8 @@ export function exploreCompositions(
   const bounds = target
     ? targetBounds(intent, target)
     : { minimum: null, maximum: null };
-  const maxSelections = intent.maxSelections ?? 6;
+  const boundsCount = selectionBounds(intent, target);
+  const maxSelections = boundsCount.max;
   const maxFixtures = Math.max(1, options.maxFixtures ?? 48);
   const maxBookmakers = Math.max(1, options.maxBookmakers ?? 4);
   const beamWidth = Math.max(6, options.beamWidth ?? 48);
@@ -391,7 +394,7 @@ export function exploreCompositions(
   };
   if (
     !target || target.stake === null || target.stake <= 0 ||
-    target.stake > context.budget ||
+    (!usesRequestConfiguration(context) && target.stake > context.budget) ||
     (target.kind === "unspecified" &&
       (target.minimum !== null || target.maximum !== null)) ||
     (requiredFixtures !== null &&
@@ -410,7 +413,8 @@ export function exploreCompositions(
     ) reasons.push("outside_requested_day");
     if (
       !intent.sports.includes(candidate.sport) ||
-      !pref?.markets.includes(candidate.marketId) ||
+      (!usesRequestConfiguration(context) &&
+        !pref?.markets.includes(candidate.marketId)) ||
       (intent.marketIds.length &&
         !intent.marketIds.includes(candidate.marketId))
     ) reasons.push("outside_authorized_markets_or_sports");
@@ -565,7 +569,7 @@ export function exploreCompositions(
           };
           expanded.push(next);
           if (
-            picks.length >= (intent.minSelections ?? 1) &&
+            picks.length >= boundsCount.min &&
             (bounds.minimum === null || value >= bounds.minimum - .005) &&
             (!intent.requireEachSport ||
               intent.sports.every((sport) =>

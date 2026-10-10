@@ -1,3 +1,4 @@
+import { hockeyMarkets } from "../sports/hockey_odds.ts";
 import { freshHockeyQuotes, hockeyCandidates } from "./hockey_markets.ts";
 import { playerSignals, teamSignals } from "./radar.ts";
 import {
@@ -15,6 +16,7 @@ import {
   type Json,
   obj,
   rows,
+  usesRequestConfiguration,
 } from "./contracts.ts";
 export interface Source {
   id: string;
@@ -184,9 +186,30 @@ export function buildCatalog(
     )
   ) {
     if (isRadar && !sourceInRadar(source, context)) continue;
-    const pref = context.preferences[source.sport];
+    const saved = context.preferences[source.sport];
+    const requestDriven = usesRequestConfiguration(context);
+    // Scope still follows the requested screen. Settings no longer authorize evidence/markets.
+    const published = source.sport === "hockey"
+      ? rows(source.payload.items).flatMap((f) => rows(f.readings))
+      : rows(obj(source.payload.computed).fixtures).flatMap((f) =>
+        rows(f.readings)
+      );
+    const pref = requestDriven
+      ? {
+        competitions: saved?.competitions ?? [],
+        readings: [...new Set(published.map((r) => String(r.id)))],
+        markets: source.sport === "hockey"
+          ? Object.keys(hockeyMarkets)
+          : ["matchResult", "doubleChance", "goalsTotal", "bothTeamsScore"],
+        scenarios: rows(obj(source.payload.computed).fixtures).flatMap((f) =>
+          rows(f.scenarios).map((v) => String(v.id))
+        ),
+      }
+      : saved;
     if (
-      !pref || (!isRadar && !pref.readings.length && !pref.scenarios?.length)
+      !pref ||
+      (!requestDriven && !isRadar && !pref.readings.length &&
+        !pref.scenarios?.length)
     ) {
       missing.add(
         `Préférences ${
@@ -293,7 +316,7 @@ export function buildCatalog(
       }
       if (!candidates.some((c) => c.sport === "hockey")) {
         missing.add(
-          "Hockey : aucune sélection avec marché autorisé, cote récente et lecture directement pertinente dans ce périmètre. Les disponibilités varient selon les rencontres.",
+          "Hockey : aucune sélection avec marché pris en charge, cote récente et lecture directement pertinente dans ce périmètre. Les disponibilités varient selon les rencontres.",
         );
       }
       continue;
@@ -336,7 +359,9 @@ export function buildCatalog(
           pref.readings.includes(aliases[String(r.id)]) ||
           scenarioReadings.has(String(r.id))
         );
-      if (!isRadar && !selected.length && !scenarios.length) continue;
+      if (!requestDriven && !isRadar && !selected.length && !scenarios.length) {
+        continue;
+      }
       const radar = isRadar
         ? matchRadarSignals(
           scopedSignals,

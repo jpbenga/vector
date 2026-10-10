@@ -48,6 +48,12 @@ export interface DayEvaluation {
   batches: number;
   failed: { keys: string[]; reason: string }[];
   rows: MatchEvaluation[];
+  cache?: {
+    createdAt: string;
+    fingerprints: Record<string, string>;
+    evaluatedAt?: Record<string, string>;
+  };
+  reused?: number;
 }
 /** Published recent results with an explicit window. Hockey points are not
  * inferred without the league's scoring rules. */
@@ -384,6 +390,11 @@ export function validateEvaluations(
     };
   });
 }
+/** Tune independently of model choice; clamp excessive or malformed settings. */
+export function evaluationConcurrency(setting?: number): number {
+  const value = setting ?? 24;
+  return Number.isInteger(value) && value > 0 ? Math.min(value, 96) : 24;
+}
 /** All sheets, bounded batches, limited concurrency. Incomplete runs remain explicit.
  * No automatic paid retries: invalid/failed batches retain their identities for audit. */
 export async function evaluateMatches(input: {
@@ -393,6 +404,8 @@ export async function evaluateMatches(input: {
   now: Date;
   deadline: number;
   onProgress?: (evaluated: number, expected: number) => Promise<void>;
+  /** Already owner-scoped persisted reports supplied by the backend. */
+  cachedReports?: DayEvaluation[];
 }, options: ModelOptions): Promise<DayEvaluation> {
   const started = performance.now(),
     sheets = prepareMatchSheets(input.query, input.now);
@@ -420,9 +433,57 @@ export async function evaluateMatches(input: {
     failed: [],
     rows: [],
   };
+  // Persist hashes with the existing evaluation report; never cache failures.
+  // Hash all current data and scope conservatively. No semantic criterion guess.
+  const fingerprints: Record<string, string> = {};
+  for (const sheet of sheets) {
+    const bytes = new TextEncoder().encode(JSON.stringify({
+      version: 2,
+      instructions: evaluationInstructions,
+      model: options.model,
+      criteria: input.criteria,
+      date: input.query.date,
+      context: input.query.context,
+      day: input.now.toISOString().slice(0, 10),
+      sheet,
+      admissible: compact(sheet, 0, input.now),
+    }));
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    fingerprints[sheet.key] = Array.from(new Uint8Array(digest))
+      .map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  const evaluatedAt: Record<string, string> = {};
+  report.cache = {
+    createdAt: input.now.toISOString(),
+    fingerprints,
+    evaluatedAt,
+  };
+  report.reused = 0;
+  const pending = sheets.filter((sheet) => {
+    for (const old of input.cachedReports ?? []) {
+      const originalTime = old.cache?.evaluatedAt?.[sheet.key] ??
+        old.cache?.createdAt ?? "";
+      const age = input.now.getTime() - Date.parse(originalTime);
+      if (
+        !Number.isFinite(age) || age < 0 || age >= 300000 ||
+        old.model !== options.model || old.criteria !== input.criteria ||
+        old.cache?.fingerprints[sheet.key] !== fingerprints[sheet.key]
+      ) continue;
+      const row = old.rows.find((r) => r.key === sheet.key);
+      if (!row) continue;
+      report.rows.push(structuredClone(row));
+      evaluatedAt[sheet.key] = originalTime;
+      report.evaluated++;
+      report.reused!++;
+      return false;
+    }
+    return true;
+  });
+  // Each reused row keeps its original timestamp. Newly evaluated rows receive
+  // their own timestamp, so mixed reports neither renew nor shorten validity.
   const batches: MatchSheet[][] = [];
   let current: MatchSheet[] = [], size = 0;
-  for (const s of sheets) {
+  for (const s of pending) {
     const bytes = new TextEncoder().encode(
       JSON.stringify(compact(s, current.length, input.now)),
     ).length;
@@ -458,65 +519,76 @@ export async function evaluateMatches(input: {
   };
   await notify();
   const workers = await Promise.allSettled(
-    Array.from({ length: Math.min(24, batches.length) }, async () => {
-      while (cursor < batches.length) {
-        if (cancellation.signal.aborted) throw cancellation.signal.reason;
-        const batch = batches[cursor++],
-          remaining = Math.floor(input.deadline - performance.now());
-        if (remaining < 1000) {
-          report.failed.push({
-            keys: batch.map((s) => s.key),
-            reason: "Délai d’évaluation atteint ; lot non analysé.",
-          });
-          continue;
+    Array.from(
+      {
+        length: Math.min(
+          evaluationConcurrency(options.evaluationConcurrency),
+          batches.length,
+        ),
+      },
+      async () => {
+        while (cursor < batches.length) {
+          if (cancellation.signal.aborted) throw cancellation.signal.reason;
+          const batch = batches[cursor++],
+            remaining = Math.floor(input.deadline - performance.now());
+          if (remaining < 1000) {
+            report.failed.push({
+              keys: batch.map((s) => s.key),
+              reason: "Délai d’évaluation atteint ; lot non analysé.",
+            });
+            continue;
+          }
+          const data = {
+            criteria: input.criteria,
+            now: input.now.toISOString(),
+            matches: batch.map((s, i) => compact(s, i, input.now)),
+          };
+          report.inputBytes +=
+            new TextEncoder().encode(JSON.stringify(data)).length;
+          report.batches++;
+          try {
+            const response = await structuredResponse({
+              stage: "analyze",
+              instructions: evaluationInstructions,
+              input: data,
+              schema: evaluationSchema(batch, input.now),
+              name: "lector_match_evaluations",
+              effort: "low",
+              signal: AbortSignal.any([
+                cancellation.signal,
+                AbortSignal.timeout(remaining),
+              ]),
+            }, {
+              ...options,
+              onReceipt: (r) =>
+                options.onReceipt?.({
+                  ...r,
+                  evaluationBatch: {
+                    queryId: input.query.id,
+                    keys: batch.map((s) => s.key),
+                  },
+                }),
+            });
+            const evaluated = validateEvaluations(
+              response.value,
+              batch,
+              input.now,
+            );
+            report.rows.push(...evaluated);
+            for (const row of evaluated) {
+              evaluatedAt[row.key] = input.now.toISOString();
+            }
+            report.evaluated += evaluated.length;
+          } catch (e) {
+            report.failed.push({
+              keys: batch.map((s) => s.key),
+              reason: e instanceof Error ? e.message : "Lot non évalué.",
+            });
+          }
+          await notify();
         }
-        const data = {
-          criteria: input.criteria,
-          now: input.now.toISOString(),
-          matches: batch.map((s, i) => compact(s, i, input.now)),
-        };
-        report.inputBytes +=
-          new TextEncoder().encode(JSON.stringify(data)).length;
-        report.batches++;
-        try {
-          const response = await structuredResponse({
-            stage: "analyze",
-            instructions: evaluationInstructions,
-            input: data,
-            schema: evaluationSchema(batch, input.now),
-            name: "lector_match_evaluations",
-            effort: "low",
-            signal: AbortSignal.any([
-              cancellation.signal,
-              AbortSignal.timeout(remaining),
-            ]),
-          }, {
-            ...options,
-            onReceipt: (r) =>
-              options.onReceipt?.({
-                ...r,
-                evaluationBatch: {
-                  queryId: input.query.id,
-                  keys: batch.map((s) => s.key),
-                },
-              }),
-          });
-          const evaluated = validateEvaluations(
-            response.value,
-            batch,
-            input.now,
-          );
-          report.rows.push(...evaluated);
-          report.evaluated += evaluated.length;
-        } catch (e) {
-          report.failed.push({
-            keys: batch.map((s) => s.key),
-            reason: e instanceof Error ? e.message : "Lot non évalué.",
-          });
-        }
-        await notify();
-      }
-    }),
+      },
+    ),
   );
   const interrupted = workers.find((r) => r.status === "rejected");
   if (interrupted?.status === "rejected") throw interrupted.reason;
@@ -541,6 +613,8 @@ export function evaluationOverview(report: DayEvaluation, q: ReadQuery) {
       evaluated: report.evaluated,
       failed: report.expected - report.evaluated,
       complete: report.complete,
+      reused: report.reused ?? 0,
+      newlyEvaluated: report.evaluated - (report.reused ?? 0),
     },
     elapsedMs: report.elapsedMs,
     semantics:

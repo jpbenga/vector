@@ -3,6 +3,7 @@ import { ConversationReader, conversationTools } from "./conversation_tools.ts";
 import { context, now } from "./evaluation_cases.ts";
 import {
   evaluateMatches,
+  evaluationConcurrency,
   evaluationSchema,
   prepareMatchSheets,
   validateEvaluations,
@@ -636,4 +637,84 @@ Deno.test("a later message reads the owned archived evaluation without paying or
   );
   assert.equal(reads, 1);
   assert.equal(reader.queries.size, 0);
+});
+
+Deno.test("persisted exact evaluations avoid paid calls; changed criteria, data, model and expired entries miss", async () => {
+  const { query } = await largeQuery();
+  query.matches = query.matches.slice(0, 2);
+  let calls = 0;
+  const options = {
+    key: "test",
+    model: "gpt-6-luna",
+    fetcher: (async (_url, init) => {
+      calls++;
+      return modelResponse(evaluationFor(JSON.parse(String(init?.body))));
+    }) as typeof fetch,
+  };
+  const input = {
+    id: "cached",
+    query,
+    criteria: "Écart de forme",
+    now,
+    deadline: performance.now() + 10000,
+  };
+  const first = await evaluateMatches(input, options);
+  assert.equal(first.complete, true);
+  const count = calls;
+  const second = await evaluateMatches(
+    { ...input, cachedReports: [first] },
+    options,
+  );
+  assert.equal(calls, count);
+  assert.equal(second.reused, 2);
+  assert.equal(second.batches, 0);
+  assert.deepEqual(second.rows, first.rows);
+  const reusedLater = await evaluateMatches({
+    ...input,
+    now: new Date(now.getTime() + 240000),
+    cachedReports: [second],
+  }, options);
+  assert.equal(reusedLater.reused, 2);
+  assert.deepEqual(reusedLater.cache?.evaluatedAt, first.cache?.evaluatedAt);
+  const noRenewal = await evaluateMatches({
+    ...input,
+    now: new Date(now.getTime() + 300000),
+    cachedReports: [reusedLater],
+  }, options);
+  assert.equal(noRenewal.reused, 0);
+  const changed = await evaluateMatches({
+    ...input,
+    criteria: "Autre critère",
+    cachedReports: [first],
+  }, options);
+  assert.equal(changed.reused, 0);
+  const expired = await evaluateMatches({
+    ...input,
+    now: new Date(now.getTime() + 300000),
+    cachedReports: [first],
+  }, options);
+  assert.equal(expired.reused, 0);
+  const model = await evaluateMatches({
+    ...input,
+    cachedReports: [{ ...first, model: "gpt-6.1-sol" }],
+  }, options);
+  assert.equal(model.reused, 0);
+  const altered = structuredClone(query);
+  altered.matches[0].status = "changed";
+  const data = await evaluateMatches({
+    ...input,
+    query: altered,
+    cachedReports: [first],
+  }, options);
+  assert.equal(data.reused, 1);
+});
+
+Deno.test("evaluation concurrency is bounded without requiring environment permissions", () => {
+  assert.equal(evaluationConcurrency(), 24);
+  assert.equal(evaluationConcurrency(48), 48);
+  assert.equal(evaluationConcurrency(96), 96);
+  assert.equal(evaluationConcurrency(500), 96);
+  for (const value of [0, -1, 1.5, NaN, Infinity]) {
+    assert.equal(evaluationConcurrency(value), 24);
+  }
 });

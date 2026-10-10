@@ -4,6 +4,7 @@ import {
   type Context,
   type Intent,
   type State,
+  usesRequestConfiguration,
   validateIntent,
 } from "./contracts.ts";
 import { compose, compositionKey, revise } from "./engine.ts";
@@ -234,6 +235,7 @@ export function applyIntent(
           ? available.signals.map((s) => s.text).join("\n\n")
           : "Aucun signal Radar suffisamment documenté n’a été trouvé pour cette date et ce contexte.";
       } else if (
+        !usesRequestConfiguration(context) &&
         input.intent.marketIds.some((m) =>
           !input.intent.sports.some((s) =>
             context.preferences[s]?.markets.includes(m)
@@ -250,16 +252,6 @@ export function applyIntent(
           compositions: reuse ? [] : [...compositions],
           allowSameComposition: reuse,
         };
-        const workshop = input.workshop
-          ? composeWorkshop(
-            available.candidates,
-            input.intent,
-            context,
-            history,
-            input.now,
-          )
-          : null;
-        input.onWorkshop?.(workshop?.reports ?? []);
         const focusedPool = input.intent.fixtureFocus
           ? available.candidates.filter((c) =>
             input.intent.fixtureFocus!.some((m) =>
@@ -267,6 +259,16 @@ export function applyIntent(
             )
           )
           : available.candidates;
+        const workshop = input.workshop
+          ? composeWorkshop(
+            focusedPool,
+            input.intent,
+            context,
+            history,
+            input.now,
+          )
+          : null;
+        input.onWorkshop?.(workshop?.reports ?? []);
         const composed = workshop?.tickets ??
           compose(focusedPool, input.intent, context, history);
         const proposed =

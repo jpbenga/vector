@@ -1,6 +1,7 @@
 import { obj } from "./contracts.ts";
 
-export const comparisonModels = ["gpt-6.1-sol", "gpt-6-luna"] as const;
+/** Paid demo evaluations use Luna only; no automatic Sol comparison. */
+export const comparisonModels = ["gpt-6-luna"] as const;
 export const modelRegistry: Record<
   string,
   { input: number; cached: number; output: number; reasoning: boolean }
@@ -44,6 +45,7 @@ export interface ModelOptions {
   model: string;
   fetcher?: typeof fetch;
   onReceipt?: (receipt: ModelReceipt) => void;
+  evaluationConcurrency?: number;
 }
 export function receiptFor(
   model: string,
