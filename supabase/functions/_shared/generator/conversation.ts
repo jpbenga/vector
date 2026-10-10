@@ -114,14 +114,14 @@ export async function converse(
       "Le modèle de conversation doit prendre en charge le raisonnement et les outils.",
     );
   }
-  const deadline = performance.now() + 110000;
+  const deadline = performance.now() + 130000;
   const reader = new ConversationReader(
     input,
     options.reads,
     async (phase, detail) => {
       await options.onProgress?.({ phase, detail });
     },
-    { ...options, deadline: deadline - 25000 },
+    { ...options, deadline: deadline - 35000 },
   );
   const active = workingIntent(input.state, input.context, input.date);
   const messages: unknown[] = [
@@ -223,7 +223,11 @@ export async function converse(
         },
       },
     });
-    if (new TextEncoder().encode(payload).length > 380000) {
+    // Preserve the complete day overview and Responses reasoning/tool replay.
+    // The old 380 KB byte guard rejected a valid 500-match comparison after
+    // its evaluation had already completed. This remains a bounded envelope,
+    // distinct from the provider's token/context limit (reported separately).
+    if (new TextEncoder().encode(payload).length > 1200000) {
       throw new Error(
         "Cette consultation est trop volumineuse ; ciblez une journée ou une compétition.",
       );

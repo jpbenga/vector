@@ -346,12 +346,20 @@ Deno.test("conversation compares all 500 evaluations before selecting six late m
     focusMode: "choose",
     focusKeys: [495, 496, 497, 498, 499, 500].map((i) => `football:${i}`),
   };
-  let round = 0;
+  let round = 0, largestRequest = 0;
   const call = (name: string, args: unknown) =>
     Response.json({
       status: "completed",
       model: "gpt-6-luna",
       output: [
+        ...(name === "search_matches"
+          ? [{
+            type: "reasoning",
+            id: "synthetic-replay",
+            summary: [],
+            encrypted_content: "x".repeat(310000),
+          }]
+          : []),
         {
           type: "function_call",
           call_id: name,
@@ -377,6 +385,7 @@ Deno.test("conversation compares all 500 evaluations before selecting six late m
       if (b.text.format.name === "lector_match_evaluations") {
         return modelResponse(evaluationFor(b));
       }
+      largestRequest = Math.max(largestRequest, String(init?.body).length);
       round++;
       if (round === 1) {
         return call("search_matches", {
@@ -430,6 +439,7 @@ Deno.test("conversation compares all 500 evaluations before selecting six late m
     }) as typeof fetch,
   });
   assert.equal(answer.evaluations[0].evaluated, 500);
+  assert.ok(largestRequest > 380000 && largestRequest < 1200000);
   assert.equal(answer.next.messages.at(-1)?.analysis?.selections.length, 6);
   assert.equal(
     answer.next.messages.at(-1)?.analysis?.context.evaluation?.complete,
