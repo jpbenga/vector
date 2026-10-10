@@ -123,8 +123,14 @@ export async function readAnalysisResponse(
   onSummary: (summary: string) => Promise<void>,
 ): Promise<Record<string, unknown>> {
   if (!response.ok) {
+    const failure = obj(await response.json().catch(() => ({})));
+    const rawCode = obj(failure.error).code;
+    const code =
+      typeof rawCode === "string" && /^[a-zA-Z0-9_.-]{1,100}$/.test(rawCode)
+        ? ` · ${rawCode}`
+        : "";
     throw new Error(
-      `Le service IA est indisponible (HTTP ${response.status}).`,
+      `Le service IA est indisponible (HTTP ${response.status}${code}).`,
     );
   }
   if (
@@ -159,7 +165,13 @@ export async function readAnalysisResponse(
       completed = obj(event.response);
     }
     if (event.type === "error") {
-      throw new Error("Le flux d’analyse IA a été interrompu.");
+      const rawCode = event.code ?? obj(event.error).code;
+      const code =
+        typeof rawCode === "string" && /^[a-zA-Z0-9_.-]{1,100}$/.test(rawCode)
+          ? ` (${rawCode})`
+          : "";
+      // Retain the technical code without logging provider messages or request data.
+      throw new Error(`Le flux d’analyse IA a été interrompu${code}.`);
     }
   };
   try {

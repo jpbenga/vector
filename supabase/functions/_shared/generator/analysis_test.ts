@@ -1,3 +1,4 @@
+import nodeAssert from "node:assert/strict";
 import {
   analysisCandidates,
   analysisContext,
@@ -305,5 +306,37 @@ Deno.test("insufficient evidence is distinguished from missing collected quotes"
   assert(
     catalog.matches?.find((m) => m.id === "api-fixture-1")
       ?.quoteAvailability === "recent",
+  );
+});
+
+Deno.test("provider failure exposes a safe code without leaking provider messages", async () => {
+  await nodeAssert.rejects(
+    () =>
+      readAnalysisResponse(
+        Response.json({
+          error: {
+            code: "insufficient_quota",
+            message: "private request data",
+          },
+        }, { status: 429 }),
+        async () => {},
+      ),
+    /HTTP 429 · insufficient_quota/,
+  );
+  const events = "data: " +
+    JSON.stringify({
+      type: "error",
+      code: "rate_limit_exceeded",
+      message: "private request data",
+    }) + "\n\n";
+  await nodeAssert.rejects(
+    () =>
+      readAnalysisResponse(
+        new Response(events, {
+          headers: { "content-type": "text/event-stream" },
+        }),
+        async () => {},
+      ),
+    /interrompu \(rate_limit_exceeded\)/,
   );
 });
