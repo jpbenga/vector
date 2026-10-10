@@ -412,7 +412,7 @@ export async function evaluateMatches(input: {
   };
   await notify();
   const workers = await Promise.allSettled(
-    Array.from({ length: Math.min(8, batches.length) }, async () => {
+    Array.from({ length: Math.min(24, batches.length) }, async () => {
       while (cursor < batches.length) {
         if (cancellation.signal.aborted) throw cancellation.signal.reason;
         const batch = batches[cursor++],

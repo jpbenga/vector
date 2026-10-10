@@ -77,7 +77,7 @@ Deno.test("all 500 sheets are evaluated with bounded concurrency, local aliases 
     report.rows.filter((r) => r.fit === 4).map((r) => r.key),
     [495, 496, 497, 498, 499, 500].map((i) => `football:${i}`),
   );
-  assert.ok(maximum <= 8 && maximum > 1);
+  assert.ok(maximum <= 24 && maximum > 1);
   assert.ok(calls > 1);
   assert.equal(receipts.length, calls);
   assert.ok(receipts.every((r) => r.evaluationBatch?.keys.length));
@@ -328,7 +328,7 @@ Deno.test("cancelling progress aborts every active batch and does not keep launc
       }),
     /cancelled/,
   );
-  assert.ok(calls <= 8);
+  assert.ok(calls <= 24);
   assert.equal(aborted, calls - 1);
 });
 Deno.test("conversation compares all 500 evaluations before selecting six late matches and retains the audit", async () => {
