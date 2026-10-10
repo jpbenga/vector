@@ -27,6 +27,7 @@ on:
           - lector-generator-sport-publications
           - lector-generator-hockey-odds
           - lector-generator-conversation-update
+          - lector-generator-match-evaluation
           - lector-generator-day-sources
           - lector-visual-live-update
       diagnostic_since:
@@ -189,6 +190,38 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
       - name: Update only the demo conversation with read capabilities
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tool/deploy_generator_conversation_remote.py
+
+  generator-match-evaluation:
+    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-match-evaluation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: supabase/setup-cli@v1
+        with:
+          version: '2.120.0'
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Evaluate every one of 500 synthetic matches with both requested models
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: deno run --allow-env=OPENAI_API_KEY,GITHUB_ACTIONS --allow-net=api.openai.com --allow-write=/tmp/lector-generator-matches.json tool/evaluate_generator_matches.ts
+      - name: Preserve match evaluations and actual model receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lector-generator-matches-evaluation
+          path: /tmp/lector-generator-matches.json
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Update only the demo Generator after the exact revision passes CI
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           GH_TOKEN: ${{ github.token }}
