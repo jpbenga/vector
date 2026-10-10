@@ -27,6 +27,7 @@ on:
           - lector-generator-sport-publications
           - lector-generator-hockey-odds
           - lector-generator-conversation-update
+          - lector-generator-configuration-update
           - lector-generator-match-evaluation
           - lector-generator-day-sources
           - lector-visual-live-update
@@ -89,7 +90,7 @@ jobs:
           GENERATOR_WORKSHOP: ${{ inputs.function == 'lector-generator-workshop' && 'true' || 'false' }}
           GENERATOR_UPDATE: ${{ inputs.function == 'lector-generator-update' && 'true' || 'false' }}
         run: python3 tool/deploy_generator_remote.py
-      - name: Preserve the paired model comparison
+      - name: Preserve the demo model evaluation
         if: always() && inputs.function == 'lector-generator-workshop'
         uses: actions/upload-artifact@v4
         with:
@@ -177,7 +178,7 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - name: Check conversation continuity with both requested models on synthetic publications
+      - name: Check conversation continuity with GPT-6 Luna on synthetic publications
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: deno run --allow-env=OPENAI_API_KEY,GITHUB_ACTIONS --allow-net=api.openai.com --allow-write=/tmp/lector-generator-conversation.json tool/evaluate_generator_conversation.ts
@@ -190,6 +191,28 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
       - name: Update only the demo conversation with read capabilities
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tool/deploy_generator_conversation_remote.py
+
+  generator-configuration-update:
+    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-configuration-update'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: supabase/setup-cli@v1
+        with:
+          version: '2.120.0'
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Verify request constraints without paid model calls
+        run: deno test --no-lock --allow-env supabase/functions/_shared/generator
+      - name: Update only the demo conversation function
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           GH_TOKEN: ${{ github.token }}
@@ -209,7 +232,7 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - name: Evaluate every one of 500 synthetic matches with both requested models
+      - name: Evaluate every one of 500 synthetic matches with GPT-6 Luna
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: deno run --allow-env=OPENAI_API_KEY,GITHUB_ACTIONS --allow-net=api.openai.com --allow-write=/tmp/lector-generator-matches.json tool/evaluate_generator_matches.ts
