@@ -42,7 +42,20 @@ for (const model of comparisonModels) {
       key,
       model,
       reads: { sources: async () => sources },
-      onReceipt: (r) => receipts.push(r),
+      onReceipt: (r) => {
+        receipts.push(r);
+        if (r.stage === "conversation") {
+          console.log(JSON.stringify({
+            model,
+            stage: r.stage,
+            status: r.status,
+            elapsedMs: r.elapsedMs,
+            inputTokens: r.inputTokens,
+            outputTokens: r.outputTokens,
+            reasoningTokens: r.reasoningTokens,
+          }));
+        }
+      },
       onEvaluation: async (r) => {
         evaluations.push(r);
         console.log(JSON.stringify({
@@ -54,12 +67,13 @@ for (const model of comparisonModels) {
         }));
       },
       onProgress: async (p) => {
-        if (p.phase === "evaluate" && p.detail !== last) {
-          last = p.detail ?? "";
+        if (p.detail && `${p.phase}:${p.detail}` !== last) {
+          last = `${p.phase}:${p.detail}`;
           console.log(
             JSON.stringify({
               model,
-              progress: last,
+              phase: p.phase,
+              progress: p.detail,
               elapsedMs: Math.round(performance.now() - started),
             }),
           );
