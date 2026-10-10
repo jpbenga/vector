@@ -37,4 +37,6 @@ Les reçus d’appel associent le modèle, les tokens, le temps, l’estimation 
 
 ## Mesure locale de préparation
 
-Corpus synthétique de 500 fiches mixtes : 205 ms de préparation, 210 ms de CPU, RSS du processus Deno 93 MiB. Cette mesure porte uniquement sur la préparation locale des fiches, sans appel IA ni réseau. Les latences et coûts des modèles restent à mesurer avec le workflow dédié.
+Corpus synthétique de 500 fiches mixtes : 205 ms de préparation, 210 ms de CPU, RSS du processus Deno 93 MiB. Cette mesure porte uniquement sur la préparation locale des fiches, sans appel IA ni réseau. Validation réelle du 10 octobre (révision `0f1e41b`) : GPT-6 Luna a validé 500/500 fiches et les six choix attendus en 70,6 s ; estimation standard de 0,075–0,084 USD. GPT-6.1 Sol a validé 500/500 fiches en 56,4 s, puis dépassé le délai global de 130 s dans le dialogue final : le déploiement est resté bloqué. Son usage connu représente 1,51–1,69 USD, hors usage non reçu de l’appel interrompu. Ces observations portent sur un corpus synthétique, pas sur la pertinence sportive de rencontres réelles.
+
+La correction suivante garde la réflexion medium pour la comparaison globale, utilise low pour la navigation préalable et permet plusieurs consultations indépendantes dans un même tour. Les lectures de détails regroupent jusqu’à huit rencontres. Le benchmark journalise aussi les étapes et reçus de conversation sans exposer de raisonnement privé. Le délai et le contrôle de couverture ne sont pas assouplis.
