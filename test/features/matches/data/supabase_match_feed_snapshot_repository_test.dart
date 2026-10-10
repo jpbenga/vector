@@ -52,12 +52,12 @@ void main() {
             },
           ];
         }
-      return http.Response(
-        jsonEncode(result),
-        200,
-        headers: {'content-type': 'application/json'},
-        request: request,
-      );
+        return http.Response(
+          jsonEncode(result),
+          200,
+          headers: {'content-type': 'application/json'},
+          request: request,
+        );
       });
       final client = SupabaseClient(
         'https://server.test',
