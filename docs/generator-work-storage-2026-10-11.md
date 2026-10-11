@@ -33,3 +33,15 @@ Les appels Responses gardent `store:false`. Le rejeu des éléments de réponse 
 Les reçus de tours comprennent `usage.work_storage` avec taille du document compact et taille des nouveaux tickets/messages. Les reçus de modèle conservent leur suivi de tokens. Aucun test de cette correction ne nécessite d’appel OpenAI payant ni de collecte sportive.
 
 La validation sur le compte utilisateur réel reste à effectuer après déploiement. Le format des réponses, les plafonds par demande de composition et la tarification ne sont pas modifiés par cette correction.
+
+## Publication vérifiée
+
+- Révision applicative : `68b719d692b7582583f38ce01b1d6faf850e3f09`.
+- [CI Flutter et fonctions réussie](https://github.com/jpbenga/vector/actions/runs/38153176646) : 121 tests Deno, vérifications Flutter et analyse statique.
+- [Installation serveur réussie](https://github.com/jpbenga/vector/actions/runs/38153770808/job/114512403705) le 11 octobre 2026 à 18 h 02 (Paris) : migration et fonction `lector-generator-workshop` actives, accès anonyme refusé avec HTTP 401, droits directs utilisateurs refusés, lecture serveur autorisée.
+- Empreinte SQL : `b2876e741f1f52fa0504100359c2c4792df855332a6b94e912f779c721428584`.
+- Reçu d'installation : zéro appel modèle payant, zéro appel fournisseur sportif, aucun changement de secret.
+- Interface Flutter compilée en release ; données de livraison et configuration Vercel existantes conservées.
+- Déploiement Vercel prêt : `dpl_ECFsmsjnGv1ejNu8L4dxUryxkKzz`, `https://lector-sports-2vp589vsh-lector1.vercel.app`.
+- Alias public actualisé : [démo Lector](https://lector-sports-demo-lector1.vercel.app/).
+- Vérification navigateur : l'alias public ouvre Lector et son Générateur sans écran d'authentification Vercel. La conversation d'un compte connecté n'a pas fait l'objet d'un nouvel appel modèle réel.
