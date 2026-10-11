@@ -79,6 +79,7 @@ void openGeneratorMatch(
               );
             }
             return HockeyMatchDetailPage(
+              repository: repository,
               fixture: fixture,
               competition: result.snapshot?.competitions
                   .where((c) => c.id == fixture.competition)

@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:copilot/core/data/published_feed_delivery.dart';
 import 'package:copilot/core/sports/data/published_sport_feed_repository.dart';
 import 'package:copilot/core/sports/domain/sport.dart';
+import 'package:copilot/core/sports/domain/sport_feed_repository.dart';
+import 'package:copilot/features/hockey/domain/hockey_module.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -100,6 +102,62 @@ void main() {
       remote: remote,
     );
   }
+
+  test(
+    'new price observations repaint a cached day and pinned match without a publication version change',
+    () async {
+      final env = setup();
+      final validated = ValidatedSportFeedRepository(
+        delegate: env.repository,
+        policy: HockeyModule.definition.dataPolicy,
+        clock: () => captured.add(const Duration(hours: 1)),
+      );
+      final updates = <SportFeedUpdate>[];
+      final subscription = validated.updates.listen(updates.add);
+      final initial = await validated.load(day);
+      final raw = Map<String, dynamic>.from(
+        (payload['items'] as List).first as Map<dynamic, dynamic>,
+      );
+      raw['quotes'] = [
+        for (final (code, price) in [
+          ('home', 2.13),
+          ('draw', 4.2),
+          ('away', 2.62),
+        ])
+          {
+            'marketCode': 'result_regulation',
+            'selectionCode': code,
+            'scope': 'regulation',
+            'bookmaker': 'Book A',
+            'decimalOdds': price,
+            'capturedAt': captured.toIso8601String(),
+          },
+      ];
+      final priced = {
+        ...payload,
+        'items': [raw],
+      };
+      expect(initial.snapshot!.items.first.quotes, isEmpty);
+      env.remote.day.complete(priced);
+      await Future<void>.delayed(Duration.zero);
+      expect(updates.single.date, day);
+      expect(updates.single.result.snapshot!.capturedAt, captured);
+      expect(updates.single.result.snapshot!.items.first.quotes, hasLength(3));
+      expect(validated.peek(day)!.snapshot!.items.first.quotes, hasLength(3));
+      final detail = await validated.loadMatch(day, raw['id'] as String);
+      expect(detail.snapshot!.items.first.quotes, isEmpty);
+      env.remote.match.complete(priced);
+      await Future<void>.delayed(Duration.zero);
+      expect(updates.last.matchId, raw['id']);
+      expect(
+        updates.last.result.snapshot!.items.first.quotes.first.decimalOdds,
+        2.13,
+      );
+      expect(env.remote.dayCalls, 1);
+      expect(env.remote.matchCalls, 1);
+      await subscription.cancel();
+    },
+  );
 
   test(
     'cold day returns without waiting for a stalled database; Radar warms the window with shared objects',

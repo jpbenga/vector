@@ -245,6 +245,9 @@ function compact(sheet: MatchSheet, index: number, now: Date) {
     kickoff: sheet.match.kickoff,
     status: sheet.match.status,
     capturedAt: sheet.match.capturedAt,
+    ...(sheet.match.marketAvailability
+      ? { marketAvailability: sheet.match.marketAvailability }
+      : {}),
     facts: sheet.facts.map((f, i) => ({
       id: `f${i}`,
       label: f.label,
@@ -283,7 +286,9 @@ function compact(sheet: MatchSheet, index: number, now: Date) {
     missing: !sheet.facts.length
       ? ["Aucune lecture ou donnée Radar autorisée disponible."]
       : !sheet.candidates.length
-      ? ["Aucun marché admissible ; ne pas inventer de cote."]
+      ? sheet.match.marketAvailability?.reasons.length
+        ? sheet.match.marketAvailability.reasons.map((r) => r.text)
+        : ["Aucun marché admissible ; ne pas inventer de cote."]
       : [],
   };
 }

@@ -35,7 +35,7 @@ export function analysisContext(context: Context, intent: Intent): Context {
 /** Same semantic market, one freshest quote. A bookmaker duplicate is not a new option. */
 export function analysisCandidates(
   catalog: Catalog,
-  intent: Intent,
+  intent: Pick<Intent, "marketIds">,
   now: Date,
 ) {
   const choices = new Map<string, Candidate>();

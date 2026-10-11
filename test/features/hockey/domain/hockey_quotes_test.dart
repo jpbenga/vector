@@ -80,6 +80,26 @@ void main() {
       expect(markets.single.selections.length, 3);
       expect(markets.single.recordedAt, at);
       expect(hockeyOddsMarkets(f, at.add(const Duration(hours: 49))), isEmpty);
+      // Many total lines must not hide another book's complete 1N2.
+      raw['quotes'] = [
+        ...raw['quotes'] as List,
+        for (var i = 0; i < 8; i++)
+          {
+            'marketCode': 'total_goals_regulation',
+            'selectionCode': 'over',
+            'line': i + 0.5,
+            'scope': 'regulation',
+            'bookmaker': 'Book incomplete',
+            'decimalOdds': 1.8,
+            'capturedAt': at.toIso8601String(),
+          },
+      ];
+      final complete = hockeyOddsMarkets(
+        SportPublicationCodec.decode(payload, SportId.hockey).items.first,
+        at,
+      );
+      expect(complete.first.selections, hasLength(3));
+      expect(complete.every((m) => m.bookmaker == 'Book A'), true);
     },
   );
 }

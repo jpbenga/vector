@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'hockey_quote_presentation.dart';
 import '../../../core/widgets/lector_horizontal_transition.dart';
 import '../../../core/widgets/lector_recorded_radar_panel.dart';
 import '../../../core/domain/lector_radar_contributions.dart';
@@ -94,6 +96,7 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
   Listenable? _identity;
   bool _preferencesReady = false;
   int _preferenceRequest = 0;
+  StreamSubscription<SportFeedUpdate>? _feedUpdates;
   @override
   void initState() {
     super.initState();
@@ -111,6 +114,7 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
         : null;
     _identity?.addListener(_reloadPreferences);
     _reloadPreferences();
+    _watchFeedUpdates();
     if (widget.liveRepository != null) {
       _live = SportLiveController(
         sport: SportId.hockey,
@@ -125,9 +129,35 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
     if (mounted) setState(() {});
   }
 
+  void _watchFeedUpdates() {
+    _feedUpdates?.cancel();
+    final repository = widget.repository;
+    if (repository is! ObservableSportFeedRepository) return;
+    _feedUpdates = repository.updates.listen((update) {
+      if (!mounted || _loading || update.matchId != null) return;
+      final radar = _section == LectorWorkspaceSection.radar;
+      if (update.radar != radar ||
+          (!radar && !DateUtils.isSameDay(update.date, _date)) ||
+          !update.result.isAvailable ||
+          !update.result.snapshot!.covers(_date) ||
+          (_feed?.snapshot != null &&
+              update.result.snapshot!.capturedAt.isBefore(
+                _feed!.snapshot!.capturedAt,
+              ))) {
+        return;
+      }
+      setState(() {
+        _feed = update.result;
+        _feedDate = _date;
+      });
+      _live?.watch(_dayMatches);
+    });
+  }
+
   @override
   void didUpdateWidget(covariant HockeyWorkspace oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.repository != widget.repository) _watchFeedUpdates();
     if (oldWidget.preferenceScope != widget.preferenceScope ||
         oldWidget.preferencesStore != widget.preferencesStore) {
       _reloadPreferences();
@@ -144,6 +174,7 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
   void dispose() {
     _request++;
     _recovery.dispose();
+    _feedUpdates?.cancel();
     final repository = widget.repository;
     if (repository is PreloadingSportFeedRepository) {
       repository.cancelPrefetch();
@@ -732,6 +763,9 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
         r.subject == fixture.home.id ? fixture.home.name : fixture.away.name;
     return SportFixtureCard(
       fixture: current,
+      odds: current.status == SportFixtureStatus.scheduled
+          ? HockeyCardOdds(fixture: current)
+          : null,
       order: HockeyModule.definition.participantOrder,
       readingCount: assessments.isEmpty
           ? null
@@ -786,6 +820,7 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
               return result;
             },
             builder: (_, full) => HockeyMatchDetailPage(
+              repository: widget.repository,
               fixture:
                   full.snapshot?.items
                       .where((f) => f.id == fixture.id)

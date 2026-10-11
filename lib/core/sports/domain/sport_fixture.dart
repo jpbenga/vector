@@ -143,4 +143,30 @@ class SportFixture {
   ) => order == SportParticipantOrder.homeAway ? (home, away) : (away, home);
 
   SportScore? scoreFor(SportScoreScope scope) => scores[scope];
+
+  /// Prices are observations with their own timestamps; refreshing them must
+  /// preserve the prematch facts, recorded Radar and match event histories.
+  SportFixture withQuotes(Iterable<SportMarketQuote> values) => SportFixture(
+    id: id,
+    competition: competition,
+    competitionName: competitionName,
+    season: season,
+    home: home,
+    away: away,
+    startsAt: startsAt,
+    status: status,
+    calendarDate: calendarDate,
+    providerStatus: providerStatus,
+    period: period,
+    clock: clock,
+    capturedAt: capturedAt,
+    radarSnapshot: radarSnapshot,
+    headToHead: headToHead,
+    matchEvents: matchEvents,
+    matchEventsCapturedAt: matchEventsCapturedAt,
+    quotes: values,
+    scores: scores,
+    homeForm: homeForm,
+    awayForm: awayForm,
+  );
 }

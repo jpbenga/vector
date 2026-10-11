@@ -1,3 +1,5 @@
+import 'dart:async';
+import '../../../core/sports/domain/sport_feed_repository.dart';
 import '../../shortlist/presentation/shortlist_actions.dart';
 import '../../../core/widgets/lector_match_odds.dart';
 import 'hockey_quote_presentation.dart';
@@ -34,11 +36,13 @@ class HockeyMatchDetailPage extends StatefulWidget {
     required this.fixture,
     this.competition,
     this.liveController,
+    this.repository,
     this.readings = const [],
     super.key,
   });
   final SportFixture fixture;
   final SportLiveController? liveController;
+  final SportFeedRepository? repository;
   final SportCompetitionContext? competition;
   final List<SportReadingAssessment> readings;
   @override
@@ -46,10 +50,37 @@ class HockeyMatchDetailPage extends StatefulWidget {
 }
 
 class _HockeyMatchDetailPageState extends State<HockeyMatchDetailPage> {
+  SportFixture? _pricedFixture;
+  SportFixture get _fixture => _pricedFixture ?? widget.fixture;
+  StreamSubscription<SportFeedUpdate>? _feedUpdates;
   @override
   void initState() {
     super.initState();
     widget.liveController?.addListener(_liveChanged);
+    final repository = widget.repository;
+    if (repository is ObservableSportFeedRepository) {
+      _feedUpdates = repository.updates.listen((update) {
+        final snapshot = update.result.snapshot;
+        if (!mounted ||
+            update.matchId != widget.fixture.id.value ||
+            snapshot?.capturedAt != widget.fixture.capturedAt) {
+          return;
+        }
+        final match = snapshot!.items
+            .where((f) => f.id == widget.fixture.id)
+            .firstOrNull;
+        if (match == null ||
+            match.home.id != widget.fixture.home.id ||
+            match.away.id != widget.fixture.away.id ||
+            match.competition != widget.fixture.competition ||
+            match.season != widget.fixture.season) {
+          return;
+        }
+        setState(
+          () => _pricedFixture = widget.fixture.withQuotes(match.quotes),
+        );
+      });
+    }
   }
 
   void _liveChanged() {
@@ -59,12 +90,13 @@ class _HockeyMatchDetailPageState extends State<HockeyMatchDetailPage> {
   @override
   void dispose() {
     widget.liveController?.removeListener(_liveChanged);
+    _feedUpdates?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final f = widget.liveController?.display(widget.fixture) ?? widget.fixture;
+    final f = widget.liveController?.display(_fixture) ?? _fixture;
     final score =
         f.scoreFor(SportScoreScope.finalResult) ??
         f.scoreFor(const SportScoreScope('current'));
@@ -255,7 +287,7 @@ class _HockeyMatchDetailPageState extends State<HockeyMatchDetailPage> {
   }
 
   Widget _context() {
-    final f = widget.liveController?.display(widget.fixture) ?? widget.fixture;
+    final f = widget.liveController?.display(_fixture) ?? _fixture;
     final detected = widget.readings
         .where((r) => r.status == SportReadingStatus.detected)
         .toList();

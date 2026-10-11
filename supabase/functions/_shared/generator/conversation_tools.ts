@@ -43,6 +43,10 @@ import {
   prepareMatchSheets,
 } from "./match_evaluation.ts";
 import type { ModelOptions } from "./models.ts";
+import {
+  type MarketAvailability,
+  marketAvailability,
+} from "./market_availability.ts";
 
 const array = { type: "array", items: { type: "string" } };
 export const planSchema = {
@@ -224,6 +228,7 @@ export interface ReadQuery {
     status: string;
     sourceId: string;
     capturedAt: string;
+    marketAvailability?: MarketAvailability;
   }[];
 }
 const exact = (args: Record<string, unknown>, keys: string[]) => {
@@ -479,6 +484,16 @@ export class ConversationReader {
       (catalog.matches ?? []).map((m) => [matchKey(m.sport, m.id), m]),
     );
     const matches: ReadQuery["matches"] = [];
+    const candidateCounts = new Map<string, number>();
+    const admissible = analysisCandidates(
+      catalog,
+      { marketIds: [] },
+      this.input.now,
+    );
+    for (const candidate of admissible) {
+      const key = matchKey(candidate.sport, candidate.matchId);
+      candidateCounts.set(key, (candidateCounts.get(key) ?? 0) + 1);
+    }
     const seen = new Set<string>();
     for (
       const source of [...sources].sort((a, b) =>
@@ -507,7 +522,7 @@ export class ConversationReader {
         }
         if (view !== "all" && view !== "shortlist" && !known.has(key)) continue;
         seen.add(key);
-        matches.push({
+        const match = {
           key,
           id,
           sport: source.sport,
@@ -522,6 +537,15 @@ export class ConversationReader {
           status: String(native ? raw.status : obj(fixture.status).short),
           sourceId: source.id,
           capturedAt: source.capturedAt,
+        };
+        matches.push({
+          ...match,
+          marketAvailability: marketAvailability(
+            match,
+            known.get(key)?.quoteAvailability,
+            candidateCounts.get(key) ?? 0,
+            this.input.now,
+          ),
         });
       }
     }

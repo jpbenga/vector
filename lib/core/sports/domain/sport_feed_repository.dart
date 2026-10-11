@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'sport.dart';
 import 'sport_fixture.dart';
 import 'sport_policy.dart';
@@ -47,10 +48,33 @@ abstract interface class PreloadingSportFeedRepository
   void cancelPrefetch();
 }
 
+/// A cached screen can remain visible while its public projection is refreshed.
+/// The identity of the view prevents a late response from changing another day.
+class SportFeedUpdate {
+  const SportFeedUpdate({
+    required this.result,
+    this.date,
+    this.matchId,
+    this.radar = false,
+  });
+  final SportFeedResult result;
+  final DateTime? date;
+  final String? matchId;
+  final bool radar;
+}
+
+abstract interface class ObservableSportFeedRepository
+    implements SportFeedRepository {
+  Stream<SportFeedUpdate> get updates;
+}
+
 /// One shared boundary for every adapter. Freshness uses the real clock;
 /// selecting J+13 does not age a snapshot by thirteen days.
 class ValidatedSportFeedRepository
-    implements ProgressiveSportFeedRepository, PreloadingSportFeedRepository {
+    implements
+        ProgressiveSportFeedRepository,
+        PreloadingSportFeedRepository,
+        ObservableSportFeedRepository {
   ValidatedSportFeedRepository({
     required this.delegate,
     required this.policy,
@@ -61,6 +85,20 @@ class ValidatedSportFeedRepository
   final DateTime Function() clock;
   @override
   SportId get sport => delegate.sport;
+
+  @override
+  Stream<SportFeedUpdate> get updates {
+    final source = delegate;
+    if (source is! ObservableSportFeedRepository) return const Stream.empty();
+    return source.updates.map(
+      (update) => SportFeedUpdate(
+        result: _validate(update.result, update.date ?? clock()),
+        date: update.date,
+        matchId: update.matchId,
+        radar: update.radar,
+      ),
+    );
+  }
 
   @override
   SportFeedResult? peek(DateTime date, {bool radar = false}) {

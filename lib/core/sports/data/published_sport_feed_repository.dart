@@ -104,7 +104,10 @@ class SupabaseSportPublicationSource
 }
 
 class PublishedSportFeedRepository
-    implements ProgressiveSportFeedRepository, PreloadingSportFeedRepository {
+    implements
+        ProgressiveSportFeedRepository,
+        PreloadingSportFeedRepository,
+        ObservableSportFeedRepository {
   PublishedSportFeedRepository({
     required this.sport,
     this.source,
@@ -140,6 +143,9 @@ class PublishedSportFeedRepository
   final _radarCache = RetainedAsyncValue<SportFeedResult>();
   final _decodedDays = Expando<SportFeedResult>();
   final RetainedAsyncValue<SportFeedResult> _cache;
+  final _updates = StreamController<SportFeedUpdate>.broadcast();
+  @override
+  Stream<SportFeedUpdate> get updates => _updates.stream;
 
   @override
   Future<SportFeedResult> load(DateTime selectedDate) => _navigation
@@ -454,6 +460,19 @@ class PublishedSportFeedRepository
             (previous == null ||
                 !snapshot.capturedAt.isBefore(previous.capturedAt))) {
           target.seed(key, result);
+          _updates.add(
+            SportFeedUpdate(
+              result: result,
+              date: key.startsWith('day:')
+                  ? DateTime.parse(key.substring(4))
+                  : key.startsWith('match:')
+                  ? snapshot.items.firstOrNull?.calendarDate ??
+                        snapshot.items.firstOrNull?.startsAt?.toLocal()
+                  : null,
+              matchId: key.startsWith('match:') ? key.split(':').last : null,
+              radar: key == 'radar',
+            ),
+          );
         }
       },
       onError: (Object _) {

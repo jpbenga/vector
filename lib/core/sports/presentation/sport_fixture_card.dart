@@ -18,6 +18,7 @@ class SportFixtureCard extends StatelessWidget {
     this.contextPanel,
     this.insights,
     this.readingCount,
+    this.odds,
     super.key,
   });
   final SportFixture fixture;
@@ -27,6 +28,7 @@ class SportFixtureCard extends StatelessWidget {
   final Widget? contextPanel;
   final Widget? insights;
   final int? readingCount;
+  final Widget? odds;
   @override
   Widget build(BuildContext context) {
     final (first, second) = fixture.displayedParticipants(order);
@@ -84,6 +86,7 @@ class SportFixtureCard extends StatelessWidget {
                 ),
               ),
         teams: LectorMatchTeams(
+          odds: odds,
           first: team(
             first,
             homeFirst ? score?.home : score?.away,
