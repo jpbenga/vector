@@ -64,11 +64,13 @@ def main():
         m.body->>'role' as role,left(m.body->>'text',10000) as text,
         m.body#>'{{analysis,context}}' as analysis_context,
         (select coalesce(jsonb_agg(jsonb_build_object(
-          'id',x->>'id','matchId',x->>'matchId','home',x->>'home','away',x->>'away',
-          'sport',x->>'sport','selection',x->>'selection','odds',x->'odds',
-          'market',x->>'market','kickoff',x->>'kickoff','warnings',x->'warnings'
+          'id',x#>>'{{candidate,id}}','matchId',x#>>'{{candidate,matchId}}',
+          'home',x#>>'{{candidate,home}}','away',x#>>'{{candidate,away}}',
+          'sport',x#>>'{{candidate,sport}}','selection',x#>>'{{candidate,selection}}',
+          'odds',x#>'{{candidate,odds}}','market',x#>>'{{candidate,market}}',
+          'kickoff',x#>>'{{candidate,kickoff}}','warnings',x#>'{{candidate,warnings}}'
         )),'[]') from jsonb_array_elements(
-          coalesce(m.body#>'{{analysis,selected}}','[]')) x) as selected
+          coalesce(m.body#>'{{analysis,selections}}','[]')) x) as selected
         from public.lector_generator_messages m join auth.users u on u.id=m.user_id
         where {account} and (m.body->>'at')::timestamptz >= '{cutoff}'::timestamptz
         order by m.position desc limit 12""")
