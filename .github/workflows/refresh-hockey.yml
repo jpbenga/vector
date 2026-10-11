@@ -30,7 +30,8 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    # The first cold run also builds several years of H2H event history.
+    timeout-minutes: 60
     steps:
       # This scheduling file also lives on main, as required by GitHub. The
       # football application is not merged with the multisport codebase.
@@ -53,7 +54,7 @@ jobs:
       - name: Install Dart dependencies
         if: inputs.operation != 'install'
         run: flutter pub get
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
         if: inputs.operation != 'install'
         with:
           path: var/sports/hockey/enrichment-cache
@@ -85,3 +86,10 @@ jobs:
           path: hockey-refresh-receipt.json
           if-no-files-found: ignore
           retention-days: 30
+      # Preserve validated provider responses even if a later publication
+      # check fails. Credentials are outside this directory.
+      - uses: actions/cache/save@v4
+        if: always() && inputs.operation != 'install' && hashFiles('var/sports/hockey/enrichment-cache/**') != ''
+        with:
+          path: var/sports/hockey/enrichment-cache
+          key: hockey-enrichment-v1-${{ runner.os }}-${{ github.run_id }}
