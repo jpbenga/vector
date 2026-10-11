@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../domain/generator_context.dart';
+import 'generator_request_recovery.dart';
 
 abstract interface class GeneratorRepository {
   Future<Map<String, dynamic>> request(Map<String, Object?> body);
@@ -15,6 +16,10 @@ class SupabaseGeneratorRepository implements GeneratorRepository {
     if (client.auth.currentUser == null) {
       throw StateError('Connectez-vous pour utiliser l’assistant.');
     }
+    return GeneratorRequestRecovery(invoke: _invoke).request(body);
+  }
+
+  Future<Map<String, dynamic>> _invoke(Map<String, Object?> body) async {
     try {
       final response = await client.functions
           .invoke(
@@ -28,15 +33,10 @@ class SupabaseGeneratorRepository implements GeneratorRepository {
       final data = generatorMap(response.data);
       if (data['error'] != null) throw StateError(data['error'].toString());
       return data;
-    } on TimeoutException {
-      throw StateError(
-        'La préparation a pris trop de temps. Votre conversation est conservée ; rechargez-la avant de réessayer.',
-      );
     } on FunctionException catch (error) {
       final message = generatorMap(error.details)['error'];
       throw StateError(
-        message?.toString() ??
-            'L’assistant IA n’est pas encore disponible. Sa configuration serveur doit être activée.',
+        message?.toString() ?? 'L’assistant est temporairement indisponible.',
       );
     }
   }

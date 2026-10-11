@@ -37,6 +37,7 @@ import { decodeVoice, transcribe } from "./voice.ts";
 import { buildCatalog } from "./catalog.ts";
 import { type DayReadCoverage, loadDaySources } from "./day_sources.ts";
 import { GeneratorFailure, generatorTimeoutMessage } from "./failures.ts";
+import { canReadTurnResponse, turnStatus } from "./turn_status.ts";
 const cors = {
   "access-control-allow-origin": "*",
   "access-control-allow-headers":
@@ -272,22 +273,27 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
             }),
           });
         }
+        const includeResult = input.includeResult === true;
         const rows = await call(
-          `lector_generator_turns?request_id=eq.${input.requestId}&user_id=eq.${user.id}&conversation_id=eq.${id}&select=status,usage`,
+          `lector_generator_turns?request_id=eq.${input.requestId}&user_id=eq.${user.id}&conversation_id=eq.${id}&select=status,usage${
+            includeResult ? ",response" : ""
+          }`,
         );
-        return reply({
-          turn: {
-            status: rows[0]?.status ?? "starting",
-            phase: rows[0]?.usage?.phase ?? "interpret",
-            ...(options.workshop
-              ? {
-                steps: rows[0]?.usage?.steps ?? [],
-                context: rows[0]?.usage?.context ?? null,
-                summary: rows[0]?.usage?.summary ?? null,
-              }
-              : {}),
-          },
-        });
+        if (
+          includeResult && options.workshop && rows[0]?.status === "complete"
+        ) {
+          const sessions = await call(
+            `lector_generator_conversations?id=eq.${id}&user_id=eq.${user.id}&select=mode,expires_at,updated_at`,
+          );
+          if (!canReadTurnResponse(sessions[0])) {
+            return reply({
+              error:
+                "Cette session a expiré. Vos éléments enregistrés restent dans Mes suivis.",
+              expired: true,
+            }, 410);
+          }
+        }
+        return reply(turnStatus(rows[0], Boolean(options.workshop)));
       }
       const session = options.workshop
         ? await call("rpc/lector_generator_session", {
