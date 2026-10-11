@@ -98,7 +98,7 @@ void main() {
       expect(find.text('match 99'), findsNothing);
       repository.emit!(state(1, 'FT'));
       repository.emit!(state(2, 'FT'));
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('temporal-filter-live')), findsNothing);
       expect(find.text('match 3'), findsOneWidget);
       expect(find.text('Terminés 3'), findsOneWidget);
@@ -162,7 +162,7 @@ void main() {
       await pump();
       expect(find.text('Faits actuels'), findsOneWidget);
       await tester.tap(find.text('Forme'));
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(find.text('analyse 2'), findsOneWidget);
       await pump(live: false);
       expect(find.text('analyse 2'), findsOneWidget);

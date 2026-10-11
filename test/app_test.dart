@@ -13,8 +13,11 @@ import 'package:copilot/features/tickets/data/saved_ticket_strategy_store.dart';
 import 'package:copilot/features/tickets/domain/ticket_strategy.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:copilot/features/generator/presentation/lector_generator_page.dart';
 
 void main() {
+  setUpAll(() => initializeDateFormatting('fr'));
   testWidgets('starts directly in guest scores', (tester) async {
     await configureDependencies(
       const AppConfig(
@@ -133,13 +136,17 @@ void main() {
     await tester.tap(find.text('Générateur'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Mes tickets'), findsOneWidget);
+    expect(find.byType(LectorGeneratorPage), findsOneWidget);
+    expect(find.text('Votre préparation'), findsOneWidget);
+    expect(find.text('Mes tickets'), findsNothing);
     expect(find.text('Tous les matchs'), findsNothing);
     expect(find.text('Live'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    await getIt.reset();
   });
 
   testWidgets(
-    'opens profile preferences when an active strategy lacks reading preferences',
+    'legacy active strategy does not block the conversational generator',
     (tester) async {
       await configureDependencies(
         const AppConfig(
@@ -167,20 +174,14 @@ void main() {
       await tester.tap(find.text('Générateur'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Préférences de lecture incomplètes'), findsOneWidget);
-      expect(
-        find.textContaining('Votre stratégie Configuration 1 est active.'),
-        findsOneWidget,
-      );
-
-      await tester.tap(find.text('Configurer mes préférences'));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(LectorSpacePage), findsOneWidget);
-      await tester.scrollUntilVisible(find.text('Mes marchés'), 200);
-      await tester.pumpAndSettle();
-      expect(find.text('Mes marchés'), findsOneWidget);
+      expect(find.byType(LectorGeneratorPage), findsOneWidget);
+      expect(find.text('Votre préparation'), findsOneWidget);
+      expect(find.text('Préférences de lecture incomplètes'), findsNothing);
+      expect(find.text('Configurer mes préférences'), findsNothing);
+      expect(find.textContaining('Configuration 1'), findsNothing);
       expect(find.text('Onboarding'), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+      await getIt.reset();
     },
   );
 
@@ -342,61 +343,54 @@ void main() {
     expect(find.text('Onboarding'), findsNothing);
   });
 
-  testWidgets('creates a ticket builder configuration from preferences', (
-    tester,
-  ) async {
-    await configureDependencies(
-      const AppConfig(
-        environment: AppEnvironment.development,
-        supabaseUrl: null,
-        supabaseAnonKey: null,
-      ),
-    );
-    final strategyStore = _CapturingTicketStrategyStore();
-
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: CopilotTheme.dark.copyWith(
-          splashFactory: NoSplash.splashFactory,
+  testWidgets(
+    'preferences preserve reading controls and omit retired manual strategies',
+    (tester) async {
+      await configureDependencies(
+        const AppConfig(
+          environment: AppEnvironment.development,
+          supabaseUrl: null,
+          supabaseAnonKey: null,
         ),
-        home: CopilotFlowPage(
-          profileStore: _ProfileStoreWithExistingProfile(),
-          ticketStrategyStore: strategyStore,
-          repositoryOverride: const DemoMatchFeedRepository(),
+      );
+      final strategyStore = _CapturingTicketStrategyStore();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: CopilotTheme.dark.copyWith(
+            splashFactory: NoSplash.splashFactory,
+          ),
+          home: CopilotFlowPage(
+            profileStore: _ProfileStoreWithExistingProfile(),
+            ticketStrategyStore: strategyStore,
+            repositoryOverride: const DemoMatchFeedRepository(),
+          ),
         ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 8));
+      );
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 8));
 
-    await tester.tap(find.byTooltip('Paramètres'));
-    await tester.pumpAndSettle();
-    expect(find.text('Mon espace'), findsOneWidget);
-    await tester.drag(find.byType(ListView), const Offset(0, -180));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Mes stratégies').last);
-    await tester.pumpAndSettle();
-    expect(
-      find.text('Vos différentes configurations de tickets.'),
-      findsOneWidget,
-    );
-    await tester.tap(
-      find.byKey(const ValueKey('create-ticket-strategy-button')),
-    );
-    await tester.pumpAndSettle();
-    final minimumFields = find.byWidgetPredicate(
-      (widget) =>
-          widget is TextField && widget.decoration?.labelText == 'Minimum',
-    );
-    await tester.enterText(minimumFields.at(1), '1.01');
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('save-ticket-strategy-button')));
-    await tester.pumpAndSettle();
-
-    expect(strategyStore.savedStrategies, hasLength(1));
-    expect(strategyStore.savedStrategies.single.name, 'Configuration 1');
-    expect(find.text('Onboarding'), findsNothing);
-  });
+      await tester.tap(find.byTooltip('Paramètres'));
+      await tester.pumpAndSettle();
+      expect(find.text('Mon espace'), findsOneWidget);
+      await tester.drag(find.byType(ListView), const Offset(0, -180));
+      await tester.pumpAndSettle();
+      expect(find.text('Mes stratégies'), findsNothing);
+      expect(
+        find.byKey(const ValueKey('create-ticket-strategy-button')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('save-ticket-strategy-button')),
+        findsNothing,
+      );
+      expect(find.text('Mes lectures'), findsOneWidget);
+      expect(find.text('Mes scénarios'), findsOneWidget);
+      expect(find.text('Mes marchés'), findsOneWidget);
+      expect(strategyStore.savedStrategies, isEmpty);
+      expect(find.text('Onboarding'), findsNothing);
+    },
+  );
 }
 
 class _ProfileStoreWithExistingProfile implements SavedDecisionProfileStore {

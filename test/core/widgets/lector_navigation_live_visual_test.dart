@@ -182,7 +182,7 @@ void main() {
       ),
     );
     await tester.tap(find.byKey(const ValueKey('temporal-filter-live')));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.text('matches:live'), findsOneWidget);
     expect(find.text('matches:upcoming'), findsNothing);
     final active = tester.widget<ChoiceChip>(
