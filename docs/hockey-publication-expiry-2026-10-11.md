@@ -70,3 +70,31 @@ La revue automatique refuse ensuite l’installation permanente : remplacement
 d’une fonction dans le projet partagé de production sans autorisation explicite.
 L’autorisation précise a été demandée. À ce stade, la collecte fraîche existe
 localement ; ne pas annoncer que la démo ou le serveur la diffusent déjà.
+
+## Reprise et traitement Radar
+
+Après l’instruction « continue », la migration de publication du 11 octobre
+est installée. Vérification : `anonymous_write=false`, `user_write=false`,
+`server_write=true`, `public_read=true`.
+
+La publication complète échoue encore avec HTTP 500. Le traitement déclenché
+par l’insertion prépare les snapshots Radar avant match. Sa fonction
+`form_radar_record_publication` parcourt tous les profils pour chaque rencontre.
+Le test précédent sans profils joueurs ne couvrait pas cette charge réelle.
+
+La correction `20261011012500_hockey_radar_publication_index.sql` construit
+une indexation par équipe, compétition et saison pour le hockey, une seule
+fois par publication. L’ordre des profils dans chaque groupe est conservé.
+La suite des critères reste identique, comme le parcours football. Aucun
+nouveau privilège, table ou point d’accès n’est introduit.
+
+Le test dans une transaction annulée utilise la publication réelle du serveur.
+Il compare les profils avant et après optimisation sur une rencontre à venir
+par compétition. Les snapshots sont identiques. Le traitement optimisé de
+l’ensemble de 500 rencontres et 882 profils prend 1,156 seconde.
+La lecture publique des cotes pour ces 500 rencontres réussit en 4,83 secondes.
+
+La revue automatique refuse l’installation de cette seconde migration, estimant
+qu’elle n’est pas couverte par l’autorisation de la première. Une autorisation
+explicite et distincte a été demandée. Elle n’est pas encore installée ; la
+publication du 9 octobre reste la version publique au moment de ce compte rendu.
