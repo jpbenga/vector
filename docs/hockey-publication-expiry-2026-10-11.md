@@ -98,3 +98,48 @@ La revue automatique refuse l’installation de cette seconde migration, estiman
 qu’elle n’est pas couverte par l’autorisation de la première. Une autorisation
 explicite et distincte a été demandée. Elle n’est pas encore installée ; la
 publication du 9 octobre reste la version publique au moment de ce compte rendu.
+
+## Autorisation et reprise du 11 octobre
+
+L’autorisation explicite de la seconde correction est reçue. La migration
+Radar est installée : écriture anonyme et utilisateur refusée, écriture
+serveur autorisée. Les publications volumineuses rencontrent encore deux
+limites distinctes : préparation SQL avec de gros arguments JSON et expansion
+RPC de deux documents nommés.
+
+`20261011013500_hockey_publication_generic_plan.sql` limite la préparation
+aux plans génériques, uniquement pendant la publication. Un test sur le
+document réel du serveur, insertion et trigger Radar inclus, prend 2,015 s.
+Toutes les écritures et le réglage temporaire du test sont annulés.
+
+`20261011014500_hockey_publication_document_rpc.sql` ajoute un relais à
+argument JSONB non nommé, selon le protocole de corps brut de PostgREST.
+Il délègue toutes les validations et écritures à la fonction existante.
+Il n’est accessible qu’à `service_role`. Les appels anonymes au relais et
+au collecteur sont vérifiés et refusés avec HTTP 401. Le pont Edge est déployé
+avec uniquement le chemin de ce relais modifié.
+
+La publication du 11 octobre est maintenant enregistrée dans Supabase :
+503 rencontres, sept ligues, collection
+`b087efc0-31af-449a-94de-0233900d5081`. La vérification de son document complet
+contre les données préparées réussit. La lecture des cotes via la projection
+Radar dépasse encore son délai : la préparation de la livraison démo n’est
+pas annoncée comme terminée à ce stade.
+
+## Lecture des cotes rétablie
+
+La migration `20261011015500_hockey_public_read_materialization.sql` remplace
+la correction de lecteur préparée mais non installée du 10 octobre. Elle
+matérialise les valeurs JSON une seule fois, utilise des plans génériques et
+préserve les mêmes identités, l’ordre des rencontres, la jointure des cotes
+et les droits. Le lecteur public reste autorisé ; l’accès anonyme à la table
+de cotes et à son helper brut reste refusé.
+
+Un contrôle en transaction annulée vérifie Radar, journée et détail. Il
+vérifie aussi chaque cote contre les cinq identifiants de la rencontre et
+l’heure du coup d’envoi. La journée du 11 octobre contient 42 rencontres et
+2 059 cotes. La vérification HTTP publique du document complet et de sa
+projection cotée réussit ensuite en 9,57 s au total : 503 rencontres et
+5 156 cotes, identité de collection et contenu analytique identiques.
+La copie locale vérifiée conserve `capturedAt=2026-10-11T00:18:30.281Z` ;
+aucun horodatage artificiel ni allongement des 36 heures.
