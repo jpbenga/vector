@@ -1,4 +1,26 @@
--- Only the trusted scheduled publisher can switch the existing public heads.
+-- Install the delivery prerequisites even when the older optional generic
+-- delivery worker has never been deployed. Heads contain public sport data.
+create table if not exists public.sport_feed_delivery_heads (
+ sport text not null check (sport in ('football','hockey')),
+ day date not null, manifest jsonb not null,
+ updated_at timestamptz not null default now(), primary key (sport,day)
+);
+alter table public.sport_feed_delivery_heads enable row level security;
+alter table public.sport_feed_delivery_heads force row level security;
+revoke all on public.sport_feed_delivery_heads from public,anon,authenticated;
+grant all on public.sport_feed_delivery_heads to service_role;
+grant select on public.sport_feed_delivery_heads to anon,authenticated;
+do $$ begin
+ if not exists(select 1 from pg_policies where schemaname='public'
+  and tablename='sport_feed_delivery_heads' and policyname='delivery_head_read') then
+  create policy delivery_head_read on public.sport_feed_delivery_heads
+   for select to anon,authenticated using(true);
+ end if;
+end $$;
+insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
+values('lector-feed-delivery','lector-feed-delivery',true,33554432,array['application/json'])
+on conflict(id) do nothing;
+-- Only the trusted scheduled publisher can switch public heads.
 -- All immutable objects are uploaded and verified before this atomic commit.
 create function public.hockey_delivery_publish(p_collection uuid,p_captured_at timestamptz,p_manifests jsonb)
 returns integer language plpgsql security definer set search_path=public,pg_temp as $$
@@ -27,5 +49,9 @@ revoke all on function public.hockey_delivery_publish(uuid,timestamptz,jsonb) fr
 grant execute on function public.hockey_delivery_publish(uuid,timestamptz,jsonb) to service_role;
 -- The new publisher prepares its own atomic manifests. The older optional
 -- generic worker must not replace them with an NHL-only delivery.
-update public.sport_feed_delivery_jobs set enabled=false where sport='hockey';
+do $$ begin
+ if to_regclass('public.sport_feed_delivery_jobs') is not null then
+  execute 'update public.sport_feed_delivery_jobs set enabled=false where sport=''hockey''';
+ end if;
+end $$;
 notify pgrst, 'reload schema';
