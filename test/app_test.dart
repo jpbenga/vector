@@ -5,7 +5,6 @@ import 'package:copilot/core/di/service_locator.dart';
 import 'package:copilot/core/identity/identity_scope.dart';
 import 'package:copilot/core/theme/app_theme.dart';
 import 'package:copilot/features/matches/data/match_feed_repository.dart';
-import 'package:copilot/features/matches/presentation/lector_space_page.dart';
 import 'package:copilot/features/onboarding/data/saved_decision_profile_store.dart';
 import 'package:copilot/features/onboarding/domain/decision_profile.dart';
 import 'package:copilot/features/onboarding/domain/decision_profile_catalogs.dart';
