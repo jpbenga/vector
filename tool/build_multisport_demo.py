@@ -45,7 +45,9 @@ if REUSE_DELIVERY:
 # A visual-only rebuild reuses its quote observations and delivery files. The
 # canonical publication must still match the server, but it does not need a
 # fresh quote projection. Collectors retain the complete quote verification.
-payload = verify_publication(payload, values, include_quotes=not REUSE_DELIVERY)
+verified = verify_publication(payload, values, include_quotes=not REUSE_DELIVERY)
+if not REUSE_DELIVERY:
+    payload = verified
 require_current_hockey_publication(payload)
 
 # Only public project configuration is compiled. No provider or server secret.
