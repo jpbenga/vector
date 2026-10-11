@@ -1,0 +1,24 @@
+import importlib.util
+import pathlib
+import sys
+import unittest
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+spec = importlib.util.spec_from_file_location('work_storage_remote', pathlib.Path(__file__).resolve().parents[1] / 'deploy_generator_work_storage_remote.py')
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+
+class WorkStorageDeploymentTests(unittest.TestCase):
+    def test_only_demo_branch_and_existing_server_secret(self):
+        env = {'GITHUB_ACTIONS': 'true', 'GITHUB_REF': 'refs/heads/codex/multisport-hockey', 'GITHUB_REPOSITORY': 'jpbenga/vector', 'GITHUB_SHA': 'test', 'SUPABASE_ACCESS_TOKEN': 'test', 'GH_TOKEN': 'test'}
+        module.validate_environment(env)
+        for field, value in [('GITHUB_REF', 'refs/heads/main'), ('GITHUB_ACTIONS', 'false'), ('SUPABASE_ACCESS_TOKEN', '')]:
+            with self.assertRaises(ValueError):
+                module.validate_environment({**env, field: value})
+        self.assertEqual(module.FUNCTION, 'lector-generator-workshop')
+        self.assertEqual(module.MIGRATION.name, '20261011200000_lector_generator_work_storage.sql')
+
+
+if __name__ == '__main__':
+    unittest.main()

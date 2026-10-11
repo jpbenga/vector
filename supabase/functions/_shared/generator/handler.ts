@@ -1,3 +1,4 @@
+import { archiveWork } from "./work_storage.ts";
 import {
   resolveShortlist,
   shortlistContext,
@@ -195,6 +196,56 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
       const user = await userResponse.json();
       if (!uuid(user.id)) return reply({ error: "Connexion invalide." }, 401);
       authenticatedUser = user.id;
+      const knownTickets = new Set<string>(),
+        knownMessages = new Set<string>(),
+        knownTurns = new Set<string>();
+      const materialize = async (state: State | null, full = true) =>
+        state?.storageVersion === 2
+          ? await call("rpc/lector_generator_work_read", {
+            p_user: user.id,
+            p_conversation: state.id,
+            p_full: full,
+            p_state: state,
+          }) as State
+          : state;
+      const commit = async (parameters: Record<string, unknown>) => {
+        if (!options.workshop) {
+          return await call("rpc/lector_generator_commit", parameters);
+        }
+        const work = archiveWork(
+          parameters.p_state as State,
+          knownTickets,
+          knownMessages,
+          knownTurns,
+        );
+        // Adopt existing sessions without losing messages trimmed from the active window.
+        if (previous && previous.storageVersion !== 2) {
+          const older = archiveWork(previous);
+          work.tickets = [
+            ...new Map(
+              [...older.tickets, ...work.tickets].map((t) => [t.id, t]),
+            ).values(),
+          ];
+          work.messages = [
+            ...new Map(
+              [...older.messages, ...work.messages].map((m) => [m.id, m]),
+            ).values(),
+          ];
+          work.turns = [
+            ...new Map([...older.turns, ...work.turns].map((t) => [t.id, t]))
+              .values(),
+          ];
+        }
+        const stored = await call("rpc/lector_generator_work_commit", {
+          ...parameters,
+          p_state: work.state,
+          p_tickets: work.tickets,
+          p_messages: work.messages,
+          p_turns: work.turns,
+        });
+        return await materialize(stored);
+      };
+
       const text = await request.text();
       if (text.length > 2700000) {
         return reply({ error: "Demande trop longue." }, 413);
@@ -344,6 +395,9 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
             }, 410);
           }
         }
+        if (rows[0]?.response) {
+          rows[0].response = await materialize(rows[0].response);
+        }
         return reply(turnStatus(rows[0], Boolean(options.workshop)));
       }
       const session = options.workshop
@@ -392,11 +446,25 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
       const states = await call(
         `lector_generator_conversations?id=eq.${id}&user_id=eq.${user.id}&select=state,revision`,
       );
-      const previous = states.length && Object.keys(states[0].state).length
-        ? states[0].state as State
-        : null;
       if (action === "read") {
-        return reply({ state: previous ? { ...previous, ...session } : null });
+        return reply({
+          state: states.length && Object.keys(states[0].state).length
+            ? { ...await materialize(states[0].state), ...session }
+            : null,
+        });
+      }
+      if (options.workshop && action === "history") {
+        if (!Number.isInteger(input.offset) || Number(input.offset) < 0) {
+          return reply({ error: "Page invalide." }, 400);
+        }
+        return reply(
+          await call("rpc/lector_generator_work_history", {
+            p_user: user.id,
+            p_conversation: id,
+            p_offset: input.offset,
+            p_limit: 20,
+          }),
+        );
       }
       if (options.workshop && action === "audit") {
         const turns = await call(
@@ -414,6 +482,31 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
         return archived.length
           ? reply({ ticket: archived[0].ticket })
           : reply({ error: "Ce brouillon n’est pas disponible." }, 404);
+      }
+
+      const previous = states.length && Object.keys(states[0].state).length
+        ? await materialize(states[0].state as State, false)
+        : null;
+      if (previous && previous.storageVersion !== 2) {
+        for (const m of previous.messages) m.id ??= crypto.randomUUID();
+        for (const t of previous.conversation?.turns ?? []) {
+          t.id ??= crypto.randomUUID();
+        }
+      }
+      if (previous?.storageVersion === 2) {
+        for (
+          const t of [
+            ...previous.tickets,
+            ...(previous.drafts ?? []),
+            ...(previous.proposals ?? []),
+            ...(previous.pending ?? []),
+            ...previous.versions.flat(),
+          ]
+        ) knownTickets.add(t.id);
+        for (const m of previous.messages) if (m.id) knownMessages.add(m.id);
+        for (const t of previous.conversation?.turns ?? []) {
+          if (t.id) knownTurns.add(t.id);
+        }
       }
 
       // Chat replay is resolved by the reservation RPC before its revision fence;
@@ -500,7 +593,7 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
             }];
           } else next.proposals = [];
         } else next.saved = true;
-        const state = await call("rpc/lector_generator_commit", {
+        const state = await commit({
           p_user: user.id,
           p_conversation: id,
           p_revision: revision,
@@ -586,7 +679,9 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
       if (claim.status !== "reserved") {
         return claim.cached
           ? reply(
-            action === "transcribe" ? claim.cached : { state: claim.cached },
+            action === "transcribe"
+              ? claim.cached
+              : { state: await materialize(claim.cached) },
           )
           : reply({
             error:
@@ -806,10 +901,25 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
               }
               return null;
             },
+            sessionHistory: async (offset, limit) =>
+              await call("rpc/lector_generator_work_history", {
+                p_user: user.id,
+                p_conversation: id,
+                p_offset: offset,
+                p_limit: limit,
+                p_full: false,
+              }),
+            archivedAnalysis: async (analysisId) => {
+              const messages = await call(
+                `lector_generator_messages?id=eq.${analysisId}&conversation_id=eq.${id}&user_id=eq.${user.id}&select=body`,
+              );
+              return messages[0]?.body?.analysis ?? null;
+            },
             archivedTicket: async (ticketId) => {
               const archived = await call(
                 `lector_generator_ticket_drafts?id=eq.${ticketId}&conversation_id=eq.${id}&user_id=eq.${user.id}&select=ticket`,
               );
+              if (archived[0]?.ticket) knownTickets.add(ticketId);
               return archived[0]?.ticket ?? null;
             },
           },
@@ -866,7 +976,7 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
           }
         }
         await progress("commit");
-        const state = await call("rpc/lector_generator_commit", {
+        const state = await commit({
           p_user: user.id,
           p_conversation: id,
           p_revision: revision,
@@ -1056,27 +1166,7 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
         const message = next.messages.at(-1)!;
         message.text = analysis.text;
         message.analysis = analysis;
-        // Retain recent analyses for follow-ups without duplicating unbounded snapshots.
-        let size = JSON.stringify(next).length;
-        for (const older of next.messages.slice(0, -1)) {
-          if (size <= 180000) break;
-          delete older.analysis;
-          size = JSON.stringify(next).length;
-        }
-        while (JSON.stringify(next).length > 180000 && next.versions.length) {
-          next.versions.shift();
-        }
-        while (
-          JSON.stringify(next).length > 180000 && (next.drafts?.length ?? 0) > 1
-        ) next.drafts!.shift();
-        while (
-          JSON.stringify(next).length > 180000 && next.messages.length > 2
-        ) next.messages.shift();
-        if (JSON.stringify(next).length > 180000) {
-          throw new Error(
-            "Cette analyse contient trop de données pour être conservée. Choisissez un périmètre plus ciblé.",
-          );
-        }
+        // Detailed analyses are archived independently by commit.
       }
       if (options.workshop) {
         const attachments = next.messages.at(-1)?.ticketIds ?? [];
@@ -1143,7 +1233,7 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
         }
       }
       await progress("commit");
-      const state = await call("rpc/lector_generator_commit", {
+      const state = await commit({
         p_user: user.id,
         p_conversation: id,
         p_revision: revision,

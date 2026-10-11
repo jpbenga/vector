@@ -23,6 +23,7 @@ class ConversationService implements GeneratorRepository {
   final requests = <Map<String, Object?>>[];
   final restored = Completer<Map<String, dynamic>>();
   final reply = Completer<Map<String, dynamic>>();
+  final history = Completer<Map<String, dynamic>>();
 
   @override
   Future<Map<String, dynamic>> request(Map<String, Object?> body) async {
@@ -30,6 +31,7 @@ class ConversationService implements GeneratorRepository {
     return switch (body['action']) {
       'read' => restored.future,
       'chat' => reply.future,
+      'history' => history.future,
       'prepare' => {
         'preparation': {'matchCount': 3, 'radarCount': 2},
       },
@@ -122,6 +124,45 @@ ScrollPosition position(WidgetTester tester) => tester
 
 void main() {
   setUpAll(() => initializeDateFormatting('fr'));
+
+  testWidgets(
+    'older archived exchanges load without erasing the current conversation',
+    (tester) async {
+      final service = ConversationService();
+      final persistence = await savedReference();
+      await tester.pumpWidget(screen(service, persistence));
+      service.restored.complete({
+        'state': {
+          ...conversation(2),
+          'history': {'offset': 20, 'hasMore': true, 'messages': 24},
+        },
+      });
+      await tester.pumpAndSettle();
+      final button = find.text('Voir les échanges précédents');
+      await tester.ensureVisible(button);
+      await tester.tap(button);
+      await tester.pump();
+      expect(find.text('Chargement des échanges…'), findsOneWidget);
+      expect(service.requests.last['action'], 'history');
+      expect(service.requests.last['offset'], 20);
+      service.history.complete({
+        'messages': [
+          {'id': 'older-1', 'role': 'user', 'text': 'Mon ancienne demande'},
+        ],
+        'drafts': <Object>[],
+        'offset': 21,
+        'hasMore': false,
+      });
+      await tester.pumpAndSettle();
+      expect(find.text('Mon ancienne demande'), findsOneWidget);
+      expect(
+        find.text('Ma demande 1 concernant les rencontres du jour.'),
+        findsOneWidget,
+      );
+      expect(find.text('Voir les échanges précédents'), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 
   testWidgets(
     'restoration shows a skeleton then opens at the latest messages on every visit',

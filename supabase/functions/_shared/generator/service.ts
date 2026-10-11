@@ -421,13 +421,20 @@ export function applyIntent(
     }].slice(-40) as State["messages"],
   };
   // Bound duplicated ticket snapshots without forgetting composition identities.
-  while (JSON.stringify(next).length > 180000 && next.versions.length) {
+  while (
+    !input.workshop && JSON.stringify(next).length > 180000 &&
+    next.versions.length
+  ) {
     next.versions.shift();
   }
   while (
-    JSON.stringify(next).length > 180000 && (next.drafts?.length ?? 0) > 1
+    !input.workshop && JSON.stringify(next).length > 180000 &&
+    (next.drafts?.length ?? 0) > 1
   ) next.drafts!.shift();
-  while (JSON.stringify(next).length > 180000 && next.tickets.length > 1) {
+  while (
+    !input.workshop && JSON.stringify(next).length > 180000 &&
+    next.tickets.length > 1
+  ) {
     next.tickets.shift();
   }
   return next;

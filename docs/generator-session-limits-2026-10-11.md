@@ -2,6 +2,8 @@
 
 Audit du code le 11 octobre 2026. Ces valeurs décrivent le code ; aucune mesure de la session personnelle ni recherche d’incident n’a été effectuée dans cet audit.
 
+**Mise à jour :** les plafonds cumulatifs décrits ci-dessous sont l’état avant correction. Le parcours démo dispose maintenant d’un [stockage de travail indépendant](generator-work-storage-2026-10-11.md) ; analyses et tickets sont archivés hors du document compact de session. Les limites par appel et les durées de conservation restent distinctes.
+
 ## Trois volumes distincts
 
 1. **Session Lector persistante.** Supabase conserve messages, contraintes de travail, références des rencontres, analyses récentes, brouillons et versions. Le client conserve seulement la référence de la conversation dans un cache isolé par compte. Ce n’est pas une conversation hébergée chez OpenAI : les appels Responses utilisent `store: false`.

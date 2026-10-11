@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { converse } from "./conversation.ts";
+import { archiveWork } from "./work_storage.ts";
 import {
   ConversationReader,
   type ConversationReadPort,
@@ -26,6 +27,158 @@ import {
 } from "../sports/hockey_odds_test.ts";
 
 const date = "2026-10-10", id = "33333333-3333-4333-8333-333333333333";
+
+Deno.test("a tiny conversational request still answers after a large ticket; archived history is read by reference", async () => {
+  const state = baseState();
+  state.tickets = [{
+    id: crypto.randomUUID(),
+    number: 1,
+    target: intent.tickets[0],
+    context,
+    picks: [{
+      id: "p",
+      sport: "football",
+      matchId: "api-fixture-1",
+      home: "A",
+      away: "B",
+      marketId: "matchResult",
+      selection: "A gagne",
+      evidence: [{ text: "x".repeat(700000) }],
+    }],
+  }] as State["tickets"];
+  let bytes = 0;
+  const answered = await converse(input(state, "Merci"), {
+    key: "test",
+    model: "gpt-6-luna",
+    reads: readPort(),
+    fetcher: (async (_url, init) => {
+      bytes = new TextEncoder().encode(String(init?.body)).length;
+      return result([
+        output({
+          plan: plan({ action: "clarify", message: "Avec plaisir" }),
+          text: "Avec plaisir",
+          analysis: null,
+          queryId: null,
+          projectionId: null,
+        }),
+      ]);
+    }) as typeof fetch,
+  });
+  assert.ok(bytes < 30000);
+  assert.equal(answered.next.messages.at(-1)!.text, "Avec plaisir");
+  assert.equal(
+    archiveWork(answered.next).tickets[0].picks[0].evidence[0].text.length,
+    700000,
+  );
+  const analysisId = crypto.randomUUID();
+  const reader = new ConversationReader(input(state), {
+    ...readPort(),
+    sessionHistory: async () => ({
+      messages: [{
+        id: analysisId,
+        role: "assistant",
+        text: "Ancienne analyse",
+        analysisRef: analysisId,
+      }],
+      tickets: [],
+      hasMore: false,
+      offset: 1,
+    }),
+    archivedAnalysis: async (requested) =>
+      requested === analysisId
+        ? {
+          context: {
+            date,
+            view: "all",
+            sports: ["football"],
+            matchCount: 500,
+            candidateCount: 0,
+          },
+          text: "Original",
+          selections: [],
+          observations: [{
+            matchId: "1",
+            sport: "football",
+            match: "A — B",
+            reason: "Exact",
+            references: [],
+          }],
+          comparedMatchIds: [],
+          limitations: [],
+        }
+        : null,
+  });
+  const history = await reader.execute("read_session", {
+    offset: 0,
+    limit: 10,
+    ticketId: null,
+  }) as any;
+  assert.equal(history.messages[0].analysisRef, analysisId);
+  const analysis = await reader.execute("read_analysis", {
+    analysisId,
+    offset: 0,
+    limit: 4,
+  }) as any;
+  assert.equal(analysis.observations[0].reason, "Exact");
+  await assert.rejects(
+    reader.execute("read_analysis", {
+      analysisId: crypto.randomUUID(),
+      offset: 0,
+      limit: 4,
+    }),
+    /cette session/,
+  );
+});
+
+Deno.test("old ticket evidence is paged exactly without filling the next model context", async () => {
+  const ticketId = crypto.randomUUID();
+  const text = "0123456789".repeat(900);
+  const ticket = {
+    id: ticketId,
+    number: 1,
+    target: intent.tickets[0],
+    context,
+    warnings: [],
+    picks: [{
+      id: "p",
+      sport: "football",
+      matchId: "api-fixture-1",
+      home: "A",
+      away: "B",
+      marketId: "matchResult",
+      selection: "A gagne",
+      evidence: [{ id: "f", text }],
+      warnings: [],
+    }],
+  } as unknown as State["tickets"][number];
+  const reader = new ConversationReader(input(baseState()), {
+    ...readPort(),
+    archivedTicket: async (requested) => requested === ticketId ? ticket : null,
+  });
+  let reconstructed = "";
+  for (const textOffset of [0, 4000, 8000]) {
+    const page = await reader.execute("read_work_evidence", {
+      kind: "ticket",
+      objectId: ticketId,
+      offset: 0,
+      limit: 1,
+      textOffset,
+    }) as any;
+    reconstructed += page.facts[0].text;
+    assert.equal(page.facts[0].textComplete, textOffset === 8000);
+  }
+  assert.equal(reconstructed, text);
+  await assert.rejects(
+    reader.execute("read_work_evidence", {
+      kind: "ticket",
+      objectId: crypto.randomUUID(),
+      offset: 0,
+      limit: 1,
+      textOffset: 0,
+    }),
+    /cette session/,
+  );
+});
 function plan(
   patch: Partial<Intent> = {},
   changedFields: string[] = [],

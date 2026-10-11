@@ -30,6 +30,7 @@ on:
           - lector-generator-configuration-update
           - lector-generator-match-evaluation
           - lector-generator-day-sources
+          - lector-generator-work-storage
           - lector-generator-shortlist
           - lector-visual-live-update
           - hockey-refresh-install
@@ -311,3 +312,20 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           GH_TOKEN: ${{ github.token }}
         run: python3 tool/deploy_shortlist_remote.py
+
+  generator-work-storage:
+    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-work-storage'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: supabase/setup-cli@v1
+        with:
+          version: '2.120.0'
+      - name: Install independent conversation work storage without paid calls
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tool/deploy_generator_work_storage_remote.py

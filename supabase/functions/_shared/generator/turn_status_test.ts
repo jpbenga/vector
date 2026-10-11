@@ -106,7 +106,11 @@ Deno.test("authenticated recovery reads only the requested owner's conversation 
       );
       const expired = scenario.includeResult &&
         (!scenario.valid || !scenario.exists);
-      assert.equal(result.status, expired ? 410 : 200);
+      assert.equal(
+        result.status,
+        expired ? 410 : 200,
+        JSON.stringify(await result.clone().json()),
+      );
       assert.equal(result.headers.get("access-control-allow-origin"), "*");
       const body = await result.json();
       assert.deepEqual(

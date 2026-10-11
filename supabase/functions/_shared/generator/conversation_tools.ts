@@ -150,6 +150,26 @@ export const conversationTools = [
     },
   ),
   tool(
+    "read_analysis",
+    "Relire une analyse antérieure par analysisRef obtenu dans read_session, par pages de sélections. Snapshot exact de la proposition d’origine, sans nouvel appel IA ; ne rend pas ses anciennes cotes admissibles aujourd’hui.",
+    {
+      analysisId: { type: "string" },
+      offset: { type: "integer" },
+      limit: { type: "integer" },
+    },
+  ),
+  tool(
+    "read_work_evidence",
+    "Relire les preuves exactes d’un ticket ou d’une analyse archivée. Pagination des preuves et du texte ; continuer avec nextTextOffset si textComplete=false. Aucun recalcul, aucune écriture et aucune actualisation implicite de cote.",
+    {
+      kind: { type: "string", enum: ["ticket", "analysis"] },
+      objectId: { type: "string" },
+      offset: { type: "integer" },
+      limit: { type: "integer" },
+      textOffset: { type: "integer" },
+    },
+  ),
+  tool(
     "read_bilan",
     "Lire le Bilan descriptif publié et les suivis de l’utilisateur connecté. Aucune vérification ou sauvegarde déclenchée. Un taux de confirmation n’est pas une probabilité de pari.",
     {},
@@ -179,6 +199,10 @@ export interface ConversationReadPort {
   ): Promise<unknown>;
   bilan?(): Promise<unknown>;
   archivedTicket?(id: string): Promise<State["tickets"][number] | null>;
+  archivedAnalysis?(
+    id: string,
+  ): Promise<import("./contracts.ts").Analysis | null>;
+  sessionHistory?(offset: number, limit: number): Promise<unknown>;
   evaluation?(id: string): Promise<DayEvaluation | null>;
 }
 export interface ReadQuery {
@@ -961,45 +985,155 @@ export class ConversationReader {
           }
         }
         const turns = this.state?.conversation?.turns ?? [];
+        const history = this.port.sessionHistory
+          ? obj(await this.port.sessionHistory(offset, limit))
+          : null;
         return {
           ...(ticket
             ? (() => {
               const projected = modelTickets([ticket]);
-              return { ticket: projected.tickets[0], facts: projected.facts };
+              let bytes = 0;
+              const facts = projected.facts.filter((fact) => {
+                const size = JSON.stringify(fact).length;
+                if (bytes + size > 20000) return false;
+                bytes += size;
+                return true;
+              });
+              return {
+                ticket: projected.tickets[0],
+                facts,
+                unreadEvidenceIds: projected.facts.filter((f) =>
+                  !facts.includes(f)
+                ).map((f) => f.id),
+                evidenceReadTool: "read_work_evidence",
+              };
             })()
             : { ticket: null }),
-          tickets: [
+          tickets: history?.tickets ?? [
             ...new Map(all.map((t) => [t.id, { id: t.id, number: t.number }]))
               .values(),
           ],
-          turns: turns.slice(offset, offset + limit),
-          hasMore: offset + limit < turns.length,
+          turns:
+            (history
+              ? rows(history.turns)
+              : turns.slice(offset, offset + limit)).map((t) => ({
+                at: t.at,
+                request: String(t.request).slice(0, 2000),
+                response: String(t.response).slice(0, 2000),
+                constraints: t.constraints,
+                focus: t.focus,
+                ticketIds: t.ticketIds,
+              })),
+          hasMore: history?.hasMore ?? offset + limit < turns.length,
+          nextOffset: history?.offset ?? offset + limit,
           olderTurns: this.state?.conversation?.olderTurns ?? 0,
-          messages: this.state?.messages.slice(offset, offset + limit).map((
-            m,
-          ) => ({
-            role: m.role,
-            text: m.text,
-            at: m.at,
-            ticketIds: m.ticketIds,
-            analysis: m.analysis
-              ? {
-                context: m.analysis.context,
-                observations: m.analysis.observations,
-                selections: m.analysis.selections.map((s) => ({
-                  id: s.candidate.id,
-                  key: matchKey(s.candidate.sport, s.candidate.matchId),
-                  marketId: s.candidate.marketId,
-                  selection: s.candidate.selection,
-                  odds: s.candidate.odds,
-                  oddsAt: s.candidate.oddsAt,
-                  reason: s.reason,
-                  vigilance: s.vigilance,
-                  references: s.references,
-                })),
-              }
-              : undefined,
+          messages:
+            (history
+              ? rows(history.messages)
+              : this.state?.messages.slice(offset, offset + limit) ?? []).map((
+                m,
+              ) => ({
+                role: m.role,
+                text: String(m.text).slice(0, 2500),
+                at: m.at,
+                ticketIds: m.ticketIds,
+                analysisRef: m.analysisRef ?? (m.analysis ? m.id : undefined),
+                analysis: m.analysis
+                  ? {
+                    context: obj(m.analysis).context,
+                    selections: rows(obj(m.analysis).selections).length,
+                    observations: rows(obj(m.analysis).observations).length,
+                  }
+                  : undefined,
+              })),
+        };
+      }
+      case "read_analysis": {
+        exact(args, ["analysisId", "offset", "limit"]);
+        if (
+          !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i
+            .test(String(args.analysisId))
+        ) {
+          throw new Error("Référence d’analyse invalide.");
+        }
+        const { offset, limit } = page(args, 4);
+        const analysis = await this.port.archivedAnalysis?.(
+          String(args.analysisId),
+        );
+        if (!analysis) {
+          throw new Error("Cette analyse n’appartient pas à cette session.");
+        }
+        const selected = analysis.selections.slice(offset, offset + limit);
+        return {
+          context: analysis.context,
+          text: analysis.text.slice(0, 3000),
+          selections: selected.map((s) => ({
+            ...s,
+            candidate: modelCandidate(s.candidate, this.input.now),
           })),
+          facts: [
+            ...new Map(
+              selected.flatMap((s) => s.candidate.evidence).map((
+                e,
+              ) => [e.id, modelEvidence(e)]),
+            ).values(),
+          ].map((fact) => ({
+            ...fact,
+            text: fact.text.slice(0, 4000),
+            textComplete: fact.text.length <= 4000,
+            nextTextOffset: Math.min(fact.text.length, 4000),
+          })),
+          observations: (analysis.observations ?? []).slice(
+            offset,
+            offset + limit,
+          ),
+          limitations: analysis.limitations,
+          hasMore: offset + limit <
+            Math.max(
+              analysis.selections.length,
+              analysis.observations?.length ?? 0,
+            ),
+          nextOffset: offset + limit,
+          semantics:
+            "Snapshot d’origine, pas de nouvelle cote ni de probabilité.",
+        };
+      }
+      case "read_work_evidence": {
+        exact(args, ["kind", "objectId", "offset", "limit", "textOffset"]);
+        if (
+          !["ticket", "analysis"].includes(String(args.kind)) ||
+          !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i
+            .test(String(args.objectId)) ||
+          !Number.isInteger(args.textOffset) || Number(args.textOffset) < 0
+        ) throw new Error("Référence de preuve invalide.");
+        const { offset, limit } = page(args, 4);
+        const object = args.kind === "ticket"
+          ? await this.port.archivedTicket?.(String(args.objectId))
+          : await this.port.archivedAnalysis?.(String(args.objectId));
+        if (!object) {
+          throw new Error("Cet objet n’appartient pas à cette session.");
+        }
+        const candidates = "picks" in object
+          ? object.picks
+          : object.selections.map((s) => s.candidate);
+        const facts = [
+          ...new Map(
+            candidates.flatMap((p) => p.evidence).map((
+              e,
+            ) => [e.id, modelEvidence(e)]),
+          ).values(),
+        ];
+        const start = Number(args.textOffset);
+        return {
+          facts: facts.slice(offset, offset + limit).map((f) => ({
+            ...f,
+            text: f.text.slice(start, start + 4000),
+            textComplete: start + 4000 >= f.text.length,
+            nextTextOffset: Math.min(start + 4000, f.text.length),
+          })),
+          hasMore: offset + limit < facts.length,
+          nextEvidenceOffset: offset + limit,
+          total: facts.length,
         };
       }
       case "read_bilan":

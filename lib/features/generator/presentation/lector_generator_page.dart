@@ -82,6 +82,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
   String? _submittedMessage;
   bool _busy = false;
   bool _initializing = true, _positioning = false;
+  bool _loadingHistory = false;
   bool _followingLatest = true, _showLatest = false, _autoScrolling = false;
   bool _userScrolling = false;
   int _scrollRequest = 0;
@@ -699,6 +700,75 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
     if (_positioning) _scrollToEnd(animated: false);
   }
 
+  Future<void> _loadHistory() async {
+    final current = _conversation;
+    if (current == null || _loadingHistory || _busy) return;
+    final generation = _generation;
+    final history = generatorMap(current.json['history']);
+    final offset = history['offset'] as int? ?? 20;
+    final extent = _scroll.hasClients ? _scroll.position.maxScrollExtent : 0.0;
+    final position = _scroll.hasClients ? _scroll.offset : 0.0;
+    setState(() => _loadingHistory = true);
+    try {
+      final page = await _repository!.request({
+        ..._body('history'),
+        'offset': offset,
+      });
+      if (!mounted ||
+          generation != _generation ||
+          _conversation?.revision != current.revision) {
+        return;
+      }
+      final ids = current.messages.map((m) => m['id']).toSet();
+      setState(() {
+        _followingLatest = false;
+        _conversation = GeneratorConversation({
+          ...current.json,
+          'messages': [
+            ...generatorRows(
+              page['messages'],
+            ).where((m) => !ids.contains(m['id'])),
+            ...current.messages,
+          ],
+          'drafts': [
+            ...generatorRows(page['drafts']),
+            ...generatorRows(current.json['drafts']),
+          ],
+          'history': {
+            ...history,
+            'offset': page['offset'],
+            'hasMore': page['hasMore'],
+          },
+        });
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || generation != _generation || !_scroll.hasClients) {
+          return;
+        }
+        _scroll.jumpTo(
+          (position + _scroll.position.maxScrollExtent - extent).clamp(
+            0.0,
+            _scroll.position.maxScrollExtent,
+          ),
+        );
+      });
+    } on Object {
+      if (mounted && generation == _generation) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Les anciens échanges sont momentanément indisponibles.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted && generation == _generation) {
+        setState(() => _loadingHistory = false);
+      }
+    }
+  }
+
   void _updateScrollPosition() {
     if (!_scroll.hasClients ||
         _autoScrolling ||
@@ -1286,6 +1356,31 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
                               ],
                             ),
                           ],
+                          if (generatorMap(
+                                conversation?.json['history'],
+                              )['hasMore'] ==
+                              true)
+                            Center(
+                              child: TextButton.icon(
+                                onPressed: _loadingHistory || _busy
+                                    ? null
+                                    : _loadHistory,
+                                icon: _loadingHistory
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.history, size: 18),
+                                label: Text(
+                                  _loadingHistory
+                                      ? 'Chargement des échanges…'
+                                      : 'Voir les échanges précédents',
+                                ),
+                              ),
+                            ),
                           for (final message
                               in conversation?.messages ??
                                   <Map<String, dynamic>>[]) ...[

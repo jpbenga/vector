@@ -301,7 +301,7 @@ for (const view of ["profile", "radar"] as const) {
       view,
       radarKind: view === "radar" ? "teams" : "current",
     };
-    let paid = 0, committed: unknown = null;
+    let paid = 0, committed: unknown = null, archivedMessages: unknown[] = [];
     const phases: string[] = [];
     try {
       Deno.env.get = (name: string) => ({
@@ -383,11 +383,17 @@ for (const view of ["profile", "radar"] as const) {
         if (u.pathname === "/rest/v1/rpc/match_reading_bilan_breakdown") {
           return Response.json([]);
         }
-        if (u.pathname === "/rest/v1/rpc/lector_generator_commit") {
+        if (u.pathname === "/rest/v1/rpc/lector_generator_work_read") {
+          return Response.json({
+            ...payload.p_state,
+            messages: archivedMessages,
+          });
+        }
+        if (u.pathname === "/rest/v1/rpc/lector_generator_work_commit") {
           assert.equal(payload.p_user, owner);
           assert.equal(payload.p_request, requestId);
           assert.equal(
-            payload.p_state.messages.at(-1).analysis.context.view,
+            payload.p_messages.at(-1).analysis.context.view,
             view,
           );
           assert.equal(payload.p_state.tickets.length, 0);
@@ -405,6 +411,8 @@ for (const view of ["profile", "radar"] as const) {
               s.phase === "details"
             ),
           );
+          assert.equal(payload.p_state.messages.at(-1).analysis, undefined);
+          archivedMessages = payload.p_messages;
           committed = payload.p_state;
           return Response.json(payload.p_state);
         }

@@ -257,6 +257,8 @@ export interface Ticket {
   };
 }
 export interface State {
+  storageVersion?: 2;
+  history?: { messages: number; offset: number; hasMore: boolean };
   id: string;
   revision: number;
   context: Context;
@@ -267,6 +269,8 @@ export interface State {
   pending: Ticket[] | null;
   proposals?: Ticket[];
   messages: {
+    id?: string;
+    analysisRef?: string;
     role: "user" | "assistant";
     text: string;
     ticketIds?: string[];
@@ -283,6 +287,7 @@ export interface State {
     workingIntent: Intent;
     focus: { sport: Sport; matchId: string; match: string }[];
     turns: {
+      id?: string;
       at: string;
       request: string;
       response: string;

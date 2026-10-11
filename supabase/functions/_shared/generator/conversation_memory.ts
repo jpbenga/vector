@@ -330,23 +330,6 @@ export function rememberTurn(
     turns.shift();
     next.conversation.olderTurns++;
   }
-  // Older full analyses duplicate evidence; their chosen identities survive in the ledger.
-  for (const m of next.messages.slice(0, -2)) {
-    if (JSON.stringify(next).length <= 210000) break;
-    delete m.analysis;
-  }
-  while (JSON.stringify(next).length > 210000 && next.versions.length) {
-    next.versions.shift();
-  }
-  while (
-    JSON.stringify(next).length > 210000 && (next.drafts?.length ?? 0) > 1
-  ) next.drafts!.shift();
-  while (JSON.stringify(next).length > 210000 && next.messages.length > 2) {
-    next.messages.shift();
-  }
-  if (JSON.stringify(next).length > 210000) {
-    throw new Error(
-      "La session contient trop de données ; les éléments précédents sont conservés.",
-    );
-  }
+  // The full turn and its objects are archived atomically by work_commit.
+  // Never reject a new request because earlier objects are large.
 }
