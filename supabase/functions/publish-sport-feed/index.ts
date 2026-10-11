@@ -2,7 +2,7 @@ import { overviewPart } from "../_shared/delivery/feed_delivery.ts";
 async function publish(payload: Record<string, unknown>) {
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const response = await fetch(
-    `${Deno.env.get("SUPABASE_URL")}/rest/v1/rpc/publish_sport_feed`,
+    `${Deno.env.get("SUPABASE_URL")}/rest/v1/rpc/publish_sport_feed_document`,
     {
       method: "POST",
       redirect: "error",
