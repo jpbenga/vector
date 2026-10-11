@@ -99,21 +99,15 @@ void main() {
   });
 
   test(
-    'generator without results prioritizes strategies without active strategy',
+    'generator exposes the match browser without manual strategy actions',
     () {
       final actions = resolver.resolve(
         context: const LectorDeckContext(scope: LectorDeckScope.generator),
         capabilities: capabilities(),
       );
 
-      expect(
-        [for (final action in actions) action.id],
-        ['strategies', 'recalculate', 'all'],
-      );
-      expect(
-        actions.singleWhere((action) => action.id == 'strategies').isPrimary,
-        isTrue,
-      );
+      expect([for (final action in actions) action.id], ['all']);
+      expect(actions.map((a) => a.id), isNot(contains('strategies')));
     },
   );
 
@@ -131,7 +125,7 @@ void main() {
 
       expect(
         [for (final action in actions) action.id],
-        ['ticket-history', 'recalculate', 'strategies'],
+        ['ticket-history', 'all'],
       );
       expect(actions.first.isPrimary, isTrue);
 
@@ -143,35 +137,35 @@ void main() {
         capabilities: capabilities(),
       );
 
-      expect(
-        [for (final action in withoutSavedTickets) action.id],
-        ['recalculate', 'strategies'],
-      );
-      expect(withoutSavedTickets.first.isPrimary, isTrue);
+      expect([for (final action in withoutSavedTickets) action.id], ['all']);
+      expect(withoutSavedTickets.first.isPrimary, isFalse);
     },
   );
 
-  test('match detail switches from Add to current ticket and remove', () {
-    expect(
-      ids(
-        const LectorDeckContext(
-          scope: LectorDeckScope.matchDetail,
-          ticketState: LectorDeckTicketState.canAdd,
+  test(
+    'match detail stays on readings and assistant even for historical draft states',
+    () {
+      expect(
+        ids(
+          const LectorDeckContext(
+            scope: LectorDeckScope.matchDetail,
+            ticketState: LectorDeckTicketState.canAdd,
+          ),
         ),
-      ),
-      ['add-to-ticket', 'readings', 'generator'],
-    );
+        ['readings', 'generator'],
+      );
 
-    expect(
-      ids(
-        const LectorDeckContext(
-          scope: LectorDeckScope.matchDetail,
-          ticketState: LectorDeckTicketState.selected,
+      expect(
+        ids(
+          const LectorDeckContext(
+            scope: LectorDeckScope.matchDetail,
+            ticketState: LectorDeckTicketState.selected,
+          ),
         ),
-      ),
-      ['current-ticket', 'readings', 'remove-from-ticket'],
-    );
-  });
+        ['readings', 'generator'],
+      );
+    },
+  );
 
   test('match detail hides disabled Add when another selection blocks it', () {
     expect(
@@ -181,7 +175,7 @@ void main() {
           ticketState: LectorDeckTicketState.blockedByAnotherSelection,
         ),
       ),
-      ['current-ticket', 'readings', 'generator'],
+      ['readings', 'generator'],
     );
   });
 }

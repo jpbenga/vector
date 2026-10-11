@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_components.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
+import 'lector_horizontal_transition.dart';
 
 class CopilotCalendar extends StatefulWidget {
   const CopilotCalendar({
@@ -26,6 +27,7 @@ class CopilotCalendar extends StatefulWidget {
 class _CopilotCalendarState extends State<CopilotCalendar> {
   final ScrollController _controller = ScrollController();
   late DateTime _windowCenterDate;
+  double _dayExtent = 0;
 
   @override
   void initState() {
@@ -43,12 +45,22 @@ class _CopilotCalendarState extends State<CopilotCalendar> {
 
     final selectedDay = _dayOnly(widget.selectedDate);
     final halfWindow = widget.visibleWindowDays ~/ 2;
-    final firstVisible = _windowCenterDate.subtract(Duration(days: halfWindow));
-    final lastVisible = _windowCenterDate.add(Duration(days: halfWindow));
+    final firstVisible = DateTime(
+      _windowCenterDate.year,
+      _windowCenterDate.month,
+      _windowCenterDate.day - halfWindow,
+    );
+    final lastVisible = DateTime(
+      _windowCenterDate.year,
+      _windowCenterDate.month,
+      _windowCenterDate.day + halfWindow,
+    );
     if (selectedDay.isBefore(firstVisible) ||
         selectedDay.isAfter(lastVisible)) {
       _windowCenterDate = selectedDay;
       WidgetsBinding.instance.addPostFrameCallback((_) => _centerWindow());
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _revealSelectedDay());
     }
   }
 
@@ -85,30 +97,38 @@ class _CopilotCalendarState extends State<CopilotCalendar> {
                       30.0,
                       74.0,
                     );
+                _dayExtent = tileWidth + separatorWidth;
 
-                return ListView.separated(
-                  key: const ValueKey('home-calendar-day-strip'),
-                  controller: _controller,
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(
-                    parent: AlwaysScrollableScrollPhysics(),
+                return LectorHorizontalTransition(
+                  position: DateTime.utc(
+                    _windowCenterDate.year,
+                    _windowCenterDate.month,
+                    _windowCenterDate.day,
+                  ).millisecondsSinceEpoch,
+                  child: ListView.separated(
+                    key: const ValueKey('home-calendar-day-strip'),
+                    controller: _controller,
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(),
+                    ),
+                    padding: EdgeInsets.zero,
+                    itemCount: dates.length,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(width: separatorWidth),
+                    itemBuilder: (context, index) {
+                      final date = dates[index];
+                      return SizedBox(
+                        width: tileWidth,
+                        child: _CopilotCalendarDay(
+                          date: date,
+                          today: today,
+                          isSelected: _isSameDay(date, widget.selectedDate),
+                          onTap: () => widget.onDateSelected(date),
+                        ),
+                      );
+                    },
                   ),
-                  padding: EdgeInsets.zero,
-                  itemCount: dates.length,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(width: separatorWidth),
-                  itemBuilder: (context, index) {
-                    final date = dates[index];
-                    return SizedBox(
-                      width: tileWidth,
-                      child: _CopilotCalendarDay(
-                        date: date,
-                        today: today,
-                        isSelected: _isSameDay(date, widget.selectedDate),
-                        onTap: () => widget.onDateSelected(date),
-                      ),
-                    );
-                  },
                 );
               },
             ),
@@ -129,6 +149,38 @@ class _CopilotCalendarState extends State<CopilotCalendar> {
 
     final maxScroll = _controller.position.maxScrollExtent;
     _controller.jumpTo(maxScroll / 2);
+  }
+
+  void _revealSelectedDay() {
+    if (!mounted || !_controller.hasClients || _dayExtent == 0) return;
+    final selected = widget.selectedDate;
+    final dayOffset = DateTime.utc(selected.year, selected.month, selected.day)
+        .difference(
+          DateTime.utc(
+            _windowCenterDate.year,
+            _windowCenterDate.month,
+            _windowCenterDate.day,
+          ),
+        )
+        .inDays;
+    final leading = (dayOffset + widget.visibleWindowDays ~/ 2) * _dayExtent;
+    final position = _controller.position;
+    final trailing = leading + _dayExtent - 1;
+    if (leading >= position.pixels &&
+        trailing <= position.pixels + position.viewportDimension) {
+      return;
+    }
+    final target = (leading - (position.viewportDimension - _dayExtent) / 2)
+        .clamp(0.0, position.maxScrollExtent);
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.jumpTo(target);
+    } else {
+      _controller.animateTo(
+        target,
+        duration: LectorHorizontalTransition.duration,
+        curve: Curves.easeInOutCubic,
+      );
+    }
   }
 
   DateTime _dayOnly(DateTime date) => DateTime(date.year, date.month, date.day);

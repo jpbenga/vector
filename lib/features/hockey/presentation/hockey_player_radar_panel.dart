@@ -1,3 +1,4 @@
+import '../../../core/widgets/lector_horizontal_transition.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/widgets/lector_player_radar.dart';
@@ -32,6 +33,7 @@ void showHockeyPlayerActivity(
 }) {
   showModalBottomSheet<void>(
     context: context,
+    sheetAnimationStyle: lectorSheetAnimationStyle(context),
     showDragHandle: true,
     isScrollControlled: true,
     builder: (context) => SafeArea(

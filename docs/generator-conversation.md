@@ -2,6 +2,12 @@
 
 ## Contrat
 
+La dictée envoie automatiquement le texte reconnu dans le même parcours que la
+saisie clavier : contexte de la session, message utilisateur, indicateur d'analyse
+et réponse. « Terminer » (ou la limite d'une minute) lance la transcription puis
+l'envoi, sans seconde validation. Une transcription vide, une annulation ou un
+changement de compte ne déclenche aucun message. Le champ est vidé par l'envoi.
+
 Le dialogue conserve un état de travail : contraintes actives, rencontres retenues,
 analyses, compositions et versions. Un message peut corriger une contrainte, consulter
 une autre journée ou comparer un objet antérieur. Il n'existe pas de détection de
@@ -76,9 +82,9 @@ d'API, une réponse incomplète ou une annulation ne déclenche pas cette correc
 ## Périmètres et limites
 
 - Pour moi et Radar conservent leur périmètre ; un Radar vide ne bascule jamais vers Tous.
-- La lecture de Tous n'active aucune préférence ou marché supplémentaire.
+- La lecture de Tous ne modifie aucune préférence enregistrée. La fonction démo traite les réglages de lectures et de marchés comme informatifs, sans exiger leur activation.
 - Des matchs en cours ou terminés restent consultables. Une publication ancienne,
-  un match déjà commencé ou un marché interdit ne devient jamais admissible à un nouveau ticket.
+  un match déjà commencé ou un marché non pris en charge ne devient jamais admissible à un nouveau ticket.
 - Le détail est lié à la publication recherchée. Une autre version disponible est
   signalée comme indisponible pour cette analyse, sans substitution ; le live est horodaté séparément.
 - Les sources existantes déterminent la disponibilité. Une demande peut explorer les
@@ -108,3 +114,33 @@ ne sont requis pour cette mise à jour. Un appel anonyme doit être refusé avec
 
 - [Function calling](https://developers.openai.com/api/docs/guides/function-calling)
 - [Conversation state](https://developers.openai.com/api/docs/guides/conversation-state)
+
+## Demandes sans blocage de configuration — démo du 10 octobre
+
+La fonction `lector-generator-workshop` attribue côté serveur la politique
+`configurationPolicy=request`. Le client et le modèle ne peuvent pas attribuer
+cette politique à la fonction principale. Le budget enregistré (100 € par défaut
+côté interface) n’est plus un plafond de mise pour les compositions de la démo.
+Les mises explicitement indiquées dans la conversation déterminent chaque ticket.
+Les réglages de marchés et de lectures ne bloquent plus la consultation des
+lectures publiées et des marchés pris en charge avec des cotes vérifiées.
+
+Pour moi conserve ses compétitions et son ensemble de rencontres ; Radar conserve
+sa liste native et ses filtres. Tous permet la recherche générale. L’agent ne peut
+ni modifier les préférences, ni inventer des cotes, ni placer un pari. Les contrôles
+de fraîcheur, de support direct au marché et de statut avant match restent actifs.
+
+Chaque cible de ticket possède maintenant `minSelections` et `maxSelections`,
+indépendamment du nombre de rencontres d’un classement. Un nombre exact utilise
+les deux bornes égales. La limite technique existante est de vingt rencontres par
+ticket ; six est seulement le défaut en absence de demande de nombre.
+
+Le pool de rencontres retenues s’applique au moteur de composition : un top dix
+peut alimenter trois tickets de 8, 6 et 3 matchs sans imposer dix matchs par ticket,
+ni ajouter des rencontres extérieures. Les anciennes sessions et cibles sans
+ces champs restent compatibles. Les révisions de nombre conservent la mise.
+
+Publication via l’action `lector-generator-configuration-update`, après CI sur la
+révision exacte, sans appel OpenAI de validation, sans migration SQL et sans
+modification des secrets. Le code de la fonction démo cible GPT-6 Luna ; les autres
+modèles du registre restent nécessaires à la lecture des anciens reçus.

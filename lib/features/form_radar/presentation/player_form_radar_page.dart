@@ -1,3 +1,4 @@
+import '../../../core/widgets/lector_horizontal_transition.dart';
 import '../domain/football_radar_selection.dart';
 import '../domain/radar_scope.dart';
 import '../../../core/widgets/lector_live_badge.dart';
@@ -129,6 +130,7 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
     final scope = widget.identityScope;
     final filter = await showModalBottomSheet<RadarAudienceFilter>(
       context: context,
+      sheetAnimationStyle: lectorSheetAnimationStyle(context),
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
@@ -294,41 +296,49 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
           }),
         ),
         const SizedBox(height: AppSpacing.md),
-        if (isTeamRadar)
-          _HotTeamsPanel(
-            matches: widget.matches,
-            entries: visibleTeams,
-            totalCount: cappedTeams.length,
-            page: teamPage,
-            onPageChanged: (page) => setState(() => _teamPage = page),
-          )
-        else
-          _HotPlayersPanel(
-            entries: visible,
-            totalCount: cappedPlayers.length,
-            hasRadarData: profiles.isNotEmpty,
-            page: playerPage,
-            onPageChanged: (page) => setState(() => _playerPage = page),
-            matches: widget.matches,
-            onOpenMatch: widget.onOpenMatch,
+        LectorHorizontalTransition(
+          position: _mode.index * _RadarScope.values.length + _scope.index,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (isTeamRadar)
+                _HotTeamsPanel(
+                  matches: widget.matches,
+                  entries: visibleTeams,
+                  totalCount: cappedTeams.length,
+                  page: teamPage,
+                  onPageChanged: (page) => setState(() => _teamPage = page),
+                )
+              else
+                _HotPlayersPanel(
+                  entries: visible,
+                  totalCount: cappedPlayers.length,
+                  hasRadarData: profiles.isNotEmpty,
+                  page: playerPage,
+                  onPageChanged: (page) => setState(() => _playerPage = page),
+                  matches: widget.matches,
+                  onOpenMatch: widget.onOpenMatch,
+                ),
+              const SizedBox(height: AppSpacing.lg),
+              if (isTeamRadar)
+                _TeamRadarMatchesSection(
+                  matches: teamRadarMatches,
+                  personalizedMatchesById: personalizedMatchesById,
+                  showProfileReadings: widget.showProfileReadings,
+                  onOpenMatch: widget.onOpenMatch,
+                )
+              else
+                _RadarMatchesSection(
+                  matches: radarMatches,
+                  entries: scoped,
+                  personalizedMatchesById: personalizedMatchesById,
+                  showProfileReadings: widget.showProfileReadings,
+                  onOpenMatch: widget.onOpenMatch,
+                ),
+              const SizedBox(height: AppSpacing.xl),
+            ],
           ),
-        const SizedBox(height: AppSpacing.lg),
-        if (isTeamRadar)
-          _TeamRadarMatchesSection(
-            matches: teamRadarMatches,
-            personalizedMatchesById: personalizedMatchesById,
-            showProfileReadings: widget.showProfileReadings,
-            onOpenMatch: widget.onOpenMatch,
-          )
-        else
-          _RadarMatchesSection(
-            matches: radarMatches,
-            entries: scoped,
-            personalizedMatchesById: personalizedMatchesById,
-            showProfileReadings: widget.showProfileReadings,
-            onOpenMatch: widget.onOpenMatch,
-          ),
-        const SizedBox(height: AppSpacing.xl),
+        ),
       ],
     );
   }

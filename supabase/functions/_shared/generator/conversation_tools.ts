@@ -1,3 +1,8 @@
+import {
+  mergeShortlistSources,
+  shortlistGroups,
+  type ShortlistScope,
+} from "./shortlist.ts";
 import { analysisCandidates, analysisContext } from "./analysis.ts";
 import { buildCatalog, type Source } from "./catalog.ts";
 import {
@@ -77,6 +82,11 @@ const tool = (
 });
 export const conversationTools = [
   tool(
+    "read_shortlist",
+    "Lire la sélection Shortlist authentifiée, toutes ses dates et ses sports, et obtenir son queryId. Aucune mutation. Les rencontres hors sélection ne font pas partie de cette préparation. Utiliser search_matches(view=shortlist) pour filtrer un sport ; lire Tous seulement après demande explicite d’élargissement.",
+    {},
+  ),
+  tool(
     "read_profile",
     "Lire le contexte et les préférences de cette session, ainsi que leur rôle informatif ou contraignant indiqué par le serveur. Aucune modification du profil.",
     {},
@@ -90,7 +100,7 @@ export const conversationTools = [
         type: "array",
         items: { type: "string", enum: ["football", "hockey"] },
       },
-      view: { type: "string", enum: ["profile", "radar", "all"] },
+      view: { type: "string", enum: ["profile", "radar", "all", "shortlist"] },
       radarKind: { type: "string", enum: ["teams", "players"] },
       query: { type: ["string", "null"] },
       offset: { type: "integer" },
@@ -297,20 +307,21 @@ export class ConversationReader {
   async query(
     date: string,
     sports: Sport[],
-    view: "profile" | "radar" | "all",
+    view: "profile" | "radar" | "all" | "shortlist",
     radarKind: "teams" | "players",
   ) {
     this.validDay(date);
+    if (view === "shortlist") return this.queryShortlist(sports);
     if (
       !sports.length || sports.length > 2 ||
       new Set(sports).size !== sports.length ||
       sports.some((s) => !["football", "hockey"].includes(s)) ||
-      !["profile", "radar", "all"].includes(view) ||
+      !["profile", "radar", "all", "shortlist"].includes(view) ||
       !["teams", "players"].includes(radarKind)
     ) throw new Error("Périmètre de lecture invalide.");
     const key = JSON.stringify([date, [...sports].sort(), view, radarKind]);
     if (!this.requests.has(key)) {
-      if (this.requests.size >= 8) {
+      if (this.requests.size >= (this.input.context.shortlist ? 32 : 8)) {
         throw new Error(
           "Trop de journées consultées dans un seul échange ; poursuivez la comparaison dans le message suivant.",
         );
@@ -319,10 +330,89 @@ export class ConversationReader {
     }
     return await this.requests.get(key)!;
   }
+  private async queryShortlist(sports: Sport[]) {
+    const scope = this.input.context.shortlist;
+    if (!scope) {
+      throw new Error("Aucune sélection Shortlist liée à cette conversation.");
+    }
+    if (
+      !sports.length ||
+      sports.some((s) => !["football", "hockey"].includes(s)) ||
+      new Set(sports).size !== sports.length
+    ) throw new Error("Sports Shortlist invalides.");
+    if (Date.parse(scope.expiresAt) <= this.input.now.getTime()) {
+      throw new Error("La Shortlist a expiré.");
+    }
+    const cacheKey = JSON.stringify([
+      "shortlist",
+      scope.sessionId,
+      scope.revision,
+      [...sports].sort(),
+    ]);
+    if (!this.requests.has(cacheKey)) {
+      this.requests.set(cacheKey, this.loadShortlistQuery(scope, sports));
+    }
+    return await this.requests.get(cacheKey)!;
+  }
+  private async loadShortlistQuery(
+    scope: ShortlistScope,
+    sports: Sport[],
+  ): Promise<ReadQuery> {
+    const groups = shortlistGroups(scope, sports), parts: ReadQuery[] = [];
+    for (const group of groups) {
+      this.validDay(group.date);
+      const part = await this.loadQuery(
+        group.date,
+        group.sports,
+        "shortlist",
+        "teams",
+      );
+      parts.push(part);
+    }
+    const allowed = new Set(groups.flatMap((g) => g.keys));
+    const matches = parts.flatMap((p) => p.matches).filter((m) =>
+      allowed.has(m.key)
+    );
+    const missing = [...allowed].filter((key) =>
+      !matches.some((m) => m.key === key)
+    ).map((key) => `Publication indisponible pour ${key}`);
+    const contexts = {
+      ...this.input.context,
+      view: "shortlist" as const,
+      scope: "discovery" as const,
+    };
+    const query: ReadQuery = {
+      id: `q${this.queries.size + 1}`,
+      date: this.input.date,
+      context: contexts,
+      sports,
+      sources: mergeShortlistSources(parts.flatMap((p) => p.sources)),
+      matches,
+      catalog: {
+        candidates: parts.flatMap((p) => p.catalog.candidates).filter((c) =>
+          allowed.has(matchKey(c.sport, c.matchId))
+        ),
+        matches: parts.flatMap((p) => p.catalog.matches ?? []).filter((m) =>
+          allowed.has(matchKey(m.sport, m.id))
+        ),
+        signals: parts.flatMap((p) => p.catalog.matches ?? []).filter((m) =>
+          allowed.has(matchKey(m.sport, m.id))
+        ).flatMap((m) => m.evidence),
+        sources: [...new Set(parts.flatMap((p) => p.catalog.sources))],
+        matchCount: matches.length,
+        radarCount: 0,
+        missing: [
+          ...new Set([...missing, ...parts.flatMap((p) => p.catalog.missing)]),
+        ],
+      },
+    };
+    this.queries.set(query.id, query);
+    return query;
+  }
   private async loadQuery(
     date: string,
     sports: Sport[],
-    view: "profile" | "radar" | "all",
+    view: "profile" | "radar" | "all" | "shortlist",
     radarKind: "teams" | "players",
   ) {
     const context: Context = {
@@ -334,7 +424,13 @@ export class ConversationReader {
     await this.progress(
       "sources",
       `Consultation de ${
-        view === "profile" ? "Pour moi" : view === "radar" ? "Radar" : "Tous"
+        view === "profile"
+          ? "Pour moi"
+          : view === "radar"
+          ? "Radar"
+          : view === "shortlist"
+          ? "Shortlist"
+          : "Tous"
       } · ${date} · ${sports.join(" + ")}`,
     );
     const day = this.port.daySources
@@ -382,7 +478,10 @@ export class ConversationReader {
           !Number.isFinite(Date.parse(kickoff)) ||
           calendarDay(kickoff, context.timezone) !== date
         ) continue;
-        if (view !== "all" && !known.has(key)) continue;
+        if (view === "shortlist" && !context.shortlist?.keys.includes(key)) {
+          continue;
+        }
+        if (view !== "all" && view !== "shortlist" && !known.has(key)) continue;
         seen.add(key);
         matches.push({
           key,
@@ -486,6 +585,32 @@ export class ConversationReader {
     }
     const args = obj(raw);
     switch (name) {
+      case "read_shortlist": {
+        exact(args, []);
+        const scope = this.input.context.shortlist;
+        if (!scope) {
+          return {
+            queryId: null,
+            items: [],
+            limitation: "Aucune sélection Shortlist liée à cette conversation.",
+          };
+        }
+        const q = await this.queryShortlist([
+          ...new Set(scope.items.map((i) => i.sport)),
+        ]);
+        return {
+          queryId: q.id,
+          sessionId: scope.sessionId,
+          revision: scope.revision,
+          expiresAt: scope.expiresAt,
+          expected: scope.keys.length,
+          resolved: q.matches.length,
+          matches: q.matches,
+          missing: q.catalog.missing,
+          semantics:
+            "Références de préparation, données actualisées ; aucune écriture.",
+        };
+      }
       case "read_profile":
         exact(args, []);
         return {
@@ -761,7 +886,7 @@ export class ConversationReader {
         const response = obj(
           await this.port.matchData?.(
             m.sport,
-            q.date,
+            calendarDay(m.kickoff, q.context.timezone),
             m.id,
             m.capturedAt,
             m.sourceId,
@@ -904,6 +1029,7 @@ export class ConversationReader {
           context,
           intent,
           sources: query.sources,
+          ...(context.view === "shortlist" ? { catalog: query.catalog } : {}),
           message: this.input.message,
           now: this.input.now,
           id: this.input.id,

@@ -401,7 +401,6 @@ void main() {
       final files = [
         File('lib/features/matches/presentation/matches_home_page.dart'),
         File('lib/features/matches/presentation/match_detail_page.dart'),
-        File('lib/features/tickets/presentation/ticket_generator_page.dart'),
       ];
 
       final forbiddenPatterns = [

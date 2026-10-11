@@ -3,6 +3,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'lector_horizontal_transition.dart';
+
 import '../theme/app_colors.dart';
 import '../theme/app_components.dart';
 import '../theme/app_radius.dart';
@@ -127,87 +129,102 @@ class _LectorHeadToHeadTimelinePanelState
             }),
           ),
           const SizedBox(height: 14),
-          if (widget.data.coverageNote != null) ...[
-            Text(widget.data.coverageNote!, style: theme.textTheme.bodySmall),
-            const SizedBox(height: 8),
-          ],
-          if (meetings.isEmpty)
-            _EmptyTimeline(description: widget.data.emptyDescription)
-          else ...[
-            _DuelSummary(data: widget.data, meetings: meetings),
-            const SizedBox(height: 17),
-            Row(
+          LectorHorizontalTransition(
+            position: _scope.index,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(Icons.graphic_eq_rounded, color: context.brand.accent),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                if (widget.data.coverageNote != null) ...[
+                  Text(
+                    widget.data.coverageNote!,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                if (meetings.isEmpty)
+                  _EmptyTimeline(description: widget.data.emptyDescription)
+                else ...[
+                  _DuelSummary(data: widget.data, meetings: meetings),
+                  const SizedBox(height: 17),
+                  Row(
                     children: [
-                      Text(
-                        'Confrontations récentes',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: context.textColors.primary,
-                          fontWeight: FontWeight.w900,
+                      Icon(
+                        Icons.graphic_eq_rounded,
+                        color: context.brand.accent,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Confrontations récentes',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                color: context.textColors.primary,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            Text(
+                              'Chaque carte résume le scénario réel d’un match.',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: context.textColors.secondary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       Text(
-                        'Chaque carte résume le scénario réel d’un match.',
-                        style: theme.textTheme.bodySmall?.copyWith(
+                        'Plus ancien →',
+                        style: theme.textTheme.labelSmall?.copyWith(
                           color: context.textColors.secondary,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ],
                   ),
-                ),
-                Text(
-                  'Plus ancien →',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: context.textColors.secondary,
-                    fontWeight: FontWeight.w800,
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 145,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: meetings.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 8),
+                      itemBuilder: (context, index) {
+                        final meeting = meetings[index];
+                        return _MeetingCard(
+                          meeting: meeting,
+                          firstTeamId: meeting.orderByVenue
+                              ? meeting.awayTeamId
+                              : widget.data.firstTeamId,
+                          selected:
+                              _meetingKey(meeting) == _meetingKey(selected!),
+                          onTap: () => setState(
+                            () => _selectedMeetingKey = _meetingKey(meeting),
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 16),
+                  _SelectedMatchDetail(
+                    meeting: selected!,
+                    firstTeamId: selected.orderByVenue
+                        ? selected.awayTeamId
+                        : widget.data.firstTeamId,
+                    firstTeamName: widget.data.firstTeamName,
+                    secondTeamName: widget.data.secondTeamName,
+                    firstTeamLogoUrl: selected.orderByVenue
+                        ? selected.awayTeamLogoUrl
+                        : widget.data.firstTeamLogoUrl,
+                    secondTeamLogoUrl: selected.orderByVenue
+                        ? selected.homeTeamLogoUrl
+                        : widget.data.secondTeamLogoUrl,
+                  ),
+                ],
               ],
             ),
-            const SizedBox(height: 10),
-            SizedBox(
-              height: 145,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: meetings.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final meeting = meetings[index];
-                  return _MeetingCard(
-                    meeting: meeting,
-                    firstTeamId: meeting.orderByVenue
-                        ? meeting.awayTeamId
-                        : widget.data.firstTeamId,
-                    selected: _meetingKey(meeting) == _meetingKey(selected!),
-                    onTap: () => setState(
-                      () => _selectedMeetingKey = _meetingKey(meeting),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
-            _SelectedMatchDetail(
-              meeting: selected!,
-              firstTeamId: selected.orderByVenue
-                  ? selected.awayTeamId
-                  : widget.data.firstTeamId,
-              firstTeamName: widget.data.firstTeamName,
-              secondTeamName: widget.data.secondTeamName,
-              firstTeamLogoUrl: selected.orderByVenue
-                  ? selected.awayTeamLogoUrl
-                  : widget.data.firstTeamLogoUrl,
-              secondTeamLogoUrl: selected.orderByVenue
-                  ? selected.homeTeamLogoUrl
-                  : widget.data.secondTeamLogoUrl,
-            ),
-          ],
+          ),
         ],
       ),
     );

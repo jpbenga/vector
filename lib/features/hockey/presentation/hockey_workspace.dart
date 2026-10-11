@@ -1,3 +1,4 @@
+import '../../../core/widgets/lector_horizontal_transition.dart';
 import '../../../core/widgets/lector_recorded_radar_panel.dart';
 import '../../../core/domain/lector_radar_contributions.dart';
 import '../../../app/sports/generator_radar_context.dart';
@@ -356,7 +357,12 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
           _ => 'Aucune rencontre hockey chargée',
         };
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LectorHorizontalTransition(
+    position: _section.index,
+    child: _buildWorkspace(context),
+  );
+
+  Widget _buildWorkspace(BuildContext context) {
     final auth = getIt.isRegistered<SupabaseAuthController>()
         ? getIt<SupabaseAuthController>()
         : null;
@@ -539,44 +545,59 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
                 ),
                 const SizedBox(height: 12),
               ],
-              if (_section == LectorWorkspaceSection.forMe)
-                _forMe(context, auth)
-              else if (_section == LectorWorkspaceSection.generator &&
-                  const bool.fromEnvironment('LECTOR_GENERATOR_UI'))
-                _generator(context)
-              else if (_section == LectorWorkspaceSection.bilan &&
-                  const String.fromEnvironment('LECTOR_GENERATOR_ENDPOINT') ==
-                      'lector-generator-workshop')
-                GeneratorBilanSection(
-                  scope: _scope ?? const IdentityScope.guest('unresolved'),
-                  readings: _notice(
-                    'Le bilan des lectures hockey sera disponible après validation. Vos tickets et sélections conservés sont accessibles dans Mes suivis.',
-                  ),
-                )
-              else if (_section == LectorWorkspaceSection.generator ||
-                  _section == LectorWorkspaceSection.bilan)
-                _notice(
-                  'Cette fonctionnalité sera disponible après la validation des lectures hockey.',
-                )
-              else if (_loading)
-                _loadingContent()
-              else if (_failed && _feed?.snapshot == null)
-                LectorReadUnavailable(exhausted: _recovery.exhausted)
-              else if (_feed?.snapshot == null)
-                _notice(_unavailable)
-              else if (_section == LectorWorkspaceSection.radar)
-                _radar(context)
-              else
-                LectorTemporalFeed<SportFixture>(
-                  key: ValueKey('hockey-time-$_date'),
-                  items: _dayMatches,
-                  phaseOf: (f) => (_live?.display(f) ?? f).temporal.phase,
-                  sectionBuilder: (context, items, phase) => _matches(
-                    context,
-                    items,
-                    forceExpanded: phase == LectorMatchPhase.live,
-                  ),
+              LectorHorizontalTransition(
+                position: DateTime.utc(
+                  _date.year,
+                  _date.month,
+                  _date.day,
+                ).millisecondsSinceEpoch,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (_section == LectorWorkspaceSection.forMe)
+                      _forMe(context, auth)
+                    else if (_section == LectorWorkspaceSection.generator &&
+                        const bool.fromEnvironment('LECTOR_GENERATOR_UI'))
+                      _generator(context)
+                    else if (_section == LectorWorkspaceSection.bilan &&
+                        const String.fromEnvironment(
+                              'LECTOR_GENERATOR_ENDPOINT',
+                            ) ==
+                            'lector-generator-workshop')
+                      GeneratorBilanSection(
+                        scope:
+                            _scope ?? const IdentityScope.guest('unresolved'),
+                        readings: _notice(
+                          'Le bilan des lectures hockey sera disponible après validation. Vos tickets et sélections conservés sont accessibles dans Mes suivis.',
+                        ),
+                      )
+                    else if (_section == LectorWorkspaceSection.generator ||
+                        _section == LectorWorkspaceSection.bilan)
+                      _notice(
+                        'Cette fonctionnalité sera disponible après la validation des lectures hockey.',
+                      )
+                    else if (_loading)
+                      _loadingContent()
+                    else if (_failed && _feed?.snapshot == null)
+                      LectorReadUnavailable(exhausted: _recovery.exhausted)
+                    else if (_feed?.snapshot == null)
+                      _notice(_unavailable)
+                    else if (_section == LectorWorkspaceSection.radar)
+                      _radar(context)
+                    else
+                      LectorTemporalFeed<SportFixture>(
+                        key: ValueKey('hockey-time-$_date'),
+                        items: _dayMatches,
+                        phaseOf: (f) => (_live?.display(f) ?? f).temporal.phase,
+                        sectionBuilder: (context, items, phase) => _matches(
+                          context,
+                          items,
+                          forceExpanded: phase == LectorMatchPhase.live,
+                        ),
+                      ),
+                  ],
                 ),
+              ),
             ],
           ),
         ),
@@ -609,7 +630,6 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
         },
       );
     },
-    onPreferences: _openSpace,
     onOpenMatch: (pick) => openGeneratorMatch(context, pick),
   );
 
@@ -921,7 +941,10 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
         }),
       ),
       const SizedBox(height: 12),
-      if (_teamsSelected) _teamRadar(context) else _playerRadar(context),
+      LectorHorizontalTransition(
+        position: _teamsSelected ? 1 : 0,
+        child: _teamsSelected ? _teamRadar(context) : _playerRadar(context),
+      ),
     ],
   );
 
@@ -1183,6 +1206,9 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
                         results: top[i].row.formHistory,
                         onMatchTap: (index) => showModalBottomSheet<void>(
                           context: context,
+                          sheetAnimationStyle: lectorSheetAnimationStyle(
+                            context,
+                          ),
                           showDragHandle: true,
                           isScrollControlled: true,
                           builder: (_) => SafeArea(
@@ -1234,6 +1260,7 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
 
   void _showRules() => showModalBottomSheet<void>(
     context: context,
+    sheetAnimationStyle: lectorSheetAnimationStyle(context),
     showDragHandle: true,
     isScrollControlled: true,
     builder: (context) => SafeArea(
@@ -1279,27 +1306,36 @@ class _HockeyRulesState extends State<_HockeyRules> {
           ],
         ),
         const SizedBox(height: 12),
-        if (_section == 1)
-          for (final reading in module.readings) _readingCard(context, reading),
-        if (_section == 2)
-          for (final scenario in module.scenarios)
-            LectorMatchCardFrame(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    scenario.label,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  Text(scenario.description),
-                  for (final id in scenario.requiredReadingIds)
-                    Text(
-                      '• ${module.readings.firstWhere((r) => r.id == id).label}',
+        LectorHorizontalTransition(
+          position: _section,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_section == 1)
+                for (final reading in module.readings)
+                  _readingCard(context, reading),
+              if (_section == 2)
+                for (final scenario in module.scenarios)
+                  LectorMatchCardFrame(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          scenario.label,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        Text(scenario.description),
+                        for (final id in scenario.requiredReadingIds)
+                          Text(
+                            '• ${module.readings.firstWhere((r) => r.id == id).label}',
+                          ),
+                        const Text('Toutes requises pour la même équipe.'),
+                      ],
                     ),
-                  const Text('Toutes requises pour la même équipe.'),
-                ],
-              ),
-            ),
+                  ),
+            ],
+          ),
+        ),
       ],
     );
   }

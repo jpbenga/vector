@@ -19,7 +19,6 @@ import 'package:copilot/features/matches/domain/match_context_key_models.dart';
 import 'package:copilot/features/matches/domain/market_assessment.dart';
 import 'package:copilot/features/matches/domain/structural_tiers/tier_models.dart';
 import 'package:copilot/features/matches/presentation/lector_space_page.dart';
-import 'package:copilot/features/matches/presentation/lector_strategies_page.dart';
 import 'package:copilot/features/matches/presentation/matches_home_page.dart';
 import 'package:copilot/features/matches/presentation/match_detail_page.dart';
 import 'package:copilot/features/matches/presentation/widgets/match_feed_card.dart';
@@ -2806,7 +2805,7 @@ void main() {
       await tester.tap(find.text('Générateur'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Mes tickets'), findsOneWidget);
+      expect(find.text('Votre préparation'), findsOneWidget);
       expect(find.text('Tous les matchs'), findsNothing);
     });
 
@@ -2845,7 +2844,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Mes tickets'), findsOneWidget);
+      expect(find.text('Votre préparation'), findsOneWidget);
       expect(
         find.byKey(const ValueKey('lector-floating-dock-Générateur')),
         findsNothing,
@@ -2881,104 +2880,6 @@ void main() {
     });
 
     testWidgets(
-      'match detail deck adds then opens the current ticket locally',
-      (tester) async {
-        final market = _doubleChanceMarket();
-        final recommendedMarket = RecommendedMarket(
-          market: market,
-          selection: market.selections.first,
-        );
-
-        await _pumpPage(
-          tester,
-          strategies: [_strategy()],
-          repository: _FakeMatchFeedRepository(
-            opportunities: [
-              _opportunity(
-                match: _match(
-                  id: 'bodo-rosenborg',
-                  homeName: 'Bodo/Glimt',
-                  awayName: 'Rosenborg',
-                  competitionName: 'Eliteserien',
-                  kickoff: _relativeKickoff(0, hour: 14),
-                  analysis: _analysisData(
-                    homeName: 'Bodo/Glimt',
-                    awayName: 'Rosenborg',
-                  ),
-                ),
-                retainedTheses: [
-                  _thesis(
-                    id: 'level_gap',
-                    title: 'Domination attendue',
-                    status: MatchThesisStatus.recommended,
-                    recommendedMarket: recommendedMarket,
-                  ),
-                ],
-                recommendedMarket: recommendedMarket,
-              ),
-            ],
-          ),
-        );
-
-        await tester.tap(find.text('Bodo/Glimt').first);
-        await tester.pumpAndSettle();
-
-        expect(find.text('MATCH À SUIVRE'), findsOneWidget);
-        expect(find.text('MARCHÉS ASSOCIÉS'), findsNothing);
-        expect(find.text('Bodo/Glimt ou nul'), findsNothing);
-        expect(find.text('1.42'), findsNothing);
-
-        await tester.tap(
-          find.byKey(const ValueKey('lector-floating-dock-logo')),
-        );
-        await tester.pumpAndSettle();
-
-        expect(
-          find.byKey(const ValueKey('lector-floating-dock-Ajouter au ticket')),
-          findsOneWidget,
-        );
-        expect(
-          find.byKey(const ValueKey('lector-floating-dock-Voir mon ticket')),
-          findsNothing,
-        );
-
-        await tester.tap(
-          find.byKey(const ValueKey('lector-floating-dock-Ajouter au ticket')),
-        );
-        await tester.pumpAndSettle();
-
-        expect(find.text('Mon ticket'), findsOneWidget);
-        expect(find.text('Voir le ticket'), findsOneWidget);
-
-        await tester.tap(
-          find.byKey(const ValueKey('lector-floating-dock-logo')),
-        );
-        await tester.pumpAndSettle();
-
-        expect(
-          find.byKey(const ValueKey('lector-floating-dock-Voir mon ticket')),
-          findsOneWidget,
-        );
-        expect(
-          find.byKey(const ValueKey('lector-floating-dock-Retirer')),
-          findsOneWidget,
-        );
-        expect(
-          find.byKey(const ValueKey('lector-floating-dock-Générateur')),
-          findsNothing,
-        );
-
-        await tester.tap(
-          find.byKey(const ValueKey('lector-floating-dock-Voir mon ticket')),
-        );
-        await tester.pumpAndSettle();
-
-        expect(find.text('Valider le ticket'), findsOneWidget);
-        expect(find.text('1X (Double chance)'), findsOneWidget);
-      },
-    );
-
-    testWidgets(
       'opens Lector space and appearance submenu instead of onboarding',
       (tester) async {
         final originalTheme = appThemeController.variant;
@@ -2995,7 +2896,7 @@ void main() {
         expect(find.text('Mes compétitions'), findsOneWidget);
         expect(find.text('Mes lectures'), findsOneWidget);
         expect(find.text('Mes scénarios'), findsOneWidget);
-        expect(find.text('Mes stratégies'), findsOneWidget);
+        expect(find.text('Mes stratégies'), findsNothing);
         expect(find.text('Onboarding'), findsNothing);
 
         await tester.scrollUntilVisible(find.text('Apparence'), 300);
@@ -3189,9 +3090,7 @@ void main() {
           ),
           home: LectorSpacePage(
             profile: _completedProfile(),
-            ticketStrategies: const [],
             onProfileChanged: (_) async {},
-            onTicketStrategiesChanged: (_) async {},
           ),
         ),
       );
@@ -3209,197 +3108,6 @@ void main() {
 
       expect(authController.didSignOut, isTrue);
     });
-
-    testWidgets('keeps Lector strategy cards compact on mobile', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
-
-      final strategies = [
-        _strategy().copyWith(id: 'strategy-1', name: 'Nouvelle stratégie'),
-        _strategy().copyWith(
-          id: 'strategy-2',
-          name: 'jackpot',
-          minimumSelections: 4,
-          maximumSelections: 7,
-          minimumIndividualOdds: 1.20,
-          maximumIndividualOdds: null,
-          clearsMaximumIndividualOdds: true,
-          minimumTotalOdds: 8,
-          maximumTotalOdds: 15,
-        ),
-        _strategy().copyWith(
-          id: 'strategy-3',
-          name: 'Vercel',
-          minimumSelections: 7,
-          maximumSelections: 12,
-          minimumIndividualOdds: 1.50,
-          maximumIndividualOdds: 6,
-          minimumTotalOdds: 10,
-          maximumTotalOdds: null,
-          clearsMaximumTotalOdds: true,
-        ),
-      ];
-
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: CopilotTheme.dark.copyWith(
-            splashFactory: NoSplash.splashFactory,
-          ),
-          home: LectorStrategiesPage(
-            strategies: strategies,
-            onTicketStrategiesChanged: (_) async {},
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      for (final strategy in strategies) {
-        final cardBox = tester.renderObject<RenderBox>(
-          find.byKey(ValueKey('lector-strategy-card-${strategy.id}')),
-        );
-        expect(cardBox.size.height, lessThanOrEqualTo(118));
-      }
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets(
-      'opens an existing strategy as a compact summary before editing',
-      (tester) async {
-        final strategy = _strategy().copyWith(
-          id: 'strategy-summary',
-          name: 'Nouvelle stratégie',
-          minimumSelections: 2,
-          maximumSelections: 3,
-          minimumIndividualOdds: 1.50,
-          maximumIndividualOdds: 2.19,
-          minimumTotalOdds: 2.50,
-          maximumTotalOdds: 3.10,
-        );
-
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: CopilotTheme.dark.copyWith(
-              splashFactory: NoSplash.splashFactory,
-            ),
-            home: LectorStrategiesPage(
-              strategies: [strategy],
-              onTicketStrategiesChanged: (_) async {},
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.text('Nouvelle stratégie').first);
-        await tester.pumpAndSettle();
-
-        expect(find.byKey(const ValueKey('strategy-summary')), findsOneWidget);
-        expect(
-          find.byKey(const ValueKey('ticket-strategy-name-field')),
-          findsNothing,
-        );
-        expect(find.text('Sélections'), findsWidgets);
-        expect(find.text('2 – 3'), findsWidgets);
-        expect(find.text('1,50 – 2,19'), findsWidgets);
-        expect(find.text('2,50 – 3,10'), findsWidgets);
-        expect(find.text('Modifier'), findsOneWidget);
-
-        await tester.tap(find.text('Modifier'));
-        await tester.pumpAndSettle();
-
-        expect(
-          find.byKey(const ValueKey('ticket-strategy-name-field')),
-          findsOneWidget,
-        );
-        expect(find.text('Valider les modifications'), findsOneWidget);
-      },
-    );
-
-    testWidgets('confirms and persists strategy deletion from the sheet', (
-      tester,
-    ) async {
-      final strategies = [
-        _strategy().copyWith(id: 'strategy-delete', name: 'À supprimer'),
-        _strategy().copyWith(id: 'strategy-keep', name: 'À garder'),
-      ];
-      var savedStrategies = <TicketStrategy>[];
-
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: CopilotTheme.dark.copyWith(
-            splashFactory: NoSplash.splashFactory,
-          ),
-          home: LectorStrategiesPage(
-            strategies: strategies,
-            onTicketStrategiesChanged: (next) async {
-              savedStrategies = next;
-            },
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('À supprimer').first);
-      await tester.pumpAndSettle();
-      await tester.tap(
-        find.byKey(const ValueKey('delete-ticket-strategy-button')),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Supprimer cette stratégie ?'), findsOneWidget);
-
-      await tester.tap(
-        find.byKey(const ValueKey('confirm-delete-ticket-strategy-button')),
-      );
-      await tester.pumpAndSettle();
-
-      expect(savedStrategies, hasLength(1));
-      expect(savedStrategies.single.id, 'strategy-keep');
-      expect(find.text('À supprimer'), findsNothing);
-      expect(find.text('À garder'), findsOneWidget);
-    });
-
-    testWidgets(
-      'persists active state changes from the strategy sheet header',
-      (tester) async {
-        final strategy = _strategy().copyWith(
-          id: 'strategy-toggle',
-          name: 'À désactiver',
-          isActive: true,
-        );
-        var savedStrategies = <TicketStrategy>[];
-
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: CopilotTheme.dark.copyWith(
-              splashFactory: NoSplash.splashFactory,
-            ),
-            home: LectorStrategiesPage(
-              strategies: [strategy],
-              onTicketStrategiesChanged: (next) async {
-                savedStrategies = next;
-              },
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.text('À désactiver').first);
-        await tester.pumpAndSettle();
-        await tester.tap(find.byType(Switch).last);
-        await tester.pumpAndSettle();
-
-        expect(savedStrategies, hasLength(1));
-        expect(savedStrategies.single.id, 'strategy-toggle');
-        expect(savedStrategies.single.isActive, isFalse);
-        expect(find.text('Inactif'), findsOneWidget);
-      },
-    );
   });
 }
 

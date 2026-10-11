@@ -1,3 +1,4 @@
+import 'lector_horizontal_transition.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../theme/app_components.dart';
@@ -493,6 +494,7 @@ class LectorStandingPaceComparison extends StatelessWidget {
               tooltip: 'Comprendre le repère commun',
               onPressed: () => showModalBottomSheet<void>(
                 context: context,
+                sheetAnimationStyle: lectorSheetAnimationStyle(context),
                 showDragHandle: true,
                 builder: (context) => SafeArea(
                   child: Padding(
@@ -853,6 +855,7 @@ Future<int?> showLectorStandingPicker(
   required List<LectorStandingPickerOption> options,
 }) => showModalBottomSheet<int>(
   context: context,
+  sheetAnimationStyle: lectorSheetAnimationStyle(context),
   isScrollControlled: true,
   showDragHandle: true,
   backgroundColor: context.surfaces.surface,

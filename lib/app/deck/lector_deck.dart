@@ -208,63 +208,15 @@ class LectorDeckActionResolver {
     LectorDeckContext context,
     LectorDeckCapabilities capabilities,
   ) {
-    if (context.hasGeneratorResults) {
-      return [
-        if (context.hasSavedTickets && capabilities.onOpenTicketHistory != null)
-          _action(
-            id: 'ticket-history',
-            icon: Icons.history_rounded,
-            label: 'Historique',
-            type: LectorDeckActionType.navigation,
-            onPressed: capabilities.onOpenTicketHistory!,
-            isPrimary: true,
-          ),
-        if (capabilities.onRecalculate != null)
-          _action(
-            id: 'recalculate',
-            icon: Icons.refresh_rounded,
-            label: 'Recalculer',
-            type: LectorDeckActionType.action,
-            onPressed: capabilities.onRecalculate!,
-            isPrimary: !context.hasSavedTickets,
-          ),
-        if (capabilities.onOpenStrategies != null)
-          _action(
-            id: 'strategies',
-            icon: Icons.tune_rounded,
-            label: 'Stratégies',
-            type: LectorDeckActionType.navigation,
-            onPressed: capabilities.onOpenStrategies!,
-          ),
-      ];
-    }
-
     return [
-      if (!context.hasActiveStrategies && capabilities.onOpenStrategies != null)
+      if (context.hasSavedTickets && capabilities.onOpenTicketHistory != null)
         _action(
-          id: 'strategies',
-          icon: Icons.tune_rounded,
-          label: 'Stratégies',
+          id: 'ticket-history',
+          icon: Icons.history_rounded,
+          label: 'Tickets enregistrés',
           type: LectorDeckActionType.navigation,
-          onPressed: capabilities.onOpenStrategies!,
+          onPressed: capabilities.onOpenTicketHistory!,
           isPrimary: true,
-        ),
-      if (capabilities.onRecalculate != null)
-        _action(
-          id: 'recalculate',
-          icon: Icons.refresh_rounded,
-          label: 'Recalculer',
-          type: LectorDeckActionType.action,
-          onPressed: capabilities.onRecalculate!,
-          isPrimary: context.hasActiveStrategies,
-        ),
-      if (context.hasActiveStrategies && capabilities.onOpenStrategies != null)
-        _action(
-          id: 'strategies',
-          icon: Icons.tune_rounded,
-          label: 'Stratégies',
-          type: LectorDeckActionType.navigation,
-          onPressed: capabilities.onOpenStrategies!,
         ),
       if (capabilities.onOpenAll != null)
         _action(
@@ -281,55 +233,7 @@ class LectorDeckActionResolver {
     LectorDeckContext context,
     LectorDeckCapabilities capabilities,
   ) {
-    return switch (context.ticketState) {
-      LectorDeckTicketState.canAdd => [
-        if (capabilities.onAddToTicket != null)
-          _action(
-            id: 'add-to-ticket',
-            icon: Icons.add_rounded,
-            label: 'Ajouter au ticket',
-            type: LectorDeckActionType.action,
-            onPressed: capabilities.onAddToTicket!,
-            isPrimary: true,
-          ),
-        ..._matchDetailSecondary(capabilities, includeGenerator: true),
-      ],
-      LectorDeckTicketState.selected => [
-        if (capabilities.onOpenCurrentTicket != null)
-          _action(
-            id: 'current-ticket',
-            icon: Icons.confirmation_number_outlined,
-            label: 'Voir mon ticket',
-            type: LectorDeckActionType.action,
-            onPressed: capabilities.onOpenCurrentTicket!,
-            isPrimary: true,
-          ),
-        if (capabilities.onOpenReadings != null) _readings(capabilities),
-        if (capabilities.onRemoveFromTicket != null)
-          _action(
-            id: 'remove-from-ticket',
-            icon: Icons.close_rounded,
-            label: 'Retirer',
-            type: LectorDeckActionType.action,
-            onPressed: capabilities.onRemoveFromTicket!,
-          ),
-      ],
-      LectorDeckTicketState.blockedByAnotherSelection => [
-        if (capabilities.onOpenCurrentTicket != null)
-          _action(
-            id: 'current-ticket',
-            icon: Icons.confirmation_number_outlined,
-            label: 'Voir mon ticket',
-            type: LectorDeckActionType.action,
-            onPressed: capabilities.onOpenCurrentTicket!,
-            isPrimary: true,
-          ),
-        ..._matchDetailSecondary(capabilities, includeGenerator: true),
-      ],
-      LectorDeckTicketState.unavailable => [
-        ..._matchDetailSecondary(capabilities, includeGenerator: true),
-      ],
-    };
+    return _matchDetailSecondary(capabilities, includeGenerator: true);
   }
 
   List<LectorDeckAction> _matchDetailSecondary(

@@ -1,3 +1,4 @@
+import '../../core/widgets/lector_horizontal_transition.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -22,6 +23,7 @@ Future<void> showLectorAccountSheet(BuildContext context) {
       : null;
   return showModalBottomSheet<void>(
     context: context,
+    sheetAnimationStyle: lectorSheetAnimationStyle(context),
     showDragHandle: false,
     isScrollControlled: true,
     backgroundColor: context.surfaces.surface,

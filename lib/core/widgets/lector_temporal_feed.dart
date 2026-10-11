@@ -1,3 +1,4 @@
+import 'lector_horizontal_transition.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_components.dart';
 import '../domain/lector_temporal_state.dart';
@@ -108,47 +109,55 @@ class _LectorTemporalFeedState<T> extends State<LectorTemporalFeed<T>> {
           ),
           const SizedBox(height: 12),
         ],
-        if (widget.items.isEmpty)
-          widget.sectionBuilder(context, const [], null),
-        for (final p in phases)
-          if (groups[p]!.isNotEmpty) ...[
-            Row(
-              children: [
-                Icon(
-                  switch (p) {
-                    LectorMatchPhase.live => Icons.circle,
-                    LectorMatchPhase.upcoming => Icons.schedule_rounded,
-                    _ => Icons.flag_outlined,
-                  },
-                  size: p == LectorMatchPhase.live ? 10 : 19,
-                  color: p == LectorMatchPhase.live
-                      ? context.semantic.live
-                      : context.textColors.secondary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    p == LectorMatchPhase.live
-                        ? 'EN DIRECT'
-                        : label(p).toUpperCase(),
-                    style: TextStyle(
-                      color: p == LectorMatchPhase.live
-                          ? context.semantic.live
-                          : context.textColors.secondary,
-                      fontWeight: FontWeight.w900,
-                    ),
+        LectorHorizontalTransition(
+          position: selected == null ? 0 : selected.index + 1,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (widget.items.isEmpty)
+                widget.sectionBuilder(context, const [], null),
+              for (final p in phases)
+                if (groups[p]!.isNotEmpty) ...[
+                  Row(
+                    children: [
+                      Icon(
+                        switch (p) {
+                          LectorMatchPhase.live => Icons.circle,
+                          LectorMatchPhase.upcoming => Icons.schedule_rounded,
+                          _ => Icons.flag_outlined,
+                        },
+                        size: p == LectorMatchPhase.live ? 10 : 19,
+                        color: p == LectorMatchPhase.live
+                            ? context.semantic.live
+                            : context.textColors.secondary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          p == LectorMatchPhase.live
+                              ? 'EN DIRECT'
+                              : label(p).toUpperCase(),
+                          style: TextStyle(
+                            color: p == LectorMatchPhase.live
+                                ? context.semantic.live
+                                : context.textColors.secondary,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        '${groups[p]!.length} match${groups[p]!.length > 1 ? 's' : ''}',
+                        style: TextStyle(color: context.textColors.secondary),
+                      ),
+                    ],
                   ),
-                ),
-                Text(
-                  '${groups[p]!.length} match${groups[p]!.length > 1 ? 's' : ''}',
-                  style: TextStyle(color: context.textColors.secondary),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            widget.sectionBuilder(context, groups[p]!, p),
-            const SizedBox(height: 18),
-          ],
+                  const SizedBox(height: 8),
+                  widget.sectionBuilder(context, groups[p]!, p),
+                  const SizedBox(height: 18),
+                ],
+            ],
+          ),
+        ),
       ],
     );
   }

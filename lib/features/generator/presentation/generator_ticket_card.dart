@@ -1,3 +1,4 @@
+import '../../../core/widgets/lector_horizontal_transition.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_components.dart';
@@ -576,6 +577,7 @@ Future<void> showGeneratorTicketDetail(
   }
   return showModalBottomSheet<void>(
     context: context,
+    sheetAnimationStyle: lectorSheetAnimationStyle(context),
     isScrollControlled: true,
     showDragHandle: true,
     useSafeArea: true,

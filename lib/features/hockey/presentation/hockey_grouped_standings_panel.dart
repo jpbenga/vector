@@ -1,3 +1,4 @@
+import '../../../core/widgets/lector_horizontal_transition.dart';
 import 'package:flutter/material.dart';
 import '../../../core/sports/domain/sport.dart';
 import '../../../core/sports/domain/sport_competition_context.dart';
@@ -582,6 +583,9 @@ class _HockeyGroupedStandingsPanelState
     footer: Text(
       'Dernière collecte : ${data.collectedAt.toLocal().day}/${data.collectedAt.toLocal().month}. Ce classement ne reconstitue pas la situation au jour d’un ancien match.${_scope == 0 ? '' : ' Classement calculé par points, différence de buts, puis buts marqués ; les départages officiels peuvent différer.'}${c.venueStandings?.status == 'partial' ? ' Couverture partielle : bilans en cours de vérification.' : ''}',
     ),
-    child: activeGroup < 0 ? overview() : table(activeGroup),
+    child: LectorHorizontalTransition(
+      position: activeGroup < 0 ? _level : activeGroup + 3,
+      child: activeGroup < 0 ? overview() : table(activeGroup),
+    ),
   );
 }

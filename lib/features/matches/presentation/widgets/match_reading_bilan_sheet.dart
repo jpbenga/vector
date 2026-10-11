@@ -1,3 +1,4 @@
+import '../../../../core/widgets/lector_horizontal_transition.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -16,6 +17,7 @@ Future<void> showMatchReadingBilan(
   VoidCallback? onOpenMatch,
 }) => showModalBottomSheet<void>(
   context: context,
+  sheetAnimationStyle: lectorSheetAnimationStyle(context),
   isScrollControlled: true,
   useSafeArea: true,
   showDragHandle: true,

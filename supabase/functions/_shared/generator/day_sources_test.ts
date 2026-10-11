@@ -95,3 +95,41 @@ Deno.test("a changed publication, an unexpected match, a duplicate or a wrong da
     }));
   }
 });
+
+Deno.test("Shortlist validates the full manifest but transports only selected references without profile filters", async () => {
+  let parameters: Record<string, unknown> = {}, requested: string[] = [];
+  const shortlist: Context = {
+    ...context,
+    view: "shortlist",
+    preferences: {
+      hockey: { competitions: ["ignored"], readings: ["ignored"], markets: [] },
+    },
+    shortlist: {
+      sessionId: "11111111-1111-4111-8111-111111111111",
+      revision: 1,
+      expiresAt: "2026-10-11T00:00:00Z",
+      keys: ["hockey:2", "hockey:8"],
+      items: [{ key: "hockey:2", sport: "hockey", fixtureId: "2", date: day }, {
+        key: "hockey:8",
+        sport: "hockey",
+        fixtureId: "8",
+        date: day,
+      }],
+    },
+  };
+  const result = await loadDaySources(shortlist, day, ["hockey"], {
+    manifest: async (p) => {
+      parameters = p;
+      return await port.manifest(p);
+    },
+    page: async (p) => {
+      requested.push(...(p.p_matches as DayMatchRef[]).map((r) => r.key));
+      return await port.page(p);
+    },
+  });
+  assert.equal(parameters.p_competitions, null);
+  assert.equal(parameters.p_readings, null);
+  assert.deepEqual(requested, ["hockey:2", "hockey:8"]);
+  assert.equal(result.coverage.expected, 2);
+  assert.equal(result.coverage.loaded, 2);
+});

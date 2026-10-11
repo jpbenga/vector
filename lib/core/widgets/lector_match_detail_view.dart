@@ -3,6 +3,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_components.dart';
 import '../theme/app_radius.dart';
 import 'lector_responsive_layout.dart';
+import 'lector_horizontal_transition.dart';
 
 /// Both sports use this page, tab state and scroll/navigation structure.
 /// Modules provide factual content, never an alternative page layout.
@@ -13,13 +14,14 @@ class LectorMatchDetailView extends StatefulWidget {
     required this.tabBuilder,
     this.bottomNavigationBar,
     this.overlay,
+    this.preparationAction,
     this.stats,
     this.openStats = false,
     super.key,
   });
   final Widget hero, synthesis;
   final Widget Function(BuildContext, int) tabBuilder;
-  final Widget? bottomNavigationBar, overlay, stats;
+  final Widget? bottomNavigationBar, overlay, stats, preparationAction;
   final bool openStats;
   @override
   State<LectorMatchDetailView> createState() => _LectorMatchDetailViewState();
@@ -64,6 +66,7 @@ class _LectorMatchDetailViewState extends State<LectorMatchDetailView> {
                     children: [
                       LectorMatchTopBar(
                         onBack: () => Navigator.of(context).maybePop(),
+                        preparationAction: widget.preparationAction,
                       ),
                       const SizedBox(height: 10),
                       widget.hero,
@@ -79,10 +82,16 @@ class _LectorMatchDetailViewState extends State<LectorMatchDetailView> {
                         }),
                       ),
                       const SizedBox(height: 10),
-                      if (_selected == -1)
-                        widget.stats!
-                      else
-                        widget.tabBuilder(context, _selected),
+                      LectorHorizontalTransition(
+                        position: _selected == -1
+                            ? 1
+                            : _selected == 0 || widget.stats == null
+                            ? _selected
+                            : _selected + 1,
+                        child: _selected == -1
+                            ? widget.stats!
+                            : widget.tabBuilder(context, _selected),
+                      ),
                     ],
                   ),
                 ),
@@ -207,7 +216,12 @@ class _LectorStadiumPainter extends CustomPainter {
 }
 
 class LectorMatchTopBar extends StatelessWidget {
-  const LectorMatchTopBar({required this.onBack, super.key});
+  const LectorMatchTopBar({
+    required this.onBack,
+    this.preparationAction,
+    super.key,
+  });
+  final Widget? preparationAction;
 
   final VoidCallback onBack;
 
@@ -228,6 +242,7 @@ class LectorMatchTopBar extends StatelessWidget {
           ),
         ),
         const Spacer(),
+        ?preparationAction,
         IconButton(
           tooltip: 'Notifications',
           onPressed: () => ScaffoldMessenger.of(

@@ -15,25 +15,19 @@ import '../../../core/widgets/lector_space_widgets.dart';
 import '../../../core/widgets/lector_responsive_layout.dart';
 import '../../onboarding/domain/decision_profile.dart';
 import '../../onboarding/domain/decision_profile_catalogs.dart';
-import '../../tickets/domain/ticket_strategy.dart';
 import 'lector_competitions_page.dart';
 import 'lector_preferences_sheet.dart';
 import 'lector_scenarios_page.dart';
-import 'lector_strategies_page.dart';
 
 class LectorSpacePage extends StatefulWidget {
   const LectorSpacePage({
     required this.profile,
-    required this.ticketStrategies,
     required this.onProfileChanged,
-    required this.onTicketStrategiesChanged,
     super.key,
   });
 
   final DecisionProfile profile;
-  final List<TicketStrategy> ticketStrategies;
   final ProfilePreferenceSaver onProfileChanged;
-  final TicketStrategyPreferenceSaver onTicketStrategiesChanged;
 
   @override
   State<LectorSpacePage> createState() => _LectorSpacePageState();
@@ -41,13 +35,11 @@ class LectorSpacePage extends StatefulWidget {
 
 class _LectorSpacePageState extends State<LectorSpacePage> {
   late DecisionProfile _profile;
-  late List<TicketStrategy> _ticketStrategies;
 
   @override
   void initState() {
     super.initState();
     _profile = widget.profile;
-    _ticketStrategies = widget.ticketStrategies;
   }
 
   @override
@@ -55,9 +47,6 @@ class _LectorSpacePageState extends State<LectorSpacePage> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.profile != widget.profile) {
       _profile = widget.profile;
-    }
-    if (oldWidget.ticketStrategies != widget.ticketStrategies) {
-      _ticketStrategies = widget.ticketStrategies;
     }
   }
 
@@ -101,9 +90,6 @@ class _LectorSpacePageState extends State<LectorSpacePage> {
                     competitionCount: _selectedCompetitionCount(_profile),
                     readingCount: _selectedReadingCount(_profile),
                     scenarioCount: _selectedScenarioCount(_profile),
-                    activeStrategyCount: _activeStrategyCount(
-                      _ticketStrategies,
-                    ),
                     onAccount: () => _showUnavailable(
                       context,
                       'Les informations personnelles seront reliées au prochain écran compte.',
@@ -162,15 +148,6 @@ class _LectorSpacePageState extends State<LectorSpacePage> {
                         count: _selectedMarketCount(_profile),
                         color: context.semantic.success,
                         onTap: () => _openMarkets(context),
-                      ),
-                      LectorSpaceActionCard(
-                        icon: Icons.confirmation_number_outlined,
-                        title: 'Mes stratégies',
-                        subtitle:
-                            'Définissez comment Lector construit vos tickets.',
-                        count: _activeStrategyCount(_ticketStrategies),
-                        color: context.semantic.warning,
-                        onTap: () => _openStrategies(context),
                       ),
                     ],
                   ),
@@ -283,34 +260,11 @@ class _LectorSpacePageState extends State<LectorSpacePage> {
     );
   }
 
-  void _openStrategies(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (context) => LectorStrategiesPage(
-          strategies: _ticketStrategies,
-          onTicketStrategiesChanged: _handleTicketStrategiesChanged,
-        ),
-      ),
-    );
-  }
-
   Future<void> _handleProfileChanged(DecisionProfile profile) async {
     setState(() {
       _profile = profile;
     });
     await widget.onProfileChanged(profile);
-  }
-
-  Future<void> _handleTicketStrategiesChanged(
-    List<TicketStrategy> strategies,
-  ) async {
-    await widget.onTicketStrategiesChanged(strategies);
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _ticketStrategies = strategies;
-    });
   }
 }
 
@@ -321,7 +275,6 @@ class _ProfileCard extends StatelessWidget {
     required this.competitionCount,
     required this.readingCount,
     required this.scenarioCount,
-    required this.activeStrategyCount,
     required this.onAccount,
   });
 
@@ -330,7 +283,6 @@ class _ProfileCard extends StatelessWidget {
   final int competitionCount;
   final int readingCount;
   final int scenarioCount;
-  final int activeStrategyCount;
   final VoidCallback onAccount;
 
   @override
@@ -403,8 +355,7 @@ class _ProfileCard extends StatelessWidget {
                     Text(
                       '$competitionCount compétition${competitionCount > 1 ? 's' : ''} · '
                       '$readingCount lecture${readingCount > 1 ? 's' : ''} · '
-                      '$scenarioCount scénario${scenarioCount > 1 ? 's' : ''} · '
-                      '$activeStrategyCount stratégie${activeStrategyCount > 1 ? 's' : ''}',
+                      '$scenarioCount scénario${scenarioCount > 1 ? 's' : ''}',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -599,10 +550,6 @@ int _selectedMarketCount(DecisionProfile profile) {
   return MarketCatalog.enabledMarketIdsFor(
     profile.optionIdsFor('markets'),
   ).length;
-}
-
-int _activeStrategyCount(List<TicketStrategy> strategies) {
-  return strategies.where((strategy) => strategy.isActive).length;
 }
 
 String? _displayName(User? user) {

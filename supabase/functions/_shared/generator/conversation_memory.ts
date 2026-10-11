@@ -1,3 +1,4 @@
+import { compactShortlistReferences } from "./shortlist.ts";
 import {
   calendarDay,
   type Context,
@@ -55,7 +56,7 @@ export function initialIntent(context: Context, date: string): Intent {
     ticketIndex: null,
     selectionIndex: null,
     message: "",
-    view: "profile",
+    view: context.shortlist ? "shortlist" : "profile",
     radarKind: "teams",
     preserveConstraints: false,
     preserveFixtures: false,
@@ -324,6 +325,7 @@ export function rememberTurn(
     ].slice(-20),
     olderTurns: prior?.olderTurns ?? 0,
   };
+  compactShortlistReferences(next);
   while (JSON.stringify(next.conversation).length > 50000 && turns.length > 1) {
     turns.shift();
     next.conversation.olderTurns++;

@@ -149,6 +149,7 @@ class LectorMatchCard extends StatelessWidget {
     this.liveSummary,
     this.contextPanel,
     this.actionColor,
+    this.preparationAction,
     this.actionLabel = 'Voir l’analyse',
     this.temporal,
     super.key,
@@ -157,6 +158,7 @@ class LectorMatchCard extends StatelessWidget {
   final VoidCallback onTap;
   final Widget? insights, liveStatus, liveSummary, contextPanel;
   final Color? actionColor;
+  final Widget? preparationAction;
   final String actionLabel;
   final LectorTemporalState? temporal;
   @override
@@ -166,7 +168,12 @@ class LectorMatchCard extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        header,
+        Row(
+          children: [
+            Expanded(child: header),
+            ?preparationAction,
+          ],
+        ),
         ?liveStatus,
         const SizedBox(height: 9),
         Divider(height: 1, color: context.surfaces.border),

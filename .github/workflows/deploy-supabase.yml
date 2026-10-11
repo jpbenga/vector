@@ -30,6 +30,7 @@ on:
           - lector-generator-configuration-update
           - lector-generator-match-evaluation
           - lector-generator-day-sources
+          - lector-generator-shortlist
           - lector-visual-live-update
           - hockey-refresh-install
           - hockey-refresh-delivery
@@ -293,3 +294,20 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           GH_TOKEN: ${{ github.token }}
         run: python3 tool/deploy_lector_visual_live_remote.py
+
+  generator-shortlist:
+    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-shortlist'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: supabase/setup-cli@v1
+        with:
+          version: '2.120.0'
+      - name: Install Shortlist and update the demo without paid calls
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tool/deploy_shortlist_remote.py

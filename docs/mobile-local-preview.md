@@ -1,5 +1,35 @@
 # Preview mobile locale
 
+## Démo multisport et Générateur conversationnel
+
+Pour ouvrir la version actuelle de la démo sur le Mac, avec les données déjà
+publiées et sans déclencher de collecte API-Hockey :
+
+```sh
+bash tool/run_demo_local.sh 8192 release
+```
+
+Ouvrir ensuite l'adresse affichée dans le navigateur habituel. Le lanceur sert
+l'application sans ouvrir le profil Chrome temporaire de Flutter. La connexion
+Lector doit être effectuée sur cette adresse locale ; elle est distincte de la
+connexion sur Vercel. Le micro du Générateur nécessite un compte connecté.
+L'adresse de retour doit également être autorisée dans Supabase → Authentication
+→ URL Configuration → Redirect URLs. `http://localhost:8192/**` est enregistré.
+
+Le lanceur active `LECTOR_GENERATOR_UI=true` et utilise
+`lector-generator-workshop`. L'interface est locale, les requêtes du Générateur
+utilisent le serveur démo : les changements des fonctions Supabase doivent être
+déployés séparément. Un lancement local ne déploie pas ces fonctions.
+
+Si le port est déjà occupé, le lanceur s'arrête avant de compiler et affiche
+l'adresse à ouvrir pour consulter le serveur existant. Il ne ferme aucun
+processus automatiquement.
+
+`tool/run_multisport_local.sh` est le lanceur de collecte NHL locale. Il peut
+consommer le quota fournisseur et ne sert pas à ouvrir simplement la démo.
+
+## Preview depuis un téléphone
+
 Ce workflow sert a tester rapidement l'application web locale depuis un
 telephone, sans deployer.
 

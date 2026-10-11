@@ -342,17 +342,14 @@ void main() {
                   },
                 },
               ),
-              onPreferences: () {},
+
               onOpenMatch: (_) {},
             ),
           ),
         ),
       );
       await tester.pumpAndSettle();
-      expect(
-        find.text('Explorateur · configuration temporaire'),
-        findsOneWidget,
-      );
+      expect(find.text('Votre préparation'), findsOneWidget);
       expect(service.requests.where((r) => r['action'] == 'chat'), isEmpty);
       expect(tester.takeException(), isNull);
       await tester.ensureVisible(find.byType(TextField));
@@ -377,7 +374,7 @@ void main() {
             repository: service,
             loadContext: () async =>
                 GeneratorContext(origin: 'profile', preferences: {}),
-            onPreferences: () {},
+
             onOpenMatch: (_) {},
           ),
         ),
@@ -407,7 +404,7 @@ void main() {
             repository: service,
             loadContext: () async =>
                 GeneratorContext(origin: 'profile', preferences: {}),
-            onPreferences: () {},
+
             onOpenMatch: (_) {},
           ),
         ),
@@ -564,7 +561,36 @@ void main() {
     },
   );
   testWidgets(
-    'dictation inserts editable text and never sends a chat automatically',
+    'guest dictation explains the required login without recording or requesting transcription',
+    (tester) async {
+      final service = VoiceGenerator(), voice = FakeVoice();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: generatorScreen(
+              service,
+              voice: voice,
+              scope: const IdentityScope.guest('generator-guest-test'),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Dicter une demande'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'Connectez-vous à votre compte Lector sur cette adresse pour utiliser la dictée vocale.',
+        ),
+        findsOneWidget,
+      );
+      expect(voice.started, false);
+      expect(service.requests, isEmpty);
+      expect(find.text('Commencer'), findsNothing);
+    },
+  );
+  testWidgets(
+    'dictation sends one conversation turn automatically and clears the composer',
     (tester) async {
       final service = VoiceGenerator(), voice = FakeVoice();
       await tester.pumpWidget(
@@ -582,10 +608,87 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         tester.widget<TextField>(find.byType(TextField)).controller!.text,
-        'Un ticket pour samedi',
+        '',
       );
-      expect(service.requests.where((r) => r['action'] == 'chat'), isEmpty);
+      final chats = service.requests
+          .where((r) => r['action'] == 'chat')
+          .toList();
+      expect(chats, hasLength(1));
+      expect(chats.single['message'], 'Un ticket pour samedi');
+      expect(find.text('Un ticket pour samedi'), findsOneWidget);
       expect(voice.started, true);
+    },
+  );
+  testWidgets('empty transcription does not send an existing draft', (
+    tester,
+  ) async {
+    final service = VoiceGenerator(transcript: '   ');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: generatorScreen(service, voice: FakeVoice())),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Mon brouillon');
+    await tester.tap(find.byTooltip('Dicter une demande'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Commencer'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Terminer'));
+    await tester.pumpAndSettle();
+    expect(service.requests.where((r) => r['action'] == 'chat'), isEmpty);
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      'Mon brouillon',
+    );
+    expect(find.textContaining('Aucun texte reconnu'), findsOneWidget);
+  });
+  testWidgets(
+    'leaving the Generator during transcription never sends the result',
+    (tester) async {
+      final service = PendingVoiceGenerator();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: generatorScreen(service, voice: FakeVoice())),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Dicter une demande'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Commencer'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Terminer'));
+      await tester.pump();
+      await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+      service.transcription.complete({'transcript': 'Un ticket pour samedi'});
+      await tester.pumpAndSettle();
+      expect(service.requests.where((r) => r['action'] == 'chat'), isEmpty);
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets(
+    'interrupting transcription prevents a late transcript from sending',
+    (tester) async {
+      final service = PendingVoiceGenerator();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: generatorScreen(service, voice: FakeVoice())),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Dicter une demande'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Commencer'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Terminer'));
+      await tester.pump();
+      await tester.tap(find.byTooltip('Interrompre la génération'));
+      await tester.pumpAndSettle();
+      service.transcription.complete({'transcript': 'Ne pas envoyer'});
+      await tester.pumpAndSettle();
+      expect(service.requests.where((r) => r['action'] == 'chat'), isEmpty);
+      expect(service.requests.where((r) => r['action'] == 'cancel'), isEmpty);
+      expect(find.text('Ne pas envoyer'), findsNothing);
     },
   );
   testWidgets('mobile ticket reference capture', (tester) async {
@@ -652,17 +755,20 @@ void main() {
   });
 }
 
-Widget generatorScreen(GeneratorRepository service, {GeneratorVoice? voice}) =>
-    LectorGeneratorPage(
-      date: DateTime(2026, 10, 8),
-      scope: const IdentityScope.account('generator-ui-test'),
-      repository: service,
-      voice: voice,
-      loadContext: () async =>
-          GeneratorContext(origin: 'explorer', preferences: {}),
-      onPreferences: () {},
-      onOpenMatch: (_) {},
-    );
+Widget generatorScreen(
+  GeneratorRepository service, {
+  GeneratorVoice? voice,
+  IdentityScope scope = const IdentityScope.account('generator-ui-test'),
+}) => LectorGeneratorPage(
+  date: DateTime(2026, 10, 8),
+  scope: scope,
+  repository: service,
+  voice: voice,
+  loadContext: () async =>
+      GeneratorContext(origin: 'explorer', preferences: {}),
+
+  onOpenMatch: (_) {},
+);
 Map<String, dynamic> testTicket(int number) => {
   'id': 'ticket-$number',
   'number': number,
@@ -781,11 +887,25 @@ class FakeVoice extends GeneratorVoice {
 }
 
 class VoiceGenerator extends FakeGenerator {
+  VoiceGenerator({this.transcript = 'Un ticket pour samedi'});
+  final String transcript;
   @override
   Future<Map<String, dynamic>> request(Map<String, Object?> body) async {
     if (body['action'] == 'transcribe') {
       requests.add(body);
-      return {'transcript': 'Un ticket pour samedi'};
+      return {'transcript': transcript};
+    }
+    return super.request(body);
+  }
+}
+
+class PendingVoiceGenerator extends FakeGenerator {
+  final transcription = Completer<Map<String, dynamic>>();
+  @override
+  Future<Map<String, dynamic>> request(Map<String, Object?> body) {
+    if (body['action'] == 'transcribe') {
+      requests.add(body);
+      return transcription.future;
     }
     return super.request(body);
   }

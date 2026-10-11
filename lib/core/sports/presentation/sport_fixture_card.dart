@@ -1,3 +1,4 @@
+import '../../../features/shortlist/presentation/shortlist_actions.dart';
 import '../../widgets/lector_live_badge.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -53,6 +54,7 @@ class SportFixtureCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: LectorMatchCard(
+        preparationAction: ShortlistAddButton(fixture: shortlistSport(fixture)),
         key: ValueKey('sport-fixture-${fixture.id.key}'),
         onTap: onTap,
         temporal: fixture.temporal,

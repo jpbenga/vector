@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/lector_horizontal_transition.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_components.dart';
@@ -66,6 +67,7 @@ Future<LectorExplorationSelection?> showLectorExplorerSheet({
 }) {
   return showModalBottomSheet<LectorExplorationSelection>(
     context: context,
+    sheetAnimationStyle: lectorSheetAnimationStyle(context),
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: AppColors.transparent,
@@ -230,8 +232,8 @@ class _LectorExplorerSheetState extends State<_LectorExplorerSheet> {
           ),
           const SizedBox(height: AppSpacing.sm),
           Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 180),
+            child: LectorHorizontalTransition(
+              position: _tab.index,
               child: _tab == _ExplorerTab.readings
                   ? _ReadingExplorerList(
                       key: const ValueKey('explorer-readings'),

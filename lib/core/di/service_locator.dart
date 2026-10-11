@@ -1,3 +1,5 @@
+import '../../features/shortlist/application/shortlist_controller.dart';
+import '../../features/shortlist/data/shortlist_repository.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../features/matches/application/live_match_controller.dart';
@@ -31,6 +33,15 @@ Future<void> configureDependencies(AppConfig config) async {
         supabaseInitializer: getIt<SupabaseInitializer>(),
       ),
     );
+  getIt.registerLazySingleton<ShortlistController>(
+    () => ShortlistController(
+      repository: SupabaseShortlistRepository(
+        () => getIt<SupabaseInitializer>().client,
+      ),
+      auth: getIt<SupabaseAuthController>(),
+    ),
+    dispose: (controller) => controller.dispose(),
+  );
   getIt.registerLazySingleton<LiveMatchController>(
     () => LiveMatchController(
       SupabaseLiveMatchRepository(getIt<SupabaseInitializer>().client!),

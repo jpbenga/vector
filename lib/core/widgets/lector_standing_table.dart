@@ -1,3 +1,4 @@
+import 'lector_horizontal_transition.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_components.dart';
 import '../theme/app_colors.dart';
@@ -236,6 +237,10 @@ class LectorStandingPanel<T> extends StatelessWidget {
   final Widget? legend, groupSelector, footer;
   @override
   Widget build(BuildContext context) {
+    final content = LectorHorizontalTransition(
+      position: views.indexWhere((view) => view.value == selectedView),
+      child: child,
+    );
     final controls = LectorGlassCard(
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
       child: Column(
@@ -331,7 +336,7 @@ class LectorStandingPanel<T> extends StatelessWidget {
           ],
           if (legend != null) ...[legend!, const SizedBox(height: 10)],
           if (!separateContent) ...[
-            child,
+            content,
             if (footer != null) ...[const SizedBox(height: 8), footer!],
           ],
         ],
@@ -343,7 +348,7 @@ class LectorStandingPanel<T> extends StatelessWidget {
             children: [
               controls,
               const SizedBox(height: 12),
-              child,
+              content,
               if (footer != null) ...[const SizedBox(height: 8), footer!],
             ],
           )

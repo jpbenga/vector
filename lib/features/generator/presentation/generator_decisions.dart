@@ -4,6 +4,7 @@ import '../../../core/di/service_locator.dart';
 import '../../../core/supabase/supabase_initializer.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/widgets/lector_match_card.dart';
+import '../../../core/widgets/lector_horizontal_transition.dart';
 import '../data/generator_repository.dart';
 import '../domain/generator_context.dart';
 import 'generator_ticket_card.dart';
@@ -128,10 +129,15 @@ class _GeneratorBilanSectionState extends State<GeneratorBilanSection> {
         onSelectionChanged: (value) => setState(() => _followups = value.first),
       ),
       const SizedBox(height: 16),
-      if (_followups)
-        GeneratorFollowups(scope: widget.scope, repository: widget.repository)
-      else
-        widget.readings,
+      LectorHorizontalTransition(
+        position: _followups ? 1 : 0,
+        child: _followups
+            ? GeneratorFollowups(
+                scope: widget.scope,
+                repository: widget.repository,
+              )
+            : widget.readings,
+      ),
     ],
   );
 }
@@ -420,6 +426,7 @@ Future<void> showGeneratorSavedDecision(
   required GeneratorRepository repository,
 }) => showModalBottomSheet<void>(
   context: context,
+  sheetAnimationStyle: lectorSheetAnimationStyle(context),
   showDragHandle: true,
   isScrollControlled: true,
   useSafeArea: true,

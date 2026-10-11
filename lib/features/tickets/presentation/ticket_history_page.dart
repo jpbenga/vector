@@ -1,3 +1,4 @@
+import '../../../core/widgets/lector_horizontal_transition.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -968,6 +969,7 @@ class _HistoryTicketCard extends StatelessWidget {
   Future<void> _showPlayedDeclaration(BuildContext context) async {
     final updatedTicket = await showModalBottomSheet<SavedTicket>(
       context: context,
+      sheetAnimationStyle: lectorSheetAnimationStyle(context),
       isScrollControlled: true,
       showDragHandle: true,
       builder: (context) => _PlayedDeclarationSheet(ticket: entry.ticket),
@@ -1005,6 +1007,7 @@ class _HistoryTicketCard extends StatelessWidget {
   void _showDetails(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
+      sheetAnimationStyle: lectorSheetAnimationStyle(context),
       isScrollControlled: true,
       showDragHandle: true,
       builder: (context) => _SavedTicketDetailsSheet(ticket: entry.ticket),

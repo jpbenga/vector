@@ -16,7 +16,6 @@ import '../../features/matches/data/match_feed_repository.dart';
 import '../../features/onboarding/data/saved_decision_profile_store.dart';
 import '../../features/onboarding/domain/decision_profile.dart';
 import '../../features/tickets/data/saved_ticket_strategy_store.dart';
-import '../../features/tickets/domain/ticket_strategy.dart';
 
 class CopilotFlowPage extends StatefulWidget {
   const CopilotFlowPage({
@@ -43,7 +42,6 @@ class _CopilotFlowPageState extends State<CopilotFlowPage> {
   SupabaseAuthController? _authController;
   IdentityController? _identityController;
   DecisionProfile? _profile;
-  List<TicketStrategy> _ticketStrategies = const [];
   bool _isCheckingSavedProfile = true;
   String? _lastHydratedScopeKey;
 
@@ -98,10 +96,8 @@ class _CopilotFlowPageState extends State<CopilotFlowPage> {
       key: ValueKey<String>('matches-home:${_activeScope.stableKey}'),
       identityScope: _activeScope,
       profile: profile ?? _defaultGuestProfile,
-      ticketStrategies: _ticketStrategies,
       repositoryOverride: widget.repositoryOverride,
       onProfileChanged: _saveProfilePreferences,
-      onTicketStrategiesChanged: _saveTicketStrategyPreferences,
       // Configuration now lives in Mon espace. The old onboarding screen is
       // retained only as a historical component, never as an active route.
       onEditProfile: () {},
@@ -122,16 +118,12 @@ class _CopilotFlowPageState extends State<CopilotFlowPage> {
       }
       setState(() {
         _profile = null;
-        _ticketStrategies = const [];
         _isCheckingSavedProfile = false;
       });
       return;
     }
 
     final savedProfile = await widget.profileStore.load(scope: token.scope);
-    final savedStrategies = await widget.ticketStrategyStore.load(
-      scope: token.scope,
-    );
     if (!mounted) {
       return;
     }
@@ -141,7 +133,6 @@ class _CopilotFlowPageState extends State<CopilotFlowPage> {
 
     setState(() {
       _profile = savedProfile;
-      _ticketStrategies = savedStrategies;
       _isCheckingSavedProfile = false;
       _lastHydratedScopeKey = token.scope.stableKey;
     });
@@ -212,7 +203,6 @@ class _CopilotFlowPageState extends State<CopilotFlowPage> {
       }
       setState(() {
         _profile = null;
-        _ticketStrategies = const [];
         _isCheckingSavedProfile = _isIdentityBusy;
       });
       return;
@@ -224,7 +214,6 @@ class _CopilotFlowPageState extends State<CopilotFlowPage> {
 
     setState(() {
       _profile = null;
-      _ticketStrategies = const [];
       _isCheckingSavedProfile = true;
     });
     _hydrateCurrentScope();
@@ -240,22 +229,5 @@ class _CopilotFlowPageState extends State<CopilotFlowPage> {
     });
 
     await widget.profileStore.save(scope: token.scope, profile: profile);
-  }
-
-  Future<void> _saveTicketStrategyPreferences(
-    List<TicketStrategy> strategies,
-  ) async {
-    final token = _operationTokenOrNull();
-    if (token == null) {
-      return;
-    }
-    setState(() {
-      _ticketStrategies = strategies;
-    });
-
-    await widget.ticketStrategyStore.save(
-      scope: token.scope,
-      strategies: strategies,
-    );
   }
 }

@@ -1,6 +1,7 @@
 import { buildCatalog, publishedReadingIds, type Source } from "./catalog.ts";
 import {
   calendarDay,
+  type Catalog,
   type Context,
   type Intent,
   type State,
@@ -154,6 +155,7 @@ export function applyIntent(
     context: Context;
     intent: Intent;
     sources: Source[];
+    catalog?: Catalog;
     message: string;
     now: Date;
     id: string;
@@ -217,7 +219,7 @@ export function applyIntent(
         ).join("\n\n")
         : "Préparez d’abord une composition pour examiner ses raisons.";
     } else {
-      const available = buildCatalog(
+      const available = input.catalog ?? buildCatalog(
         input.sources,
         context,
         input.intent.date,

@@ -23,8 +23,10 @@ class GeneratorContext {
     this.discovery = true,
     this.timezone = 'Europe/Paris',
     this.radar = const {},
+    this.shortlist,
   });
   final String origin, timezone;
+  final Map<String, Object?>? shortlist;
   final Map<String, RadarScope> radar;
   final bool discovery;
   final double budget;
@@ -39,6 +41,7 @@ class GeneratorContext {
     'budget': budget,
     'preferences': preferences,
     'radar': {for (final e in radar.entries) e.key: e.value.toJson()},
+    if (shortlist != null) 'shortlist': shortlist,
   };
   GeneratorContext copyWith({
     double? budget,
@@ -51,6 +54,7 @@ class GeneratorContext {
     discovery: discovery ?? this.discovery,
     timezone: timezone,
     radar: radar ?? this.radar,
+    shortlist: shortlist,
   );
 
   static Map<String, List<String>> football(CompiledDecisionProfile profile) =>

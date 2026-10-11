@@ -4,7 +4,6 @@ import 'package:copilot/features/appearance/data/appearance_preview_fixture.dart
 import 'package:copilot/features/matches/presentation/lector_competitions_page.dart';
 import 'package:copilot/features/matches/presentation/lector_scenarios_page.dart';
 import 'package:copilot/features/matches/presentation/lector_space_page.dart';
-import 'package:copilot/features/matches/presentation/lector_strategies_page.dart';
 import 'package:copilot/features/matches/presentation/lector_preferences_sheet.dart';
 import 'package:copilot/features/matches/presentation/match_detail_page.dart';
 import 'package:copilot/features/onboarding/domain/decision_profile.dart';
@@ -31,7 +30,7 @@ void main() {
       final rects = wrappers
           .map((element) => tester.getRect(find.byWidget(element.widget)))
           .toList();
-      expect(rects, hasLength(6));
+      expect(rects, hasLength(5));
       expect(first.width, lessThanOrEqualTo(width));
       if (width >= 1280) {
         expect(rects[0].top, rects[1].top);
@@ -57,10 +56,6 @@ void main() {
           onProfileChanged: (_) async {},
         ),
         LectorScenariosPage(profile: _profile, onProfileChanged: (_) async {}),
-        LectorStrategiesPage(
-          strategies: const [],
-          onTicketStrategiesChanged: (_) async {},
-        ),
         OnboardingPage(onCompleted: (_) {}),
       ]) {
         await _pump(tester, width, page);
@@ -144,12 +139,8 @@ void main() {
   });
 }
 
-Widget _space() => LectorSpacePage(
-  profile: _profile,
-  ticketStrategies: const [],
-  onProfileChanged: (_) async {},
-  onTicketStrategiesChanged: (_) async {},
-);
+Widget _space() =>
+    LectorSpacePage(profile: _profile, onProfileChanged: (_) async {});
 
 Future<void> _pump(
   WidgetTester tester,

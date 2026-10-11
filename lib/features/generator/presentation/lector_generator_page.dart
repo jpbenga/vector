@@ -1,3 +1,5 @@
+import '../../shortlist/presentation/shortlist_actions.dart';
+import '../../../core/widgets/lector_horizontal_transition.dart';
 import '../../form_radar/domain/radar_scope.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -27,13 +29,12 @@ class LectorGeneratorPage extends StatefulWidget {
     required this.date,
     required this.scope,
     required this.loadContext,
-    required this.onPreferences,
     required this.onOpenMatch,
-    this.onUseProfile,
-    this.onLegacyTickets,
     this.repository,
     this.loadRadarContext,
     this.configurationKey = '',
+    this.workspaceKey,
+    this.initialPrompt,
     this.persistence = const ScopedPersistence(),
     this.voice,
     this.embedded = false,
@@ -48,8 +49,6 @@ class LectorGeneratorPage extends StatefulWidget {
   final DateTime date;
   final IdentityScope scope;
   final Future<GeneratorContext> Function() loadContext;
-  final VoidCallback onPreferences;
-  final VoidCallback? onUseProfile, onLegacyTickets;
   final void Function(Map<String, dynamic> pick) onOpenMatch;
   final GeneratorRepository? repository;
   final Future<Map<String, RadarScope>> Function()? loadRadarContext;
@@ -57,6 +56,7 @@ class LectorGeneratorPage extends StatefulWidget {
   final GeneratorVoice? voice;
   final bool embedded, durableSessions;
   final String configurationKey;
+  final String? workspaceKey, initialPrompt;
   @override
   State<LectorGeneratorPage> createState() => _LectorGeneratorPageState();
 }
@@ -94,6 +94,9 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
           'lector-generator-workshop'
       ? 'generator.conversation.workshop.v1'
       : 'generator.conversation.v1';
+  String get _storageKey =>
+      widget.workspaceKey == null ? _key : '$_key:${widget.workspaceKey}';
+  bool _sentInitialPrompt = false;
   GeneratorRepository? get _repository {
     if (widget.repository != null) return widget.repository;
     final client = getIt.isRegistered<SupabaseInitializer>()
@@ -119,7 +122,9 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
   @override
   void didUpdateWidget(covariant LectorGeneratorPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.scope != widget.scope || oldWidget.date != widget.date) {
+    if (oldWidget.scope != widget.scope ||
+        oldWidget.workspaceKey != widget.workspaceKey ||
+        (widget.workspaceKey == null && oldWidget.date != widget.date)) {
       _generation++;
       _progressTimer?.cancel();
       _voiceTimer?.cancel();
@@ -208,7 +213,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
     try {
       final context = await widget.loadContext();
       final saved = widget.scope.isUserOwned
-          ? await widget.persistence.read(widget.scope, _key)
+          ? await widget.persistence.read(widget.scope, _storageKey)
           : null;
       if (!mounted || generation != _generation) return;
       // Local value is only a conversation reference. Private content remains
@@ -220,7 +225,8 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
         final value = generatorMap(jsonDecode(saved));
         // Saved drafts are deliberately opened from history, not injected as
         // the active context when the user arrives on a different date.
-        if (value['date'] == generatorDay(widget.date) &&
+        if ((widget.workspaceKey != null ||
+                value['date'] == generatorDay(widget.date)) &&
             widget.scope.isAccount &&
             _repository != null) {
           try {
@@ -268,6 +274,14 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
       }
     } finally {
       if (_initializing) _finishInitialLoad(generation);
+      if (mounted &&
+          generation == _generation &&
+          !_sentInitialPrompt &&
+          widget.initialPrompt != null &&
+          _context != null) {
+        _sentInitialPrompt = true;
+        await _send(widget.initialPrompt);
+      }
     }
   }
 
@@ -332,6 +346,12 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
     _scrollToEnd();
     _startProgress(requestId);
     try {
+      if (_context!.shortlist != null) {
+        _context = await widget.loadContext();
+        if (!mounted || generation != _generation || _requestId != requestId) {
+          return;
+        }
+      }
       if (widget.loadRadarContext != null &&
           (RegExp(r'\bradar\b', caseSensitive: false).hasMatch(message) ||
               generatorMap(_conversation?.json['context'])['view'] ==
@@ -363,7 +383,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
       if (_followingLatest) _scrollToEnd();
       await widget.persistence.write(
         widget.scope,
-        _key,
+        _storageKey,
         jsonEncode({'id': conversation.id, 'date': generatorDay(widget.date)}),
       );
     } on Object catch (error) {
@@ -423,6 +443,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
       if (!mounted || generation != _generation) return;
       final selected = await showModalBottomSheet<Map<String, dynamic>>(
         context: context,
+        sheetAnimationStyle: lectorSheetAnimationStyle(context),
         showDragHandle: true,
         isScrollControlled: true,
         useSafeArea: true,
@@ -494,7 +515,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
         _scrollToEnd(animated: false);
         await widget.persistence.write(
           widget.scope,
-          _key,
+          _storageKey,
           jsonEncode({'id': selected['id'], 'date': generatorDay(widget.date)}),
         );
       }
@@ -663,97 +684,9 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
     if (widget.scope.isUserOwned) {
       await widget.persistence.write(
         widget.scope,
-        _key,
+        _storageKey,
         jsonEncode({'id': _id, 'date': generatorDay(widget.date)}),
       );
-    }
-  }
-
-  Future<void> _useProfile() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Utiliser votre profil ?'),
-        content: const Text(
-          'Les prochaines préparations utiliseront votre profil enregistré. Les compositions existantes conservent leur configuration initiale.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Utiliser mon profil'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true && mounted) widget.onUseProfile?.call();
-  }
-
-  Future<void> _settings() async {
-    if (_context == null) return;
-    final budget = TextEditingController(
-      text: _context!.budget.toStringAsFixed(0),
-    );
-    bool discovery = _context!.discovery;
-    final next = await showDialog<GeneratorContext>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, update) => AlertDialog(
-          title: const Text('Contexte de préparation'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: budget,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(
-                  labelText: 'Plafond total des mises (€)',
-                ),
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Découverte'),
-                subtitle: const Text(
-                  'Inclure les pistes du Radar hors de mes compétitions.',
-                ),
-                value: discovery,
-                onChanged: (v) => update(() => discovery = v),
-              ),
-              const Text(
-                'Les marchés interdits restent exclus. Chaque composition conserve le contexte utilisé.',
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Annuler'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final value = double.tryParse(budget.text.replaceAll(',', '.'));
-                if (value != null && value >= 0 && value <= 1000) {
-                  Navigator.pop(
-                    context,
-                    _context!.copyWith(budget: value, discovery: discovery),
-                  );
-                }
-              },
-              child: const Text('Appliquer'),
-            ),
-          ],
-        ),
-      ),
-    );
-    budget.dispose();
-    if (next != null && mounted) {
-      setState(() => _context = next);
-      _prepare(_generation);
     }
   }
 
@@ -882,6 +815,18 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
   Future<void> _interrupt() async {
     final requestId = _requestId;
     if (requestId == null || _repository == null) return;
+    if (_transcribing) {
+      // Transcription has no conversation turn to cancel on the server.
+      // Invalidate its result locally before any automatic chat submission.
+      _voice.cancel();
+      setState(() {
+        _requestId = null;
+        _busy = false;
+        _transcribing = false;
+        _error = null;
+      });
+      return;
+    }
     final generation = _generation;
     try {
       final result = await _repository!.request({
@@ -967,12 +912,21 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
   }
 
   Future<void> _dictate() async {
-    if (_busy || _recording || !widget.scope.isAccount) return;
+    if (_busy || _recording) return;
+    if (!widget.scope.isAccount) {
+      setState(
+        () => _error =
+            'Connectez-vous à votre compte Lector sur cette adresse pour utiliser la dictée vocale.',
+      );
+      _scrollToEnd();
+      return;
+    }
     if (!_voice.supported) {
       setState(
         () => _error =
             'La dictée nécessite un navigateur compatible et une connexion HTTPS. Vous pouvez utiliser le microphone de votre clavier.',
       );
+      _scrollToEnd();
       return;
     }
     final generation = _generation;
@@ -981,7 +935,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
       builder: (context) => AlertDialog(
         title: const Text('Dicter votre demande'),
         content: const Text(
-          'Autorisez le microphone de votre navigateur. Après « Terminer », jusqu’à une minute d’audio sera transcrite par OpenAI, puis supprimée de l’application. Vous pourrez relire et modifier le texte avant de l’envoyer. La dictée utilise l’enveloppe de tests IA.',
+          'Autorisez le microphone de votre navigateur. Après « Terminer », jusqu’à une minute d’audio sera transcrite par OpenAI, puis supprimée de l’application. Votre demande transcrite sera envoyée automatiquement à Hector.',
         ),
         actions: [
           TextButton(
@@ -1018,6 +972,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
           () => _error =
               'Le microphone n’est pas accessible. Vérifiez son autorisation dans le navigateur, ou utilisez la dictée du clavier.',
         );
+        _scrollToEnd();
       }
     }
   }
@@ -1033,6 +988,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
     final generation = _generation;
     _voiceTimer?.cancel();
     final requestId = generatorUuid();
+    String? prompt;
     setState(() {
       _recording = false;
       _transcribing = true;
@@ -1052,14 +1008,16 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
       if (!mounted || generation != _generation || _requestId != requestId) {
         return;
       }
-      final text = result['transcript']?.toString() ?? '';
-      _message.text = [
+      final text = (result['transcript']?.toString() ?? '').trim();
+      if (text.isEmpty) {
+        throw StateError(
+          'Aucun texte reconnu. Vous pouvez refaire votre vocal.',
+        );
+      }
+      prompt = [
         _message.text.trim(),
-        text.trim(),
+        text,
       ].where((s) => s.isNotEmpty).join(' ');
-      _message.selection = TextSelection.collapsed(
-        offset: _message.text.length,
-      );
     } on Object catch (error) {
       if (mounted && generation == _generation && _requestId == requestId) {
         setState(
@@ -1073,6 +1031,9 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
           _transcribing = false;
           _requestId = null;
         });
+        // Release transcription before starting the ordinary conversation turn.
+        // A cancelled request or a changed account never reaches this branch.
+        if (prompt != null) await _send(prompt);
       }
     }
   }
@@ -1130,7 +1091,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
   );
 
   Widget _conversationOptions() {
-    final conversation = _conversation, current = _context;
+    final conversation = _conversation;
     return PopupMenuButton<String>(
       tooltip: 'Options de la conversation',
       enabled: !_initializing,
@@ -1161,12 +1122,6 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
             );
           case 'delete_session':
             _deleteSession();
-          case 'settings':
-            _settings();
-          case 'preferences':
-            widget.onPreferences();
-          case 'profile':
-            _useProfile();
           case 'save':
             if (widget.durableSessions) {
               final ticket = conversation?.tickets.firstOrNull;
@@ -1174,8 +1129,6 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
             } else {
               _operation('save');
             }
-          case 'legacy':
-            widget.onLegacyTickets?.call();
         }
       },
       itemBuilder: (_) => [
@@ -1209,20 +1162,6 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
             enabled: !_busy,
             child: const Text('Supprimer cette session'),
           ),
-        PopupMenuItem(
-          value: 'settings',
-          enabled: !_busy,
-          child: const Text('Ajuster le contexte'),
-        ),
-        const PopupMenuItem(
-          value: 'preferences',
-          child: Text('Mes préférences'),
-        ),
-        if (current?.origin == 'explorer' && widget.onUseProfile != null)
-          const PopupMenuItem(
-            value: 'profile',
-            child: Text('Utiliser mon profil'),
-          ),
         if (conversation?.tickets.isNotEmpty == true)
           PopupMenuItem(
             value: 'save',
@@ -1234,11 +1173,6 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
                   ? 'Brouillon enregistré'
                   : 'Enregistrer le brouillon',
             ),
-          ),
-        if (widget.onLegacyTickets != null)
-          const PopupMenuItem(
-            value: 'legacy',
-            child: Text('Mes tickets et stratégies'),
           ),
       ],
     );
@@ -1286,18 +1220,17 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
                           if (conversation == null &&
                               _submittedMessage == null) ...[
                             GeneratorMessageBubble(
-                              text: current?.origin == 'explorer'
-                                  ? 'Votre configuration Explorateur est active. Posez une question sur les rencontres ou décrivez le ticket que vous souhaitez préparer.'
-                                  : 'Je m’appuie sur vos lectures, le Radar et vos marchés autorisés. Quelle journée souhaitez-vous analyser ou quelle composition voulez-vous préparer ?',
+                              text:
+                                  'Quelle journée et quelles rencontres souhaitez-vous analyser ? Décrivez votre composition, sa mise ou les variantes que vous souhaitez comparer.',
                             ),
                             LectorMatchCardFrame(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    current?.origin == 'explorer'
-                                        ? 'Explorateur · configuration temporaire'
-                                        : 'Profil enregistré',
+                                    current?.shortlist == null
+                                        ? 'Votre préparation'
+                                        : 'Shortlist · ${current!.shortlist!['keys'] is List ? (current.shortlist!['keys'] as List).length : 0} rencontres',
                                     style: theme.textTheme.titleSmall,
                                   ),
                                   const SizedBox(height: 6),
@@ -1306,11 +1239,12 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
                                     style: theme.textTheme.bodySmall,
                                   ),
                                   Text(
-                                    current?.discovery == true
-                                        ? 'Pour moi + pistes du Radar'
-                                        : 'Mes compétitions uniquement',
+                                    current?.shortlist == null
+                                        ? 'Pour moi · Radar · Tous, selon votre demande'
+                                        : 'Votre sélection, toutes journées et tous sports confondus',
                                     style: theme.textTheme.bodySmall,
                                   ),
+                                  const ShortlistEntryButton(),
                                   if (_preparation != null)
                                     Text(
                                       '${_preparation!['matchCount']} rencontres analysables',
@@ -1327,10 +1261,6 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
                                         missing.toString(),
                                         style: theme.textTheme.bodySmall,
                                       ),
-                                  TextButton(
-                                    onPressed: _settings,
-                                    child: const Text('Ajuster le contexte'),
-                                  ),
                                 ],
                               ),
                             ),
@@ -1550,7 +1480,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
                     busy: _busy,
                     hasConversation: conversation?.messages.isNotEmpty == true,
                     onSend: _send,
-                    onVoice: widget.scope.isAccount ? _dictate : null,
+                    onVoice: _dictate,
                     onStop: _busy && _requestId != null ? _interrupt : null,
                   ),
               ],

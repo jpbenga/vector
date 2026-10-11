@@ -1,3 +1,4 @@
+import '../../../core/widgets/lector_horizontal_transition.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -18,6 +19,7 @@ Future<void> showPlayerFormRadarMatchDetail(
   );
   return showModalBottomSheet<void>(
     context: context,
+    sheetAnimationStyle: lectorSheetAnimationStyle(context),
     isScrollControlled: true,
     backgroundColor: context.surfaces.background,
     builder: (context) => _PlayerFormRadarMatchDetailSheet(

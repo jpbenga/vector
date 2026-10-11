@@ -1,3 +1,4 @@
+import '../../shortlist/presentation/shortlist_actions.dart';
 import '../../../core/widgets/lector_match_odds.dart';
 import 'hockey_quote_presentation.dart';
 import '../../../core/domain/lector_head_to_head_policy.dart';
@@ -72,6 +73,7 @@ class _HockeyMatchDetailPageState extends State<HockeyMatchDetailPage> {
         ? 'Horaire à confirmer'
         : '${DateUtils.isSameDay(starts, DateTime.now()) ? 'Aujourd’hui' : DateFormat('dd/MM/yyyy').format(starts)} · ${DateFormat('HH:mm').format(starts)}';
     return LectorMatchDetailView(
+      preparationAction: ShortlistAddButton(fixture: shortlistSport(f)),
       openStats: f.temporal.isLive || f.status == SportFixtureStatus.finished,
       stats:
           f.status == SportFixtureStatus.live ||

@@ -127,7 +127,7 @@ export const intentSchema = {
       enum: ["around", "minimum", "range", "unconstrained"],
     },
     preserveFixtures: { type: "boolean" },
-    view: { type: "string", enum: ["current", "profile", "radar", "all"] },
+    view: { type: "string", enum: ["current", "profile", "radar", "all", "shortlist"] },
     radarKind: { type: "string", enum: ["current", "teams", "players"] },
   },
 };

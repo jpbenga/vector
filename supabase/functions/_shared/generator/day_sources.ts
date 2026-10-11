@@ -54,7 +54,10 @@ export function daySourceParameters(
 ) {
   return {
     ...sourceQuery(context, date, sports),
-    ...(context.view === "all" ? { p_readings: null, p_scenarios: [] } : {}),
+    ...(["all", "shortlist"].includes(context.view ?? "")
+      ? { p_readings: null, p_scenarios: [] }
+      : {}),
+    ...(context.view === "shortlist" ? { p_competitions: null } : {}),
     ...(context.view === "radar"
       ? { p_competitions: null, p_readings: null, p_scenarios: [] }
       : {}),
@@ -192,12 +195,26 @@ export async function loadDaySources(
   progress: (coverage: DayReadCoverage) => Promise<void> = async () => {},
 ) {
   const parameters = daySourceParameters(context, date, sports);
-  const manifest = manifestFrom(
+  let manifest = manifestFrom(
     await port.manifest(parameters),
     date,
     context.timezone,
     sports,
   );
+  if (context.view === "shortlist") {
+    // Validate the complete manifest, then retrieve only the user-owned references.
+    // This reduces database transport before any model context is constructed.
+    const allowed = new Set(context.shortlist?.keys ?? []);
+    const matches = manifest.matches.filter((m) => allowed.has(m.key));
+    manifest = {
+      ...manifest,
+      matches,
+      total: matches.length,
+      sources: manifest.sources.filter((s) =>
+        matches.some((m) => identity(m) === identity(s))
+      ),
+    };
+  }
   const sources = new Map<string, Source>();
   const coverage: DayReadCoverage = {
     expected: manifest.total,

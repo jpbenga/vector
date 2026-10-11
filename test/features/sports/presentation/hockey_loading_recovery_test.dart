@@ -48,6 +48,7 @@ void main() {
         ),
       );
       await tester.tap(find.text('Tous'));
+      await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.byType(LectorLoading), findsOneWidget);
       expect(find.text('Réessayer'), findsNothing);

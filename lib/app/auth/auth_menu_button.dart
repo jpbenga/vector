@@ -1,3 +1,4 @@
+import '../../core/widgets/lector_horizontal_transition.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -61,6 +62,7 @@ class AuthMenuButton extends StatelessWidget {
   ) {
     showModalBottomSheet<void>(
       context: context,
+      sheetAnimationStyle: lectorSheetAnimationStyle(context),
       showDragHandle: true,
       isScrollControlled: true,
       backgroundColor: context.surfaces.surface,

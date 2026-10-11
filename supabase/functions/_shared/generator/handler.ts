@@ -1,3 +1,9 @@
+import {
+  resolveShortlist,
+  shortlistContext,
+  shortlistReference,
+} from "./shortlist.ts";
+import { ConversationReader } from "./conversation_tools.ts";
 import { comparisonModels, type ModelReceipt } from "./models.ts";
 import {
   attachReview,
@@ -10,6 +16,7 @@ import {
   contextFrom,
   type Json,
   obj,
+  rows,
   type Sport,
   type State,
 } from "./contracts.ts";
@@ -195,6 +202,50 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
       const input = obj(JSON.parse(text)), action = input.action;
       if (action !== "transcribe" && text.length > 75000) {
         return reply({ error: "Demande trop longue." }, 413);
+      }
+      if (options.workshop && action === "shortlist_inspect") {
+        const ref = shortlistReference(input.shortlist);
+        if (ref.keys.length !== 2) {
+          return reply({
+            error: "Choisissez exactement deux rencontres à comparer.",
+          }, 400);
+        }
+        const now = new Date();
+        const scope = resolveShortlist(
+          ref,
+          await call("rpc/lector_shortlist_read", { p_user: user.id }),
+          now,
+        );
+        const context = shortlistContext({
+          origin: "profile",
+          scope: "discovery",
+          timezone: "Europe/Paris",
+          budget: 100,
+          preferences: {},
+        }, scope);
+        const reader = new ConversationReader({
+          context,
+          date: calendarDay(now, context.timezone),
+          state: null,
+          now,
+          id: "shortlist-comparison",
+          message: "",
+        }, { sources: sourcesFor, daySources: daySourcesFor });
+        const query = await reader.execute("read_shortlist", {});
+        const q = obj(query);
+        const resolved = scope.keys.filter((key) =>
+          rows(q.matches).some((m) => m.key === key)
+        );
+        const detail = resolved.length
+          ? await reader.execute("read_matches", {
+            queryId: q.queryId,
+            matchKeys: resolved,
+          })
+          : [];
+        return reply({
+          matches: obj(detail).matches ?? detail,
+          missing: q.missing,
+        });
       }
       if (options.workshop && action === "decisions") {
         await call("rpc/lector_generator_verify", { p_user: user.id });
@@ -397,14 +448,36 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
             return reply({ error: "Aucun changement en attente." }, 400);
           }
           for (const ticket of proposed) {
+            if (ticket.context.shortlist) {
+              resolveShortlist(
+                ticket.context.shortlist,
+                await call("rpc/lector_shortlist_read", { p_user: user.id }),
+                now,
+              );
+            }
             const date = calendarDay(
               ticket.picks[0].kickoff,
               ticket.context.timezone,
             );
-            const sources = await sourcesFor(ticket.context, date, [
-              ...new Set(ticket.picks.map((p) => p.sport)),
-            ]);
-            const catalog = buildCatalog(sources, ticket.context, date, now);
+            const groups = new Map<string, Sport[]>();
+            for (const pick of ticket.picks) {
+              const day = calendarDay(pick.kickoff, ticket.context.timezone);
+              const sports = groups.get(day) ?? [];
+              if (!sports.includes(pick.sport)) sports.push(pick.sport);
+              groups.set(day, sports);
+            }
+            const catalogs = [];
+            for (const [day, sports] of groups) {
+              const sources = await sourcesFor(
+                { ...ticket.context, view: "all", scope: "discovery" },
+                day,
+                sports,
+              );
+              catalogs.push(buildCatalog(sources, ticket.context, day, now));
+            }
+            const catalog = {
+              candidates: catalogs.flatMap((c) => c.candidates),
+            };
             const ids = new Set(catalog.candidates.map((c) => c.id));
             if (!ticket.picks.every((p) => ids.has(p.id))) {
               return reply({
@@ -435,12 +508,35 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
         });
         return reply({ state });
       }
-      const context = contextFrom(input.context),
-        date = String(input.date ?? "");
+      let context = contextFrom(input.context);
+      const date = String(input.date ?? "");
       // This policy is assigned by the demo endpoint, never accepted from model/client input.
       if (options.workshop) context.configurationPolicy = "request";
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
         return reply({ error: "Date invalide." }, 400);
+      }
+      const requestedShortlist = obj(input.context).shortlist;
+      if (options.workshop && requestedShortlist !== undefined) {
+        context = shortlistContext(
+          context,
+          resolveShortlist(
+            requestedShortlist,
+            await call("rpc/lector_shortlist_read", { p_user: user.id }),
+            now,
+          ),
+        );
+      }
+      if (action === "prepare" && context.shortlist) {
+        return reply({
+          preparation: {
+            matchCount: context.shortlist.keys.length,
+            missing: [],
+            shortlist: {
+              sessionId: context.shortlist.sessionId,
+              revision: context.shortlist.revision,
+            },
+          },
+        });
       }
       if (action === "prepare") {
         const sources = await sourcesFor(context, date);
@@ -718,6 +814,57 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
             },
           },
         });
+        if (context.shortlist) {
+          // The world can change during an analysis: recheck membership/expiry and kickoff before returning new drafts.
+          const finishedAt = new Date();
+          const freshScope = resolveShortlist(
+            context.shortlist,
+            await call("rpc/lector_shortlist_read", { p_user: user.id }),
+            finishedAt,
+          );
+          const newIds = new Set([
+            ...(conversation.next.messages.at(-1)?.ticketIds ?? []),
+            ...(conversation.next.messages.at(-1)?.proposalIds ?? []),
+          ]);
+          const proposed = [
+            ...(conversation.next.tickets ?? []),
+            ...(conversation.next.drafts ?? []),
+            ...(conversation.next.proposals ?? []),
+            ...(conversation.next.pending ?? []),
+          ].filter((t) => newIds.has(t.id));
+          for (const ticket of proposed) {
+            for (const pick of ticket.picks) {
+              if (
+                ticket.context.view === "shortlist" &&
+                !freshScope.keys.includes(
+                  pick.sport + ":" + pick.matchId.split(/[-:]/).at(-1),
+                )
+              ) {
+                throw new Error(
+                  "La composition contient une rencontre extérieure à votre sélection.",
+                );
+              }
+              if (ticket.context.view === "shortlist") {
+                const fixture = freshScope.items.find((f) =>
+                  f.key === pick.sport + ":" + pick.matchId.split(/[-:]/).at(-1)
+                );
+                if (
+                  !fixture?.available ||
+                  !["NS", "scheduled"].includes(fixture.status ?? "")
+                ) {
+                  throw new Error(
+                    "Une rencontre n’est plus disponible en prématch. Actualisez votre préparation.",
+                  );
+                }
+              }
+              if (Date.parse(pick.kickoff) <= finishedAt.getTime()) {
+                throw new Error(
+                  "Une rencontre a commencé pendant l’analyse. Demandez une nouvelle composition avec les rencontres encore à venir.",
+                );
+              }
+            }
+          }
+        }
         await progress("commit");
         const state = await call("rpc/lector_generator_commit", {
           p_user: user.id,

@@ -1,3 +1,4 @@
+import '../../../core/widgets/lector_horizontal_transition.dart';
 import '../../../app/sports/generator_radar_context.dart';
 import '../../../core/widgets/lector_deferred_content.dart';
 import '../../../core/data/read_recovery.dart';
@@ -44,10 +45,7 @@ import '../../tickets/data/saved_ticket_store.dart';
 import '../../tickets/domain/saved_ticket.dart';
 import '../../tickets/domain/ticket_settlement_engine.dart';
 import '../../tickets/domain/ticket_draft.dart';
-import '../../tickets/domain/ticket_generator.dart';
 import '../../tickets/domain/ticket_strategy.dart';
-import '../../tickets/presentation/ticket_builder_panel.dart';
-import '../../tickets/presentation/ticket_generator_page.dart';
 import '../../tickets/presentation/ticket_history_page.dart';
 import '../data/match_feed_repository.dart';
 import '../data/match_feed_repository_loader.dart';
@@ -70,7 +68,7 @@ class MatchesHomePage extends StatefulWidget {
     required this.profile,
     required this.identityScope,
     required this.onEditProfile,
-    required this.ticketStrategies,
+    this.ticketStrategies = const [],
     this.onProfileChanged,
     this.onTicketStrategiesChanged,
     this.repositoryOverride,
@@ -82,7 +80,7 @@ class MatchesHomePage extends StatefulWidget {
   final IdentityScope identityScope;
   final VoidCallback onEditProfile;
   final ProfilePreferenceSaver? onProfileChanged;
-  final TicketStrategyPreferenceSaver? onTicketStrategiesChanged;
+  final Future<void> Function(List<TicketStrategy>)? onTicketStrategiesChanged;
   final List<TicketStrategy> ticketStrategies;
   final MatchFeedRepository? repositoryOverride;
   final Future<MatchFeedRepository> Function(DateTime date)?
@@ -98,14 +96,8 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
   final SavedTicketStore _savedTicketStore = const SavedTicketStore();
   final TicketSettlementEngine _ticketSettlementEngine =
       const TicketSettlementEngine();
-  final ValueNotifier<TicketDraft> _ticketDraftNotifier = ValueNotifier(
-    TicketDraft.empty,
-  );
-  TicketDraft _ticketDraft = TicketDraft.empty;
   List<SavedTicket> _savedTickets = const [];
-  List<Opportunity> _latestOpportunities = const [];
   List<MatchBoardItem> _latestAnalyzedMatches = const [];
-  bool _isTicketPanelExpanded = false;
   bool _isSettlingSavedTickets = false;
   String? _lastTicketSettlementSignature;
   String? _lastPersonalizationTraceSignature;
@@ -151,10 +143,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
   void didUpdateWidget(covariant MatchesHomePage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.identityScope != widget.identityScope) {
-      _ticketDraft = TicketDraft.empty;
-      _ticketDraftNotifier.value = TicketDraft.empty;
       _savedTickets = const [];
-      _isTicketPanelExpanded = false;
       _lastTicketSettlementSignature = null;
       _explorationSelection = null;
       _loadSavedTickets();
@@ -175,7 +164,6 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
         getIt.isRegistered<MatchFeedRepositoryLoader>()) {
       getIt<MatchFeedRepositoryLoader>().cancelPrefetch();
     }
-    _ticketDraftNotifier.dispose();
     super.dispose();
   }
 
@@ -208,7 +196,6 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
 
           final baseProfile = widget.profile;
           final effectiveProfile = _effectiveProfile;
-          final compiledProfile = const ProfileCompiler().compile(baseProfile);
           final effectiveCompiledProfile = const ProfileCompiler().compile(
             effectiveProfile,
           );
@@ -216,12 +203,6 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
           final personalizedMatches = _explorationMatches(
             repository.personalizedFor(effectiveProfile),
           );
-          final generatorMatches = _explorationSelection == null
-              ? personalizedMatches
-              : repository.personalizedFor(baseProfile);
-          final generatorOpportunities = _explorationSelection == null
-              ? opportunities
-              : repository.opportunitiesFor(baseProfile);
           final allMatches = repository.allMatches();
           final teamFormRadarProfiles =
               repository is SnapshotMatchFeedRepository
@@ -249,11 +230,6 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
                     repository.analyzeFor(radarProfile, match),
                 ]
               : const <MatchBoardItem>[];
-          final ticketGenerationResult = const TicketGenerator().generate(
-            matches: generatorMatches,
-            strategies: widget.ticketStrategies,
-            profile: compiledProfile,
-          );
           final effectiveSelectedDate = _resolvedScoresDate(
             selectedDate: _selectedScoresDate,
             matches: analyzedAllMatches,
@@ -278,7 +254,6 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
               },
             );
           }
-          _latestOpportunities = opportunities;
           _latestAnalyzedMatches = analyzedAllMatches;
           _scheduleSavedTicketSettlement(analyzedAllMatches);
           void openAnalyzedMatch(MatchBoardItem match) {
@@ -293,19 +268,6 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
               return;
             }
             _openMatchDetails(repository.analyzeFor(effectiveProfile, match));
-          }
-
-          void openGeneratorOpportunity(Opportunity opportunity) {
-            final sourceMatch = allMatches
-                .where((match) => match.id == opportunity.matchId)
-                .firstOrNull;
-            _openOpportunityDetails(
-              opportunity,
-              match: sourceMatch == null
-                  ? opportunity.toMatchBoardItem()
-                  : repository.analyzeFor(baseProfile, sourceMatch),
-              selectionProfile: baseProfile,
-            );
           }
 
           void openRadarMatch(MatchBoardItem match) {
@@ -386,11 +348,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             onOpenOpportunity: _openOpportunityDetails,
             onOpenProfile: () => _showAccountSheet(context),
             onOpenTheme: _openLectorSpace,
-            hasGeneratorResults: ticketGenerationResult.tickets.isNotEmpty,
             hasSavedTickets: _savedTickets.isNotEmpty,
-            hasActiveStrategies: widget.ticketStrategies.any(
-              (strategy) => strategy.isActive,
-            ),
             explorationFilterCount:
                 _explorationSelection?.activeFilterCount ?? 0,
             isExplorationActive: _explorationSelection != null,
@@ -404,100 +362,38 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             ),
             onResetExploration: _resetLectorExploration,
             onOpenTicketHistory: _openTicketHistorySheet,
-            onRecalculateTickets: _refreshTicketProposals,
-            onOpenStrategies: _openTicketStrategies,
-            generator: const bool.fromEnvironment('LECTOR_GENERATOR_UI')
-                ? LectorGeneratorPage(
-                    date: effectiveSelectedDate,
-                    scope: widget.identityScope,
-                    configurationKey: jsonEncode(effectiveProfile.toJson()),
-                    loadRadarContext: () => loadGeneratorRadarScopes(
-                      widget.identityScope,
-                      effectiveSelectedDate,
-                      ['football', 'hockey'],
-                    ),
-                    loadContext: () async => GeneratorContext(
-                      origin: _explorationSelection == null
-                          ? 'profile'
-                          : 'explorer',
-                      preferences: {
-                        'football': GeneratorContext.football(
-                          effectiveCompiledProfile,
-                        ),
-                        'hockey': GeneratorContext.hockey(
-                          await const SportReadingPreferencesStore().load(
-                            widget.identityScope,
-                            SportId.hockey,
-                          ),
-                        ),
-                      },
-                    ),
-                    onPreferences: () => _openLectorExplorer(
-                      repository: repository,
-                      selectedDate: effectiveSelectedDate,
-                    ),
-                    onUseProfile: _resetLectorExploration,
-                    onOpenMatch: (pick) => openGeneratorMatch(
-                      context,
-                      pick,
-                      footballProfile: effectiveProfile,
-                    ),
-                    onLegacyTickets: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => Scaffold(
-                          appBar: AppBar(
-                            title: const Text('Mes tickets et stratégies'),
-                          ),
-                          body: TicketGeneratorPage(
-                            profile: compiledProfile,
-                            matches: generatorMatches,
-                            opportunities: generatorOpportunities,
-                            strategies: widget.ticketStrategies,
-                            savedTickets: _savedTickets,
-                            onEditProfile: _openLectorSpace,
-                            onEditStrategies: _openTicketStrategies,
-                            onCreateManualTicket:
-                                _startManualTicketFromGenerator,
-                            onOpenOpportunity: openGeneratorOpportunity,
-                            onSaveTicket: _upsertSavedTicket,
-                            onDeleteSavedTicket: _deleteSavedTicket,
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
-                : TicketGeneratorPage(
-                    profile: compiledProfile,
-                    matches: generatorMatches,
-                    opportunities: generatorOpportunities,
-                    strategies: widget.ticketStrategies,
-                    savedTickets: _savedTickets,
-                    onEditProfile: _openLectorSpace,
-                    onEditStrategies: _openTicketStrategies,
-                    onCreateManualTicket: _startManualTicketFromGenerator,
-                    onOpenOpportunity: openGeneratorOpportunity,
-                    onSaveTicket: _upsertSavedTicket,
-                    onDeleteSavedTicket: _deleteSavedTicket,
+            generator: LectorGeneratorPage(
+              date: effectiveSelectedDate,
+              scope: widget.identityScope,
+              configurationKey: jsonEncode(effectiveProfile.toJson()),
+              loadRadarContext: () => loadGeneratorRadarScopes(
+                widget.identityScope,
+                effectiveSelectedDate,
+                ['football', 'hockey'],
+              ),
+              loadContext: () async => GeneratorContext(
+                origin: _explorationSelection == null ? 'profile' : 'explorer',
+                preferences: {
+                  'football': GeneratorContext.football(
+                    effectiveCompiledProfile,
                   ),
+                  'hockey': GeneratorContext.hockey(
+                    await const SportReadingPreferencesStore().load(
+                      widget.identityScope,
+                      SportId.hockey,
+                    ),
+                  ),
+                },
+              ),
+              onOpenMatch: (pick) => openGeneratorMatch(
+                context,
+                pick,
+                footballProfile: effectiveProfile,
+              ),
+            ),
           );
         },
       ),
-      bottomNavigationBar: _ticketDraft.isEmpty
-          ? null
-          : TicketBuilderPanel(
-              ticket: _ticketDraft,
-              strategies: widget.ticketStrategies,
-              isExpanded: _isTicketPanelExpanded,
-              onToggleExpanded: () {
-                setState(() {
-                  _isTicketPanelExpanded = !_isTicketPanelExpanded;
-                });
-              },
-              onRemoveSelection: _removeTicketSelection,
-              onTicketSaved: _upsertSavedTicket,
-              onViewSavedTickets: _openTicketsTab,
-              onOpenSelection: _openTicketSelectionDetails,
-            ),
     );
   }
 
@@ -691,10 +587,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
       MaterialPageRoute<void>(
         builder: (context) => LectorSpacePage(
           profile: widget.profile,
-          ticketStrategies: widget.ticketStrategies,
           onProfileChanged: widget.onProfileChanged ?? (_) async {},
-          onTicketStrategiesChanged:
-              widget.onTicketStrategiesChanged ?? (_) async {},
         ),
       ),
     );
@@ -703,6 +596,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
   void _openTicketHistorySheet() {
     showModalBottomSheet<void>(
       context: context,
+      sheetAnimationStyle: lectorSheetAnimationStyle(context),
       isScrollControlled: true,
       showDragHandle: true,
       builder: (context) {
@@ -716,55 +610,6 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
         );
       },
     );
-  }
-
-  void _refreshTicketProposals() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Les propositions sont recalculées à partir des données disponibles.',
-        ),
-      ),
-    );
-    setState(() {});
-  }
-
-  void _openTicketStrategies() {
-    showTicketBuilderPreferencesSheet(
-      context: context,
-      strategies: widget.ticketStrategies,
-      onTicketStrategiesChanged:
-          widget.onTicketStrategiesChanged ?? (_) async {},
-    );
-  }
-
-  void _toggleTicketSelection(TicketDraftSelection selection) {
-    if (!_ticketDraft.canToggle(selection)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Ce match est déjà présent dans Mon ticket.'),
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      _ticketDraft = _ticketDraft.toggle(selection);
-      _ticketDraftNotifier.value = _ticketDraft;
-      if (_ticketDraft.isEmpty) {
-        _isTicketPanelExpanded = false;
-      }
-    });
-  }
-
-  void _removeTicketSelection(String selectionId) {
-    setState(() {
-      _ticketDraft = _ticketDraft.remove(selectionId);
-      _ticketDraftNotifier.value = _ticketDraft;
-      if (_ticketDraft.isEmpty) {
-        _isTicketPanelExpanded = false;
-      }
-    });
   }
 
   Future<void> _loadSavedTickets() async {
@@ -842,9 +687,6 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
         updatedTickets[index] = ticket;
         _savedTickets = updatedTickets;
       }
-      _ticketDraft = TicketDraft.empty;
-      _ticketDraftNotifier.value = _ticketDraft;
-      _isTicketPanelExpanded = false;
     });
     _savedTicketStore.upsert(scope: widget.identityScope, ticket: ticket);
   }
@@ -897,22 +739,8 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
 
   void _openTicketsTab() {
     setState(() {
-      _isTicketPanelExpanded = false;
       _scoresMode = _ScoresRedesignMode.generator;
     });
-  }
-
-  void _startManualTicketFromGenerator() {
-    setState(() {
-      _scoresMode = _ScoresRedesignMode.all;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Choisissez des sélections depuis les matchs pour créer votre ticket.',
-        ),
-      ),
-    );
   }
 
   Future<MatchBoardItem> _loadDetailMatch(
@@ -955,16 +783,6 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             selectedScenarioIds: detailProfile.optionIdsFor(
               'opportunity_profiles',
             ),
-            ticketDraftListenable: _ticketDraftNotifier,
-            ticketStrategies: widget.ticketStrategies,
-            onToggleTicket: _toggleTicketSelection,
-            onRemoveTicketSelection: _removeTicketSelection,
-            onTicketSaved: _upsertSavedTicket,
-            onOpenTicketSelection: _openTicketSelectionDetails,
-            onViewSavedTickets: () {
-              Navigator.of(context).maybePop();
-              _openTicketsTab();
-            },
             onOpenGenerator: () {
               Navigator.of(context).maybePop();
               _openTicketsTab();
@@ -1000,16 +818,6 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             selectedScenarioIds: detailProfile.optionIdsFor(
               'opportunity_profiles',
             ),
-            ticketDraftListenable: _ticketDraftNotifier,
-            ticketStrategies: widget.ticketStrategies,
-            onToggleTicket: _toggleTicketSelection,
-            onRemoveTicketSelection: _removeTicketSelection,
-            onTicketSaved: _upsertSavedTicket,
-            onOpenTicketSelection: _openTicketSelectionDetails,
-            onViewSavedTickets: () {
-              Navigator.of(context).maybePop();
-              _openTicketsTab();
-            },
             onOpenGenerator: () {
               Navigator.of(context).maybePop();
               _openTicketsTab();
@@ -1017,67 +825,6 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
           ),
         ),
       ),
-    );
-  }
-
-  void _openTicketSelectionDetails(TicketDraftSelection selection) {
-    for (final opportunity in _latestOpportunities) {
-      if (opportunity.matchId == selection.matchId) {
-        _openOpportunityDetails(opportunity);
-        return;
-      }
-    }
-
-    for (final match in _latestAnalyzedMatches) {
-      if (match.id == selection.matchId) {
-        _openMatchDetails(match);
-        return;
-      }
-    }
-
-    _openMatchDetails(_matchFromTicketSelection(selection));
-  }
-
-  MatchBoardItem _matchFromTicketSelection(TicketDraftSelection selection) {
-    final odds = MarketOdds(
-      id: selection.selectionId,
-      label: selection.selectionLabel,
-      odds: selection.odds,
-      bookmakerName: selection.bookmakerName,
-    );
-    final market = MatchMarket(
-      id: selection.marketId,
-      label: selection.marketLabel,
-      selections: [odds],
-      bookmakerName: selection.bookmakerName,
-    );
-
-    return MatchBoardItem(
-      fixture: NormalizedFixture(
-        id: selection.matchId,
-        competition: CompetitionInfo(
-          id: 'ticket-${selection.competitionName ?? 'competition'}',
-          name: selection.competitionName ?? 'Compétition',
-          country: const CountryInfo(code: 'ticket', name: 'Mon ticket'),
-          season: DateTime.now().year,
-        ),
-        homeTeam: TeamInfo(
-          id: '${selection.matchId}-home',
-          name: selection.homeTeam,
-          logoUrl: selection.homeLogoUrl,
-        ),
-        awayTeam: TeamInfo(
-          id: '${selection.matchId}-away',
-          name: selection.awayTeam,
-          logoUrl: selection.awayLogoUrl,
-        ),
-        kickoffLabel: 'Depuis Mon ticket',
-        status: FixtureStatus.scheduled,
-      ),
-      primaryMarket: odds,
-      availableMarkets: [market],
-      compatibility: 0,
-      signals: const [],
     );
   }
 
@@ -1214,9 +961,7 @@ class _ScoresRedesignHome extends StatefulWidget {
     required this.onOpenOpportunity,
     required this.onOpenProfile,
     required this.onOpenTheme,
-    required this.hasGeneratorResults,
     required this.hasSavedTickets,
-    required this.hasActiveStrategies,
     required this.explorationFilterCount,
     required this.isExplorationActive,
     required this.explorationReadingCount,
@@ -1224,8 +969,6 @@ class _ScoresRedesignHome extends StatefulWidget {
     required this.onOpenExplorer,
     required this.onResetExploration,
     required this.onOpenTicketHistory,
-    required this.onRecalculateTickets,
-    required this.onOpenStrategies,
     required this.generator,
   });
 
@@ -1251,9 +994,7 @@ class _ScoresRedesignHome extends StatefulWidget {
   final ValueChanged<Opportunity> onOpenOpportunity;
   final VoidCallback onOpenProfile;
   final VoidCallback onOpenTheme;
-  final bool hasGeneratorResults;
   final bool hasSavedTickets;
-  final bool hasActiveStrategies;
   final int explorationFilterCount;
   final bool isExplorationActive;
   final int explorationReadingCount;
@@ -1261,8 +1002,6 @@ class _ScoresRedesignHome extends StatefulWidget {
   final VoidCallback onOpenExplorer;
   final VoidCallback onResetExploration;
   final VoidCallback onOpenTicketHistory;
-  final VoidCallback onRecalculateTickets;
-  final VoidCallback onOpenStrategies;
   final Widget generator;
 
   @override
@@ -1292,7 +1031,6 @@ class _ScoresRedesignHome extends StatefulWidget {
 class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
   String? _selectedForMeReadingId;
   Set<String> _selectedForMeCompetitionIds = const {};
-  double _dateTransitionDirection = 1;
 
   @override
   void didUpdateWidget(covariant _ScoresRedesignHome oldWidget) {
@@ -1306,10 +1044,6 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
         explorationChanged) {
       _selectedForMeReadingId = null;
       _selectedForMeCompetitionIds = const {};
-    }
-    if (!_isSameCalendarDay(oldWidget.selectedDate, widget.selectedDate)) {
-      _dateTransitionDirection =
-          widget.selectedDate.isAfter(oldWidget.selectedDate) ? 1 : -1;
     }
   }
 
@@ -1335,7 +1069,10 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
         .toSet(),
     builder: (context, states) {
       _liveStates = states;
-      return _build(context);
+      return LectorHorizontalTransition(
+        position: widget.mode.index,
+        child: _build(context),
+      );
     },
   );
 
@@ -1469,31 +1206,12 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                             onChanged: widget.onModeChanged,
                           ),
                           const SizedBox(height: 8),
-                          AnimatedSwitcher(
-                            duration: MediaQuery.disableAnimationsOf(context)
-                                ? Duration.zero
-                                : const Duration(milliseconds: 220),
-                            reverseDuration:
-                                MediaQuery.disableAnimationsOf(context)
-                                ? Duration.zero
-                                : const Duration(milliseconds: 170),
-                            switchInCurve: Curves.easeOutCubic,
-                            switchOutCurve: Curves.easeInCubic,
-                            transitionBuilder: (child, animation) {
-                              return FadeTransition(
-                                opacity: animation,
-                                child: SlideTransition(
-                                  position: Tween<Offset>(
-                                    begin: Offset(
-                                      0.045 * _dateTransitionDirection,
-                                      0,
-                                    ),
-                                    end: Offset.zero,
-                                  ).animate(animation),
-                                  child: child,
-                                ),
-                              );
-                            },
+                          LectorHorizontalTransition(
+                            position: DateTime.utc(
+                              widget.selectedDate.year,
+                              widget.selectedDate.month,
+                              widget.selectedDate.day,
+                            ).millisecondsSinceEpoch,
                             child: KeyedSubtree(
                               key: ValueKey(contentKey),
                               child: widget.mode == _ScoresRedesignMode.bilan
@@ -1712,9 +1430,7 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
               deckContext: LectorDeckContext(
                 scope: _deckScopeForMode(widget.mode),
                 selectedDate: widget.selectedDate,
-                hasGeneratorResults: widget.hasGeneratorResults,
                 hasSavedTickets: widget.hasSavedTickets,
-                hasActiveStrategies: widget.hasActiveStrategies,
                 activeExplorationFilterCount: widget.explorationFilterCount,
               ),
               capabilities: LectorDeckCapabilities(
@@ -1729,8 +1445,6 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                     : () => widget.onModeChanged(_ScoresRedesignMode.generator),
                 onGoToday: () => widget.onDateSelected(_todayDate()),
                 onOpenTicketHistory: widget.onOpenTicketHistory,
-                onRecalculate: widget.onRecalculateTickets,
-                onOpenStrategies: widget.onOpenStrategies,
                 onOpenExplorer: widget.onOpenExplorer,
               ),
             ),
@@ -1943,6 +1657,7 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
   ) async {
     final selection = await showModalBottomSheet<_ForMeFilterSelection>(
       context: context,
+      sheetAnimationStyle: lectorSheetAnimationStyle(context),
       isScrollControlled: true,
       showDragHandle: true,
       builder: (context) => _ScoresForMeFiltersSheet(
@@ -2012,6 +1727,7 @@ class _RuntimePersonalizationDiagnosticButton extends StatelessWidget {
     final report = RuntimePersonalizationDiagnostic.instance.report();
     await showModalBottomSheet<void>(
       context: context,
+      sheetAnimationStyle: lectorSheetAnimationStyle(context),
       isScrollControlled: true,
       showDragHandle: true,
       builder: (context) => SafeArea(
@@ -4686,6 +4402,7 @@ class _ChampionshipsByCountryViewState
     );
     final result = await showModalBottomSheet<_AllMatchesFilterResult>(
       context: context,
+      sheetAnimationStyle: lectorSheetAnimationStyle(context),
       isScrollControlled: true,
       showDragHandle: true,
       builder: (context) {
@@ -6641,6 +6358,7 @@ class _MatchListState extends State<_MatchList> {
   Future<void> _openFilters(List<Opportunity> opportunitiesForDate) async {
     final updatedFilters = await showModalBottomSheet<_ForMeFilters>(
       context: context,
+      sheetAnimationStyle: lectorSheetAnimationStyle(context),
       isScrollControlled: true,
       showDragHandle: true,
       builder: (context) {

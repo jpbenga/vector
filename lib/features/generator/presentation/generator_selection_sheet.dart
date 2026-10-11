@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/widgets/sports_asset_badge.dart';
+import '../../../core/widgets/lector_horizontal_transition.dart';
 import '../domain/generator_context.dart';
 import 'generator_formatters.dart';
 import 'generator_decisions.dart';
@@ -20,6 +21,7 @@ Future<void> showGeneratorSelectionDetail(
   FocusManager.instance.primaryFocus?.unfocus();
   return showModalBottomSheet<void>(
     context: context,
+    sheetAnimationStyle: lectorSheetAnimationStyle(context),
     isScrollControlled: true,
     useSafeArea: true,
     showDragHandle: true,
@@ -178,7 +180,10 @@ class _GeneratorSelectionSheetState extends State<GeneratorSelectionSheet> {
               ),
             ),
             const SizedBox(height: 14),
-            GeneratorSelectionEvidence(pick: widget.pick, tab: _tab),
+            LectorHorizontalTransition(
+              position: _tab,
+              child: GeneratorSelectionEvidence(pick: widget.pick, tab: _tab),
+            ),
           ],
         ),
       ),
@@ -938,6 +943,7 @@ void _showEvidence(BuildContext context, Map<String, dynamic> evidence) {
   final at = DateTime.tryParse(evidence['asOf']?.toString() ?? '')?.toLocal();
   showModalBottomSheet<void>(
     context: context,
+    sheetAnimationStyle: lectorSheetAnimationStyle(context),
     isScrollControlled: true,
     useSafeArea: true,
     showDragHandle: true,

@@ -31,6 +31,7 @@ export interface RadarScope {
   players: RadarMember[];
 }
 export interface Context {
+  shortlist?: import("./shortlist.ts").ShortlistScope;
   origin: "profile" | "explorer";
   scope: "discovery" | "strict";
   timezone: string;
@@ -39,7 +40,7 @@ export interface Context {
   configurationPolicy?: "request";
   preferences: Partial<Record<Sport, Preferences>>;
   /** Read scope for this request; never changes the saved preferences. */
-  view?: "profile" | "radar" | "all";
+  view?: "profile" | "radar" | "all" | "shortlist";
   radar?: Partial<Record<Sport, RadarScope>>;
   radarKind?: "teams" | "players";
 }
@@ -83,7 +84,7 @@ export interface Intent {
   message: string;
   goalMode?: "around" | "minimum" | "range" | "unconstrained";
   preserveFixtures?: boolean;
-  view?: "current" | "profile" | "radar" | "all";
+  view?: "current" | "profile" | "radar" | "all" | "shortlist";
   radarKind?: "current" | "teams" | "players";
 }
 /** A count belongs to its ticket, independently of a top-N analysis. */
@@ -484,7 +485,9 @@ export function intentFrom(value: unknown): Intent {
     (v.preserveFixtures !== undefined &&
       typeof v.preserveFixtures !== "boolean") ||
     (v.view !== undefined &&
-      !["current", "profile", "radar", "all"].includes(String(v.view))) ||
+      !["current", "profile", "radar", "all", "shortlist"].includes(
+        String(v.view),
+      )) ||
     (v.radarKind !== undefined &&
       !["current", "teams", "players"].includes(String(v.radarKind))) ||
     (v.minSelections != null &&

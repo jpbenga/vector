@@ -90,7 +90,7 @@ Widget screen(
         loadContext: () async =>
             GeneratorContext(origin: 'profile', preferences: {}),
         loadRadarContext: loadRadarContext,
-        onPreferences: () {},
+
         onOpenMatch: (_) {},
       ),
     ),
@@ -101,7 +101,13 @@ Future<ScopedPersistence> savedReference() async {
   final persistence = ScopedPersistence(store: MemoryLocalKeyValueStore());
   await persistence.write(
     scope,
-    'generator.conversation.v1',
+    const String.fromEnvironment(
+              'LECTOR_GENERATOR_ENDPOINT',
+              defaultValue: 'lector-generator',
+            ) ==
+            'lector-generator-workshop'
+        ? 'generator.conversation.workshop.v1'
+        : 'generator.conversation.v1',
     jsonEncode({'id': 'restored-session', 'date': '2026-10-09'}),
   );
   return persistence;
@@ -381,7 +387,18 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Options de la conversation'));
     await tester.pumpAndSettle();
-    expect(find.text('Vos brouillons'), findsOneWidget);
+    const workshop =
+        String.fromEnvironment(
+          'LECTOR_GENERATOR_ENDPOINT',
+          defaultValue: 'lector-generator',
+        ) ==
+        'lector-generator-workshop';
+    expect(
+      find.text(
+        workshop ? 'Sessions et éléments sauvegardés' : 'Vos brouillons',
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Nouvelle conversation'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

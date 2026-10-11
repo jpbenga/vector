@@ -409,7 +409,11 @@ export function exploreCompositions(
     }
     if (
       Number.isFinite(Date.parse(candidate.kickoff)) &&
-      calendarDay(candidate.kickoff, context.timezone) !== intent.date
+      (context.view === "shortlist"
+        ? !context.shortlist?.keys.includes(
+          candidate.sport + ":" + candidate.matchId.split(/[-:]/).at(-1),
+        )
+        : calendarDay(candidate.kickoff, context.timezone) !== intent.date)
     ) reasons.push("outside_requested_day");
     if (
       !intent.sports.includes(candidate.sport) ||

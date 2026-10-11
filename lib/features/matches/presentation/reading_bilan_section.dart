@@ -1,3 +1,4 @@
+import '../../../core/widgets/lector_horizontal_transition.dart';
 import 'package:flutter/material.dart';
 import '../../../core/data/read_recovery.dart';
 import '../../../core/widgets/lector_loading.dart';
@@ -71,6 +72,7 @@ class _ReadingBilanSectionState extends State<ReadingBilanSection> {
   ) {
     showModalBottomSheet<void>(
       context: context,
+      sheetAnimationStyle: lectorSheetAnimationStyle(context),
       isScrollControlled: true,
       backgroundColor: AppColors.transparent,
       builder: (_) => _ReadingResultsSheet(

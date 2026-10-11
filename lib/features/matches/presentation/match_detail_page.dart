@@ -1,3 +1,5 @@
+import '../../shortlist/presentation/shortlist_actions.dart';
+import '../../../core/widgets/lector_horizontal_transition.dart';
 import '../../../core/widgets/lector_match_insights.dart';
 import '../../../core/widgets/lector_match_form_view.dart';
 import '../../../core/widgets/lector_match_detail_view.dart';
@@ -25,7 +27,6 @@ import '../../opportunities/domain/opportunity.dart';
 import '../../tickets/domain/ticket_draft.dart';
 import '../../tickets/domain/saved_ticket.dart';
 import '../../tickets/domain/ticket_strategy.dart';
-import '../../tickets/presentation/ticket_builder_panel.dart';
 import '../domain/football_reading.dart';
 import '../domain/football_scenario.dart';
 import '../domain/market_assessment.dart';
@@ -75,8 +76,6 @@ class MatchDetailPage extends StatefulWidget {
 }
 
 class _MatchDetailPageState extends State<MatchDetailPage> {
-  bool _isTicketPanelExpanded = false;
-
   @override
   Widget build(BuildContext context) => LiveFixtureBuilder(
     fixtureId: widget.match.fixture.apiFootballFixtureId,
@@ -85,7 +84,9 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
       final live = current.fixture.status == FixtureStatus.live;
       final hasStats = live || current.fixture.status == FixtureStatus.finished;
       return LectorMatchDetailView(
-        bottomNavigationBar: _buildTicketPanel(),
+        preparationAction: ShortlistAddButton(
+          fixture: shortlistFootball(current),
+        ),
         overlay: _buildDeck(context),
         openStats: hasStats,
         stats: hasStats
@@ -123,145 +124,18 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
     },
   );
 
-  Widget? _buildTicketPanel() {
-    final ticketDraftListenable = widget.ticketDraftListenable;
-    if (ticketDraftListenable == null ||
-        widget.onRemoveTicketSelection == null ||
-        widget.onTicketSaved == null ||
-        widget.onViewSavedTickets == null) {
-      return null;
-    }
-
-    return ValueListenableBuilder<TicketDraft>(
-      valueListenable: ticketDraftListenable,
-      builder: (context, ticket, _) {
-        if (ticket.isEmpty) {
-          return const SizedBox.shrink();
-        }
-
-        return TicketBuilderPanel(
-          ticket: ticket,
-          strategies: widget.ticketStrategies,
-          isExpanded: _isTicketPanelExpanded,
-          onToggleExpanded: () {
-            setState(() {
-              _isTicketPanelExpanded = !_isTicketPanelExpanded;
-            });
-          },
-          onRemoveSelection: (selectionId) {
-            widget.onRemoveTicketSelection!(selectionId);
-            if (ticket.selectionCount <= 1) {
-              setState(() {
-                _isTicketPanelExpanded = false;
-              });
-            }
-          },
-          onTicketSaved: widget.onTicketSaved!,
-          onViewSavedTickets: widget.onViewSavedTickets!,
-          onOpenSelection: widget.onOpenTicketSelection,
-        );
-      },
-    );
-  }
-
-  Widget _buildDeck(BuildContext context) {
-    final ticketDraftListenable = widget.ticketDraftListenable;
-    if (ticketDraftListenable == null) {
-      return _deckForTicket(TicketDraft.empty);
-    }
-
-    return ValueListenableBuilder<TicketDraft>(
-      valueListenable: ticketDraftListenable,
-      builder: (context, ticket, _) => _deckForTicket(ticket),
-    );
-  }
-
-  Widget _deckForTicket(TicketDraft ticket) {
-    final ticketSelection = _recommendedTicketSelection();
-    final ticketState = _deckTicketState(ticket, ticketSelection);
-    final canOpenCurrentTicket = ticket.isNotEmpty && _canShowTicketPanel;
-
-    return LectorDeck(
-      maxWidth: MediaQuery.sizeOf(context).width - 28,
-      deckContext: LectorDeckContext(
-        scope: LectorDeckScope.matchDetail,
-        ticketState: ticketState,
+  Widget _buildDeck(BuildContext context) => LectorDeck(
+    maxWidth: MediaQuery.sizeOf(context).width - 28,
+    deckContext: const LectorDeckContext(scope: LectorDeckScope.matchDetail),
+    capabilities: LectorDeckCapabilities(
+      onOpenReadings: () => _showScenarioReadingsSheet(
+        context,
+        widget.match,
+        opportunity: widget.opportunity,
       ),
-      capabilities: LectorDeckCapabilities(
-        onAddToTicket:
-            ticketState == LectorDeckTicketState.canAdd &&
-                ticketSelection != null &&
-                widget.onToggleTicket != null
-            ? () => widget.onToggleTicket!(ticketSelection)
-            : null,
-        onRemoveFromTicket:
-            ticketState == LectorDeckTicketState.selected &&
-                ticketSelection != null &&
-                widget.onToggleTicket != null
-            ? () {
-                widget.onToggleTicket!(ticketSelection);
-                setState(() {
-                  _isTicketPanelExpanded = false;
-                });
-              }
-            : null,
-        onOpenCurrentTicket: canOpenCurrentTicket
-            ? () {
-                setState(() {
-                  _isTicketPanelExpanded = true;
-                });
-              }
-            : null,
-        onOpenReadings: () => _showScenarioReadingsSheet(
-          context,
-          widget.match,
-          opportunity: widget.opportunity,
-        ),
-        onOpenGenerator: widget.onOpenGenerator,
-      ),
-    );
-  }
-
-  bool get _canShowTicketPanel {
-    return widget.ticketDraftListenable != null &&
-        widget.onRemoveTicketSelection != null &&
-        widget.onTicketSaved != null &&
-        widget.onViewSavedTickets != null;
-  }
-
-  TicketDraftSelection? _recommendedTicketSelection() {
-    if (widget.match.profileStatus == MatchProfileStatus.outOfProfile) {
-      return null;
-    }
-    final recommendedMarket = _recommendedMarketForDetail(
-      widget.match,
-      widget.opportunity,
-    );
-    if (recommendedMarket == null) {
-      return null;
-    }
-    return TicketDraftSelection.fromMatchSelection(
-      widget.match,
-      recommendedMarket.market,
-      recommendedMarket.selection,
-    );
-  }
-
-  LectorDeckTicketState _deckTicketState(
-    TicketDraft ticket,
-    TicketDraftSelection? ticketSelection,
-  ) {
-    if (ticketSelection == null || widget.onToggleTicket == null) {
-      return LectorDeckTicketState.unavailable;
-    }
-    if (ticket.contains(ticketSelection.id)) {
-      return LectorDeckTicketState.selected;
-    }
-    if (ticket.containsAnotherSelectionForMatch(ticketSelection)) {
-      return LectorDeckTicketState.blockedByAnotherSelection;
-    }
-    return LectorDeckTicketState.canAdd;
-  }
+      onOpenGenerator: widget.onOpenGenerator,
+    ),
+  );
 }
 
 class _LectorDetailWordmark extends StatelessWidget {
@@ -4044,6 +3918,7 @@ void _showScenarioReadingsSheet(
 }) {
   showModalBottomSheet<void>(
     context: context,
+    sheetAnimationStyle: lectorSheetAnimationStyle(context),
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: AppColors.transparent,
@@ -4066,6 +3941,7 @@ void _showContextMarketAssociationSheet(
 }) {
   showModalBottomSheet<void>(
     context: context,
+    sheetAnimationStyle: lectorSheetAnimationStyle(context),
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: AppColors.transparent,
@@ -10239,16 +10115,19 @@ class _AnalysisSectionState extends State<_AnalysisSection> {
                 ),
               )
             else
-              switch (_selectedTab) {
-                _AnalysisTab.standings => _StandingsPanel(match: match),
-                _AnalysisTab.form => _FormComparisonPanel(match: match),
-                _AnalysisTab.homeAway => _HomeAwayPanel(match: match),
-                _AnalysisTab.attackDefense => _AttackDefensePanel(
-                  match: match,
-                  opportunity: widget.opportunity,
-                ),
-                _AnalysisTab.series => _SeriesPanel(match: match),
-              },
+              LectorHorizontalTransition(
+                position: _selectedTab.index,
+                child: switch (_selectedTab) {
+                  _AnalysisTab.standings => _StandingsPanel(match: match),
+                  _AnalysisTab.form => _FormComparisonPanel(match: match),
+                  _AnalysisTab.homeAway => _HomeAwayPanel(match: match),
+                  _AnalysisTab.attackDefense => _AttackDefensePanel(
+                    match: match,
+                    opportunity: widget.opportunity,
+                  ),
+                  _AnalysisTab.series => _SeriesPanel(match: match),
+                },
+              ),
             const SizedBox(height: 14),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,

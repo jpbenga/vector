@@ -1,3 +1,4 @@
+import '../../../shortlist/presentation/shortlist_actions.dart';
 import '../../../../core/widgets/lector_recorded_radar_panel.dart';
 import '../../../../core/domain/lector_radar_contributions.dart';
 import '../../../../core/widgets/lector_reading_pill.dart';
@@ -120,6 +121,7 @@ class _MatchFeedCardContent extends StatelessWidget {
         : context.brand.accent;
 
     return LectorMatchCard(
+      preparationAction: ShortlistAddButton(fixture: shortlistFootball(match)),
       onTap: onTap,
       temporal:
           liveState?.temporal ??

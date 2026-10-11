@@ -4,6 +4,49 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('smoothly reveals a selected day outside the viewport', (
+    tester,
+  ) async {
+    final initial = DateTime(2026, 10, 10);
+    var selected = initial;
+    late StateSetter update;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: CopilotTheme.dark,
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            update = setState;
+            return Center(
+              child: SizedBox(
+                width: 390,
+                child: CopilotCalendar(
+                  selectedDate: selected,
+                  visibleWindowDays: 31,
+                  onDateSelected: (_) {},
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    final scroll = tester
+        .widget<ListView>(find.byKey(const ValueKey('home-calendar-day-strip')))
+        .controller!;
+    final before = scroll.offset;
+    update(() => selected = DateTime(2026, 10, 22));
+    await tester.pump();
+    expect(scroll.offset, before);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(scroll.offset, greaterThan(before));
+    final during = scroll.offset;
+    await tester.pumpAndSettle();
+    expect(scroll.offset, greaterThan(during));
+    expect(find.text('22.10').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('highlights only the selected day when leaving today', (
     tester,
   ) async {
