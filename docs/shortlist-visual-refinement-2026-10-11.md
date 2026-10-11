@@ -71,10 +71,18 @@ La revue finale Impeccable a donné la disposition **ship** après un verdict **
 
 Les quatre observations sont résolues. Validation communiquée à la clôture de la revue : analyse Flutter complète **No issues found** ; **84 tests** de parcours football/hockey réussis ; **4 tests ciblés** de raffinement, dont les statuts, réussis ; test SQL des lectures et de l’isolation par propriétaire **1 réussi** ; test des gardes d’installation **1 réussi**. Les tests de tri, filtres et sélection vérifient notamment la conservation des sélections masquées et l’absence de mutation lors de la navigation.
 
-Après centralisation des couleurs et arrondis, les **36 tests** du thème et de la Shortlist passent, y compris les quatre contrôles statiques de la CI qui avaient signalé les déclarations locales.
+Après centralisation des couleurs et arrondis, les **36 tests** du thème et de la Shortlist passent, y compris les quatre contrôles statiques de la CI qui avaient signalé les déclarations locales. L’analyse Flutter ne signale aucune anomalie. Les quatre PNG sont identiques octet pour octet aux rendus approuvés avant cette centralisation. La [CI complète de la révision 2f221c0](https://github.com/jpbenga/vector/actions/runs/38173169507) réussit pour Flutter et les fonctions Supabase.
 
 Limite conservée : aucun essai sur appareil physique pour cette refonte. Les autres variantes de thème ne disposent pas de captures dédiées dans ce lot.
 
 ## Statut de publication
 
-La refonte est validée pour livraison. Son déploiement est **en cours** au moment de cette documentation ; aucun déploiement final ni contrôle du site publié n’est attesté ici. Le reçu de publication de la V1 dans [shortlist-preparation.md](shortlist-preparation.md) décrit la version antérieure et ne vaut pas preuve de publication de cette refonte.
+La [mise à jour serveur](https://github.com/jpbenga/vector/actions/runs/38173419815) est installée depuis la révision `2f221c0c81986676a6a064f4d430fbe80a137324`. Les deux migrations de Shortlist sont vérifiées ; le nouvel enrichissement des cartes est actif. Le reçu confirme : accès anonyme refusé (401), lecture serveur autorisée, lecture du propriétaire étranger et écriture directe refusées, nettoyage horaire actif, zéro appel de modèle payant, zéro appel fournisseur et aucun secret modifié.
+
+Compilation release réussie : 457,3 secondes ; paquet complet contrôlé, avec script vocal, manifestes et polices. Déploiement Vercel `dpl_DMXqb4KQKaiQSaYUSDR6HXCHGnpH`, état READY, sur [lector-sports-go54elz7f-lector1.vercel.app](https://lector-sports-go54elz7f-lector1.vercel.app/). L’alias public [démo](https://lector-sports-demo-lector1.vercel.app/) pointe vers ce déploiement. Une navigation neuve dans le navigateur atteint l’application et l’état invité de Ma Shortlist, sans écran d’authentification Vercel ; la connexion Lector reste requise pour accéder à la préparation personnelle. Le reçu de publication de la V1 dans [shortlist-preparation.md](shortlist-preparation.md) décrit la version antérieure et ne vaut pas preuve de publication de cette refonte.
+
+### Contrôle du site publié
+
+Contrôle navigateur à 393×852 : nouvelle application chargée et écran Ma Shortlist atteint, sans connexion Vercel. Le navigateur de vérification ne dispose pas de session Lector connectée ; le contrôle publié porte donc sur l’état invité, pas sur une préparation personnelle réelle. Les données, cartes et actions connectées sont couvertes par les tests de widgets et SQL décrits ci-dessus. Aucune rencontre personnelle n’a été ajoutée, retirée ou prolongée pendant ce contrôle. Le format du navigateur a été restauré après vérification.
+
+![Ma Shortlist publiée — état invité](/Users/chloe/.codex/visualizations/2026/09/16/01a0aaf1-05e5-7562-8f19-7332ea8701f5/shortlist-published-2026-10-11.jpg)
