@@ -66,4 +66,15 @@ class QuoteProjectionTests(unittest.TestCase):
             with self.transport(bad),self.assertRaises(ValueError):
                 verify_publication(self.base,{'SUPABASE_ANON_KEY':'public-test'})
 
+    def test_ui_rebuild_still_verifies_canonical_data_without_refreshing_quotes(self):
+        with self.transport(self.priced) as mock:
+            result=verify_publication(self.priced,{'SUPABASE_ANON_KEY':'public-test'},include_quotes=False)
+        self.assertEqual(result,self.base)
+        self.assertEqual(mock.call_count,1)
+        self.assertEqual(json.loads(mock.call_args.args[0].data)['p_section'],'full')
+        changed=copy.deepcopy(self.priced)
+        changed['items'][0]['home']['id']='another-team'
+        with self.transport(self.priced),self.assertRaises(ValueError):
+            verify_publication(changed,{'SUPABASE_ANON_KEY':'public-test'},include_quotes=False)
+
 if __name__=='__main__': unittest.main()

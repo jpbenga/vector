@@ -143,3 +143,29 @@ projection cotée réussit ensuite en 9,57 s au total : 503 rencontres et
 5 156 cotes, identité de collection et contenu analytique identiques.
 La copie locale vérifiée conserve `capturedAt=2026-10-11T00:18:30.281Z` ;
 aucun horodatage artificiel ni allongement des 36 heures.
+
+## Délai public et nouvelle livraison
+
+La lecture publique cotée réussissait parfois, mais restait interrompue par
+le délai anonyme de trois secondes. La migration
+`20261011020500_hockey_public_reader_deadline.sql` réserve huit secondes
+à la seule RPC `read_sport_feed`. PostgREST applique ce réglage au début
+de la transaction. Les limites des rôles restent identiques : anon 3 s,
+authenticated 8 s, service_role 30 s. Les permissions restent identiques.
+Référence : https://supabase.com/docs/guides/database/postgres/timeouts
+
+Après installation et rechargement du schéma, les contrôles HTTP anonymes
+réussissent : journée du 11 octobre, 42 rencontres en 1,43 s ; Radar complet,
+503 rencontres en 2,56 s. Ces mesures ponctuelles ne sont pas une garantie
+de latence. La reconstruction hockey réussit ensuite avec vérification
+du document canonique et des cotes sur le serveur. Elle contient
+5 156 cotes, dont 2 059 pour le 11 octobre, et 28 lectures pour cette journée.
+Les empreintes des 1 651 fichiers de l’interface compilée et du football
+restent identiques. Dix tests Python ciblés passent (six sur les contrôles
+de publication, quatre sur la fraîcheur).
+
+La collecte complète récurrente reste un chantier distinct. Les collecteurs
+de live et de cotes existants ne remplacent pas ce renouvellement. Cette
+réparation ponctuelle et les contrôles de publication ne suffisent donc pas
+à garantir automatiquement une nouvelle collecte avant la prochaine
+expiration des 36 heures.

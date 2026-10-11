@@ -31,7 +31,7 @@ def without_prices(payload):
     return {**payload, 'items': [{k:v for k,v in f.items() if k not in ('quotes','quotesCollectedAt')} for f in payload['items']]}
 
 
-def verify_publication(payload, values):
+def verify_publication(payload, values, *, include_quotes=True):
     def read(section):
         req = urllib.request.Request(PROJECT_URL + '/rest/v1/rpc/read_sport_feed',
             data=json.dumps({'p_sport': payload['sport'], 'p_section': section,
@@ -42,7 +42,7 @@ def verify_publication(payload, values):
     stored = read('full')
     if without_prices(stored) != without_prices(payload):
         raise ValueError('Shared server publication differs from the displayed compact')
-    if payload['sport'] != 'hockey':
+    if payload['sport'] != 'hockey' or not include_quotes:
         return stored
     # Quote observations do not require rebuilding the large analytical export
     # in PostgreSQL. Read them from its lightweight, exact-version projection.
