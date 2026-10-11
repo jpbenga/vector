@@ -43,9 +43,9 @@ La comparaison s’appuie sur [theme-application.md](theme-application.md), [app
 
 ### Écarts consignés
 
-La documentation du thème signale déjà une dette de couleurs directes, de tailles locales et d’usage incomplet d’AppSpacing. La Shortlist contient également des choix locaux : violet plein du CTA (#692CB4 en sombre, #6630A5 en clair), rayons de cartes à 16 px et de CTA à 13 px, au lieu des tokens généraux de 18 et 14 px, ainsi que des espacements et tailles intermédiaires. Le violet est une valeur locale codée en dur ; sa centralisation prévue par les règles générales de thème reste un écart constaté.
+La documentation du thème signale déjà une dette de couleurs directes, de tailles locales et d’usage incomplet d’AppSpacing. La Shortlist contient également des choix locaux : violet plein du CTA (#692CB4 en sombre, #6630A5 en clair), rayons de cartes à 16 px et de CTA à 13 px, au lieu des tokens généraux de 18 et 14 px, ainsi que des espacements et tailles intermédiaires. Les couleurs locales de Shortlist et du CTA sont centralisées dans AppFeatureColors et exposées par AppFeaturePalette. Les arrondis canoniques utilisent AppRadius ; les valeurs intermédiaires restent propres à cette composition.
 
-Ces observations ne constituent pas de nouveaux tokens ni des règles globales. Aucun fichier de thème, `DESIGN.md`, sidecar `.impeccable/design.json` ou skill n’est créé ou réparé par ce passage documentaire. La structure, les chiffres, les horaires et les rencontres de la maquette sont une référence illustrative, sans valeur de données sportives réelles.
+Cette extension de palette conserve exactement les couleurs validées lors de la revue. Elle ne modifie pas les autres surfaces. Aucun `DESIGN.md`, sidecar `.impeccable/design.json` ou skill n’est créé par ce passage documentaire. La structure, les chiffres, les horaires et les rencontres de la maquette sont une référence illustrative, sans valeur de données sportives réelles.
 
 ## Preuves de vérification
 
@@ -70,6 +70,8 @@ La revue finale Impeccable a donné la disposition **ship** après un verdict **
 | Cibles d’action | Voir et Retirer imposent une cible de 48×48 px minimum. |
 
 Les quatre observations sont résolues. Validation communiquée à la clôture de la revue : analyse Flutter complète **No issues found** ; **84 tests** de parcours football/hockey réussis ; **4 tests ciblés** de raffinement, dont les statuts, réussis ; test SQL des lectures et de l’isolation par propriétaire **1 réussi** ; test des gardes d’installation **1 réussi**. Les tests de tri, filtres et sélection vérifient notamment la conservation des sélections masquées et l’absence de mutation lors de la navigation.
+
+Après centralisation des couleurs et arrondis, les **36 tests** du thème et de la Shortlist passent, y compris les quatre contrôles statiques de la CI qui avaient signalé les déclarations locales.
 
 Limite conservée : aucun essai sur appareil physique pour cette refonte. Les autres variantes de thème ne disposent pas de captures dédiées dans ce lot.
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/widgets/lector_responsive_layout.dart';
 import '../../../core/widgets/lector_horizontal_transition.dart';
@@ -9,10 +9,7 @@ import '../../../core/widgets/sports_asset_badge.dart';
 import '../domain/shortlist.dart';
 import 'shortlist_view.dart';
 
-Color shortlistAccent(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark
-    ? AppColors.accent
-    : AppLightColors.accent;
+Color shortlistAccent(BuildContext context) => context.features.shortlistAccent;
 
 Future<ShortlistViewFilter?> showShortlistFilters(
   BuildContext context,
@@ -211,7 +208,9 @@ class ShortlistSessionCard extends StatelessWidget {
                               ),
                               const SizedBox(height: 5),
                               ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.indicator,
+                                ),
                                 child: LinearProgressIndicator(
                                   value: progress,
                                   minHeight: 4,
@@ -367,7 +366,9 @@ class ShortlistStatusTabs extends StatelessWidget {
                             color: group == key
                                 ? shortlistAccent(context)
                                 : context.surfaces.surfaceHover,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(
+                              AppRadius.control,
+                            ),
                           ),
                           child: Text(
                             '${counts[key] ?? 0}',
@@ -375,10 +376,7 @@ class ShortlistStatusTabs extends StatelessWidget {
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
                               color: group == key
-                                  ? Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? AppColors.background
-                                        : Colors.white
+                                  ? context.features.shortlistOnAccent
                                   : context.textColors.secondary,
                             ),
                           ),
@@ -463,10 +461,7 @@ class ShortlistFixtureTile extends StatelessWidget {
                       value: selected,
                       onChanged: (value) => onSelected(value == true),
                       activeColor: accent,
-                      checkColor:
-                          Theme.of(context).brightness == Brightness.dark
-                          ? AppColors.background
-                          : Colors.white,
+                      checkColor: context.features.shortlistOnAccent,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(5),
                       ),
@@ -474,7 +469,7 @@ class ShortlistFixtureTile extends StatelessWidget {
                     Expanded(
                       child: InkWell(
                         onTap: onOpen,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(AppRadius.control),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -825,11 +820,8 @@ class ShortlistActionBar extends StatelessWidget {
                         key: const ValueKey('shortlist-prepare'),
                         onPressed: onPrepare,
                         style: FilledButton.styleFrom(
-                          backgroundColor:
-                              Theme.of(context).brightness == Brightness.dark
-                              ? const Color(0xFF692CB4)
-                              : const Color(0xFF6630A5),
-                          foregroundColor: Colors.white,
+                          backgroundColor: context.features.generatorActionFill,
+                          foregroundColor: context.features.generatorActionText,
                           minimumSize: const Size(0, 44),
                           padding: const EdgeInsets.symmetric(horizontal: 10),
                           shape: RoundedRectangleBorder(

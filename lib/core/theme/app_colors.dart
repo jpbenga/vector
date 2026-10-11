@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 
 /// Permanent feature identities, independent from the selected app accent.
 class AppFeatureColors {
+  static const shortlistAccent = AppColors.accent;
+  static const shortlistLightAccent = AppLightColors.accent;
+  static const actionText = Color(0xFFFFFFFF);
+  static const generatorActionFill = Color(0xFF692CB4);
+  static const generatorActionLightFill = Color(0xFF6630A5);
   static const radarAccent = Color(0xFF62BD94);
   static const radarFill = Color(0xFF18362D);
   static const radarLightAccent = Color(0xFF256347);

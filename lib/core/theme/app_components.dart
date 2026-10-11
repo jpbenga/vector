@@ -1303,6 +1303,15 @@ class AppFeaturePalette {
   const AppFeaturePalette(this.brightness);
   final Brightness brightness;
   bool get _light => brightness == Brightness.light;
+  Color get shortlistAccent => _light
+      ? AppFeatureColors.shortlistLightAccent
+      : AppFeatureColors.shortlistAccent;
+  Color get shortlistOnAccent =>
+      _light ? AppFeatureColors.actionText : AppColors.background;
+  Color get generatorActionFill => _light
+      ? AppFeatureColors.generatorActionLightFill
+      : AppFeatureColors.generatorActionFill;
+  Color get generatorActionText => AppFeatureColors.actionText;
   Color get radarAccent =>
       _light ? AppFeatureColors.radarLightAccent : AppFeatureColors.radarAccent;
   Color get radarFill =>

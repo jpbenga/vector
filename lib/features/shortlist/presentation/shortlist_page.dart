@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../app/auth/lector_account_sheet.dart';
 import '../../../app/sports/generator_match_navigation.dart';
 import '../../../core/theme/app_components.dart';
+import '../../../core/theme/app_radius.dart';
 import '../../../core/widgets/lector_loading.dart';
 import '../../../core/widgets/lector_match_card.dart';
 import '../../../core/widgets/lector_responsive_layout.dart';
@@ -194,7 +195,7 @@ class _ShortlistPageState extends State<ShortlistPage> {
                   ),
                   decoration: BoxDecoration(
                     color: shortlistAccent(context).withValues(alpha: .15),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(AppRadius.control),
                   ),
                   child: Text(
                     '${items.length}',
