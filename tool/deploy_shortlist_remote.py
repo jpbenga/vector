@@ -11,6 +11,7 @@ from deploy_generator_remote import PROJECT, request, require_ci
 from deploy_generator_scope_remote import validate_environment
 
 MIGRATION = Path('supabase/migrations/20261011160000_lector_shortlist.sql')
+DISPLAY_MIGRATION = Path('supabase/migrations/20261011220000_lector_shortlist_display.sql')
 FUNCTION = 'lector-generator-workshop'
 
 
@@ -25,16 +26,17 @@ def main():
     def query(sql, read_only=False):
         return request(base + '/database/query', token, {'query': sql, 'read_only': read_only})
 
-    sql = MIGRATION.read_text()
-    version, name = MIGRATION.stem.split('_', 1)
-    prior = query(f"select statements from supabase_migrations.schema_migrations where version='{version}'", True)
-    if prior:
-        if prior[0].get('statements') != [sql]:
-            raise ValueError('Installed Shortlist migration differs; add a migration.')
-    else:
-        if '$lector_shortlist_sql$' in sql:
-            raise ValueError('Unexpected migration delimiter.')
-        query('begin;\n' + sql + f"\ninsert into supabase_migrations.schema_migrations(version,name,statements) values('{version}','{name}',array[$lector_shortlist_sql${sql}$lector_shortlist_sql$]);\ncommit;")
+    for migration in (MIGRATION, DISPLAY_MIGRATION):
+        sql = migration.read_text()
+        version, name = migration.stem.split('_', 1)
+        prior = query(f"select statements from supabase_migrations.schema_migrations where version='{version}'", True)
+        if prior:
+            if prior[0].get('statements') != [sql]:
+                raise ValueError('Installed Shortlist migration differs; add a migration.')
+        else:
+            if '$lector_shortlist_sql$' in sql:
+                raise ValueError('Unexpected migration delimiter.')
+            query('begin;\n' + sql + f"\ninsert into supabase_migrations.schema_migrations(version,name,statements) values('{version}','{name}',array[$lector_shortlist_sql${sql}$lector_shortlist_sql$]);\ncommit;")
     acl = query("""select
         has_function_privilege('anon','public.lector_shortlist(text,uuid,text,text,date,timestamptz,text,bigint)','execute') as anonymous_mutation,
         has_function_privilege('authenticated','public.lector_shortlist(text,uuid,text,text,date,timestamptz,text,bigint)','execute') as user_action,

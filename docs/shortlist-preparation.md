@@ -25,7 +25,7 @@ Les cinq destinations principales restent Pour moi, Radar, Tous, Générateur et
 - Lire, scroller, comparer, générer, cocher un sous-ensemble ou actualiser les données ne renouvelle pas cette durée.
 - Un ajout/retrait ne raccourcit pas une prolongation déjà choisie : nouvelle échéance = maximum de l’échéance prolongée et de maintenant + 24 h.
 - Prolonger propose jusqu’à ce soir, demain soir ou pendant sept jours. « Ce soir » et « demain soir » se calculent dans le fuseau affiché, et non comme 12 h ou 24 h fixes. Un choix qui raccourcit l’échéance actuelle n’est pas proposé comme prolongation.
-- Affichage discret « Session temporaire » et échéance accessible dans le détail. Afficher « Expire dans 2 h » seulement près de l’expiration. Aucune jauge animée permanente.
+- Affichage compact « Session temporaire », temps restant et échéance réelle toujours visibles dans Ma Shortlist, conformément à la [refonte du 11 octobre 2026](shortlist-visual-refinement-2026-10-11.md). La jauge est statique, sans animation permanente ; sa valeur décrit la durée restante de la session serveur.
 - À expiration, la session devient inactive même si le traitement de nettoyage n’a pas encore tourné. Elle n’alimente plus les nouvelles générations.
 - Récupération possible pendant 24 h à partir de l’échéance. Restaurer ouvre une nouvelle période de préparation avec les rencontres conservées, actualisées et leurs statuts réels.
 - Commencer une nouvelle session ne supprime pas immédiatement la session récupérable. Si une nouvelle session active existe lors d’une restauration, proposer explicitement une fusion sans doublon ou conserver la session courante.

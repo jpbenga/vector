@@ -290,7 +290,7 @@ void main() {
       c.choose('hockey:1', true);
       await tester.pump();
       final compare = tester.widget<OutlinedButton>(
-        find.widgetWithText(OutlinedButton, 'Comparer'),
+        find.byKey(const ValueKey('shortlist-compare')),
       );
       expect(compare.onPressed, isNotNull);
       expect(repo.calls.every((a) => a == 'read'), true);

@@ -52,6 +52,12 @@ require_current_hockey_publication(payload)
 
 # Only public project configuration is compiled. No provider or server secret.
 if not REFRESH_HOCKEY:
+    # Flutter can reuse bundle stamps from a different web output directory,
+    # then omit unchanged runtime assets in this custom demo output. Re-run
+    # packaging only; preserve the expensive Dart compilation cache.
+    for target in ('web_static_assets', 'web_release_bundle', 'web_templated_files', 'web_service_worker'):
+        for stamp in (ROOT / '.dart_tool/flutter_build').glob('*/' + target + '.stamp'):
+            stamp.unlink()
     subprocess.run([
         'flutter', 'build', 'web', '--release', '--no-wasm-dry-run',
         '--target=lib/main.dart', '--output=' + str(OUTPUT),

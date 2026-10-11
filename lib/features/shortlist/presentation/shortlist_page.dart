@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../../app/auth/lector_account_sheet.dart';
 import '../../../app/sports/generator_match_navigation.dart';
 import '../../../core/theme/app_components.dart';
@@ -11,16 +10,23 @@ import '../application/shortlist_controller.dart';
 import '../domain/shortlist.dart';
 import 'shortlist_conversation_page.dart';
 import 'shortlist_comparison_page.dart';
+import 'shortlist_view.dart';
+import 'shortlist_widgets.dart';
+import '../../../core/widgets/lector_workspace_navigation.dart';
+import '../../../core/widgets/lector_horizontal_transition.dart';
 
 class ShortlistPage extends StatefulWidget {
-  const ShortlistPage({required this.controller, super.key});
+  const ShortlistPage({required this.controller, this.onNavigate, super.key});
   final ShortlistController controller;
+  final ValueChanged<LectorWorkspaceSection>? onNavigate;
   @override
   State<ShortlistPage> createState() => _ShortlistPageState();
 }
 
 class _ShortlistPageState extends State<ShortlistPage> {
   String _group = 'upcoming';
+  ShortlistSort _sort = ShortlistSort.dateAscending;
+  ShortlistViewFilter _filter = const ShortlistViewFilter();
   ShortlistController get c => widget.controller;
   @override
   void initState() {
@@ -76,6 +82,7 @@ class _ShortlistPageState extends State<ShortlistPage> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
+      sheetAnimationStyle: lectorSheetAnimationStyle(context),
       builder: (context) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -137,106 +144,152 @@ class _ShortlistPageState extends State<ShortlistPage> {
     );
   }
 
+  Future<void> _filters() async {
+    final result = await showShortlistFilters(context, _filter, c.items);
+    if (result != null && mounted) setState(() => _filter = result);
+  }
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: c,
     builder: (context, _) {
-      final items = c.items,
-          selected = c.selected.where((k) => c.contains(k)).toList();
-      final active = c.active;
-      final remaining = active?.expiresAt.difference(c.now);
-      final body = items
-          .where(
-            (f) =>
-                f.phase(c.now) == _group ||
-                (_group == 'other' &&
-                    ['other', 'unavailable'].contains(f.phase(c.now))),
-          )
-          .toList();
+      final items = c.items, active = c.active;
+      final selected = c.selected.where(c.contains).toList();
+      final visible = shortlistVisibleFixtures(
+        items,
+        now: c.now,
+        group: _group,
+        sort: _sort,
+        filter: _filter,
+      );
+      final allSelected =
+          visible.isNotEmpty &&
+          visible.every((f) => c.selected.contains(f.key));
+      final counts = <String, int>{};
+      for (final f in items.where(_filter.accepts)) {
+        final phase = f.phase(c.now);
+        final group = phase == 'unavailable' ? 'other' : phase;
+        counts[group] = (counts[group] ?? 0) + 1;
+      }
       return Scaffold(
         appBar: AppBar(
-          title: Text(
-            'Ma Shortlist${items.isEmpty ? '' : ' · ${items.length}'}',
-          ),
-          actions: [
-            IconButton(
-              tooltip: 'Actualiser',
-              onPressed: c.loading ? null : c.refresh,
-              icon: const Icon(Icons.refresh_rounded),
-            ),
-          ],
-        ),
-        bottomNavigationBar: active == null || items.isEmpty
-            ? null
-            : SafeArea(
-                child: LectorContent(
-                  maxWidth: 544,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          '${selected.length} rencontre${selected.length > 1 ? 's' : ''} sélectionnée${selected.length > 1 ? 's' : ''}',
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: !c.loading && selected.length == 2
-                                    ? () => Navigator.of(context).push(
-                                        MaterialPageRoute<void>(
-                                          builder: (_) =>
-                                              ShortlistComparisonPage(
-                                                controller: c,
-                                                keys: selected,
-                                              ),
-                                        ),
-                                      )
-                                    : null,
-                                icon: const Icon(Icons.compare_arrows_rounded),
-                                label: const Text('Comparer'),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: FilledButton.icon(
-                                style: FilledButton.styleFrom(
-                                  backgroundColor:
-                                      context.strategies.violetStyle.color,
-                                ),
-                                onPressed: c.loading || selected.isEmpty
-                                    ? null
-                                    : () => _prepare(),
-                                icon: const Icon(
-                                  Icons.auto_awesome_rounded,
-                                  size: 18,
-                                ),
-                                label: const Text('Préparer'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+          toolbarHeight: 52,
+          titleSpacing: 0,
+          title: Row(
+            children: [
+              const Flexible(
+                child: Text(
+                  'Ma Shortlist',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                ),
+              ),
+              if (items.isNotEmpty) ...[
+                const SizedBox(width: 9),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: shortlistAccent(context).withValues(alpha: .15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${items.length}',
+                    style: TextStyle(
+                      color: shortlistAccent(context),
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
                     ),
                   ),
                 ),
+              ],
+            ],
+          ),
+          actions: [
+            IconButton(
+              tooltip: 'Vider la Shortlist',
+              onPressed: c.loading || items.isEmpty ? null : _clear,
+              icon: const Icon(Icons.delete_outline_rounded, size: 22),
+            ),
+            PopupMenuButton<String>(
+              tooltip: 'Options de la Shortlist',
+              onSelected: (_) => c.refresh(),
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'refresh',
+                  enabled: !c.loading,
+                  child: const Row(
+                    children: [
+                      Icon(Icons.refresh_rounded, size: 19),
+                      SizedBox(width: 10),
+                      Text('Actualiser'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        bottomNavigationBar: c.account == null
+            ? null
+            : ShortlistActionBar(
+                count: selected.length,
+                allSelected: allSelected,
+                onSelectAll: visible.isEmpty
+                    ? null
+                    : () {
+                        for (final f in visible) {
+                          c.choose(f.key, !allSelected);
+                        }
+                      },
+                onCompare: !c.loading && selected.length == 2
+                    ? () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => ShortlistComparisonPage(
+                            controller: c,
+                            keys: selected,
+                          ),
+                        ),
+                      )
+                    : null,
+                onPrepare:
+                    !c.loading &&
+                        selected.any(
+                          (key) => items.any(
+                            (f) => f.key == key && f.phase(c.now) == 'upcoming',
+                          ),
+                        )
+                    ? () => _prepare()
+                    : null,
+                onNavigate: widget.onNavigate,
               ),
         body: RefreshIndicator(
           onRefresh: c.refresh,
           child: ListView(
             key: const PageStorageKey('shortlist-scroll'),
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
             children: [
               LectorContent(
                 maxWidth: 544,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, bottom: 8),
+                      child: Text(
+                        'Vos matchs sélectionnés pour analyse et tickets.',
+                        style: TextStyle(
+                          color: context.textColors.secondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
                     if (c.account == null) ...[
+                      const SizedBox(height: 24),
                       const Text(
                         'Connectez-vous pour conserver votre préparation et la retrouver sur vos appareils.',
                       ),
@@ -251,7 +304,10 @@ class _ShortlistPageState extends State<ShortlistPage> {
                       )
                     else ...[
                       if (c.loading)
-                        const LinearProgressIndicator(minHeight: 2),
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 8),
+                          child: LinearProgressIndicator(minHeight: 2),
+                        ),
                       if (c.error != null)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 12),
@@ -261,62 +317,11 @@ class _ShortlistPageState extends State<ShortlistPage> {
                           ),
                         ),
                       if (active != null)
-                        LectorMatchCardFrame(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.schedule_rounded,
-                                    color: context.brand.accent,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Expanded(
-                                    child: Text('Session temporaire'),
-                                  ),
-                                  if (remaining != null &&
-                                      remaining.inHours < 3)
-                                    Text(
-                                      'Expire dans ${remaining.inMinutes < 60 ? '${remaining.inMinutes} min' : '${remaining.inHours} h'}',
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Rencontres conservées jusqu’au ${DateFormat('dd/MM à HH:mm').format(active.expiresAt.toLocal())}.',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: OutlinedButton.icon(
-                                      onPressed: c.loading ? null : _extend,
-                                      icon: const Icon(
-                                        Icons.more_time_rounded,
-                                        size: 18,
-                                      ),
-                                      label: const Text('Prolonger'),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: TextButton.icon(
-                                      onPressed: c.loading || items.isEmpty
-                                          ? null
-                                          : _clear,
-                                      icon: const Icon(
-                                        Icons.delete_outline_rounded,
-                                        size: 18,
-                                      ),
-                                      label: const Text('Vider la liste'),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
+                        ShortlistSessionCard(
+                          session: active,
+                          now: c.now,
+                          onExtend: c.loading ? null : _extend,
+                          onClear: c.loading || items.isEmpty ? null : _clear,
                         ),
                       for (final session in c.recoverable)
                         Padding(
@@ -358,7 +363,7 @@ class _ShortlistPageState extends State<ShortlistPage> {
                         Icon(
                           Icons.bookmark_add_outlined,
                           size: 42,
-                          color: context.brand.accent,
+                          color: shortlistAccent(context),
                         ),
                         const SizedBox(height: 12),
                         const Text(
@@ -371,117 +376,119 @@ class _ShortlistPageState extends State<ShortlistPage> {
                           textAlign: TextAlign.center,
                         ),
                       ] else ...[
-                        const SizedBox(height: 16),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
+                        const SizedBox(height: 14),
+                        ShortlistStatusTabs(
+                          counts: counts,
+                          group: _group,
+                          onChanged: (group) => setState(() => _group = group),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
                           children: [
-                            for (final g in const {
-                              'upcoming': 'À étudier',
-                              'live': 'En direct',
-                              'finished': 'Terminés',
-                              'other': 'Indisponibles',
-                            }.entries)
-                              ChoiceChip(
-                                label: Text(
-                                  '${g.value} ${items.where((f) => f.phase(c.now) == g.key || (g.key == 'other' && f.phase(c.now) == 'unavailable')).length}',
+                            Expanded(
+                              child: PopupMenuButton<ShortlistSort>(
+                                key: const ValueKey('shortlist-sort'),
+                                tooltip: 'Trier les rencontres',
+                                initialValue: _sort,
+                                onSelected: (sort) =>
+                                    setState(() => _sort = sort),
+                                itemBuilder: (_) => [
+                                  for (final sort in ShortlistSort.values)
+                                    PopupMenuItem(
+                                      value: sort,
+                                      child: Text(sort.label),
+                                    ),
+                                ],
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 10,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.swap_vert_rounded,
+                                        size: 19,
+                                        color: context.textColors.secondary,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          'Tri : ${_sort.label.toLowerCase()}',
+                                          maxLines: 2,
+                                          style: TextStyle(
+                                            fontSize: 11.5,
+                                            color: context.textColors.secondary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                      Icon(
+                                        Icons.expand_more_rounded,
+                                        size: 17,
+                                        color: context.textColors.secondary,
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                selected: _group == g.key,
-                                onSelected: (_) =>
-                                    setState(() => _group = g.key),
                               ),
+                            ),
+                            const SizedBox(width: 6),
+                            OutlinedButton.icon(
+                              key: const ValueKey('shortlist-filters'),
+                              onPressed: _filters,
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                ),
+                                minimumSize: const Size(0, 40),
+                              ),
+                              icon: const Icon(Icons.tune_rounded, size: 18),
+                              label: Text(
+                                'Filtres${_filter.count == 0 ? '' : ' · ${_filter.count}'}',
+                                style: const TextStyle(fontSize: 11.5),
+                              ),
+                            ),
                           ],
                         ),
-                        TextButton(
-                          onPressed: () {
-                            for (final f in body) {
-                              c.choose(f.key, true);
-                            }
-                          },
-                          child: const Text('Sélectionner ces rencontres'),
-                        ),
-                        if (body.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.all(24),
-                            child: Text(
-                              'Aucune rencontre dans cette catégorie.',
+                        const SizedBox(height: 4),
+                        if (visible.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              children: [
+                                const Text(
+                                  'Aucune rencontre dans cette catégorie.',
+                                  textAlign: TextAlign.center,
+                                ),
+                                if (_filter.count > 0)
+                                  TextButton(
+                                    onPressed: () => setState(
+                                      () =>
+                                          _filter = const ShortlistViewFilter(),
+                                    ),
+                                    child: const Text('Effacer les filtres'),
+                                  ),
+                              ],
                             ),
                           ),
-                        for (final f in body)
+                        for (final f in visible)
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: LectorMatchCardFrame(
-                              child: Row(
-                                children: [
-                                  Checkbox(
-                                    value: c.selected.contains(f.key),
-                                    onChanged: (v) =>
-                                        c.choose(f.key, v == true),
-                                  ),
-                                  Expanded(
-                                    child: InkWell(
-                                      onTap: f.available
-                                          ? () => openGeneratorMatch(
-                                              context,
-                                              f.navigation,
-                                            )
-                                          : null,
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          LectorTeamLine(
-                                            name: f.home,
-                                            logoUrl: f.json['homeLogo']
-                                                ?.toString(),
-                                          ),
-                                          const SizedBox(height: 6),
-                                          LectorTeamLine(
-                                            name: f.away,
-                                            logoUrl: f.json['awayLogo']
-                                                ?.toString(),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            '${f.sport == 'hockey' ? 'Hockey' : 'Football'} · ${f.json['competition'] ?? 'Compétition à confirmer'}',
-                                            style: Theme.of(
-                                              context,
-                                            ).textTheme.bodySmall,
-                                          ),
-                                          Text(
-                                            f.kickoff == null
-                                                ? 'Publication indisponible'
-                                                : DateFormat(
-                                                    'EEE dd/MM · HH:mm',
-                                                    'fr',
-                                                  ).format(
-                                                    f.kickoff!.toLocal(),
-                                                  ),
-                                            style: Theme.of(
-                                              context,
-                                            ).textTheme.bodySmall,
-                                          ),
-                                          if (_group != 'upcoming')
-                                            const Text(
-                                              'Consultable · exclue des tickets prématch',
-                                              style: TextStyle(fontSize: 11),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  IconButton(
-                                    tooltip: 'Retirer de la Shortlist',
-                                    onPressed: c.loading
-                                        ? null
-                                        : () => _perform('remove', fixture: f),
-                                    icon: const Icon(
-                                      Icons.close_rounded,
-                                      size: 19,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: ShortlistFixtureTile(
+                              fixture: f,
+                              now: c.now,
+                              selected: c.selected.contains(f.key),
+                              onSelected: (v) => c.choose(f.key, v),
+                              onRemove: c.loading
+                                  ? null
+                                  : () => _perform('remove', fixture: f),
+                              onOpen: f.available
+                                  ? () => openGeneratorMatch(
+                                      context,
+                                      f.navigation,
+                                    )
+                                  : null,
                             ),
                           ),
                       ],

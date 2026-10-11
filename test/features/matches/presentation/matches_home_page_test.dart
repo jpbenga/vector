@@ -1,3 +1,4 @@
+import 'package:copilot/core/widgets/lector_workspace_navigation.dart';
 import 'package:copilot/core/widgets/lector_standing_table.dart';
 import 'package:copilot/core/widgets/lector_calendar.dart';
 import 'package:copilot/core/auth/supabase_auth_controller.dart';
@@ -35,6 +36,47 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
+  testWidgets('Shortlist destinations preserve the football calendar', (
+    tester,
+  ) async {
+    final request = LectorWorkspaceNavigationRequest();
+    final day = _dayOnly(DateTime.now());
+    await _pumpPage(
+      tester,
+      workspaceNavigation: request,
+      repository: _FakeMatchFeedRepository(
+        opportunities: const [],
+        matches: [_match(kickoff: _relativeKickoff(0, hour: 20))],
+      ),
+    );
+    for (final section in [
+      LectorWorkspaceSection.all,
+      LectorWorkspaceSection.radar,
+      LectorWorkspaceSection.forMe,
+    ]) {
+      request.select(section);
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<LectorWorkspaceNavigation>(
+              find.byType(LectorWorkspaceNavigation),
+            )
+            .selected,
+        section,
+      );
+      expect(
+        _dayOnly(
+          tester
+              .widget<CopilotCalendar>(find.byType(CopilotCalendar))
+              .selectedDate,
+        ),
+        day,
+      );
+    }
+    await tester.pumpWidget(const SizedBox());
+    request.dispose();
+  });
+
   testWidgets('today to three days ago keeps the chosen date while loading', (
     tester,
   ) async {
@@ -3129,6 +3171,7 @@ Future<void> _pumpPage(
   Future<MatchFeedRepository> Function(DateTime date)? repositoryForDateLoader,
   List<TicketStrategy> strategies = const [],
   Size viewSize = const Size(390, 844),
+  LectorWorkspaceNavigationRequest? workspaceNavigation,
 }) async {
   tester.view.physicalSize = viewSize;
   tester.view.devicePixelRatio = 1;
@@ -3148,6 +3191,12 @@ Future<void> _pumpPage(
       ],
       supportedLocales: AppLocalizations.supportedLocales,
       theme: CopilotTheme.dark.copyWith(splashFactory: NoSplash.splashFactory),
+      builder: workspaceNavigation == null
+          ? null
+          : (context, child) => LectorWorkspaceNavigationScope(
+              request: workspaceNavigation,
+              child: child!,
+            ),
       home: MatchesHomePage(
         profile: profile ?? _completedProfile(),
         identityScope: identityScope,

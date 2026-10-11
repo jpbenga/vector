@@ -21,11 +21,29 @@ Deno.test("Shortlist SQL owns sessions, serializes mutations, preserves expiry, 
         "supabase/migrations/20261011160000_lector_shortlist.sql",
       ),
     );
+    await db.exec(
+      await Deno.readTextFile(
+        "supabase/migrations/20261011220000_lector_shortlist_display.sql",
+      ),
+    );
     const day = new Date(Date.now() + 86400000).toISOString().slice(0, 10),
       kickoff = day + "T18:00:00Z";
     await db.query(
       `insert into match_feed_analysis_snapshots values(gen_random_uuid(),now(),$1,$1,$2)`,
       [day, {
+        computed: {
+          fixtures: [{
+            fixture_id: 1,
+            readings: [
+              {
+                id: "positive_streak",
+                label: "Dynamique positive",
+                evidence: [{ large: "not copied" }],
+              },
+              { id: "head_to_head_dominance", label: "Retired" },
+            ],
+          }],
+        },
         raw: {
           fixtures: [1, 2, 3].map((id) => ({
             fixture: { id, date: kickoff, status: { short: "NS" } },
@@ -33,7 +51,7 @@ Deno.test("Shortlist SQL owns sessions, serializes mutations, preserves expiry, 
               home: { name: "Home " + id },
               away: { name: "Away " + id },
             },
-            league: { name: "Football" },
+            league: { name: "Football", flag: "https://example.test/fr.svg" },
           })),
         },
       }],
@@ -49,9 +67,29 @@ Deno.test("Shortlist SQL owns sessions, serializes mutations, preserves expiry, 
           home: { name: "Hockey home" },
           away: { name: "Hockey away" },
           competitionName: "Hockey league",
+          readings: [
+            { id: "positive_streak", status: "detected" },
+            { id: "negative_streak", status: "notDetected" },
+          ],
         }],
       }],
     );
+    const display = (await db.query<{ f: any }>(
+      `select lector_shortlist_fixture('football','1',$1) f`,
+      [day],
+    )).rows[0].f;
+    assert.equal(display.countryFlag, "https://example.test/fr.svg");
+    assert.deepEqual(display.readings.map((r: any) => r.id), [
+      "positive_streak",
+    ]);
+    assert.equal(display.readings[0].evidence, undefined);
+    const hockeyDisplay = (await db.query<{ f: any }>(
+      `select lector_shortlist_fixture('hockey','1',$1) f`,
+      [day],
+    )).rows[0].f;
+    assert.deepEqual(hockeyDisplay.readings.map((r: any) => r.id), [
+      "positive_streak",
+    ]);
     await db.exec(`set role authenticated;set request.jwt.claim.sub='${a}'`);
     const action = async (
       name: string,

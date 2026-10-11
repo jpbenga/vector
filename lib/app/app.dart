@@ -7,6 +7,7 @@ import '../core/theme/app_theme_controller.dart';
 import '../l10n/generated/app_localizations.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
+import '../core/widgets/lector_workspace_navigation.dart';
 
 class CopilotApp extends StatefulWidget {
   const CopilotApp({super.key});
@@ -17,6 +18,13 @@ class CopilotApp extends StatefulWidget {
 
 class _CopilotAppState extends State<CopilotApp> {
   late final _router = createAppRouter(getIt<AppConfig>());
+  final _workspaceNavigation = LectorWorkspaceNavigationRequest();
+
+  @override
+  void dispose() {
+    _workspaceNavigation.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +43,10 @@ class _CopilotAppState extends State<CopilotApp> {
           ],
           supportedLocales: AppLocalizations.supportedLocales,
           routerConfig: _router,
+          builder: (context, child) => LectorWorkspaceNavigationScope(
+            request: _workspaceNavigation,
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
     );

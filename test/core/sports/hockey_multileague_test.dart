@@ -37,6 +37,48 @@ class _Feed implements SportFeedRepository {
 }
 
 void main() {
+  testWidgets('Shortlist destinations preserve the hockey calendar', (
+    tester,
+  ) async {
+    final request = LectorWorkspaceNavigationRequest();
+    final day = DateTime(2026, 10, 3);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark,
+        builder: (context, child) =>
+            LectorWorkspaceNavigationScope(request: request, child: child!),
+        home: Scaffold(
+          body: HockeyWorkspace(repository: _Feed(), initialDate: day),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    for (final section in [
+      LectorWorkspaceSection.all,
+      LectorWorkspaceSection.radar,
+      LectorWorkspaceSection.forMe,
+    ]) {
+      request.select(section);
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<LectorWorkspaceNavigation>(
+              find.byType(LectorWorkspaceNavigation),
+            )
+            .selected,
+        section,
+      );
+      expect(
+        tester
+            .widget<CopilotCalendar>(find.byType(CopilotCalendar))
+            .selectedDate,
+        day,
+      );
+    }
+    await tester.pumpWidget(const SizedBox());
+    request.dispose();
+  });
+
   setUpAll(() => initializeDateFormatting('fr'));
   test(
     'hockey live labels retain a factual period and clock, including breaks',

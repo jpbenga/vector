@@ -8,6 +8,7 @@ import '../../generator/domain/generator_context.dart';
 import '../application/shortlist_controller.dart';
 import '../domain/shortlist.dart';
 import 'shortlist_page.dart';
+import '../../../core/widgets/lector_workspace_navigation.dart';
 
 ShortlistFixture shortlistFootball(MatchBoardItem m) => ShortlistFixture({
   'sport': 'football',
@@ -51,10 +52,19 @@ ShortlistController? shortlistController() =>
     : null;
 void openShortlist(BuildContext context) {
   final controller = shortlistController();
+  final navigation = LectorWorkspaceNavigationScope.maybeOf(context);
   if (controller != null) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => ShortlistPage(controller: controller),
+        builder: (sheetContext) => ShortlistPage(
+          controller: controller,
+          onNavigate: navigation == null
+              ? null
+              : (section) {
+                  Navigator.of(sheetContext).popUntil((route) => route.isFirst);
+                  navigation.select(section);
+                },
+        ),
       ),
     );
   }

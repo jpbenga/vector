@@ -106,6 +106,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
   bool _hasUserSelectedScoresDate = false;
   _ScoresRedesignMode _scoresMode = _ScoresRedesignMode.forMe;
   LectorExplorationSelection? _explorationSelection;
+  LectorWorkspaceNavigationRequest? _workspaceNavigation;
 
   DecisionProfile get _effectiveProfile =>
       _explorationSelection?.applyTo(widget.profile) ?? widget.profile;
@@ -153,11 +154,18 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final navigation = LectorWorkspaceNavigationScope.maybeOf(context);
+    if (navigation != _workspaceNavigation) {
+      _workspaceNavigation?.removeListener(_navigateWorkspace);
+      _workspaceNavigation = navigation;
+      navigation?.addListener(_navigateWorkspace);
+    }
     _readRecovery.setActive(TickerMode.valuesOf(context).enabled);
   }
 
   @override
   void dispose() {
+    _workspaceNavigation?.removeListener(_navigateWorkspace);
     _readRecovery.dispose();
     if (widget.repositoryOverride == null &&
         widget.repositoryForDateLoader == null &&
@@ -165,6 +173,47 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
       getIt<MatchFeedRepositoryLoader>().cancelPrefetch();
     }
     super.dispose();
+  }
+
+  void _navigateWorkspace() {
+    final section = _workspaceNavigation?.section;
+    if (section != null && mounted) {
+      _selectWorkspaceMode(_ScoresRedesignMode.values[section.index]);
+    }
+  }
+
+  void _selectWorkspaceMode(_ScoresRedesignMode mode) {
+    if (mode == _scoresMode) return;
+    setState(() {
+      final wasIndependent =
+          _scoresMode == _ScoresRedesignMode.generator ||
+          _scoresMode == _ScoresRedesignMode.bilan;
+      final independent =
+          mode == _ScoresRedesignMode.generator ||
+          mode == _ScoresRedesignMode.bilan;
+      final wasRadar = _scoresMode == _ScoresRedesignMode.radar;
+      _scoresMode = mode;
+      if (independent && _readRecovery.inProgress) {
+        _readRecovery.cancel();
+        _repository = Future.value(
+          EmptyMatchFeedRepository(
+            date: _selectedScoresDate,
+            reason: 'Section indépendante',
+          ),
+        );
+      }
+      if (widget.repositoryOverride == null &&
+          !independent &&
+          (wasIndependent ||
+              wasRadar ||
+              mode == _ScoresRedesignMode.radar ||
+              _readRecovery.inProgress)) {
+        _repository = _loadRepository(
+          _selectedScoresDate,
+          radar: mode == _ScoresRedesignMode.radar,
+        );
+      }
+    });
   }
 
   @override
@@ -306,39 +355,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             radarCapturedAt: snapshotMetadata?.capturedAt,
             selectedDate: effectiveSelectedDate,
             mode: _scoresMode,
-            onModeChanged: (mode) {
-              if (mode == _scoresMode) return;
-              setState(() {
-                final wasIndependent =
-                    _scoresMode == _ScoresRedesignMode.generator ||
-                    _scoresMode == _ScoresRedesignMode.bilan;
-                final independent =
-                    mode == _ScoresRedesignMode.generator ||
-                    mode == _ScoresRedesignMode.bilan;
-                final wasRadar = _scoresMode == _ScoresRedesignMode.radar;
-                _scoresMode = mode;
-                if (independent && _readRecovery.inProgress) {
-                  _readRecovery.cancel();
-                  _repository = Future.value(
-                    EmptyMatchFeedRepository(
-                      date: _selectedScoresDate,
-                      reason: 'Section indépendante',
-                    ),
-                  );
-                }
-                if (widget.repositoryOverride == null &&
-                    !independent &&
-                    (wasIndependent ||
-                        wasRadar ||
-                        mode == _ScoresRedesignMode.radar ||
-                        _readRecovery.inProgress)) {
-                  _repository = _loadRepository(
-                    _selectedScoresDate,
-                    radar: mode == _ScoresRedesignMode.radar,
-                  );
-                }
-              });
-            },
+            onModeChanged: _selectWorkspaceMode,
             onDateSelected: (date) {
               _selectScoresDate(date);
             },

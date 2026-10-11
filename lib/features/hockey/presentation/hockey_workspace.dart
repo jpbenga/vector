@@ -77,6 +77,7 @@ class HockeyWorkspace extends StatefulWidget {
 
 class _HockeyWorkspaceState extends State<HockeyWorkspace> {
   LectorWorkspaceSection _section = LectorWorkspaceSection.forMe;
+  LectorWorkspaceNavigationRequest? _workspaceNavigation;
   late DateTime _date;
   SportFeedResult? _feed;
   bool _loading = false, _failed = false, _teamsSelected = false;
@@ -167,11 +168,18 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final navigation = LectorWorkspaceNavigationScope.maybeOf(context);
+    if (navigation != _workspaceNavigation) {
+      _workspaceNavigation?.removeListener(_navigateWorkspace);
+      _workspaceNavigation = navigation;
+      navigation?.addListener(_navigateWorkspace);
+    }
     _recovery.setActive(TickerMode.valuesOf(context).enabled);
   }
 
   @override
   void dispose() {
+    _workspaceNavigation?.removeListener(_navigateWorkspace);
     _request++;
     _recovery.dispose();
     _feedUpdates?.cancel();
@@ -387,6 +395,23 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
             'La publication hockey est en préparation.',
           _ => 'Aucune rencontre hockey chargée',
         };
+  void _navigateWorkspace() {
+    final section = _workspaceNavigation?.section;
+    if (section == null || !mounted || section == _section) return;
+    setState(() {
+      _section = section;
+      _page = 0;
+    });
+    if (section == LectorWorkspaceSection.generator ||
+        section == LectorWorkspaceSection.bilan) {
+      _request++;
+      _recovery.cancel();
+      setState(() => _loading = false);
+    } else {
+      _load();
+    }
+  }
+
   @override
   Widget build(BuildContext context) => LectorHorizontalTransition(
     position: _section.index,
