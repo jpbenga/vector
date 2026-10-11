@@ -43,3 +43,30 @@ collecte ponctuelle comme la résolution de cette planification.
 Les tests de santé couvrent la date exacte de l’incident, la limite de
 36 heures, une base périmée avec enrichissement récent, les horodatages
 invalides ou futurs et le jour civil de Paris.
+
+## Collecte et second blocage constatés
+
+La collecte réelle du 11 octobre est terminée : 503 rencontres, sept ligues,
+du 4 au 24 octobre, 822 appels fournisseur réservés dans le quota partagé.
+`capturedAt` vaut `2026-10-11T00:18:30.281Z` et la base réelle
+`2026-10-11T00:18:18.093Z`. Aucun appel OpenAI n’est effectué.
+
+Le recalcul Dart des lectures réussit. La publication échoue en revanche
+avec HTTP 500, code PostgreSQL `57014`. La limite du rôle `service_role`
+est de 30 secondes. La publication canonique du 9 octobre reste intacte.
+
+La correction `20261011011500_hockey_publication_materialization.sql`
+matérialise les deux documents JSON avant les accès répétés et extrait
+les compétitions une seule fois avant la boucle de validation. Les règles
+de validation, l’immutabilité, les tables et les droits restent identiques.
+Elle est distincte de la migration de lecteurs du 10 octobre en attente.
+
+Un test exécuté dans une transaction annulée accepte 503 identités valides,
+rejette les doublons, rejette une équipe jouant contre elle-même et rejette
+une publication football. Aucun document de test ni remplacement de fonction
+n’est conservé après ce test.
+
+La revue automatique refuse ensuite l’installation permanente : remplacement
+d’une fonction dans le projet partagé de production sans autorisation explicite.
+L’autorisation précise a été demandée. À ce stade, la collecte fraîche existe
+localement ; ne pas annoncer que la démo ou le serveur la diffusent déjà.
