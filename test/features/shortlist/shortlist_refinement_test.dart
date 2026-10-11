@@ -1,6 +1,5 @@
 import 'package:copilot/core/identity/scoped_persistence.dart';
 import 'package:copilot/core/theme/app_theme.dart';
-import 'package:copilot/core/widgets/lector_workspace_navigation.dart';
 import 'package:copilot/features/shortlist/application/shortlist_controller.dart';
 import 'package:copilot/features/shortlist/domain/shortlist.dart';
 import 'package:copilot/features/shortlist/presentation/shortlist_page.dart';
@@ -9,7 +8,7 @@ import 'package:copilot/features/shortlist/presentation/shortlist_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'shortlist_test.dart' show Repo, Store, now;
+import 'shortlist_test.dart' show Repo, Store, now, snapshot;
 
 void main() {
   setUpAll(() => initializeDateFormatting('fr'));
@@ -45,33 +44,18 @@ void main() {
       expect(
         shortlistVisibleFixtures(
           fixtures,
-          now: now,
-          group: 'upcoming',
           sort: ShortlistSort.dateAscending,
           filter: const ShortlistViewFilter(),
         ).map((f) => f.key),
-        ['hockey:1', 'football:1'],
+        ['hockey:1', 'football:1', 'football:2'],
       );
       expect(
         shortlistVisibleFixtures(
           fixtures,
-          now: now,
-          group: 'upcoming',
           sort: ShortlistSort.readings,
           filter: const ShortlistViewFilter(withReadings: true),
         ).map((f) => f.key),
         ['football:1'],
-      );
-      expect(fixtures.first.readingTags.map((t) => t.label), ['Forme +']);
-      expect(
-        shortlistVisibleFixtures(
-          fixtures,
-          now: now,
-          group: 'other',
-          sort: ShortlistSort.dateAscending,
-          filter: const ShortlistViewFilter(),
-        ).single.key,
-        'football:2',
       );
       expect(fixtures, hasLength(3));
       final conflicting = ShortlistFixture({
@@ -81,10 +65,8 @@ void main() {
           {'id': 'negative_streak'},
         ],
       });
-      expect(
-        conflicting.readingTags.take(2).any((t) => t.kind == 'warning'),
-        true,
-      );
+      expect(fixtures.first.readingCount, 1);
+      expect(conflicting.readingCount, 3);
     },
   );
   testWidgets(
@@ -127,7 +109,10 @@ void main() {
           ),
         );
         expect(find.text(entry.value), findsOneWidget);
-        expect(find.text('Vigilance'), findsOneWidget);
+        expect(find.text('Vigilance'), findsNothing);
+        expect(find.text('Avantage'), findsNothing);
+        expect(find.text('Forme +'), findsNothing);
+        expect(find.text('3 lectures'), findsOneWidget);
         final size = tester.getSize(find.byTooltip('Voir Atalanta – Venezia'));
         expect(size.width, greaterThanOrEqualTo(48));
         expect(size.height, greaterThanOrEqualTo(48));
@@ -196,13 +181,22 @@ void main() {
         isNotNull,
       );
       expect(controller.items, hasLength(2));
+      repo.execute = (action) async =>
+          snapshot(keys: const ['football:1'], revision: 2);
+      await tester.tap(find.byKey(const ValueKey('shortlist-remove:hockey:1')));
+      await tester.pumpAndSettle();
+      expect(repo.calls.last, 'remove');
+      expect(repo.calls, isNot(contains('clear')));
+      expect(controller.items.map((f) => f.key), ['football:1']);
+      expect(controller.selected, {'football:1'});
+      expect(find.byType(SnackBar), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       controller.dispose();
     },
   );
   testWidgets(
-    'large text and bottom destinations fit without changing the Shortlist',
+    'large text fits the simplified Shortlist without changing saved fixtures',
     (tester) async {
       tester.view.physicalSize = const Size(320, 844);
       tester.view.devicePixelRatio = 1;
@@ -215,7 +209,6 @@ void main() {
             clock: () => now,
           );
       await controller.bindAccount('a');
-      LectorWorkspaceSection? selected;
       await tester.pumpWidget(
         MaterialApp(
           theme: CopilotTheme.light,
@@ -225,16 +218,20 @@ void main() {
             ).copyWith(textScaler: const TextScaler.linear(1.5)),
             child: child!,
           ),
-          home: ShortlistPage(
-            controller: controller,
-            onNavigate: (s) => selected = s,
-          ),
+          home: ShortlistPage(controller: controller),
         ),
       );
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
-      await tester.tap(find.byKey(const ValueKey('shortlist-nav-radar')));
-      expect(selected, LectorWorkspaceSection.radar);
+      expect(find.byKey(const ValueKey('shortlist-nav-radar')), findsNothing);
+      expect(
+        find.byKey(const ValueKey('shortlist-status-upcoming')),
+        findsNothing,
+      );
+      expect(find.byTooltip('Vider la Shortlist'), findsNothing);
+      expect(find.text('Vider la liste'), findsNothing);
+      expect(find.byKey(const ValueKey('shortlist-prepare')), findsOneWidget);
+      expect(find.byKey(const ValueKey('shortlist-compare')), findsOneWidget);
       expect(controller.items, hasLength(2));
       expect(repo.calls.every((action) => action == 'read'), true);
       await tester.pumpWidget(const SizedBox());

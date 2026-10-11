@@ -10,7 +10,7 @@ Les cinq destinations principales restent Pour moi, Radar, Tous, Générateur et
 
 ## Parcours
 
-1. Ajouter ou retirer une rencontre depuis Pour moi, Radar, Tous ou son détail. Utiliser un bouton dédié avec libellé accessible, état rempli après ajout et confirmation discrète. Ne pas transformer l’étoile des favoris en Shortlist.
+1. Ajouter ou retirer une rencontre depuis Pour moi, Radar, Tous ou son détail. Utiliser un bouton dédié avec libellé accessible, état rempli après ajout, sans message de confirmation. Ne pas transformer l’étoile des favoris en Shortlist.
 2. Ouvrir Ma Shortlist : retrouvailles de la session, skeleton si aucune valeur n’est disponible, données présentes conservées pendant une actualisation et restauration de la position de défilement.
 3. Choisir les rencontres à travailler avec des cases à cocher, indépendamment de leur présence dans la Shortlist. Retirer une case ne retire pas le match de la session.
 4. « Comparer » ouvre une comparaison de deux rencontres choisies. Deux rencontres représentent quatre équipes ; ce n’est pas une nouvelle opposition entre deux équipes de matchs différents.
@@ -30,7 +30,7 @@ Les cinq destinations principales restent Pour moi, Radar, Tous, Générateur et
 - Récupération possible pendant 24 h à partir de l’échéance. Restaurer ouvre une nouvelle période de préparation avec les rencontres conservées, actualisées et leurs statuts réels.
 - Commencer une nouvelle session ne supprime pas immédiatement la session récupérable. Si une nouvelle session active existe lors d’une restauration, proposer explicitement une fusion sans doublon ou conserver la session courante.
 - Après la récupération, supprimer la session et ses entrées. Les tickets enregistrés ne sont reliés par aucune suppression en cascade.
-- « Vider la liste » ne signifie pas effacer un historique de tickets. Permettre d’annuler cette action avec une opération serveur atomique, sans réintroduire silencieusement des entrées ajoutées depuis un autre appareil.
+- Retirer une seule rencontre depuis la corbeille de sa carte. Aucun bouton de suppression globale n’est exposé dans l’écran. Les opérations serveur clear/undo_clear restent compatibles avec les versions antérieures.
 
 Le nettoyage planifié est installé à la minute 17 de chaque heure. Il ne remplace pas les vérifications de date à chaque lecture et génération.
 
@@ -137,7 +137,7 @@ Les réglages de compétition et de lectures qui alimentent Pour moi restent des
 
 1. Session serveur : transactions, ownership, expiration/récupération, opérations idempotentes et nettoyage.
 2. Store/controller partagé entre football et hockey ; cache isolé, synchronisation, état de chargement et retour à l’application.
-3. Ajout/retrait dans les cartes et détails, entrée Ma Shortlist, groupes d’état, sous-sélection et prolongation selon les maquettes.
+3. Ajout/retrait dans les cartes et détails, entrée Ma Shortlist, liste unique avec état propre à chaque rencontre, sous-sélection et prolongation.
 4. Outil de lecture Shortlist, contexte multi-date, comparaison de deux rencontres et conversation continue pour la composition de variantes.
 5. Retrait des chemins manuels et des paramètres persistants de préparation ; conservation de la lecture des tickets sauvegardés.
 6. Vérifications de bout en bout, puis déploiement de la migration, du Générateur et de l’application de démo.

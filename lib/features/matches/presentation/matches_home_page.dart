@@ -106,7 +106,6 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
   bool _hasUserSelectedScoresDate = false;
   _ScoresRedesignMode _scoresMode = _ScoresRedesignMode.forMe;
   LectorExplorationSelection? _explorationSelection;
-  LectorWorkspaceNavigationRequest? _workspaceNavigation;
 
   DecisionProfile get _effectiveProfile =>
       _explorationSelection?.applyTo(widget.profile) ?? widget.profile;
@@ -154,18 +153,11 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final navigation = LectorWorkspaceNavigationScope.maybeOf(context);
-    if (navigation != _workspaceNavigation) {
-      _workspaceNavigation?.removeListener(_navigateWorkspace);
-      _workspaceNavigation = navigation;
-      navigation?.addListener(_navigateWorkspace);
-    }
     _readRecovery.setActive(TickerMode.valuesOf(context).enabled);
   }
 
   @override
   void dispose() {
-    _workspaceNavigation?.removeListener(_navigateWorkspace);
     _readRecovery.dispose();
     if (widget.repositoryOverride == null &&
         widget.repositoryForDateLoader == null &&
@@ -173,13 +165,6 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
       getIt<MatchFeedRepositoryLoader>().cancelPrefetch();
     }
     super.dispose();
-  }
-
-  void _navigateWorkspace() {
-    final section = _workspaceNavigation?.section;
-    if (section != null && mounted) {
-      _selectWorkspaceMode(_ScoresRedesignMode.values[section.index]);
-    }
   }
 
   void _selectWorkspaceMode(_ScoresRedesignMode mode) {

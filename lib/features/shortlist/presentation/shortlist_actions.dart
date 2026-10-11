@@ -8,7 +8,6 @@ import '../../generator/domain/generator_context.dart';
 import '../application/shortlist_controller.dart';
 import '../domain/shortlist.dart';
 import 'shortlist_page.dart';
-import '../../../core/widgets/lector_workspace_navigation.dart';
 
 ShortlistFixture shortlistFootball(MatchBoardItem m) => ShortlistFixture({
   'sport': 'football',
@@ -52,19 +51,10 @@ ShortlistController? shortlistController() =>
     : null;
 void openShortlist(BuildContext context) {
   final controller = shortlistController();
-  final navigation = LectorWorkspaceNavigationScope.maybeOf(context);
   if (controller != null) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (sheetContext) => ShortlistPage(
-          controller: controller,
-          onNavigate: navigation == null
-              ? null
-              : (section) {
-                  Navigator.of(sheetContext).popUntil((route) => route.isFirst);
-                  navigation.select(section);
-                },
-        ),
+        builder: (_) => ShortlistPage(controller: controller),
       ),
     );
   }
@@ -123,22 +113,6 @@ class ShortlistAddButton extends StatelessWidget {
                 present ? 'remove' : 'add',
                 fixture: fixture,
               );
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      present
-                          ? 'Rencontre retirée de la Shortlist'
-                          : 'Rencontre ajoutée à la Shortlist',
-                    ),
-                    action: SnackBarAction(
-                      label: 'Voir',
-                      onPressed: () => openShortlist(context),
-                    ),
-                    duration: const Duration(seconds: 3),
-                  ),
-                );
-              }
             } catch (e) {
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(

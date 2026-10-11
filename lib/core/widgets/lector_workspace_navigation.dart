@@ -4,32 +4,6 @@ import '../theme/app_radius.dart';
 
 enum LectorWorkspaceSection { forMe, radar, all, generator, bilan }
 
-/// App-scoped navigation intent lets secondary pages return to a destination
-/// without replacing the active sport, date or preparation.
-class LectorWorkspaceNavigationRequest extends ChangeNotifier {
-  LectorWorkspaceSection? section;
-  void select(LectorWorkspaceSection value) {
-    section = value;
-    notifyListeners();
-  }
-}
-
-class LectorWorkspaceNavigationScope extends InheritedWidget {
-  const LectorWorkspaceNavigationScope({
-    required this.request,
-    required super.child,
-    super.key,
-  });
-  final LectorWorkspaceNavigationRequest request;
-  static LectorWorkspaceNavigationRequest? maybeOf(BuildContext context) =>
-      context
-          .dependOnInheritedWidgetOfExactType<LectorWorkspaceNavigationScope>()
-          ?.request;
-  @override
-  bool updateShouldNotify(LectorWorkspaceNavigationScope oldWidget) =>
-      oldWidget.request != request;
-}
-
 /// Permanent feature shapes are distinct from the unique selected marker.
 class LectorWorkspaceNavigation extends StatelessWidget {
   const LectorWorkspaceNavigation({

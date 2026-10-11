@@ -13,19 +13,16 @@ import 'shortlist_conversation_page.dart';
 import 'shortlist_comparison_page.dart';
 import 'shortlist_view.dart';
 import 'shortlist_widgets.dart';
-import '../../../core/widgets/lector_workspace_navigation.dart';
 import '../../../core/widgets/lector_horizontal_transition.dart';
 
 class ShortlistPage extends StatefulWidget {
-  const ShortlistPage({required this.controller, this.onNavigate, super.key});
+  const ShortlistPage({required this.controller, super.key});
   final ShortlistController controller;
-  final ValueChanged<LectorWorkspaceSection>? onNavigate;
   @override
   State<ShortlistPage> createState() => _ShortlistPageState();
 }
 
 class _ShortlistPageState extends State<ShortlistPage> {
-  String _group = 'upcoming';
   ShortlistSort _sort = ShortlistSort.dateAscending;
   ShortlistViewFilter _filter = const ShortlistViewFilter();
   ShortlistController get c => widget.controller;
@@ -57,24 +54,6 @@ class _ShortlistPageState extends State<ShortlistPage> {
         );
       }
     }
-  }
-
-  Future<void> _clear() async {
-    final session = c.active;
-    if (session == null || session.items.isEmpty) return;
-    await _perform('clear');
-    if (!mounted || c.error != null) return;
-    final revision = c.active?.revision;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Shortlist vidée'),
-        action: SnackBarAction(
-          label: 'Annuler',
-          onPressed: () =>
-              _perform('undo_clear', session: session.id, revision: revision),
-        ),
-      ),
-    );
   }
 
   Future<void> _extend() async {
@@ -158,20 +137,12 @@ class _ShortlistPageState extends State<ShortlistPage> {
       final selected = c.selected.where(c.contains).toList();
       final visible = shortlistVisibleFixtures(
         items,
-        now: c.now,
-        group: _group,
         sort: _sort,
         filter: _filter,
       );
       final allSelected =
           visible.isNotEmpty &&
           visible.every((f) => c.selected.contains(f.key));
-      final counts = <String, int>{};
-      for (final f in items.where(_filter.accepts)) {
-        final phase = f.phase(c.now);
-        final group = phase == 'unavailable' ? 'other' : phase;
-        counts[group] = (counts[group] ?? 0) + 1;
-      }
       return Scaffold(
         appBar: AppBar(
           toolbarHeight: 52,
@@ -210,11 +181,6 @@ class _ShortlistPageState extends State<ShortlistPage> {
             ],
           ),
           actions: [
-            IconButton(
-              tooltip: 'Vider la Shortlist',
-              onPressed: c.loading || items.isEmpty ? null : _clear,
-              icon: const Icon(Icons.delete_outline_rounded, size: 22),
-            ),
             PopupMenuButton<String>(
               tooltip: 'Options de la Shortlist',
               onSelected: (_) => c.refresh(),
@@ -265,7 +231,6 @@ class _ShortlistPageState extends State<ShortlistPage> {
                         )
                     ? () => _prepare()
                     : null,
-                onNavigate: widget.onNavigate,
               ),
         body: RefreshIndicator(
           onRefresh: c.refresh,
@@ -322,7 +287,6 @@ class _ShortlistPageState extends State<ShortlistPage> {
                           session: active,
                           now: c.now,
                           onExtend: c.loading ? null : _extend,
-                          onClear: c.loading || items.isEmpty ? null : _clear,
                         ),
                       for (final session in c.recoverable)
                         Padding(
@@ -378,12 +342,6 @@ class _ShortlistPageState extends State<ShortlistPage> {
                         ),
                       ] else ...[
                         const SizedBox(height: 14),
-                        ShortlistStatusTabs(
-                          counts: counts,
-                          group: _group,
-                          onChanged: (group) => setState(() => _group = group),
-                        ),
-                        const SizedBox(height: 8),
                         Row(
                           children: [
                             Expanded(
@@ -459,7 +417,7 @@ class _ShortlistPageState extends State<ShortlistPage> {
                             child: Column(
                               children: [
                                 const Text(
-                                  'Aucune rencontre dans cette catégorie.',
+                                  'Aucune rencontre ne correspond aux filtres.',
                                   textAlign: TextAlign.center,
                                 ),
                                 if (_filter.count > 0)

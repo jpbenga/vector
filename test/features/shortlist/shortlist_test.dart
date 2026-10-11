@@ -406,6 +406,15 @@ void main() {
           clock: () => now,
         );
     await c.bindAccount('a');
+    repo.execute = (action) async {
+      repo.value = snapshot(
+        keys: action == 'remove'
+            ? const ['hockey:1']
+            : const ['football:1', 'hockey:1'],
+        revision: repo.value.active(now)!.revision + 1,
+      );
+      return repo.value;
+    };
     getIt.registerSingleton<ShortlistController>(c);
     bool opened = false;
     await tester.pumpWidget(
@@ -423,6 +432,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(opened, false);
     expect(repo.calls.last, 'remove');
+    expect(find.byType(SnackBar), findsNothing);
+    expect(find.byIcon(Icons.bookmark_add_outlined), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('shortlist-add:football:1')));
+    await tester.pumpAndSettle();
+    expect(repo.calls.last, 'add');
+    expect(opened, false);
+    expect(find.byIcon(Icons.bookmark_rounded), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
     await tester.pumpWidget(const SizedBox());
     await getIt.unregister<ShortlistController>();
     c.dispose();

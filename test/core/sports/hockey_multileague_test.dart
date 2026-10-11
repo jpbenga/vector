@@ -37,16 +37,13 @@ class _Feed implements SportFeedRepository {
 }
 
 void main() {
-  testWidgets('Shortlist destinations preserve the hockey calendar', (
+  testWidgets('Primary navigation preserves the hockey calendar', (
     tester,
   ) async {
-    final request = LectorWorkspaceNavigationRequest();
     final day = DateTime(2026, 10, 3);
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.dark,
-        builder: (context, child) =>
-            LectorWorkspaceNavigationScope(request: request, child: child!),
         home: Scaffold(
           body: HockeyWorkspace(repository: _Feed(), initialDate: day),
         ),
@@ -58,7 +55,7 @@ void main() {
       LectorWorkspaceSection.radar,
       LectorWorkspaceSection.forMe,
     ]) {
-      request.select(section);
+      await tester.tap(find.byKey(ValueKey('workspace-tab-${section.name}')));
       await tester.pumpAndSettle();
       expect(
         tester
@@ -76,7 +73,6 @@ void main() {
       );
     }
     await tester.pumpWidget(const SizedBox());
-    request.dispose();
   });
 
   setUpAll(() => initializeDateFormatting('fr'));

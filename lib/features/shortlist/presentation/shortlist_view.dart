@@ -12,13 +12,6 @@ extension ShortlistSortLabel on ShortlistSort {
   };
 }
 
-/// Published observations only. These labels never score betting quality.
-class ShortlistReadingTag {
-  const ShortlistReadingTag(this.label, this.kind);
-  final String label;
-  final String kind;
-}
-
 extension ShortlistFixturePresentation on ShortlistFixture {
   String get competition =>
       json['competition']?.toString() ?? 'Compétition à confirmer';
@@ -32,41 +25,6 @@ extension ShortlistFixturePresentation on ShortlistFixture {
           .toList();
   bool get readingsAvailable => json['readings'] is List;
   int get readingCount => publishedReadings.length;
-  List<ShortlistReadingTag> get readingTags {
-    final ids = publishedReadings.map((r) => r['id'].toString()).toSet();
-    final tags = <ShortlistReadingTag>[];
-    if (ids.contains('positive_streak') || ids.contains('improving_form')) {
-      tags.add(const ShortlistReadingTag('Forme +', 'form'));
-    }
-    if (ids.any(
-      {
-        'standing_advantage',
-        'ranking_advantage',
-        'structural_level_gap',
-        'home_away_advantage',
-        'away_home_advantage',
-        'recent_form_advantage',
-        'form_gap',
-      }.contains,
-    )) {
-      tags.add(const ShortlistReadingTag('Avantage', 'advantage'));
-    }
-    if (publishedReadings.any(
-      (r) =>
-          r['isContradiction'] == true ||
-          r['is_contradiction'] == true ||
-          {
-            'negative_streak',
-            'weak_home_team',
-            'weak_away_team',
-            'fragile_defense',
-            'declining_form',
-          }.contains(r['id']),
-    )) {
-      tags.insert(0, const ShortlistReadingTag('Vigilance', 'warning'));
-    }
-    return tags;
-  }
 }
 
 /// Filters affect the visible list, never the persisted preparation.
@@ -90,19 +48,10 @@ class ShortlistViewFilter {
 
 List<ShortlistFixture> shortlistVisibleFixtures(
   Iterable<ShortlistFixture> items, {
-  required DateTime now,
-  required String group,
   required ShortlistSort sort,
   required ShortlistViewFilter filter,
 }) {
-  final visible = items
-      .where(
-        (f) =>
-            filter.accepts(f) &&
-            (f.phase(now) == group ||
-                (group == 'other' && f.phase(now) == 'unavailable')),
-      )
-      .toList();
+  final visible = items.where(filter.accepts).toList();
   int date(ShortlistFixture a, ShortlistFixture b) {
     if (a.kickoff == null) return b.kickoff == null ? 0 : 1;
     if (b.kickoff == null) return -1;

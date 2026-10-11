@@ -4,7 +4,6 @@ import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_components.dart';
 import '../../../core/widgets/lector_responsive_layout.dart';
 import '../../../core/widgets/lector_horizontal_transition.dart';
-import '../../../core/widgets/lector_workspace_navigation.dart';
 import '../../../core/widgets/sports_asset_badge.dart';
 import '../domain/shortlist.dart';
 import 'shortlist_view.dart';
@@ -133,12 +132,11 @@ class ShortlistSessionCard extends StatelessWidget {
     required this.session,
     required this.now,
     required this.onExtend,
-    required this.onClear,
     super.key,
   });
   final ShortlistSession session;
   final DateTime now;
-  final VoidCallback? onExtend, onClear;
+  final VoidCallback? onExtend;
   @override
   Widget build(BuildContext context) {
     final accent = shortlistAccent(context);
@@ -240,157 +238,28 @@ class ShortlistSessionCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onExtend,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: accent,
-                    backgroundColor: accent.withValues(alpha: .04),
-                    side: BorderSide(color: accent.withValues(alpha: .45)),
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    minimumSize: const Size(0, 40),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  icon: const Icon(Icons.more_time_rounded, size: 18),
-                  label: const Text(
-                    'Prolonger',
-                    style: TextStyle(fontSize: 12),
-                  ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: onExtend,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: accent,
+                backgroundColor: accent.withValues(alpha: .04),
+                side: BorderSide(color: accent.withValues(alpha: .45)),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: const Size(0, 40),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onClear,
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    minimumSize: const Size(0, 40),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                  label: const Text(
-                    'Vider la liste',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ),
-              ),
-            ],
+              icon: const Icon(Icons.more_time_rounded, size: 18),
+              label: const Text('Prolonger', style: TextStyle(fontSize: 12)),
+            ),
           ),
         ],
       ),
     );
   }
-}
-
-class ShortlistStatusTabs extends StatelessWidget {
-  const ShortlistStatusTabs({
-    required this.counts,
-    required this.group,
-    required this.onChanged,
-    super.key,
-  });
-  final Map<String, int> counts;
-  final String group;
-  final ValueChanged<String> onChanged;
-  @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-    scrollDirection: Axis.horizontal,
-    child: Row(
-      children: [
-        for (final (key, label) in const [
-          ('upcoming', 'À étudier'),
-          ('live', 'En direct'),
-          ('finished', 'Terminés'),
-          ('other', 'Indisponibles'),
-        ])
-          Padding(
-            padding: const EdgeInsets.only(right: 6),
-            child: Semantics(
-              selected: group == key,
-              button: true,
-              child: Material(
-                color: group == key
-                    ? shortlistAccent(context).withValues(alpha: .1)
-                    : context.surfaces.backgroundSecondary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  side: BorderSide(
-                    color: group == key
-                        ? shortlistAccent(context).withValues(alpha: .6)
-                        : context.surfaces.border,
-                  ),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  key: ValueKey('shortlist-status-$key'),
-                  onTap: () => onChanged(key),
-                  child: Container(
-                    constraints: const BoxConstraints(minHeight: 48),
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    decoration: group == key
-                        ? BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(
-                                color: shortlistAccent(context),
-                                width: 2,
-                              ),
-                            ),
-                          )
-                        : null,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          label,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: group == key
-                                ? shortlistAccent(context)
-                                : context.textColors.secondary,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 5,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: group == key
-                                ? shortlistAccent(context)
-                                : context.surfaces.surfaceHover,
-                            borderRadius: BorderRadius.circular(
-                              AppRadius.control,
-                            ),
-                          ),
-                          child: Text(
-                            '${counts[key] ?? 0}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: group == key
-                                  ? context.features.shortlistOnAccent
-                                  : context.textColors.secondary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
-    ),
-  );
 }
 
 class ShortlistFixtureTile extends StatelessWidget {
@@ -426,7 +295,6 @@ class ShortlistFixtureTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent = shortlistAccent(context);
     final phase = fixture.phase(now);
-    final tags = fixture.readingTags;
     return Material(
       key: ValueKey('shortlist-fixture:${fixture.key}'),
       color: selected
@@ -550,21 +418,6 @@ class ShortlistFixtureTile extends StatelessWidget {
                         accent,
                         filled: true,
                       ),
-                      for (final tag in tags.take(2))
-                        _tag(
-                          context,
-                          tag.kind == 'warning'
-                              ? Icons.error_outline_rounded
-                              : tag.kind == 'form'
-                              ? Icons.trending_up_rounded
-                              : Icons.stars_rounded,
-                          tag.label,
-                          tag.kind == 'warning'
-                              ? context.semantic.warning
-                              : tag.kind == 'form'
-                              ? context.features.radarAccent
-                              : context.features.generatorAccent,
-                        ),
                       if (phase != 'upcoming')
                         Text(
                           'Exclue des tickets prématch',
@@ -591,9 +444,9 @@ class ShortlistFixtureTile extends StatelessWidget {
       onPressed: onRemove,
       constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
       icon: Icon(
-        Icons.bookmark_rounded,
+        Icons.delete_outline_rounded,
         size: 20,
-        color: shortlistAccent(context),
+        color: context.textColors.secondary,
       ),
     ),
     IconButton(
@@ -725,13 +578,11 @@ class ShortlistActionBar extends StatelessWidget {
     required this.onSelectAll,
     required this.onCompare,
     required this.onPrepare,
-    required this.onNavigate,
     super.key,
   });
   final int count;
   final bool allSelected;
   final VoidCallback? onSelectAll, onCompare, onPrepare;
-  final ValueChanged<LectorWorkspaceSection>? onNavigate;
   @override
   Widget build(BuildContext context) => DecoratedBox(
     decoration: BoxDecoration(
@@ -855,71 +706,6 @@ class ShortlistActionBar extends StatelessWidget {
                 ],
               ),
             ),
-            if (onNavigate != null) ...[
-              Divider(height: 1, color: context.surfaces.border),
-              Row(
-                children: [
-                  for (final (section, label, icon) in const [
-                    (
-                      LectorWorkspaceSection.forMe,
-                      'Pour moi',
-                      Icons.person_outline_rounded,
-                    ),
-                    (
-                      LectorWorkspaceSection.radar,
-                      'Radar',
-                      Icons.radar_rounded,
-                    ),
-                    (
-                      LectorWorkspaceSection.all,
-                      'Tous',
-                      Icons.format_list_bulleted_rounded,
-                    ),
-                    (
-                      LectorWorkspaceSection.generator,
-                      'Générateur',
-                      Icons.style_outlined,
-                    ),
-                    (
-                      LectorWorkspaceSection.bilan,
-                      'Bilan',
-                      Icons.insights_outlined,
-                    ),
-                  ])
-                    Expanded(
-                      child: Semantics(
-                        button: true,
-                        label: label,
-                        child: InkWell(
-                          key: ValueKey('shortlist-nav-${section.name}'),
-                          onTap: () => onNavigate!(section),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  icon,
-                                  color: context.textColors.secondary,
-                                  size: 21,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  label,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: context.textColors.secondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ],
           ],
         ),
       ),

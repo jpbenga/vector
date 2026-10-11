@@ -141,8 +141,7 @@ void main() {
             initialRoute: '/shortlist',
             routes: {
               '/': (_) => const Scaffold(),
-              '/shortlist': (_) =>
-                  ShortlistPage(controller: controller, onNavigate: (_) {}),
+              '/shortlist': (_) => ShortlistPage(controller: controller),
             },
           ),
         ),
