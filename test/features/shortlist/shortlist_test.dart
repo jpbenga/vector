@@ -98,11 +98,12 @@ class ConversationRepo implements GeneratorRepository {
   @override
   Future<Map<String, dynamic>> request(Map<String, Object?> body) async {
     calls.add(body);
-    if (body['action'] == 'prepare')
+    if (body['action'] == 'prepare') {
       return {
         'preparation': {'matchCount': 2, 'radarCount': 0},
       };
-    if (body['action'] == 'shortlist_inspect')
+    }
+    if (body['action'] == 'shortlist_inspect') {
       return {
         'matches': [
           for (final names in [
@@ -121,6 +122,7 @@ class ConversationRepo implements GeneratorRepository {
         ],
         'missing': <Object>[],
       };
+    }
     return {
       'state': {
         'id': body['conversationId'],
