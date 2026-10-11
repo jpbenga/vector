@@ -2,7 +2,7 @@
 
 ## Statut et périmètre
 
-Analyse et contrat d’implémentation établis le 11 octobre 2026 à partir de la demande et des deux maquettes de l’utilisateur. Ce document décrit une fonctionnalité à construire ; aucune table, route ou fonction Shortlist n’est encore installée par ce travail de cadrage.
+V1 implémentée et publiée en démo le 11 octobre 2026 à partir de la demande et des deux maquettes de l’utilisateur. La session serveur, le nettoyage, l’interface football/hockey, la comparaison factuelle et le raccord au Générateur sont installés. Les points ci-dessous décrivent le contrat produit et les limites conservées de cette première version.
 
 La Shortlist rassemble des **rencontres**, de football et de hockey, éventuellement sur plusieurs journées. Les tickets sont des compositions produites à partir de tout ou partie de ces rencontres. Ajouter une rencontre ne sélectionne aucun marché, aucune cote et aucune mise.
 
@@ -32,7 +32,7 @@ Les cinq destinations principales restent Pour moi, Radar, Tous, Générateur et
 - Après la récupération, supprimer la session et ses entrées. Les tickets enregistrés ne sont reliés par aucune suppression en cascade.
 - « Vider la liste » ne signifie pas effacer un historique de tickets. Permettre d’annuler cette action avec une opération serveur atomique, sans réintroduire silencieusement des entrées ajoutées depuis un autre appareil.
 
-Le nettoyage planifié reste à installer avec la migration. Il ne remplace pas les vérifications de date à chaque lecture et génération.
+Le nettoyage planifié est installé à la minute 17 de chaque heure. Il ne remplace pas les vérifications de date à chaque lecture et génération.
 
 ## Disponibilité sportive
 
@@ -154,3 +154,18 @@ Les réglages de compétition et de lectures qui alimentent Pour moi restent des
 - Expiration de la Shortlist ne supprime aucun ticket enregistré. Les anciennes configurations n’imposent plus de plafond ou de marché caché.
 - Couverture intégrale annoncée uniquement si toutes les références ont été résolues et évaluées selon l’action demandée.
 - Squelettes au chargement initial, conservation du contenu lors de l’actualisation et défilement préservé.
+
+## Reçu de publication du 11 octobre 2026
+
+- Code validé et installé : `4fe512fa98ea664ee3577dd819f9390611b12d62`, sur `codex/multisport-hockey`.
+- [CI complète réussie](https://github.com/jpbenga/vector/actions/runs/38145804052) : Flutter et fonctions Supabase.
+- [Installation serveur réussie](https://github.com/jpbenga/vector/actions/runs/38146106607/job/114489690313) : migration `20261011160000_lector_shortlist.sql`, SHA-256 `6c43cabdb685d6feb1a382bca3d06119aeaba6fefb60ef91e1ba7ad2e2c68f74` ; fonction `lector-generator-workshop` active ; requête anonyme rejetée avec HTTP 401.
+- Contrôles d’accès : mutations anonymes interdites, action authentifiée disponible, lecture arbitraire d’un autre propriétaire interdite, écritures directes aux tables interdites.
+- Nettoyage `lector-shortlist-cleanup` actif, horaire `17 * * * *`.
+- Déploiement Vercel `dpl_5uo7Rt9QcTfeoFA6xusuktWLWSA4`, état READY, alias public [démo](https://lector-sports-demo-lector1.vercel.app/).
+- Vérification navigateur anonyme : entrée Ma Shortlist dans les deux sports, invitation à se connecter pour sa préparation, boutons d’ajout sur les cartes football et hockey ; largeur 320 px. Aucun test IA payant ni collecte fournisseur.
+- Tests locaux : 118 tests Deno Générateur, SQL réel via PGlite, neuf tests Shortlist Flutter, tests de parcours et transitions corrigés, 24 contrôles Python de déploiement ; analyse Flutter propre. Les tests SQL vérifient expiration/récupération, fusion, concurrence, isolation par compte et conservation des tickets enregistrés.
+
+### Limites de cette V1
+
+200 rencontres par session ; préparation multi-date et multi-sport par références. Les contraintes existantes de quatre tickets par demande et vingt clés de focus explicite sont conservées. La comparaison initiale est factuelle et ne consomme pas d’IA ; approfondir ouvre le dialogue. Le contrôle réel de plusieurs appareils connectés et la génération avec OpenAI restent à effectuer par les testeurs. La suppression physique des anciens types/tables de stratégie et l’externalisation de tous les objets riches du chat ne font pas partie de cette publication.
