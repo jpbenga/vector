@@ -31,6 +31,9 @@ on:
           - lector-generator-match-evaluation
           - lector-generator-day-sources
           - lector-visual-live-update
+          - hockey-refresh-install
+          - hockey-refresh-delivery
+          - hockey-refresh-run
       diagnostic_since:
         description: Début du diagnostic en ISO 8601 avec fuseau (facultatif)
         required: false
@@ -47,7 +50,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/main' && !startsWith(inputs.function, 'lector-generator-') && inputs.function != 'lector-visual-live-update'
+    if: github.ref == 'refs/heads/main' && !startsWith(inputs.function, 'lector-generator-') && !startsWith(inputs.function, 'hockey-refresh-') && inputs.function != 'lector-visual-live-update'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -63,6 +66,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           DEPLOY_FUNCTION: ${{ inputs.function }}
         run: python3 tool/deploy_supabase_remote.py
+
+  hockey-refresh:
+    if: github.ref == 'refs/heads/codex/multisport-hockey' && startsWith(inputs.function, 'hockey-refresh-')
+    uses: ./.github/workflows/refresh-hockey.yml
+    with:
+      operation: ${{ inputs.function == 'hockey-refresh-install' && 'install' || inputs.function == 'hockey-refresh-delivery' && 'delivery-only' || 'refresh' }}
+    secrets: inherit
 
   generator-demo:
     if: github.ref == 'refs/heads/codex/multisport-hockey' && (inputs.function == 'lector-generator-demo' || inputs.function == 'lector-generator-update' || inputs.function == 'lector-generator-workshop')

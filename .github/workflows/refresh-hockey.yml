@@ -1,6 +1,14 @@
 name: Refresh hockey publications
 
 on:
+  workflow_call:
+    inputs:
+      operation:
+        type: string
+        default: refresh
+    secrets:
+      SUPABASE_ACCESS_TOKEN:
+        required: true
   schedule:
     - cron: '35 0,12 * * *'
   workflow_dispatch:
