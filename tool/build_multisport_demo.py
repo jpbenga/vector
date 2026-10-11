@@ -62,6 +62,21 @@ if not REFRESH_HOCKEY:
         '--dart-define=SUPABASE_URL=' + values['SUPABASE_URL'],
         '--dart-define=SUPABASE_ANON_KEY=' + values['SUPABASE_ANON_KEY'],
     ], cwd=ROOT, check=True)
+# An incremental build left an incomplete output despite a successful exit.
+# Never publish a shell that falls back to index.html
+# when the runtime requests its asset manifest or voice transcription script.
+required_web_files = [
+    'index.html', 'main.dart.js', 'flutter_bootstrap.js',
+    'generator_voice.js', 'manifest.json',
+    'assets/AssetManifest.bin.json', 'assets/FontManifest.json',
+]
+missing_web_files = [name for name in required_web_files if not (OUTPUT / name).is_file()]
+if missing_web_files:
+    raise SystemExit('Paquet web incomplet : ' + ', '.join(missing_web_files))
+for family in json.loads((OUTPUT / 'assets/FontManifest.json').read_text()):
+    for font in family['fonts']:
+        if not (OUTPUT / 'assets' / font['asset']).is_file():
+            raise SystemExit('Police manquante dans le paquet web : ' + font['asset'])
 if not REUSE_DELIVERY and not REFRESH_HOCKEY:
     sources = Path('/private/tmp/lector-public-delivery-sources.json')
     if not sources.exists():

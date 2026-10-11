@@ -8,8 +8,10 @@ Pourtant, le lecteur public `read_sport_feed(day)` renvoyait 2 827 observations
 sur les 42 rencontres de la journée, dont 81 pour Calgary–Bakersfield et 72 pour
 Hartford–Laval. La collecte de 12:17 UTC avait réussi.
 
-La démo conservait une livraison observée à 00:18 UTC : ces deux matchs n'y
-avaient pas encore de prix. La revalidation publique actualisait le cache mais
+Le manifeste public avait été publié à 04:11 UTC, depuis la publication
+analytique de 03:34 UTC et les cotes de 00:17 UTC : ces deux matchs n'y
+avaient pas encore de prix. Les fichiers locaux plus anciens présentaient la
+même absence. La revalidation publique actualisait le cache mais
 ne prévenait pas les écrans déjà affichés. Le détail restait donc sur son objet
 initial. Ce défaut s'ajoutait à l'absence de cotes dans les cartes.
 
@@ -25,8 +27,10 @@ initial. Ce défaut s'ajoutait à l'absence de cotes dans les cartes.
   faits analytiques et ne remplacent que les observations de prix de la même
   version et des mêmes équipes.
 - Les dates et versions anciennes ne remplacent pas la vue courante.
-- La livraison de démo est reconstruite depuis la publication canonique de
-  03:34 UTC et ses 6 169 observations de prix vérifiées côté serveur.
+- Les fichiers de démo sont reconstruits depuis la publication canonique de
+  03:34 UTC et ses 6 169 observations de prix vérifiées côté serveur. Le
+  manifeste serveur utilisé par les écrans est également republié depuis cette
+  source, sans relancer la collecte.
 
 ## Générateur
 
@@ -45,4 +49,32 @@ d'une autre journée, prix actualisés sans changement de version, conservation
 du cache en cas d'échec et continuité des scores live. Tests Deno des outils et
 évaluations avec la reconstitution des quatre rencontres, sans appel IA payé.
 La lecture publique et la préparation de cette livraison n'ont lancé aucune
-collecte fournisseur. Les preuves de déploiement sont ajoutées après publication.
+collecte fournisseur.
+
+## Livraison vérifiée
+
+- Code applicatif : `1fdd0c2b7ba6222c935023d4d0b03b9fcac7ab47` sur
+  `codex/multisport-hockey`.
+- CI complète réussie : https://github.com/jpbenga/vector/actions/runs/38158597976
+  (Flutter et fonctions serveur).
+- Fonction `lector-generator-workshop` mise à jour :
+  https://github.com/jpbenga/vector/actions/runs/38158968976
+- Livraison publique hockey republiée sans collecte :
+  https://github.com/jpbenga/vector/actions/runs/38159272220
+  Le manifeste indique `2026-10-11T17:21:42.643Z`. La journée du 11 octobre
+  comporte 42 rencontres et 2 827 observations de prix.
+- Déploiement Vercel : `dpl_BfSNtnvVqWguubRHQgXEzwWRHLR4`, accessible sur
+  https://lector-sports-demo-lector1.vercel.app/sports/hockey
+- Vérification dans le navigateur, onglet Tous, filtre À venir, AHL :
+  Bakersfield / nul / Calgary = `2,65 / 4,15 / 2,13` ;
+  Laval / nul / Hartford = `2,53 / 4,00 / 2,21`.
+  Le détail Calgary–Bakersfield affiche les mêmes valeurs, le marché à
+  60 minutes, le bookmaker 1xBet et l'observation du 11 octobre à 14:17 Paris.
+  Une capture est conservée dans `output/hockey-cotes-demo-2026-10-11.png`.
+- Un premier paquet incrémental incomplet a été détecté dans le navigateur et
+  remplacé par un paquet complet. Le script bloque désormais la publication
+  si les manifestes, le script vocal ou les polices sont absents.
+
+Les rencontres sans cote fournie ne reçoivent aucun prix inventé. Les prix
+prématch ne sont pas présentés comme des cotes live après le coup d'envoi.
+Cette livraison n'a consommé aucun appel OpenAI ni API-Hockey supplémentaire.
