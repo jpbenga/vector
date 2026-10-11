@@ -1,0 +1,79 @@
+name: Refresh hockey publications
+
+on:
+  schedule:
+    - cron: '35 0,12 * * *'
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Install once, refresh seven leagues, or republish verified delivery
+        type: choice
+        default: refresh
+        options: [install, refresh, delivery-only]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: lector-full-hockey-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      # This scheduling file also lives on main, as required by GitHub. The
+      # football application is not merged with the multisport codebase.
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/multisport-hockey
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: supabase/setup-cli@v1
+        if: inputs.operation == 'install'
+        with:
+          version: '2.120.0'
+      - uses: subosito/flutter-action@v2
+        if: inputs.operation != 'install'
+        with:
+          flutter-version: '3.44.2'
+          channel: stable
+          cache: true
+      - name: Install Dart dependencies
+        if: inputs.operation != 'install'
+        run: flutter pub get
+      - uses: actions/cache@v4
+        if: inputs.operation != 'install'
+        with:
+          path: var/sports/hockey/enrichment-cache
+          key: hockey-enrichment-v1-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: hockey-enrichment-v1-${{ runner.os }}-
+      - name: Install reviewed collector and atomic delivery RPC
+        if: inputs.operation == 'install'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tool/refresh_hockey_remote.py --install
+      - name: Collect, prepare readings, verify and publish hockey
+        if: inputs.operation != 'install'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          DELIVERY_ONLY: ${{ inputs.operation == 'delivery-only' && 'true' || 'false' }}
+        run: |
+          if [ "$DELIVERY_ONLY" = true ]; then
+            python3 tool/refresh_hockey_remote.py --delivery-only
+          else
+            python3 tool/refresh_hockey_remote.py
+          fi
+      - name: Preserve publication verification receipt
+        if: always() && inputs.operation != 'install'
+        uses: actions/upload-artifact@v4
+        with:
+          name: hockey-refresh-receipt
+          path: hockey-refresh-receipt.json
+          if-no-files-found: ignore
+          retention-days: 30

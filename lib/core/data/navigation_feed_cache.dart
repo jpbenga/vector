@@ -34,6 +34,24 @@ class NavigationFeedCache<T> {
   T? peek(String key) => _values[key];
   void invalidate(String key) => _checked.remove(key);
 
+  /// Populate related views from one decoded publication without another read.
+  /// An in-flight foreground request remains authoritative for its own key.
+  void seed(String key, T value) {
+    if (_pending.containsKey(key)) return;
+    _store(key, value);
+  }
+
+  void _store(String key, T value) {
+    _values.remove(key);
+    _values[key] = value;
+    _checked[key] = clock();
+    while (_values.length > capacity) {
+      final oldest = _values.keys.first;
+      _values.remove(oldest);
+      _checked.remove(oldest);
+    }
+  }
+
   Future<T> read(
     String key,
     Future<T> Function() fetch, {
@@ -60,14 +78,7 @@ class NavigationFeedCache<T> {
   Future<T> _fetch(String key, Future<T> Function() fetch) {
     return _pending[key] ??= Future<T>.sync(fetch)
         .then((value) {
-          _values.remove(key);
-          _values[key] = value;
-          _checked[key] = clock();
-          while (_values.length > capacity) {
-            final oldest = _values.keys.first;
-            _values.remove(oldest);
-            _checked.remove(oldest);
-          }
+          _store(key, value);
           return value;
         })
         .whenComplete(() {

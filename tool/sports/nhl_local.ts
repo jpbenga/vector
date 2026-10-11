@@ -49,7 +49,15 @@ const env = Object.fromEntries(
   }),
 );
 const key = env.API_HOCKEY_KEY || env.API_FOOTBALL_KEY;
-if (!key) {
+const useProviderBridge = env.HOCKEY_COLLECTION_PROXY === "true";
+if (
+  useProviderBridge &&
+  (env.SUPABASE_URL !== "https://ednvvxxvlawaagjyshkj.supabase.co" ||
+    !env.API_FOOTBALL_SYNC_SECRET)
+) {
+  throw new Error("Missing trusted hockey collection bridge configuration");
+}
+if (!key && !useProviderBridge) {
   throw new Error(
     "API_HOCKEY_KEY (or the shared API_FOOTBALL_KEY) is missing in .env",
   );
@@ -178,18 +186,30 @@ async function providerRequest(
       setTimeout(resolve, Math.min(10_000, 60_001 - (time - minute[0])))
     );
   }
-  await reserveRemoteCollection();
+  // The private bridge reserves the same quota on the server, once per call.
+  if (!useProviderBridge) await reserveRemoteCollection();
   ledger.push(Date.now());
   await atomicJson(budgetPath, ledger);
   calls++;
   if (calls % 50 === 0) {
     console.log(`Collecte hockey : ${calls} appels réservés.`);
   }
-  const url = new URL(path, apiOrigin);
-  url.search = new URLSearchParams(parameters).toString();
+  const url = useProviderBridge
+    ? new URL("/functions/v1/hockey-collection-provider", env.SUPABASE_URL)
+    : new URL(path, apiOrigin);
+  if (!useProviderBridge) {
+    url.search = new URLSearchParams(parameters).toString();
+  }
   const response = await fetch(url, {
-    headers: { "x-apisports-key": key, "Cache-Control": "no-cache" },
-    signal: AbortSignal.timeout(30_000),
+    method: useProviderBridge ? "POST" : "GET",
+    headers: useProviderBridge
+      ? {
+        authorization: `Bearer ${env.API_FOOTBALL_SYNC_SECRET}`,
+        "Content-Type": "application/json",
+      }
+      : { "x-apisports-key": key!, "Cache-Control": "no-cache" },
+    body: useProviderBridge ? JSON.stringify({ path, parameters }) : undefined,
+    signal: AbortSignal.timeout(useProviderBridge ? 45_000 : 30_000),
     redirect: "error",
   });
   const rateHeaders = Object.fromEntries(
@@ -206,6 +226,13 @@ async function providerRequest(
     );
   }
   const payload = await response.json();
+  if (response.status >= 500 && attempt < 3) {
+    console.log(
+      "Fournisseur hockey indisponible : reprise bornée du même appel.",
+    );
+    await new Promise((resolve) => setTimeout(resolve, 1500 * (attempt + 1)));
+    return await providerRequest(path, parameters, attempt + 1);
+  }
   const limited = response.status === 429 || payload?.errors?.rateLimit != null;
   if (limited && attempt < 3) {
     providerMinuteLimit = Math.max(30, Math.floor(providerMinuteLimit * .75));

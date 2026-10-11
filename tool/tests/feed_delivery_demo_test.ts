@@ -106,3 +106,67 @@ Deno.test("static demo publishes frozen past days with complete detail reference
     await Deno.remove(root, { recursive: true });
   }
 });
+
+Deno.test("hockey-only rebuild preserves quotes, creates new immutable paths and leaves football delivery intact", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(`${root}/football.json`, "[]");
+    await Deno.mkdir(`${root}/delivery/football`, { recursive: true });
+    await Deno.writeTextFile(
+      `${root}/delivery/football/keep.json`,
+      "existing-football",
+    );
+    const data = structuredClone(hockey) as unknown as Record<string, any>;
+    data.items[0].calendarDate = "2026-10-08";
+    data.items[0].startsAt = "2026-10-08T18:00:00Z";
+    const rebuild = async () => {
+      await Deno.writeTextFile(`${root}/hockey.json`, JSON.stringify(data));
+      await buildDemoDelivery(
+        `${root}/football.json`,
+        `${root}/hockey.json`,
+        root,
+        "2026-10-08",
+        true,
+      );
+      const manifest = JSON.parse(
+        await Deno.readTextFile(
+          `${root}/delivery/hockey/2026-10-08/manifest.json`,
+        ),
+      );
+      return {
+        manifest,
+        day: JSON.parse(await Deno.readTextFile(`${root}/${manifest.path}`)),
+      };
+    };
+    const before = await rebuild();
+    const quote = {
+      decimalOdds: 1.74,
+      capturedAt: "2026-10-07T10:00:00Z",
+      marketCode: "result_regulation",
+      selectionCode: "home",
+      scope: "regulation",
+      bookmaker: "Test",
+      bookmakerId: "test",
+    };
+    data.items[0].quotes = [quote];
+    data.items[0].quotesCollectedAt = quote.capturedAt;
+    const after = await rebuild();
+    assert.notDeepEqual(after.manifest.sourceIds, before.manifest.sourceIds);
+    assert.deepEqual(after.day.items[0].quotes, [quote]);
+    const radar = JSON.parse(
+      await Deno.readTextFile(`${root}/${after.day.delivery.radarPaths[0]}`),
+    );
+    assert.deepEqual(radar.items[0].quotes, [quote]);
+    const reference = after.day.delivery.detailPaths[data.items[0].id];
+    const detail = JSON.parse(
+      await Deno.readTextFile(`${root}/${reference.path}`),
+    );
+    assert.deepEqual(detail.items[0].quotes, [quote]);
+    assert.equal(
+      await Deno.readTextFile(`${root}/delivery/football/keep.json`),
+      "existing-football",
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

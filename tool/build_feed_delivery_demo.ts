@@ -13,6 +13,7 @@ export async function buildDemoDelivery(
   hockeyPath: string,
   output: string,
   today = dayKey(new Date().toISOString()),
+  onlyHockey = false,
 ) {
   const stats: Record<string, unknown> = {};
   const write = async (path: string, value: Json) => {
@@ -46,6 +47,7 @@ export async function buildDemoDelivery(
     return date.toISOString().slice(0, 10);
   });
   for (const sport of ["football", "hockey"] as const) {
+    if (onlyHockey && sport !== "hockey") continue;
     const sourceRows: Json[] = sport === "football"
       ? (Array.isArray(index) ? index : index.rows)
       : [{ id: `hockey-${hash}`, payload: JSON.parse(hockeyText) }];
@@ -164,6 +166,14 @@ if (import.meta.main) {
     );
   }
   console.log(
-    JSON.stringify(await buildDemoDelivery(footballPath, hockeyPath, output)),
+    JSON.stringify(
+      await buildDemoDelivery(
+        footballPath,
+        hockeyPath,
+        output,
+        undefined,
+        Deno.args.includes("--hockey-only"),
+      ),
+    ),
   );
 }
