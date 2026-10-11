@@ -63,6 +63,15 @@ export function hockeyCollectionProvider(ports: {
           status: response.status === 429 ? 429 : 502,
         });
       }
+      const payload = await response.json();
+      if (
+        !payload || !payload.errors || Object.keys(payload.errors).length ||
+        payload.response == null
+      ) {
+        return Response.json({
+          error: "Hockey provider rejected the collection",
+        }, { status: payload?.errors?.rateLimit ? 429 : 502 });
+      }
       const headers = new Headers({ "Content-Type": "application/json" });
       for (
         const name of [
@@ -74,7 +83,7 @@ export function hockeyCollectionProvider(ports: {
         const value = response.headers.get(name);
         if (value) headers.set(name, value);
       }
-      return new Response(await response.text(), { status: 200, headers });
+      return Response.json(payload, { status: 200, headers });
     } catch {
       return Response.json({ error: "Hockey collection adapter unavailable" }, {
         status: 503,

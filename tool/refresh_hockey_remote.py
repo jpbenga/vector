@@ -7,6 +7,8 @@ import sys
 import time
 import urllib.request
 import urllib.error
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from deploy_generator_remote import PROJECT, request, require_ci
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -101,7 +103,7 @@ def main():
         payload = json.loads(publication.read_text())
         runtime = {**os.environ, 'SUPABASE_URL':URL, 'SUPABASE_SERVICE_ROLE_KEY':service}
         subprocess.run(['deno','run','--allow-env=SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY','--allow-read','--allow-write','--allow-net='+PROJECT+'.supabase.co','tool/sports/publish_hockey_delivery.ts',str(publication)], cwd=ROOT, env=runtime, check=True)
-        day = __import__('datetime').datetime.now(__import__('zoneinfo').ZoneInfo('Europe/Paris')).date().isoformat()
+        day = datetime.now(ZoneInfo('Europe/Paris')).date().isoformat()
         rows = public_read(anon, f'/rest/v1/sport_feed_delivery_heads?sport=eq.hockey&day=eq.{day}&select=manifest')
         manifest = rows[0]['manifest'] if rows else {}
         if manifest.get('collectionId') != payload['collectionId'] or manifest.get('capturedAt') != payload['capturedAt']:

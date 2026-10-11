@@ -34,7 +34,7 @@ Deno.test("anonymous and invalid requests cannot consume the provider quota", as
     },
     request: async () => {
       fetched++;
-      return Response.json({ response: [] });
+      return Response.json({ errors: [], response: [] });
     },
   });
   assert.equal(
@@ -66,7 +66,7 @@ Deno.test("each allowed call reserves once and exhausted quota blocks upstream",
     },
     request: async () => {
       fetched++;
-      return Response.json({ response: [{ id: 57 }] });
+      return Response.json({ errors: [], response: [{ id: 57 }] });
     },
   });
   const req = () =>
