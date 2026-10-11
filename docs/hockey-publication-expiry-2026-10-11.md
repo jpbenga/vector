@@ -169,3 +169,19 @@ de live et de cotes existants ne remplacent pas ce renouvellement. Cette
 réparation ponctuelle et les contrôles de publication ne suffisent donc pas
 à garantir automatiquement une nouvelle collecte avant la prochaine
 expiration des 36 heures.
+
+## Démo publiée et contrôle visuel
+
+Déploiement prêt : `dpl_DSJ83b9AoHY9v19FF4Tz1fehzqeo`, aperçu
+https://lector-sports-i1pv95drs-lector1.vercel.app . Le lien stable
+https://lector-sports-demo-lector1.vercel.app pointe vers cet aperçu.
+Le premier envoi sans scope avait échoué avec « Not authorized » ;
+l’accès au compte et au projet était valide. L’envoi explicite dans
+`--scope lector1` réussit.
+
+Le contrôle au navigateur sur `/sports/hockey`, onglet Tous, affiche
+42 rencontres du 11 octobre réparties dans quatre compétitions : cinq
+en direct, 18 à venir, 19 terminées à l’heure du contrôle. Le message
+de collecte à actualiser a disparu. La capture de preuve est enregistrée
+dans `/private/tmp/lector-hockey-demo-restored-2026-10-11.png`.
+Aucun appel OpenAI n’a été effectué pour cette réparation.
