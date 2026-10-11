@@ -57,6 +57,58 @@ def main():
         turn["messages"] = messages_since(turn.get("messages"))
         print(json.dumps({"incident_turn": turn}, ensure_ascii=False))
 
+    # Version 2 stores exact messages separately. Emit only the recent text and
+    # compact selection identity/price facts needed to diagnose this account's
+    # request, never the full evidence documents or another account's history.
+    archived = query(f"""select m.conversation_id,m.body->>'at' as at,
+        m.body->>'role' as role,left(m.body->>'text',10000) as text,
+        m.body#>'{{analysis,context}}' as analysis_context,
+        (select coalesce(jsonb_agg(jsonb_build_object(
+          'id',x->>'id','matchId',x->>'matchId','home',x->>'home','away',x->>'away',
+          'sport',x->>'sport','selection',x->>'selection','odds',x->'odds',
+          'market',x->>'market','kickoff',x->>'kickoff','warnings',x->'warnings'
+        )),'[]') from jsonb_array_elements(
+          coalesce(m.body#>'{{analysis,selected}}','[]')) x) as selected
+        from public.lector_generator_messages m join auth.users u on u.id=m.user_id
+        where {account} and (m.body->>'at')::timestamptz >= '{cutoff}'::timestamptz
+        order by m.position desc limit 12""")
+    for message in reversed(archived):
+        print(json.dumps({"incident_archived_message": message}, ensure_ascii=False))
+
+    # Distinguish a missing row, an empty normalized response, and stale prices.
+    # No provider call, scheduler change, lease token or secret is involved.
+    odds_config = query("""select last_started_at,last_completed_at,last_success_at,
+        last_error,requests_last_run from public.hockey_odds_configuration where singleton""")
+    odds_schedule = query("""select j.jobname,j.schedule,j.active,
+        (select coalesce(jsonb_agg(jsonb_build_object('started_at',r.start_time,
+          'ended_at',r.end_time,'status',r.status,'return_message',r.return_message)
+          order by r.start_time desc),'[]') from cron.job_run_details r
+          where r.jobid=j.jobid and r.start_time>now()-interval '24 hours') as runs
+        from cron.job j where j.jobname='lector-hockey-odds'""")
+    odds_coverage = query("""with head as (
+        select captured_at,payload from public.sport_feed_snapshots
+        where sport='hockey' order by captured_at desc limit 1
+      ) select h.captured_at,f->>'id' as match_id,
+        f->>'competitionId' as league_id,f->>'competitionName' as league,
+        f->>'season' as season,f#>>'{home,name}' as home,f#>>'{away,name}' as away,
+        f->>'startsAt' as starts_at,f->>'status' as status,
+        q.collected_at,jsonb_array_length(coalesce(q.quotes,'[]')) as prices,
+        case when q.fixture_id is null then 'not_collected'
+          when jsonb_array_length(q.quotes)=0 then 'no_accepted_market'
+          when q.collected_at<now()-interval '48 hours' then 'stale'
+          else 'available' end as quote_status,
+        (select coalesce(jsonb_agg(distinct x->>'marketCode'),'[]')
+          from jsonb_array_elements(coalesce(q.quotes,'[]')) x) as markets
+        from head h cross join lateral jsonb_array_elements(h.payload->'items') f
+        left join public.hockey_market_quotes q on q.fixture_id=f->>'id'
+          and q.competition_id=f->>'competitionId' and q.season=f->>'season'
+          and q.home_id=f#>>'{home,id}' and q.away_id=f#>>'{away,id}'
+        where (f->>'startsAt')::timestamptz>=date_trunc('day',now())
+          and (f->>'startsAt')::timestamptz<now()+interval '8 days'
+        order by (f->>'startsAt')::timestamptz,f->>'id'""")
+    print(json.dumps({"incident_hockey_odds": {"configuration": odds_config,
+        "schedule": odds_schedule,"coverage": odds_coverage}}, ensure_ascii=False))
+
     # Public source dimensions and fixture boundaries at the incident start.
     # No source documents or player profiles are emitted into workflow logs.
     publication = query(f"""with head as (
