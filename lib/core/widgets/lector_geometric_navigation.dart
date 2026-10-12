@@ -4,7 +4,8 @@ import '../theme/app_colors.dart';
 import '../theme/app_radius.dart';
 import 'lector_workspace_navigation.dart';
 
-/// Exactly five equal-width destinations. Geometry never implies selection.
+/// Five equal destinations in a compact, rounded top navigation.
+/// The public name is retained for consumers of the validated workspace shell.
 class LectorGeometricNavigation extends StatelessWidget {
   const LectorGeometricNavigation({
     required this.selected,
@@ -16,10 +17,10 @@ class LectorGeometricNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Material(
     color: context.surfaces.backgroundSecondary,
-    borderRadius: BorderRadius.circular(AppRadius.control),
+    borderRadius: BorderRadius.circular(AppRadius.chip),
     clipBehavior: Clip.antiAlias,
     child: SizedBox(
-      height: 54,
+      height: MediaQuery.textScalerOf(context).scale(10.5) > 13 ? 54 : 44,
       child: Row(
         children: [
           for (final section in LectorWorkspaceSection.values)
@@ -55,7 +56,7 @@ class _Tab extends StatelessWidget {
       LectorWorkspaceSection.bilan => 'Bilan',
     };
     final icon = switch (section) {
-      LectorWorkspaceSection.forMe => Icons.person_outline_rounded,
+      LectorWorkspaceSection.forMe => Icons.bolt_outlined,
       LectorWorkspaceSection.radar => Icons.radar_rounded,
       LectorWorkspaceSection.all => Icons.format_list_bulleted_rounded,
       LectorWorkspaceSection.generator => Icons.auto_awesome_rounded,
@@ -83,74 +84,69 @@ class _Tab extends StatelessWidget {
       excludeSemantics: true,
       child: InkWell(
         key: ValueKey('workspace-tab-${section.name}'),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
         onTap: onPressed,
-        child: CustomPaint(
+        child: DecoratedBox(
           key: selected ? ValueKey('workspace-selected-${section.name}') : null,
-          painter: _AnglePainter(
-            fill,
-            selected ? accent : context.surfaces.border,
+          decoration: BoxDecoration(
+            color: fill,
+            borderRadius: BorderRadius.circular(AppRadius.chip),
+            border: Border.all(
+              color: selected ? accent : context.surfaces.border,
+              width: selected ? 1.3 : .6,
+            ),
           ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 3),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  icon,
-                  size: 17,
-                  color:
-                      selected ||
-                          section == LectorWorkspaceSection.radar ||
-                          section == LectorWorkspaceSection.generator
-                      ? accent
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final inline =
+                  constraints.maxWidth >= 66 &&
+                  MediaQuery.textScalerOf(context).scale(10.5) <= 13;
+              final symbol = Icon(
+                icon,
+                size: constraints.maxWidth >= 100 ? 19 : 16,
+                color:
+                    selected ||
+                        section == LectorWorkspaceSection.radar ||
+                        section == LectorWorkspaceSection.generator
+                    ? accent
+                    : context.textColors.secondary,
+              );
+              final text = Text(
+                label,
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: constraints.maxWidth >= 100 ? 12 : 10.5,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: selected
+                      ? context.textColors.primary
                       : context.textColors.secondary,
                 ),
-                const SizedBox(height: 3),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                      color: selected
-                          ? context.textColors.primary
-                          : context.textColors.secondary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              );
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: inline
+                    ? Center(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [symbol, const SizedBox(width: 4), text],
+                          ),
+                        ),
+                      )
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          symbol,
+                          const SizedBox(height: 2),
+                          FittedBox(fit: BoxFit.scaleDown, child: text),
+                        ],
+                      ),
+              );
+            },
           ),
         ),
       ),
     );
   }
-}
-
-class _AnglePainter extends CustomPainter {
-  const _AnglePainter(this.fill, this.border);
-  final Color fill, border;
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = Path()
-      ..moveTo(6, .5)
-      ..lineTo(size.width - 6, .5)
-      ..lineTo(size.width - .5, size.height - .5)
-      ..lineTo(.5, size.height - .5)
-      ..close();
-    canvas.drawPath(path, Paint()..color = fill);
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = border
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = .8,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_AnglePainter old) =>
-      old.fill != fill || old.border != border;
 }

@@ -214,22 +214,26 @@ class _CopilotCalendarDay extends StatelessWidget {
     final theme = Theme.of(context);
     final isToday = _isSameDay(date, today);
     final textColor = isSelected
-        ? context.brand.accent
+        ? context.semantic.info
         : context.textColors.secondary;
 
     return Material(
       color: AppColors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.chip),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
           decoration: BoxDecoration(
             color: isSelected
-                ? context.brand.accent.withValues(alpha: 0.11)
+                ? context.semantic.info.withValues(alpha: 0.10)
                 : AppColors.transparent,
-            borderRadius: BorderRadius.circular(AppRadius.chip),
+            borderRadius: BorderRadius.circular(AppRadius.control),
+            border: Border.all(
+              color: isSelected ? context.semantic.info : AppColors.transparent,
+              width: 1.2,
+            ),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -249,20 +253,8 @@ class _CopilotCalendarDay extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.labelSmall?.copyWith(
-                  color: textColor,
+                  color: isSelected ? context.textColors.primary : textColor,
                   fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xxs),
-              FractionallySizedBox(
-                widthFactor: isSelected ? 0.58 : 0,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 160),
-                  height: 2,
-                  decoration: BoxDecoration(
-                    color: context.brand.accent,
-                    borderRadius: BorderRadius.circular(AppRadius.chip),
-                  ),
                 ),
               ),
             ],
@@ -300,9 +292,9 @@ class _CalendarIconButton extends StatelessWidget {
     return IconButton.outlined(
       tooltip: 'Choisir une date',
       onPressed: onPressed,
-      icon: const Icon(Icons.calendar_today_rounded, size: 16),
+      icon: const Icon(Icons.calendar_today_rounded, size: 20),
       color: Theme.of(context).colorScheme.onSurface,
-      constraints: const BoxConstraints.tightFor(width: 34, height: 38),
+      constraints: const BoxConstraints.tightFor(width: 44, height: 44),
       padding: EdgeInsets.zero,
     );
   }

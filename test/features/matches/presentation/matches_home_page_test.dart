@@ -416,11 +416,11 @@ void main() {
       );
 
       expect(calendarSize.height, 48);
-      expect(primarySize.height, 54);
+      expect(primarySize.height, 44);
       final filterSize = tester.getSize(
         find.byKey(const ValueKey('for-me-compact-filter-control')),
       );
-      expect(filterSize.height, primarySize.height);
+      expect(filterSize.height, 54);
     });
 
     testWidgets('reloads the remote snapshot when the selected day changes', (

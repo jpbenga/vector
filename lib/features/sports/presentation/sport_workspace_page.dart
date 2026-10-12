@@ -117,7 +117,7 @@ class SportWorkspacePage extends StatelessWidget {
                     sport.label,
                     style: Theme.of(
                       context,
-                    ).textTheme.titleSmall?.copyWith(fontSize: 13),
+                    ).textTheme.titleSmall?.copyWith(fontSize: 14),
                   ),
                   const Icon(Icons.expand_more_rounded, size: 20),
                 ],

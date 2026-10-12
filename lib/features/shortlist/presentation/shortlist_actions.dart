@@ -68,42 +68,56 @@ class ShortlistEntryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = shortlistController();
     if (controller == null) return const SizedBox.shrink();
-    return ListenableBuilder(
-      listenable: controller,
-      builder: (context, _) => Tooltip(
-        message: 'Ma Shortlist : ${controller.items.length} rencontres',
-        child: TextButton(
-          key: const ValueKey('open-shortlist'),
-          onPressed: () => openShortlist(context),
-          style: TextButton.styleFrom(
-            minimumSize: const Size(44, 44),
-            padding: const EdgeInsets.symmetric(horizontal: 5),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              LectorShortlistIcon(color: context.semantic.info, size: 21),
-              if (!compact) ...[
-                const SizedBox(width: 4),
-                Text(
-                  'Shortlist',
-                  style: TextStyle(fontSize: 11, color: context.semantic.info),
-                ),
-              ],
-              if (controller.items.isNotEmpty) ...[
-                const SizedBox(width: 3),
-                Text(
-                  '${controller.items.length}',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: context.semantic.info,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
+    return LayoutBuilder(
+      builder: (context, constraints) => ListenableBuilder(
+        listenable: controller,
+        builder: (context, _) {
+          final count = controller.items.length;
+          final needed =
+              (84 + (count == 0 ? 0 : 3 + '$count'.length * 7)) *
+              (MediaQuery.textScalerOf(context).scale(12) / 12);
+          final showLabel =
+              !compact &&
+              (!constraints.hasBoundedWidth || constraints.maxWidth >= needed);
+          return Tooltip(
+            message: 'Ma Shortlist : $count rencontres',
+            child: TextButton(
+              key: const ValueKey('open-shortlist'),
+              onPressed: () => openShortlist(context),
+              style: TextButton.styleFrom(
+                minimumSize: const Size(44, 44),
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  LectorShortlistIcon(color: context.semantic.info, size: 21),
+                  if (showLabel) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      'Shortlist',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.semantic.info,
+                      ),
+                    ),
+                  ],
+                  if (count > 0) ...[
+                    const SizedBox(width: 3),
+                    Text(
+                      '$count',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: context.semantic.info,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

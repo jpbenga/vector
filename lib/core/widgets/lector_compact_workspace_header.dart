@@ -24,68 +24,78 @@ class LectorCompactWorkspaceHeader extends StatelessWidget {
     bottom: false,
     child: LayoutBuilder(
       builder: (context, constraints) => SizedBox(
-        height: 52,
+        height: 48,
         child: Row(
           children: [
-            const LectorBrandMark(size: 27),
-            const SizedBox(width: 5),
+            const LectorBrandMark(size: 30),
+            const SizedBox(width: 6),
             SizedBox(
-              width: 104,
+              width: 112,
               child: FittedBox(fit: BoxFit.scaleDown, child: sportSelector),
             ),
             const Spacer(),
-            shortlistAction ??
-                Tooltip(
-                  message: shortlistCount == 0
-                      ? 'Ma Shortlist'
-                      : 'Ma Shortlist : $shortlistCount rencontres',
-                  child: TextButton(
-                    onPressed: onOpenShortlist,
-                    style: TextButton.styleFrom(
-                      minimumSize: const Size(44, 44),
-                      padding: const EdgeInsets.symmetric(horizontal: 5),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        LectorShortlistIcon(color: context.semantic.info),
-                        if (shortlistCount > 0) ...[
-                          const SizedBox(width: 3),
-                          Text(
-                            '$shortlistCount',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              color: context.semantic.info,
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: (constraints.maxWidth - 239).clamp(44.0, 240.0),
+              ),
+              child:
+                  shortlistAction ??
+                  Tooltip(
+                    message: shortlistCount == 0
+                        ? 'Ma Shortlist'
+                        : 'Ma Shortlist : $shortlistCount rencontres',
+                    child: TextButton(
+                      onPressed: onOpenShortlist,
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(44, 44),
+                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          LectorShortlistIcon(color: context.semantic.info),
+                          if (shortlistCount > 0) ...[
+                            const SizedBox(width: 3),
+                            Text(
+                              '$shortlistCount',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: context.semantic.info,
+                              ),
                             ),
-                          ),
-                        ],
-                        if (constraints.maxWidth >= 350) ...[
-                          const SizedBox(width: 5),
-                          Text(
-                            'Shortlist',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: context.semantic.info,
+                          ],
+                          if (constraints.maxWidth >= 350) ...[
+                            const SizedBox(width: 5),
+                            Text(
+                              'Shortlist',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: context.semantic.info,
+                              ),
                             ),
-                          ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
-                ),
+            ),
             const SizedBox(width: 3),
             SizedBox.square(dimension: 44, child: FittedBox(child: identity)),
-            settingsAction ??
-                IconButton(
-                  tooltip: 'Paramètres',
-                  onPressed: onOpenSettings,
-                  constraints: const BoxConstraints(
-                    minWidth: 44,
-                    minHeight: 44,
+            SizedBox.square(
+              dimension: 44,
+              child:
+                  settingsAction ??
+                  IconButton(
+                    tooltip: 'Paramètres',
+                    onPressed: onOpenSettings,
+                    constraints: const BoxConstraints(
+                      minWidth: 44,
+                      minHeight: 44,
+                    ),
+                    icon: const Icon(Icons.settings_outlined, size: 22),
                   ),
-                  icon: const Icon(Icons.settings_outlined, size: 22),
-                ),
+            ),
           ],
         ),
       ),
