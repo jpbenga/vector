@@ -12,7 +12,9 @@ if (import.meta.main) {
   const [input, output] = Deno.args;
   const data = JSON.parse(await Deno.readTextFile(input));
   const payload = data.payload, raw = obj(payload.raw);
-  const cached = data.cached as CachedContextSource[];
+  const cached = (data.cached as CachedContextSource[]).filter((s) =>
+    Object.keys(obj(obj(s.response_body).errors)).length === 0
+  );
   const originals = data.sources as Record<string, unknown>[];
   const allSources = [
     ...originals,
@@ -78,7 +80,19 @@ if (import.meta.main) {
     cached.filter((c) => c.endpoint === "/leagues"),
   );
   raw.domestic_team_contexts = domestic.contexts;
-  raw.standings = [...rows(raw.standings), ...domestic.standings];
+  raw.standings = [
+    ...rows(raw.standings),
+    ...cached.filter((s) =>
+      s.endpoint === "/standings" &&
+      [2, 3, 848].includes(Number(s.query_params.league))
+    ).flatMap((s) =>
+      rows(obj(s.response_body).response).map((r) => ({
+        ...r,
+        observed_at: s.fetched_at,
+      }))
+    ),
+    ...domestic.standings,
+  ];
   raw.context_sources = allSources;
   // Source observation timestamps stay on every standing/history. Publication
   // time identifies a new build; it never authorizes a post-kickoff statistic.
@@ -95,6 +109,26 @@ if (import.meta.main) {
         domestic: domestic.contexts.length,
       },
       sourceMetadata: allSources,
+      wantedSchedules: [
+        ...new Map([
+          ...rows(raw.fixtures).map((f) => obj(f.league)),
+          ...domestic.contexts.map((c) => obj(c.league)),
+        ].map((
+          l,
+        ) => [`${l.id}:${l.season}`, {
+          league: Number(l.id),
+          season: Number(l.season),
+        }])).values(),
+      ],
+      sourceRecords: [...originals, ...cached].map((s) => ({
+        source: s.source ?? "api-football",
+        endpoint: s.endpoint,
+        query_hash: s.query_hash,
+        sync_run_id: s.sync_run_id ?? null,
+        fetched_at: s.fetched_at,
+        as_of: s.as_of,
+        response_status: s.response_status ?? 200,
+      })).filter((s) => typeof s.query_hash === "string"),
     }),
   );
 }

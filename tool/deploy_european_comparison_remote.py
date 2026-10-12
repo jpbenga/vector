@@ -52,18 +52,25 @@ def main():
         print('Preparing European league '+str(league)+' from archived sources',flush=True)
         seed=query("select * from match_feed_snapshots where league_ids=array["+str(league)+"] order by captured_at desc limit 1")[0]
         source_id=seed['id']
-        sources=query("select s.endpoint,c.query_params,s.fetched_at,s.as_of from match_feed_snapshot_sources s join api_football_cached_responses c on c.source=s.source and c.endpoint=s.endpoint and c.query_hash=s.query_hash where s.snapshot_id='"+source_id+"'")
-        # One batch per existing whole-season schedule, with bounded concurrency.
-        wanted=query("select source,endpoint,query_hash,query_params,response_status,response_body,fetched_at,as_of from api_football_cached_responses where source='api-football' and endpoint='/fixtures' and response_status between 200 and 299 and query_params ? 'league' and query_params ? 'season' and not (query_params ?| array['team','date','from','to','round','last','status','ids','live','next']) order by fetched_at desc")
+        sources=query("select s.source,s.endpoint,s.query_hash,s.sync_run_id,s.response_status,c.query_params,s.fetched_at,s.as_of from match_feed_snapshot_sources s join api_football_cached_responses c on c.source=s.source and c.endpoint=s.endpoint and c.query_hash=s.query_hash where s.snapshot_id='"+source_id+"'")
         now=datetime.datetime.now(datetime.timezone.utc).isoformat()
         with tempfile.TemporaryDirectory() as folder:
             inp=Path(folder)/'input.json';out=Path(folder)/'prepared.json'
-            inp.write_text(json.dumps({'payload':seed['payload'],'sources':sources,'cached':cache+wanted,'builtAt':now}))
-            subprocess.run(['deno','run','--allow-read='+folder,'--allow-write='+folder,'tool/prepare_european_publication.ts',str(inp),str(out)],check=True)
-            prepared=json.loads(out.read_text())
+            def prepare(cache_rows):
+                inp.write_text(json.dumps({'payload':seed['payload'],'sources':sources,'cached':cache_rows,'builtAt':now}))
+                subprocess.run(['deno','run','--allow-read='+folder,'--allow-write='+folder,'tool/prepare_european_publication.ts',str(inp),str(out)],check=True)
+                return json.loads(out.read_text())
+            initial=prepare(cache)
+            pairs=initial['wantedSchedules']
+            if any(not isinstance(p['league'],int) or not isinstance(p['season'],int) for p in pairs):raise ValueError('Invalid schedule scope')
+            clauses=' or '.join("(query_params->>'league'='"+str(p['league'])+"' and query_params->>'season'='"+str(p['season'])+"')" for p in pairs)
+            wanted=query("select source,endpoint,query_hash,query_params,response_status,response_body,fetched_at,as_of from api_football_cached_responses where source='api-football' and endpoint='/fixtures' and response_status between 200 and 299 and ("+clauses+") and not (query_params ?| array['team','date','from','to','round','last','status','ids','live','next']) order by fetched_at desc")
+            prepared=prepare(cache+wanted)
         clone={**seed,'id':str(uuid.uuid4()),'captured_at':now,'as_of':now,'payload':prepared['payload'],'snapshot_created_at':now}
         for field in ('created_at','updated_at'):clone.pop(field,None)
         storage('match_feed_snapshots',clone)
+        records={r['source']+':'+r['endpoint']+':'+r['query_hash']:{**r,'snapshot_id':clone['id']} for r in prepared['sourceRecords']}
+        if records:storage('match_feed_snapshot_sources',list(records.values()))
         analysis=invoke('analyze-match-feed-snapshot',{'snapshot_id':clone['id']})
         built.append({'leagueId':league,'snapshotId':clone['id'],'analysis':{k:analysis.get(k) for k in ('analysisSnapshotId','reused','snapshotId')},'coverage':prepared['coverage']})
     invoke('build-feed-delivery',{'sport':'football'})

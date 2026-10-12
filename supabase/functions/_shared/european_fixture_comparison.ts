@@ -228,7 +228,12 @@ export function buildEuropeanComparisons(
         );
       };
       const standing = (teamId: number, id: number, year: number) => {
-        for (const row of rows(raw.standings)) {
+        for (
+          const row of rows(raw.standings).sort((a, b) =>
+            (time(b.observed_at ?? capturedAt) ?? 0) -
+            (time(a.observed_at ?? capturedAt) ?? 0)
+          )
+        ) {
           const stamp = str(row.observed_at) ?? capturedAt,
             observed = time(stamp);
           if (observed === null || observed >= kickoff) continue;
@@ -349,7 +354,24 @@ export function buildEuropeanComparisons(
           ? standing(teamId, di!, ds!)
           : null;
         const fixtureSources = sourceFor("/fixtures", leagueId, season);
-        const complete = fixtureSources.some((s) => {
+        const invalidResults = pool.some((r) => {
+          const l = obj(r.league),
+            ts = obj(r.teams),
+            f = obj(r.fixture),
+            d = time(f.date);
+          return num(l.id) === leagueId && num(l.season) === season &&
+            [num(obj(ts.home).id), num(obj(ts.away).id)].includes(teamId) &&
+            ["FT", "AET", "PEN"].includes(String(obj(f.status).short)) &&
+            (d === null || d < kickoff) &&
+            (num(obj(r.goals).home) === null ||
+              num(obj(r.goals).away) === null || d === null);
+        });
+        if (invalidResults) {
+          quality.push(
+            `${team.name} : certains résultats européens sont incomplets et sont exclus du bilan.`,
+          );
+        }
+        const complete = !invalidResults && fixtureSources.some((s) => {
           const q = obj(s.query_params);
           return q.team === undefined && q.from === undefined &&
             q.to === undefined && q.date === undefined &&
