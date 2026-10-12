@@ -429,9 +429,7 @@ List<MatchCardScenario> _representativeScenarios(MatchBoardItem match) {
     }
     final signalLabel = signal.title.trim();
     scenariosByRuntimeId[signal.id] = MatchCardScenario(
-      label: signalLabel.isNotEmpty
-          ? signalLabel
-          : catalogLabel ?? 'Scénario détecté',
+      label: signalLabel.isNotEmpty ? signalLabel : catalogLabel,
       summary: signal.summary.trim(),
     );
   }
