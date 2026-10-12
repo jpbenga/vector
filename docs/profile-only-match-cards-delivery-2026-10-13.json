@@ -1,0 +1,22 @@
+{
+  "sourceCommit": "0cb730b18d2fb66a57d832c51148614662b501d4",
+  "ciUrl": "https://github.com/jpbenga/vector/actions/runs/38319951011",
+  "ciStatus": "Success",
+  "deploymentId": "dpl_4LXK9cjdk4Tgd3gc8QTpnf9HXvSD",
+  "demo": "https://lector-sports-demo-lector1.vercel.app",
+  "preview": "https://lector-sports-i3c5ttumb-lector1.vercel.app",
+  "verifiedCard": "Burnley–Charlton",
+  "verifiedViewportWidth": 390,
+  "verifiedMode": "guest_without_profile",
+  "unscopedBadgesVisible": false,
+  "unscopedPlayerPanelVisible": false,
+  "badgeWidthsTested": [
+    320,
+    375,
+    390,
+    430,
+    768
+  ],
+  "paidModelCalls": 0,
+  "providerCollectionCalls": 0
+}

@@ -20,3 +20,14 @@ Les horaires, scores, équipes, formes, cotes, filtres et actions de navigation 
 ## Vérification ciblée
 
 Contrôles dédiés : source publiée sans profil, sélection de lectures réelles via le repository, arguments non sélectionnés, scénario sélectionné sans lectures autonomes, retrait de profil, panneaux joueurs, largeur des badges à 320/375/390/430/768 px et conservation des interactions live. Les tests de Shortlist et de connexion/déconnexion du Radar sont adaptés à la nouvelle règle.
+
+## Livraison vérifiée
+
+- Source : `0cb730b18d2fb66a57d832c51148614662b501d4`.
+- CI complète réussie : https://github.com/jpbenga/vector/actions/runs/38319951011.
+- Contrôles locaux : 47 contrôles réussis dans la première passe ; les deux attentes de panneaux bruts ont été corrigées et les 7 contrôles de profil concernés passent ensuite. La CI valide l’ensemble des tests sur la source finale.
+- Déploiement prêt : `dpl_4LXK9cjdk4Tgd3gc8QTpnf9HXvSD`.
+- Alias public mis à jour : https://lector-sports-demo-lector1.vercel.app.
+- Capture réelle à 390 px, Burnley–Charlton en consultation sans profil : aucune lecture, aucun compteur de lectures, aucun panneau Radar ajouté.
+- Capture : `burnley-charlton-profile-only-card.png` dans le dossier de visualisations de cette conversation.
+- Aucun appel IA ni collecte fournisseur lancé. Les contrôles du profil connecté et des badges à 320/375/390/430/768 px sont couverts par les tests de composants et d’intégration.
