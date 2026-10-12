@@ -1,0 +1,122 @@
+{
+  "demoUrl": "https://lector-sports-demo-lector1.vercel.app/sports/football",
+  "deploymentId": "dpl_Fd7yiwPdhhCHi9yhLDit6JAZvwgg",
+  "previewUrl": "https://lector-sports-pd34mkkg3-lector1.vercel.app",
+  "frontendRevision": "bbf97868de613d9301d12e3784d8458345a394a7",
+  "publicationRevision": "9dffb890284cb75eb1897c2b38a89da202b13f96",
+  "ciRun": "https://github.com/jpbenga/vector/actions/runs/38255353181",
+  "publicationRun": "https://github.com/jpbenga/vector/actions/runs/38256191233",
+  "serverPublication": {
+    "revision": "9dffb890284cb75eb1897c2b38a89da202b13f96",
+    "functions": [
+      "build-match-feed-snapshot",
+      "analyze-match-feed-snapshot",
+      "build-feed-delivery",
+      "lector-generator-workshop"
+    ],
+    "sources": [
+      {
+        "sourceId": "6952a565-f884-4391-810c-4d7187710b88",
+        "fixtures": 36,
+        "domesticContexts": 48,
+        "europeanHistories": 48
+      },
+      {
+        "sourceId": "1ec12e0e-5f4e-41dc-bfc1-59851b93416a",
+        "fixtures": 36,
+        "domesticContexts": 56,
+        "europeanHistories": 72
+      },
+      {
+        "sourceId": "225f1e20-4925-4677-b712-255a127e9ebc",
+        "fixtures": 36,
+        "domesticContexts": 64,
+        "europeanHistories": 72
+      }
+    ],
+    "builds": [
+      {
+        "leagueId": 2,
+        "snapshotId": "adf2e9ef-ffd9-4c70-b410-49c3e919a8a0",
+        "analysis": {
+          "analysisSnapshotId": "225f1e20-4925-4677-b712-255a127e9ebc",
+          "reused": false,
+          "snapshotId": null
+        },
+        "coverage": {
+          "fixtures": 36,
+          "domestic": 64
+        }
+      },
+      {
+        "leagueId": 3,
+        "snapshotId": "3bf94a95-f16f-4398-8539-36f530fb8a49",
+        "analysis": {
+          "analysisSnapshotId": "1ec12e0e-5f4e-41dc-bfc1-59851b93416a",
+          "reused": false,
+          "snapshotId": null
+        },
+        "coverage": {
+          "fixtures": 36,
+          "domestic": 56
+        }
+      },
+      {
+        "leagueId": 848,
+        "snapshotId": "777b4edf-7283-433e-9762-f18c5e84db57",
+        "analysis": {
+          "analysisSnapshotId": "6952a565-f884-4391-810c-4d7187710b88",
+          "reused": false,
+          "snapshotId": null
+        },
+        "coverage": {
+          "fixtures": 36,
+          "domestic": 48
+        }
+      }
+    ],
+    "providerCalls": 0,
+    "modelCalls": 0,
+    "personalDataWrites": 0
+  },
+  "cloudDelivery": "not_installed",
+  "demoDelivery": "static_files",
+  "servedEuropeanSources": [
+    {
+      "id": "16600d5d-47fa-458c-a2eb-95e155420c72",
+      "leagueIds": [
+        848
+      ],
+      "capturedAt": "2026-10-12T13:16:52.131502+00:00"
+    },
+    {
+      "id": "0fafb457-a3cf-40f0-84c9-d05ae899838a",
+      "leagueIds": [
+        3
+      ],
+      "capturedAt": "2026-10-12T13:15:49.028183+00:00"
+    },
+    {
+      "id": "e9e5b196-49be-46af-916c-43d470053813",
+      "leagueIds": [
+        2
+      ],
+      "capturedAt": "2026-10-12T13:14:39.857169+00:00"
+    }
+  ],
+  "validatedDossiers": 108,
+  "exampleFixtureId": 1635665,
+  "providerCalls": 0,
+  "modelCalls": 0,
+  "realCaptureWidths": [
+    320,
+    375,
+    390,
+    430,
+    768
+  ],
+  "mobileScreenshots": [
+    "european-detail-synthesis-mobile.png",
+    "european-detail-context-mobile.png"
+  ]
+}
