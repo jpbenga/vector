@@ -835,6 +835,7 @@ class MatchAnalysisData {
   const MatchAnalysisData({
     this.asOf,
     this.europeanComparison,
+    this.europeanCardForm,
     this.homeStanding,
     this.awayStanding,
     this.leagueStandings = const [],
@@ -875,6 +876,7 @@ class MatchAnalysisData {
 
   final DateTime? asOf;
   final EuropeanFixtureComparison? europeanComparison;
+  final EuropeanMatchCardFormContext? europeanCardForm;
   final TeamStandingSnapshot? homeStanding;
   final TeamStandingSnapshot? awayStanding;
   final List<TeamStandingSnapshot> leagueStandings;
@@ -954,6 +956,7 @@ class MatchAnalysisData {
   MatchAnalysisData copyWith({
     DateTime? asOf,
     EuropeanFixtureComparison? europeanComparison,
+    EuropeanMatchCardFormContext? europeanCardForm,
     TeamStandingSnapshot? homeStanding,
     TeamStandingSnapshot? awayStanding,
     List<TeamStandingSnapshot>? leagueStandings,
@@ -995,6 +998,7 @@ class MatchAnalysisData {
     return MatchAnalysisData(
       asOf: asOf ?? this.asOf,
       europeanComparison: europeanComparison ?? this.europeanComparison,
+      europeanCardForm: europeanCardForm ?? this.europeanCardForm,
       homeStanding: homeStanding ?? this.homeStanding,
       awayStanding: awayStanding ?? this.awayStanding,
       leagueStandings: leagueStandings ?? this.leagueStandings,

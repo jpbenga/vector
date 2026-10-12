@@ -177,6 +177,20 @@ class ApiFootballMatchAdapter {
       _list(raw['domestic_team_contexts']),
     );
     final containsPredictions = _list(raw['predictions']).isNotEmpty;
+    final dossiersByFixture = <int, List<EuropeanFixtureComparison>>{};
+    for (final d
+        in _list(raw['european_comparisons'])
+            .map(EuropeanFixtureComparison.decode)
+            .whereType<EuropeanFixtureComparison>()) {
+      dossiersByFixture.putIfAbsent(d.fixtureId, () => []).add(d);
+    }
+    final formsByFixture = <int, List<EuropeanMatchCardFormContext>>{};
+    for (final d
+        in _list(raw['european_card_forms'])
+            .map(EuropeanMatchCardFormContext.decode)
+            .whereType<EuropeanMatchCardFormContext>()) {
+      formsByFixture.putIfAbsent(d.fixtureId, () => []).add(d);
+    }
     final items = <MatchBoardItem>[];
 
     for (final fixtureJson in fixtures) {
@@ -201,17 +215,40 @@ class ApiFootballMatchAdapter {
         containsPredictions,
       );
       if (item != null) {
-        final dossier = _list(raw['european_comparisons'])
-            .map(EuropeanFixtureComparison.decode)
-            .whereType<EuropeanFixtureComparison>()
-            .where((d) => d.fixtureId == item.fixture.apiFootballFixtureId)
-            .firstOrNull;
+        bool isThisFixture(
+          int id,
+          DateTime kickoff,
+          EuropeanTeamContext home,
+          EuropeanTeamContext away,
+        ) =>
+            id == item.fixture.apiFootballFixtureId &&
+            item.fixture.kickoff != null &&
+            kickoff.isAtSameMomentAs(item.fixture.kickoff!) &&
+            home.team.apiFootballTeamId == item.homeTeam.apiFootballTeamId &&
+            away.team.apiFootballTeamId == item.awayTeam.apiFootballTeamId;
+        final dossier =
+            (dossiersByFixture[item.fixture.apiFootballFixtureId] ??
+                    const <EuropeanFixtureComparison>[])
+                .where(
+                  (d) =>
+                      isThisFixture(d.fixtureId, d.kickoffAt, d.home, d.away),
+                )
+                .firstOrNull;
+        final form =
+            (formsByFixture[item.fixture.apiFootballFixtureId] ??
+                    const <EuropeanMatchCardFormContext>[])
+                .where(
+                  (d) =>
+                      isThisFixture(d.fixtureId, d.kickoffAt, d.home, d.away),
+                )
+                .firstOrNull;
         items.add(
-          dossier == null
-              ? item
-              : item.copyWith(
-                  analysis: item.analysis.copyWith(europeanComparison: dossier),
-                ),
+          item.copyWith(
+            analysis: item.analysis.copyWith(
+              europeanComparison: dossier,
+              europeanCardForm: form,
+            ),
+          ),
         );
       }
     }

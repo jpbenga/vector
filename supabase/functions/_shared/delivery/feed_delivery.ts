@@ -31,9 +31,74 @@ function cardOdds(value: unknown): Json[] {
     })).filter((bookmaker) => bookmaker.bets.length > 0),
   }));
 }
+/** Five real domestic results per club, scoped to this published fixture. */
+export function europeanCardForms(raw: Json): Json[] {
+  const dossiers = new Map(
+    rows(raw.european_comparisons).map((d) => [Number(d.fixtureId), d]),
+  );
+  return rows(raw.fixtures).flatMap((f) => {
+    const fixture = object(f.fixture),
+      league = object(f.league),
+      teams = object(f.teams);
+    if (![2, 3, 848].includes(Number(league.id))) return [];
+    const d = dossiers.get(Number(fixture.id));
+    if (
+      !d || d.schemaVersion !== 1 ||
+      Date.parse(String(d.kickoffAt)) !== Date.parse(String(fixture.date)) ||
+      Number(object(d.home).teamId) !== Number(object(teams.home).id) ||
+      Number(object(d.away).teamId) !== Number(object(teams.away).id)
+    ) return [];
+    const cutoff = Date.parse(String(fixture.date));
+    const team = (side: string): Json => {
+      const t = object(d[side]), domestic = object(t.domesticCompetition);
+      const histories = new Map<number, Json>();
+      for (const m of rows(t.domesticRecentMatches)) {
+        if (
+          Number(m.competitionId) !== Number(domestic.id) ||
+          Number(m.season) !== Number(domestic.season) ||
+          !Number.isFinite(Number(m.fixtureId)) ||
+          !Number.isFinite(Date.parse(String(m.playedAt))) ||
+          Date.parse(String(m.playedAt)) >= cutoff ||
+          Number(m.fixtureId) === Number(fixture.id)
+        ) continue;
+        histories.set(Number(m.fixtureId), {
+          fixtureId: m.fixtureId,
+          competitionId: m.competitionId,
+          season: m.season,
+          playedAt: m.playedAt,
+          goalsFor: m.goalsFor,
+          goalsAgainst: m.goalsAgainst,
+          result: m.result,
+          venue: m.venue,
+          penaltyDecision: m.penaltyDecision,
+        });
+      }
+      return {
+        teamId: t.teamId,
+        name: t.name,
+        logo: t.logo,
+        domesticCompetition: t.domesticCompetition,
+        domesticState: t.domesticState,
+        domesticObservedAt: t.domesticObservedAt,
+        domesticRecentMatches: [...histories.values()].sort((a, b) =>
+          Date.parse(String(a.playedAt)) - Date.parse(String(b.playedAt))
+        ).slice(-5),
+      };
+    };
+    return [{
+      schemaVersion: 1,
+      fixtureId: d.fixtureId,
+      kickoffAt: d.kickoffAt,
+      competition: d.competition,
+      home: team("home"),
+      away: team("away"),
+    }];
+  });
+}
+
 export function overviewPart(sport: FeedSport, full: Json): Json {
   if (sport === "football") {
-    const raw = object(full.raw);
+    const raw = object(full.raw), forms = europeanCardForms(raw);
     // Precomputed readings and scenarios remain authoritative and unchanged.
     // Tier tables and presentation histories are loaded with the detail file.
     return {
@@ -43,6 +108,7 @@ export function overviewPart(sport: FeedSport, full: Json): Json {
         odds: cardOdds(raw.odds),
         player_form_radar: raw.player_form_radar ?? [],
         recent_league_matches: raw.recent_league_matches ?? [],
+        ...(forms.length ? { european_card_forms: forms } : {}),
       },
       computed: {
         ...object(full.computed),
@@ -164,7 +230,7 @@ export function dayOverview(
       },
     };
   }
-  const recent: Json[] = [];
+  const recent: Json[] = [], forms: Json[] = [];
   const fixtures: Json[] = [],
     odds: Json[] = [],
     computed: Json[] = [],
@@ -210,6 +276,12 @@ export function dayOverview(
         owners.get(Number(r.fixture_id)) === part.id
       ),
     );
+    forms.push(
+      ...rows(raw.european_card_forms).filter((d) =>
+        ids.has(Number(d.fixtureId)) &&
+        owners.get(Number(d.fixtureId)) === part.id
+      ),
+    );
     recent.push(
       ...rows(raw.recent_league_matches).filter((r) =>
         teams.has(Number(object(r.team).id))
@@ -235,6 +307,7 @@ export function dayOverview(
       odds,
       player_form_radar: players,
       recent_league_matches: recent,
+      ...(forms.length ? { european_card_forms: forms } : {}),
     },
     computed: { fixtures: computed },
     delivery: {

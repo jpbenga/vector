@@ -88,6 +88,34 @@ class EuropeanFixtureComparison {
   );
 }
 
+/// Lightweight card projection of the same pre-match domestic dossier.
+/// European journeys and standings remain in the individual detail payload.
+class EuropeanMatchCardFormContext {
+  const EuropeanMatchCardFormContext({
+    required this.fixtureId,
+    required this.kickoffAt,
+    required this.home,
+    required this.away,
+  });
+  final int fixtureId;
+  final DateTime kickoffAt;
+  final EuropeanTeamContext home, away;
+  static EuropeanMatchCardFormContext? decode(Object? value) {
+    final j = _map(value), id = _int(j['fixtureId']);
+    final kickoff = DateTime.tryParse('${j['kickoffAt'] ?? ''}');
+    if (j['schemaVersion'] != 1 || id == null || kickoff == null) return null;
+    final home = EuropeanTeamContext.decode(_map(j['home']), kickoff);
+    final away = EuropeanTeamContext.decode(_map(j['away']), kickoff);
+    if (home == null || away == null) return null;
+    return EuropeanMatchCardFormContext(
+      fixtureId: id,
+      kickoffAt: kickoff,
+      home: home,
+      away: away,
+    );
+  }
+}
+
 class EuropeanTeamContext {
   const EuropeanTeamContext({
     required this.team,

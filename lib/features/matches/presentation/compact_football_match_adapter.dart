@@ -14,33 +14,43 @@ CompactMatchData compactFootballMatch({
 }) {
   final analysis = match.analysis;
   final continental = match.competition.isContinentalTournament;
-  final domestic =
-      continental &&
-      analysis.homeDomesticContext != null &&
-      analysis.awayDomesticContext != null;
-  final scope = domestic
+  final homeContext =
+      analysis.europeanComparison?.home ?? analysis.europeanCardForm?.home;
+  final awayContext =
+      analysis.europeanComparison?.away ?? analysis.europeanCardForm?.away;
+  // Both clubs use their domestic league even when only one has observations.
+  // Never substitute an early European sample for missing domestic form.
+  final scope = continental
       ? MatchFormScope.championship
       : competitionFormScope ?? MatchFormScope.competition;
-  final homeHistory = domestic
-      ? analysis.homeDomesticContext!.recentMatches
+  final homeHistory = continental
+      ? homeContext?.domesticMatches ??
+            analysis.homeDomesticContext?.recentMatches ??
+            const <TeamRecentMatchSnapshot>[]
       : analysis.homeRecentLeagueMatches;
-  final awayHistory = domestic
-      ? analysis.awayDomesticContext!.recentMatches
+  final awayHistory = continental
+      ? awayContext?.domesticMatches ??
+            analysis.awayDomesticContext?.recentMatches ??
+            const <TeamRecentMatchSnapshot>[]
       : analysis.awayRecentLeagueMatches;
   final kickoff = match.fixture.kickoff;
   final asOf = analysis.asOf;
   RecentFormSnapshot form(
     TeamInfo team,
-    List<TeamRecentMatchSnapshot> history,
-  ) {
+    List<TeamRecentMatchSnapshot> history, {
+    DateTime? observedAt,
+  }) {
+    final observationCutoff = observedAt ?? asOf;
     final items = history
         .where(
           (game) =>
               (game.fixtureId == null ||
                   game.fixtureId != match.fixture.apiFootballFixtureId) &&
+              (!continental || game.playedAt != null) &&
               (game.playedAt == null ||
                   (kickoff == null || game.playedAt!.isBefore(kickoff)) &&
-                      (asOf == null || !game.playedAt!.isAfter(asOf))),
+                      (observationCutoff == null ||
+                          !game.playedAt!.isAfter(observationCutoff))),
         )
         .toList();
     if (items.every((game) => game.playedAt != null)) {
@@ -49,7 +59,7 @@ CompactMatchData compactFootballMatch({
     return RecentFormSnapshot(
       teamId: team.id,
       scope: scope,
-      updatedAt: asOf,
+      updatedAt: observationCutoff,
       results: [
         for (final game in items)
           RecentFormObservation(
@@ -110,18 +120,32 @@ CompactMatchData compactFootballMatch({
       name: match.homeTeam.name,
       logoUrl: match.homeTeam.logoUrl,
       domesticCompetition: continental
-          ? analysis.homeDomesticContext?.competition.name
+          ? homeContext?.domesticCompetition?.name ??
+                analysis.homeDomesticContext?.competition.name
           : null,
-      form: form(match.homeTeam, homeHistory),
+      form: form(
+        match.homeTeam,
+        homeHistory,
+        observedAt: DateTime.tryParse(
+          '${homeContext?.json['domesticObservedAt'] ?? ''}',
+        ),
+      ),
     ),
     away: CompactMatchTeam(
       id: match.awayTeam.id,
       name: match.awayTeam.name,
       logoUrl: match.awayTeam.logoUrl,
       domesticCompetition: continental
-          ? analysis.awayDomesticContext?.competition.name
+          ? awayContext?.domesticCompetition?.name ??
+                analysis.awayDomesticContext?.competition.name
           : null,
-      form: form(match.awayTeam, awayHistory),
+      form: form(
+        match.awayTeam,
+        awayHistory,
+        observedAt: DateTime.tryParse(
+          '${awayContext?.json['domesticObservedAt'] ?? ''}',
+        ),
+      ),
     ),
     phase: switch (match.fixture.status) {
       FixtureStatus.scheduled => CompactMatchPhase.upcoming,

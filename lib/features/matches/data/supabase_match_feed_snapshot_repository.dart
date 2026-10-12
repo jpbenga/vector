@@ -364,6 +364,8 @@ Map<String, Object?>? mergeMatchFeedSnapshotPayloads(
     'standings',
     'team_statistics',
     'recent_league_matches',
+    'european_comparisons',
+    'european_card_forms',
     'head_to_head',
     'player_form_radar',
     'expected_goals',
@@ -474,6 +476,9 @@ String _rawEntryKey(String key, Object? entry) {
   }
 
   final leagueId = _leagueIdFromRawEntry(key, entry);
+  if (key == 'european_comparisons' || key == 'european_card_forms') {
+    return '$key:${map['fixtureId']}';
+  }
   final fixtureId = _nestedNumber(map, const ['fixture', 'id']);
   final teamId = _nestedNumber(map, const ['team', 'id']);
   final playerId = _nestedNumber(map, const ['player', 'id']);
@@ -548,8 +553,9 @@ Set<int> _leagueIdsForPayload(Map<String, Object?> payload) {
 
 int? _leagueIdFromRawEntry(String key, Object? entry) {
   final map = _objectMap(entry);
-  if (map == null) {
-    return null;
+  if (map == null) return null;
+  if (key == 'european_comparisons' || key == 'european_card_forms') {
+    return _nestedNumber(map, const ['competition', 'id']);
   }
   if (key == 'expected_goals') {
     return _numberValue(map['league_id']) ??

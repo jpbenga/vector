@@ -3,6 +3,7 @@ import {
   dayKey,
   dayOverview,
   type DeliveryPart,
+  europeanCardForms,
   footballCardMarketIds,
   overviewPart,
   partArtifacts,
@@ -12,6 +13,9 @@ import football from "../../../../test/fixtures/football_calendar_14_days_compac
   type: "json",
 };
 import hockey from "../../../../test/fixtures/sports/nhl_compact.json" with {
+  type: "json",
+};
+import europeanFormFixture from "../../../../test/fixtures/european_lask_liverpool_card_form.json" with {
   type: "json",
 };
 function part(
@@ -170,4 +174,55 @@ Deno.test("European dossiers travel only with the requested detail, not all day 
     (detail.raw as Record<string, unknown>).european_comparisons,
     [{ fixtureId: 1, home: { teamId: 10 } }],
   );
+});
+
+Deno.test("European day cards carry five domestic games without full journeys, and preserve source identities", () => {
+  const full = structuredClone(europeanFormFixture) as unknown as Record<
+    string,
+    unknown
+  >;
+  const bundle = part("football", full);
+  const raw = bundle.overview.raw as Record<string, unknown>;
+  const forms = raw.european_card_forms as Record<string, unknown>[];
+  assert.equal(forms.length, 1);
+  assert.equal(
+    ((forms[0].home as Record<string, unknown>)
+      .domesticRecentMatches as unknown[]).length,
+    5,
+  );
+  assert.equal(
+    ((forms[0].away as Record<string, unknown>)
+      .domesticRecentMatches as unknown[]).length,
+    5,
+  );
+  assert.equal(
+    (forms[0].away as Record<string, unknown>).europeanRecentMatches,
+    undefined,
+  );
+  const day = dayOverview("football", [bundle], "2026-10-14")!;
+  assert.deepEqual(
+    (day.raw as Record<string, unknown>).european_card_forms,
+    forms,
+  );
+  const sourceRaw = full.raw as Record<string, unknown>;
+  const dossier =
+    (sourceRaw.european_comparisons as Record<string, unknown>[])[0];
+  const home = dossier.home as Record<string, unknown>;
+  const games = home.domesticRecentMatches as Record<string, unknown>[];
+  games.push({
+    ...games[0],
+    fixtureId: 900001,
+    playedAt: "2026-10-15T18:00:00Z",
+  });
+  games.push({ ...games[0], fixtureId: 900002, competitionId: 2 });
+  games.push({ ...games[0], fixtureId: 900003, season: 1999 });
+  games.push({ ...games[0] });
+  const projected = europeanCardForms(sourceRaw);
+  assert.equal(
+    ((projected[0].home as Record<string, unknown>)
+      .domesticRecentMatches as unknown[]).length,
+    5,
+  );
+  dossier.home = { ...home, teamId: 99 };
+  assert.equal(europeanCardForms(sourceRaw).length, 0);
 });
