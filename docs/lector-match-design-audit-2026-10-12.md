@@ -103,3 +103,8 @@ Cinq tests réussis (quatre contrats et un test de rendu aux six configurations)
 ![Cartes corrigées — capture réelle](/Users/chloe/.codex/visualizations/2026/09/16/01a0aaf1-05e5-7562-8f19-7332ea8701f5/lector-premium-cards-reference-v2-detail.jpg)
 
 [Capture complète](/Users/chloe/.codex/visualizations/2026/09/16/01a0aaf1-05e5-7562-8f19-7332ea8701f5/lector-premium-cards-reference-v2-390.jpg)
+
+
+## Intégration après validation utilisateur
+
+La composition corrigée est validée par l’utilisateur. Elle est maintenant raccordée aux vrais workspaces football et hockey, au header multisport et au briefing Champions League. L’inventaire, les captures intégrées, les contrôles, les limites et le reçu de publication sont regroupés dans [le rapport d’intégration](lector-premium-integration-2026-10-12.md). Les sections précédentes documentent les jalons de prototype, pas le périmètre final.

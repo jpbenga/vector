@@ -1,0 +1,36 @@
+{
+  "verifiedAt": "2026-10-12T08:02:25.980227+00:00",
+  "sourceCommit": "fe0d33aab0152bd1e5a58402e1ac7d81054262f2",
+  "integrationCommit": "d9153436791df56a1ac75e682a4e60dcbb8ae562",
+  "branch": "codex/multisport-hockey",
+  "ci": {
+    "url": "https://github.com/jpbenga/vector/actions/runs/38219228156",
+    "flutter": "success",
+    "supabase-functions": "success"
+  },
+  "deployment": {
+    "id": "dpl_AFsUT25xeAJSZzUgvo2etkB4WzkB",
+    "url": "https://lector-sports-iuc35x0o8-lector1.vercel.app",
+    "readyState": "READY",
+    "target": null,
+    "inspectorUrl": "https://vercel.com/lector1/lector-sports/AFsUT25xeAJSZzUgvo2etkB4WzkB"
+  },
+  "alias": "https://lector-sports-demo-lector1.vercel.app/",
+  "mainDartSha256": "8f26526962ad4972359281e2f27d1c32c585b7fd0190feae436c0eb46935909e",
+  "browserVerification": {
+    "guestInterfaceReached": true,
+    "date": "2026-10-13",
+    "allFixtures": 19,
+    "competitions": 3,
+    "championsFixtures": 9,
+    "screenshots": [
+      "lector-premium-demo-tous-390.png",
+      "lector-premium-demo-cards-390.png"
+    ],
+    "viewport": "390x900"
+  },
+  "paidGeneratorCalls": 0,
+  "providerCollections": 0,
+  "remotePersonalPreparationWrites": 0,
+  "physicalPhoneTest": false
+}
