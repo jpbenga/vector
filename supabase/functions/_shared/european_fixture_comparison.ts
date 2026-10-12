@@ -214,6 +214,7 @@ export function buildEuropeanComparisons(
           goalsFor: gf,
           goalsAgainst: ga,
           penaltyDecision: obj(f.status).short === "PEN",
+          observedAt: str(row.observed_at) ?? observedAt,
         };
       };
       const matches = (teamId: number, id: number, year: number) => {
@@ -339,6 +340,7 @@ export function buildEuropeanComparisons(
                 goalsFor: gf,
                 goalsAgainst: ga,
                 penaltyDecision: false,
+                observedAt: stamp,
               }];
             }).sort((a, b) =>
               Number(time(a.playedAt)) - Number(time(b.playedAt))
@@ -420,15 +422,21 @@ export function buildEuropeanComparisons(
           europeanPhase: currentPhase,
           europeanPhaseMatches: phaseMatches,
           europeanCoverageComplete: complete,
-          domesticObservedAt: validDomestic
-            ? observation("/fixtures", di!, ds!, kickoff)
-            : null,
-          europeanObservedAt: observation(
-            "/fixtures",
-            leagueId,
-            season,
-            kickoff,
-          ),
+          domesticObservedAt:
+            dm.map((m) => str(m.observedAt)).filter((v): v is string =>
+              v !== null
+            ).sort().at(-1) ?? null,
+          europeanObservedAt:
+            em.map((m) => str(m.observedAt)).filter((v): v is string =>
+              v !== null
+            ).sort().at(-1) ??
+              fixtureSources.filter((s) =>
+                Object.keys(obj(s.query_params)).every((k) =>
+                  ["league", "season", "timezone"].includes(k)
+                )
+              ).map((s) => str(s.fetched_at)).filter((v): v is string =>
+                v !== null
+              ).sort().at(-1) ?? null,
           dataAsOf: fixture.date,
         };
       };
@@ -530,7 +538,30 @@ export function buildEuropeanComparisons(
         home,
         away,
         headToHead: [
-          ...new Map(h2h.map((m) => [obj(m.fixture).id, m])).values(),
+          ...new Map(h2h.map((m) => [obj(m.fixture).id, {
+            fixture: {
+              id: obj(m.fixture).id,
+              date: obj(m.fixture).date,
+              status: obj(m.fixture).status,
+            },
+            league: {
+              id: obj(m.league).id,
+              name: obj(m.league).name,
+              season: obj(m.league).season,
+              round: obj(m.league).round,
+            },
+            teams: {
+              home: {
+                id: obj(obj(m.teams).home).id,
+                name: obj(obj(m.teams).home).name,
+              },
+              away: {
+                id: obj(obj(m.teams).away).id,
+                name: obj(obj(m.teams).away).name,
+              },
+            },
+            goals: { home: obj(m.goals).home, away: obj(m.goals).away },
+          }])).values(),
         ],
         firstLeg: firstLeg ?? null,
         aggregate: firstLeg
