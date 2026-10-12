@@ -25,6 +25,15 @@ Suppression des catégories prédéfinies « Dynamique », « Profils de buts »
 
 Les textures existantes des trois compétitions sont réutilisées. Aucun asset ni chiffre fictif ajouté. Aucune modification des algorithmes, des accès, du modèle IA, de la Shortlist ou des règles de tickets. Aucun appel payant nécessaire aux validations.
 
-## Validation prévue
+## Validation effectuée
 
-Tests des onglets et actions à 320/375/390/430/768 px ; groupes officiels complets et filtrage ; ordre du balayage et réinitialisation ; texte agrandi ; adaptateur et garde du pipeline. Contrôle visuel de la démo après compilation et publication.
+- 31 tests ciblés et 2 contrôles préexistants du briefing réussis ; analyse Flutter sans erreur.
+- Suite complète GitHub verte sur `6a8e534` : [CI 223](https://github.com/jpbenga/vector/actions/runs/38271913389). Le seul échec du premier passage concernait un ancien identifiant d’action du test Champions League, adapté au composant commun.
+- Onglets/actions à 320/375/390/430/768 px ; groupes complets et filtrage ; ordre du balayage et réinitialisation ; texte agrandi ; adaptateur et garde du pipeline.
+- Contrôle réel à 390 × 900 : Feyenoord–Como du 14 octobre (Synthèse regroupée, Contexte avec 3 clés Lector, Classement officiel), puis briefings du 15 octobre (18 rencontres Europa, 18 Conference, ordre et navigation vérifiés).
+- Publication [démo habituelle](https://lector-sports-demo-lector1.vercel.app/sports/football) confirmée sans page de connexion Vercel. Déploiement `dpl_u2vYmUrMFcaG85cksPopX72hBDgh`, [version de contrôle](https://lector-sports-944jdqryf-lector1.vercel.app).
+- Captures enregistrées dans le dossier de visualisations de cette conversation : `cup-adjustments-synthesis-mobile.png`, `cup-adjustments-context-mobile.png`, `cup-adjustments-standings-mobile.png`, `cup-adjustments-europa-briefing-mobile.png`, `cup-adjustments-conference-briefing-mobile.png`, `cup-adjustments-stable-demo-mobile.png`.
+
+### Limite de données indépendante de ces ajustements
+
+La publication hockey réutilisée pour ce chantier visuel porte l’observation du 11 octobre à 03:34 UTC (base à 03:33 UTC). Le contrôle de fraîcheur de 36 h était satisfait au lancement de la compilation, mais cette publication a atteint son expiration pendant la compilation. Les horodatages ne sont pas modifiés ; une nouvelle collecte hockey est nécessaire pour renouveler les observations. Ce chantier ne lance aucune collecte fournisseur.

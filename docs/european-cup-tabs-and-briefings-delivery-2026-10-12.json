@@ -1,0 +1,27 @@
+{
+  "recordedAt": "2026-10-12T15:47:32.002474+00:00",
+  "codeCommit": "8cf7e1e596bbba8724237ba3a13cbaa153782e27",
+  "validatedCommit": "6a8e534",
+  "ci": "https://github.com/jpbenga/vector/actions/runs/38271913389",
+  "ciStatus": "success",
+  "targetedTestsPassed": 33,
+  "demo": "https://lector-sports-demo-lector1.vercel.app/sports/football",
+  "preview": "https://lector-sports-944jdqryf-lector1.vercel.app",
+  "deploymentId": "dpl_u2vYmUrMFcaG85cksPopX72hBDgh",
+  "checkedDates": [
+    "2026-10-14",
+    "2026-10-15"
+  ],
+  "briefingsOnOctober15": [
+    {
+      "leagueId": 3,
+      "matches": 18
+    },
+    {
+      "leagueId": 848,
+      "matches": 18
+    }
+  ],
+  "noPaidAiCalls": true,
+  "noProviderCollection": true
+}
