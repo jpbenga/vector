@@ -1,5 +1,7 @@
 # Forme domestique des cartes européennes — 12 octobre 2026
 
+> Le choix de forme domestique sur les cartes est remplacé par la règle produit clarifiée dans [Périmètres de forme](european-form-scopes-2026-10-12.md). Ce document conserve le constat et la livraison précédents.
+
 ## Cause vérifiée
 
 La carte utilisait `homeRecentLeagueMatches` et `awayRecentLeagueMatches` de la compétition européenne lorsque les deux anciens contextes domestiques n’étaient pas présents. La liste allégée omettait le dossier de parcours, et le regroupement des snapshots du transport de secours écartait également ce dossier. Liverpool apparaissait ainsi avec une seule rencontre de Champions League malgré cinq résultats de Premier League disponibles dans le dossier de LASK–Liverpool (fixture 1635674, 14 octobre).

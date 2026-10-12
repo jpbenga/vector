@@ -48,7 +48,9 @@ class RecentFormStrip extends StatelessWidget {
                 if (results.length < 5) ...[
                   const SizedBox(width: 4),
                   Text(
-                    '${results.length}/5',
+                    snapshot.scope == MatchFormScope.competition
+                        ? '${results.length} match${results.length == 1 ? '' : 's'}'
+                        : '${results.length}/5',
                     style: TextStyle(
                       fontSize: 9,
                       color: context.textColors.secondary,

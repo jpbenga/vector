@@ -31,7 +31,7 @@ function cardOdds(value: unknown): Json[] {
     })).filter((bookmaker) => bookmaker.bets.length > 0),
   }));
 }
-/** Five real domestic results per club, scoped to this published fixture. */
+/** Up to five played results in this fixture’s European competition and season. */
 export function europeanCardForms(raw: Json): Json[] {
   const dossiers = new Map(
     rows(raw.european_comparisons).map((d) => [Number(d.fixtureId), d]),
@@ -50,12 +50,12 @@ export function europeanCardForms(raw: Json): Json[] {
     ) return [];
     const cutoff = Date.parse(String(fixture.date));
     const team = (side: string): Json => {
-      const t = object(d[side]), domestic = object(t.domesticCompetition);
+      const t = object(d[side]);
       const histories = new Map<number, Json>();
-      for (const m of rows(t.domesticRecentMatches)) {
+      for (const m of rows(t.europeanRecentMatches)) {
         if (
-          Number(m.competitionId) !== Number(domestic.id) ||
-          Number(m.season) !== Number(domestic.season) ||
+          Number(m.competitionId) !== Number(league.id) ||
+          Number(m.season) !== Number(league.season) ||
           !Number.isFinite(Number(m.fixtureId)) ||
           !Number.isFinite(Date.parse(String(m.playedAt))) ||
           Date.parse(String(m.playedAt)) >= cutoff ||
@@ -78,9 +78,8 @@ export function europeanCardForms(raw: Json): Json[] {
         name: t.name,
         logo: t.logo,
         domesticCompetition: t.domesticCompetition,
-        domesticState: t.domesticState,
-        domesticObservedAt: t.domesticObservedAt,
-        domesticRecentMatches: [...histories.values()].sort((a, b) =>
+        europeanObservedAt: t.europeanObservedAt,
+        europeanRecentMatches: [...histories.values()].sort((a, b) =>
           Date.parse(String(a.playedAt)) - Date.parse(String(b.playedAt))
         ).slice(-5),
       };

@@ -60,7 +60,12 @@ class LectorCompactMatchCard extends StatelessWidget {
       ? 'Forme non comparable'
       : switch (data.home.form.scope) {
           MatchFormScope.championship => 'Forme (championnat)',
-          MatchFormScope.competition => 'Forme (compétition)',
+          MatchFormScope.competition => switch (data.identity) {
+            CompetitionCardIdentity.champions => 'Forme (Ligue des champions)',
+            CompetitionCardIdentity.europa => 'Forme (Europa League)',
+            CompetitionCardIdentity.conference => 'Forme (Conference League)',
+            _ => 'Forme (compétition)',
+          },
           MatchFormScope.allCompetitions => 'Forme (toutes compétitions)',
         };
   String get _dayLabel {

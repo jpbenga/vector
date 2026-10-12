@@ -33,7 +33,7 @@ export async function refreshEuropeanCardForms(
     cache.set(id, forms);
     return forms;
   };
-  let days = 0, fixtures = 0, domesticResults = 0, extraBytes = 0;
+  let days = 0, fixtures = 0, competitionResults = 0, extraBytes = 0;
   const counts: Json = {};
   for await (const directory of Deno.readDir(`${output}/delivery/football`)) {
     if (!directory.isDirectory || !/^\d{4}-\d{2}-\d{2}$/.test(directory.name)) {
@@ -62,8 +62,9 @@ export async function refreshEuropeanCardForms(
       if (form) {
         forms.push(form);
         fixtures++;
-        domesticResults += rows(obj(form.home).domesticRecentMatches).length +
-          rows(obj(form.away).domesticRecentMatches).length;
+        competitionResults +=
+          rows(obj(form.home).europeanRecentMatches).length +
+          rows(obj(form.away).europeanRecentMatches).length;
       }
     }
     if (!forms.length) continue;
@@ -95,7 +96,7 @@ export async function refreshEuropeanCardForms(
     counts[directory.name] = { fixtures: forms.length, bytes };
     days++;
   }
-  return { days, fixtures, domesticResults, extraBytes, counts };
+  return { days, fixtures, competitionResults, extraBytes, counts };
 }
 if (import.meta.main) {
   const [index, output] = Deno.args;

@@ -18,20 +18,16 @@ CompactMatchData compactFootballMatch({
       analysis.europeanComparison?.home ?? analysis.europeanCardForm?.home;
   final awayContext =
       analysis.europeanComparison?.away ?? analysis.europeanCardForm?.away;
-  // Both clubs use their domestic league even when only one has observations.
-  // Never substitute an early European sample for missing domestic form.
+  // Cards describe the fixture's competition. The detailed synthesis keeps
+  // domestic form and the European journey in their own sections.
   final scope = continental
-      ? MatchFormScope.championship
+      ? MatchFormScope.competition
       : competitionFormScope ?? MatchFormScope.competition;
   final homeHistory = continental
-      ? homeContext?.domesticMatches ??
-            analysis.homeDomesticContext?.recentMatches ??
-            const <TeamRecentMatchSnapshot>[]
+      ? homeContext?.europeanMatches ?? analysis.homeRecentLeagueMatches
       : analysis.homeRecentLeagueMatches;
   final awayHistory = continental
-      ? awayContext?.domesticMatches ??
-            analysis.awayDomesticContext?.recentMatches ??
-            const <TeamRecentMatchSnapshot>[]
+      ? awayContext?.europeanMatches ?? analysis.awayRecentLeagueMatches
       : analysis.awayRecentLeagueMatches;
   final kickoff = match.fixture.kickoff;
   final asOf = analysis.asOf;
@@ -46,7 +42,13 @@ CompactMatchData compactFootballMatch({
           (game) =>
               (game.fixtureId == null ||
                   game.fixtureId != match.fixture.apiFootballFixtureId) &&
-              (!continental || game.playedAt != null) &&
+              (!continental ||
+                  (game.playedAt != null &&
+                      (game.competitionId == null ||
+                          game.competitionId ==
+                              match.competition.apiFootballLeagueId) &&
+                      (game.season == null ||
+                          game.season == match.competition.season))) &&
               (game.playedAt == null ||
                   (kickoff == null || game.playedAt!.isBefore(kickoff)) &&
                       (observationCutoff == null ||
@@ -127,7 +129,7 @@ CompactMatchData compactFootballMatch({
         match.homeTeam,
         homeHistory,
         observedAt: DateTime.tryParse(
-          '${homeContext?.json['domesticObservedAt'] ?? ''}',
+          '${homeContext?.json['europeanObservedAt'] ?? ''}',
         ),
       ),
     ),
@@ -143,7 +145,7 @@ CompactMatchData compactFootballMatch({
         match.awayTeam,
         awayHistory,
         observedAt: DateTime.tryParse(
-          '${awayContext?.json['domesticObservedAt'] ?? ''}',
+          '${awayContext?.json['europeanObservedAt'] ?? ''}',
         ),
       ),
     ),

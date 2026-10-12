@@ -176,7 +176,7 @@ Deno.test("European dossiers travel only with the requested detail, not all day 
   );
 });
 
-Deno.test("European day cards carry five domestic games without full journeys, and preserve source identities", () => {
+Deno.test("European day cards carry played competition results while domestic form remains in the detail", () => {
   const full = structuredClone(europeanFormFixture) as unknown as Record<
     string,
     unknown
@@ -187,16 +187,16 @@ Deno.test("European day cards carry five domestic games without full journeys, a
   assert.equal(forms.length, 1);
   assert.equal(
     ((forms[0].home as Record<string, unknown>)
-      .domesticRecentMatches as unknown[]).length,
-    5,
+      .europeanRecentMatches as unknown[]).length,
+    3,
   );
   assert.equal(
     ((forms[0].away as Record<string, unknown>)
-      .domesticRecentMatches as unknown[]).length,
-    5,
+      .europeanRecentMatches as unknown[]).length,
+    1,
   );
   assert.equal(
-    (forms[0].away as Record<string, unknown>).europeanRecentMatches,
+    (forms[0].away as Record<string, unknown>).domesticRecentMatches,
     undefined,
   );
   const day = dayOverview("football", [bundle], "2026-10-14")!;
@@ -204,24 +204,37 @@ Deno.test("European day cards carry five domestic games without full journeys, a
     (day.raw as Record<string, unknown>).european_card_forms,
     forms,
   );
+  const detail = partArtifacts("football", "europe-form", full).artifacts.get(
+    "delivery/football/europe-form/match-1635674.json",
+  )!;
+  const detailDossier = (detail.raw as {
+    european_comparisons: {
+      away: {
+        domesticRecentMatches: unknown[];
+        europeanRecentMatches: unknown[];
+      };
+    }[];
+  }).european_comparisons[0];
+  assert.equal(detailDossier.away.domesticRecentMatches.length, 5);
+  assert.equal(detailDossier.away.europeanRecentMatches.length, 1);
   const sourceRaw = full.raw as Record<string, unknown>;
   const dossier =
     (sourceRaw.european_comparisons as Record<string, unknown>[])[0];
   const home = dossier.home as Record<string, unknown>;
-  const games = home.domesticRecentMatches as Record<string, unknown>[];
+  const games = home.europeanRecentMatches as Record<string, unknown>[];
   games.push({
     ...games[0],
     fixtureId: 900001,
     playedAt: "2026-10-15T18:00:00Z",
   });
-  games.push({ ...games[0], fixtureId: 900002, competitionId: 2 });
+  games.push({ ...games[0], fixtureId: 900002, competitionId: 61 });
   games.push({ ...games[0], fixtureId: 900003, season: 1999 });
   games.push({ ...games[0] });
   const projected = europeanCardForms(sourceRaw);
   assert.equal(
     ((projected[0].home as Record<string, unknown>)
-      .domesticRecentMatches as unknown[]).length,
-    5,
+      .europeanRecentMatches as unknown[]).length,
+    3,
   );
   dossier.home = { ...home, teamId: 99 };
   assert.equal(europeanCardForms(sourceRaw).length, 0);

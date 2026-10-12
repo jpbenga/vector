@@ -88,8 +88,8 @@ class EuropeanFixtureComparison {
   );
 }
 
-/// Lightweight card projection of the same pre-match domestic dossier.
-/// European journeys and standings remain in the individual detail payload.
+/// Lightweight card projection of results in the fixture’s European competition.
+/// Domestic form and complete journeys remain in the individual detail payload.
 class EuropeanMatchCardFormContext {
   const EuropeanMatchCardFormContext({
     required this.fixtureId,
@@ -103,7 +103,13 @@ class EuropeanMatchCardFormContext {
   static EuropeanMatchCardFormContext? decode(Object? value) {
     final j = _map(value), id = _int(j['fixtureId']);
     final kickoff = DateTime.tryParse('${j['kickoffAt'] ?? ''}');
-    if (j['schemaVersion'] != 1 || id == null || kickoff == null) return null;
+    if (j['schemaVersion'] != 1 ||
+        id == null ||
+        kickoff == null ||
+        _map(j['home'])['europeanRecentMatches'] is! List ||
+        _map(j['away'])['europeanRecentMatches'] is! List) {
+      return null;
+    }
     final home = EuropeanTeamContext.decode(_map(j['home']), kickoff);
     final away = EuropeanTeamContext.decode(_map(j['away']), kickoff);
     if (home == null || away == null) return null;
