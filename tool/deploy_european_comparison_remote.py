@@ -36,13 +36,36 @@ def main():
         if not value.get('ok'):
             raise RuntimeError(fn+' did not confirm success')
         return value
-    today=datetime.datetime.now(datetime.timezone.utc).date()
+    import tempfile
+    import uuid
+    # Download only public sporting cache fields; never user or conversation tables.
+    cache=query("select source,endpoint,query_hash,query_params,response_status,response_body,fetched_at,as_of from api_football_cached_responses where source='api-football' and endpoint in ('/standings','/leagues') and response_status between 200 and 299 order by fetched_at desc")
+    keys=request(base+'/api-keys',token)
+    service=next(k['api_key'] for k in keys if k['name']=='service_role')
+    def storage(table,body):
+        req=urllib.request.Request(f'https://{PROJECT}.supabase.co/rest/v1/'+table,data=json.dumps(body).encode(),headers={'Content-Type':'application/json','apikey':service,'Authorization':'Bearer '+service,'Prefer':'return=representation'},method='POST')
+        try:
+            with urllib.request.urlopen(req,timeout=60) as response:return json.load(response)
+        except urllib.error.HTTPError as error:raise RuntimeError(f'Snapshot storage HTTP {error.code}; response withheld') from None
     built=[]
     for league in (2,3,848):
-        result=invoke('build-match-feed-snapshot',{'league_ids':[league],'season':today.year,'window_start':today.isoformat(),'window_end':(today+datetime.timedelta(days=13)).isoformat(),'timezone':'Europe/Paris','force_rebuild':True})
-        source_id=result['snapshotId']
-        analysis=invoke('analyze-match-feed-snapshot',{'snapshot_id':source_id})
-        built.append({'leagueId':league,'snapshotId':source_id,'analysis':{k:analysis.get(k) for k in ('analysisSnapshotId','reused','snapshotId')}})
+        print('Preparing European league '+str(league)+' from archived sources',flush=True)
+        seed=query("select * from match_feed_snapshots where league_ids=array["+str(league)+"] order by captured_at desc limit 1")[0]
+        source_id=seed['id']
+        sources=query("select s.endpoint,c.query_params,s.fetched_at,s.as_of from match_feed_snapshot_sources s join api_football_cached_responses c on c.source=s.source and c.endpoint=s.endpoint and c.query_hash=s.query_hash where s.snapshot_id='"+source_id+"'")
+        # One batch per existing whole-season schedule, with bounded concurrency.
+        wanted=query("select source,endpoint,query_hash,query_params,response_status,response_body,fetched_at,as_of from api_football_cached_responses where source='api-football' and endpoint='/fixtures' and response_status between 200 and 299 and query_params ? 'league' and query_params ? 'season' and not (query_params ?| array['team','date','from','to','round','last','status','ids','live','next']) order by fetched_at desc")
+        now=datetime.datetime.now(datetime.timezone.utc).isoformat()
+        with tempfile.TemporaryDirectory() as folder:
+            inp=Path(folder)/'input.json';out=Path(folder)/'prepared.json'
+            inp.write_text(json.dumps({'payload':seed['payload'],'sources':sources,'cached':cache+wanted,'builtAt':now}))
+            subprocess.run(['deno','run','--allow-read='+folder,'--allow-write='+folder,'tool/prepare_european_publication.ts',str(inp),str(out)],check=True)
+            prepared=json.loads(out.read_text())
+        clone={**seed,'id':str(uuid.uuid4()),'captured_at':now,'as_of':now,'payload':prepared['payload'],'snapshot_created_at':now}
+        for field in ('created_at','updated_at'):clone.pop(field,None)
+        storage('match_feed_snapshots',clone)
+        analysis=invoke('analyze-match-feed-snapshot',{'snapshot_id':clone['id']})
+        built.append({'leagueId':league,'snapshotId':clone['id'],'analysis':{k:analysis.get(k) for k in ('analysisSnapshotId','reused','snapshotId')},'coverage':prepared['coverage']})
     invoke('build-feed-delivery',{'sport':'football'})
     # Only public sporting payloads enter artifacts. Never persist secrets/cache envelopes.
     import re
