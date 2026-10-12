@@ -384,6 +384,8 @@ class EuropeanComparisonSections extends StatelessWidget {
       if (showTeam) _team(c, t),
       if (s == null)
         _missing(c, 'Classement antérieur indisponible')
+      else if (s.played == 0)
+        _missing(c, 'Aucun match disputé dans ce classement')
       else ...[
         Text(
           '${s.rank == null ? 'Position —' : '${s.rank}e position'} · ${s.points == null ? 'points —' : '${s.points} pts'}',
@@ -662,7 +664,7 @@ class EuropeanComparisonSections extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Situation arrêtée au ${DateFormat('dd/MM/yyyy · HH:mm').format(comparison.kickoffAt.toLocal())}',
+          'Données antérieures au coup d’envoi du ${DateFormat('dd/MM/yyyy · HH:mm').format(comparison.kickoffAt.toLocal())}',
           style: TextStyle(fontSize: 11, color: c.textColors.secondary),
         ),
         if (comparison.capturedAt != null)
@@ -764,11 +766,11 @@ class _Panel extends StatelessWidget {
   final IconData? icon;
   final Widget child;
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => Material(
     clipBehavior: Clip.antiAlias,
-    decoration: BoxDecoration(
-      color: context.surfaces.surface,
-      border: Border.all(color: context.surfaces.border),
+    color: context.surfaces.surface,
+    shape: RoundedRectangleBorder(
+      side: BorderSide(color: context.surfaces.border),
       borderRadius: BorderRadius.circular(12),
     ),
     child: Stack(

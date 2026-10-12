@@ -73,7 +73,6 @@ def main():
         if records:storage('match_feed_snapshot_sources',list(records.values()))
         analysis=invoke('analyze-match-feed-snapshot',{'snapshot_id':clone['id']})
         built.append({'leagueId':league,'snapshotId':clone['id'],'analysis':{k:analysis.get(k) for k in ('analysisSnapshotId','reused','snapshotId')},'coverage':prepared['coverage']})
-    invoke('build-feed-delivery',{'sport':'football'})
     # Only public sporting payloads enter artifacts. Never persist secrets/cache envelopes.
     import re
     identities=[b['snapshotId'] for b in built]
@@ -91,6 +90,9 @@ def main():
         counts.append({'sourceId':s['id'],'fixtures':len(dossiers),'domesticContexts':sum(1 for d in dossiers for side in ('home','away') if d[side]['domesticCompetition'] is not None),'europeanHistories':sum(1 for d in dossiers for side in ('home','away') if d[side]['europeanRecentMatches'])})
     receipt={'revision':sha,'functions':list(FUNCTIONS),'sources':counts,'builds':built,'providerCalls':0,'modelCalls':0,'personalDataWrites':0}
     (output/'receipt.json').write_text(json.dumps(receipt,indent=2))
-    print(json.dumps(receipt))
+    print(json.dumps(receipt),flush=True)
+    runtime={**os.environ,'SUPABASE_URL':'https://'+PROJECT+'.supabase.co','SUPABASE_SERVICE_ROLE_KEY':service}
+    subprocess.run(['deno','run','--allow-env=GITHUB_ACTIONS,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY','--allow-net='+PROJECT+'.supabase.co','tool/build_football_delivery_remote.ts'],env=runtime,check=True)
+
 
 if __name__=='__main__':main()

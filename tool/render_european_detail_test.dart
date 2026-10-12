@@ -59,14 +59,18 @@ void main() {
             Map<String, Object?>.from((r as Map)['payload'] as Map),
           ),
         )
-        .where((m) => m.analysis.europeanComparison != null)
+        .where(
+          (m) =>
+              m.competition.apiFootballLeagueId == 2 &&
+              m.analysis.europeanComparison != null,
+        )
         .toList();
     matches.sort((a, b) {
       int score(MatchBoardItem m) =>
           m.analysis.europeanComparison!.home.domesticMatches.length +
           m.analysis.europeanComparison!.away.domesticMatches.length +
-          m.analysis.europeanComparison!.home.europeanMatches.length +
-          m.analysis.europeanComparison!.away.europeanMatches.length;
+          m.analysis.europeanComparison!.home.phaseMatches.length +
+          m.analysis.europeanComparison!.away.phaseMatches.length;
       return score(b).compareTo(score(a));
     });
     final match = matches.first;
@@ -112,14 +116,16 @@ void main() {
       });
       await tester.pumpWidget(const SizedBox());
     }
-    await File('${out.path}/fixture.json').writeAsString(
-      jsonEncode({
-        'fixtureId': match.fixture.apiFootballFixtureId,
-        'home': match.homeTeam.name,
-        'away': match.awayTeam.name,
-        'dossier': match.analysis.europeanComparison!.json,
-      }),
-    );
+    await tester.runAsync(() async {
+      await File('${out.path}/fixture.json').writeAsString(
+        jsonEncode({
+          'fixtureId': match.fixture.apiFootballFixtureId,
+          'home': match.homeTeam.name,
+          'away': match.awayTeam.name,
+          'dossier': match.analysis.europeanComparison!.json,
+        }),
+      );
+    });
     tester.view.resetPhysicalSize();
     tester.view.resetDevicePixelRatio();
     getIt.unregister<ShortlistController>();
