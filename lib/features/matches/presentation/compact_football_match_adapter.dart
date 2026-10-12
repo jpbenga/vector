@@ -74,34 +74,14 @@ CompactMatchData compactFootballMatch({
   }
 
   final evidence = analyzedMatch ?? match;
-  // A raw published snapshot can carry readings without personalized signals.
-  // An explicitly analyzed profile, even an empty one, remains authoritative.
-  final published =
-      showReadings &&
-          analyzedMatch == null &&
-          evidence.signals.isEmpty &&
-          evidence.thesis == null
-      ? analysis.computedReadings
-            .where(
-              (r) =>
-                  r.id != 'head_to_head_dominance' &&
-                  r.id != 'standout_decisive_player',
-            )
-            .toList()
-      : const <MatchComputedReading>[];
-  final readings = !showReadings
-      ? const <MatchCardReading>[]
-      : published.isNotEmpty
-      ? {
-          for (final r in published)
-            r.id: MatchCardReading(
-              id: r.id,
-              label:
-                  r.label ??
-                  matchReadingLabelForId(r.id, fallback: r.evidenceLabel),
-            ),
-        }.values.toList(growable: false)
-      : publishedMatchCardReadings(evidence);
+  // Only the signals retained by profile personalization reach the card.
+  // Published facts and thesis evidence are not an implicit user selection.
+  final readings = showReadings
+      ? publishedMatchCardReadings(evidence)
+      : const <MatchCardReading>[];
+  final readingCount = showReadings
+      ? publishedMatchCardReadingCount(evidence)
+      : 0;
   final resultOdds = matchResultOddsFor(match);
   final market = match.availableMarkets
       .where((m) => m.id == 'matchResult')
@@ -172,11 +152,7 @@ CompactMatchData compactFootballMatch({
       for (final reading in readings)
         CompactMatchReading(id: reading.id, label: reading.label),
     ],
-    readingCount: showReadings
-        ? (published.isNotEmpty
-              ? published.length
-              : publishedMatchCardReadingCount(evidence))
-        : null,
+    readingCount: readingCount > 0 ? readingCount : null,
     quotes: [
       for (final quote in resultOdds)
         CompactMatchQuote(outcome: quote.label, value: quote.value.odds),

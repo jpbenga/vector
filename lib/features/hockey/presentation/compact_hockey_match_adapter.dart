@@ -119,7 +119,7 @@ CompactMatchData compactHockeyMatch({
       SportFixtureStatus.cancelled => CompactMatchPhase.cancelled,
       _ => CompactMatchPhase.unknown,
     },
-    readingCount: readings.isEmpty ? null : detected.length,
+    readingCount: detected.isEmpty ? null : detected.length,
     readings: [
       for (final reading in detected)
         CompactMatchReading(id: reading.id, label: caption(reading)),

@@ -541,23 +541,11 @@ class LectorCompactMatchCard extends StatelessWidget {
     return InkWell(
       onTap: onReadings ?? onOpen,
       borderRadius: BorderRadius.circular(AppRadius.control),
-      child: enlarged
-          ? Wrap(
-              spacing: AppSpacing.xxs,
-              runSpacing: AppSpacing.xxs,
-              children: chips,
-            )
-          : Row(
-              children: [
-                for (var i = 0; i < chips.length; i++) ...[
-                  if (i != 0) const SizedBox(width: AppSpacing.xxs),
-                  if (i == 0 && data.readingCount != null)
-                    chips[i]
-                  else
-                    Expanded(child: chips[i]),
-                ],
-              ],
-            ),
+      child: Wrap(
+        spacing: AppSpacing.xxs,
+        runSpacing: AppSpacing.xxs,
+        children: chips,
+      ),
     );
   }
 

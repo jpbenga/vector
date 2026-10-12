@@ -27,13 +27,19 @@ void main() {
       final profileMatch = match.copyWith(
         signals: const [
           MatchSignal(
-            id: 'profile_reading',
+            id: 'positive_streak',
             title: 'Lecture retenue pour mon profil',
             summary: '',
             proofs: [],
           ),
           MatchSignal(
-            id: 'scenario:profile_scenario',
+            id: 'standout_decisive_player',
+            title: 'Joueurs décisifs choisis',
+            summary: '',
+            proofs: [],
+          ),
+          MatchSignal(
+            id: 'scenario:ranking_gap',
             title: 'Scénario retenu pour mon profil',
             summary: '',
             proofs: [],
@@ -63,7 +69,8 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        if (find.byType(FormRadarSignalPanel).evaluate().isEmpty) {
+        if (find.byType(FormRadarSignalPanel).evaluate().isEmpty &&
+            find.byType(LectorMatchSupplement).evaluate().isNotEmpty) {
           await tester.tap(
             find
                 .descendant(
@@ -81,7 +88,7 @@ void main() {
       expect(find.byType(LectorPlayerActivityMatrix), findsWidgets);
       expect(find.byType(MatchFeedCard), findsOneWidget);
       expect(find.byType(FormRadarSignalPanel), findsOneWidget);
-      expect(find.text('Lecture retenue pour mon profil'), findsWidgets);
+      expect(find.text('Forme'), findsWidgets);
       expect(find.text('Scénario retenu pour mon profil'), findsWidgets);
       expect(find.text('Lecture globale à masquer'), findsNothing);
       expect(find.text('Avant'), findsNothing);
@@ -101,15 +108,15 @@ void main() {
       expect(tester.takeException(), isNull);
 
       await render(connected: true, personalized: []);
-      expect(find.text('Lecture retenue pour mon profil'), findsNothing);
+      expect(find.text('Forme'), findsNothing);
       expect(find.text('Scénario retenu pour mon profil'), findsNothing);
       expect(find.text('Lecture globale à masquer'), findsNothing);
-      expect(find.byType(FormRadarSignalPanel), findsOneWidget);
+      expect(find.byType(FormRadarSignalPanel), findsNothing);
 
       await render(connected: false, personalized: [profileMatch]);
-      expect(find.text('Lecture retenue pour mon profil'), findsNothing);
+      expect(find.text('Forme'), findsNothing);
       expect(find.text('Scénario retenu pour mon profil'), findsNothing);
-      expect(find.byType(FormRadarSignalPanel), findsOneWidget);
+      expect(find.byType(FormRadarSignalPanel), findsNothing);
       await tester.tap(
         find
             .descendant(

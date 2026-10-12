@@ -2,8 +2,6 @@ import 'compact_hockey_match_adapter.dart';
 import 'dart:async';
 import 'hockey_quote_presentation.dart';
 import '../../../core/widgets/lector_horizontal_transition.dart';
-import '../../../core/widgets/lector_recorded_radar_panel.dart';
-import '../../../core/domain/lector_radar_contributions.dart';
 import '../../../app/sports/generator_radar_context.dart';
 import '../../form_radar/domain/radar_scope.dart';
 import '../domain/hockey_radar_selection.dart';
@@ -33,8 +31,8 @@ import '../../../core/widgets/lector_live_badge.dart';
 import '../../../app/auth/lector_account_sheet.dart';
 import '../../../core/widgets/lector_player_radar.dart';
 import '../domain/hockey_player_radar.dart';
-import '../domain/hockey_team_radar.dart';
 import 'hockey_player_radar_panel.dart';
+import '../domain/hockey_team_radar.dart';
 import '../../../core/widgets/lector_competition_browser.dart';
 import '../../../core/widgets/lector_radar.dart';
 import 'hockey_country_presentation.dart';
@@ -779,27 +777,12 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
     final competition = _competitions
         .where((c) => c.id == fixture.competition)
         .firstOrNull;
-    final playerEntries = _players(before: fixture.startsAt)
-        .where(
-          (e) =>
-              e.profile.competition == fixture.competition &&
-              (e.profile.team.id == fixture.home.id ||
-                  e.profile.team.id == fixture.away.id),
-        )
-        .toList();
     return SportFixtureCard(
       compactData: compactHockeyMatch(
         fixture: current,
         competition: competition,
         readings: assessments,
       ),
-      decisiveCount: current.radarSnapshot == null
-          ? 0
-          : hockeyRadarContributions(
-              current.radarSnapshot!,
-              current.matchEvents,
-              current.matchEventsCapturedAt,
-            ).map((c) => c.playerId).toSet().length,
       fixture: current,
       odds: current.status == SportFixtureStatus.scheduled
           ? HockeyCardOdds(fixture: current)
@@ -822,19 +805,6 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
         'AP' || 'APEN' => 'Terminé · Tirs au but',
         _ => null,
       },
-      contextPanel: current.radarSnapshot?.players.isNotEmpty == true
-          ? LectorRecordedRadarPanel(
-              snapshot: current.radarSnapshot!,
-              contributions: hockeyRadarContributions(
-                current.radarSnapshot!,
-                current.matchEvents,
-                current.matchEventsCapturedAt,
-              ),
-              isLive: current.temporal.isLive,
-            )
-          : playerEntries.isEmpty
-          ? null
-          : HockeyPlayerSignalPanel(entries: playerEntries),
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (_) => LectorDeferredContent<SportFeedResult>(
@@ -1013,20 +983,6 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
       ),
     ],
   );
-
-  List<HockeyPlayerRadarEntry> _players({DateTime? before}) {
-    final snapshot = _feed?.snapshot;
-    if (snapshot == null) return [];
-    final cutoff = before ?? DateTime(_date.year, _date.month, _date.day + 1);
-    return HockeyPlayerRadarRanker.rank(
-      snapshot.players.where(
-        (p) => _league == null || p.competition.value == _league,
-      ),
-      before: cutoff.isBefore(snapshot.capturedAt)
-          ? cutoff
-          : snapshot.capturedAt,
-    );
-  }
 
   Widget _playerRadar(BuildContext context) {
     final top = _radarSelection?.players ?? <HockeyPlayerRadarEntry>[];

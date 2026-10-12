@@ -83,35 +83,30 @@ void main() {
       );
     },
   );
-  test(
-    'published readings remain separate from explicit profile visibility',
-    () {
-      final snapshot =
-          jsonDecode(
-                File('assets/design_preview/league.json').readAsStringSync(),
-              )
-              as Map<String, dynamic>;
-      final match = SnapshotMatchFeedRepository(
-        snapshot: snapshot,
-      ).allMatches().single;
-      expect(
-        compactFootballMatch(match: match, showReadings: true).readingCount,
-        6,
-      );
-      expect(
-        compactFootballMatch(match: match, showReadings: false).readingCount,
-        isNull,
-      );
-      expect(
-        compactFootballMatch(
-          match: match,
-          analyzedMatch: match,
-          showReadings: true,
-        ).readingCount,
-        0,
-      );
-    },
-  );
+  test('unscoped published readings never create card badges or counters', () {
+    final snapshot =
+        jsonDecode(File('assets/design_preview/league.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final match = SnapshotMatchFeedRepository(
+      snapshot: snapshot,
+    ).allMatches().single;
+    expect(
+      compactFootballMatch(match: match, showReadings: true).readingCount,
+      isNull,
+    );
+    expect(
+      compactFootballMatch(match: match, showReadings: false).readingCount,
+      isNull,
+    );
+    expect(
+      compactFootballMatch(
+        match: match,
+        analyzedMatch: match,
+        showReadings: true,
+      ).readingCount,
+      isNull,
+    );
+  });
   testWidgets(
     'card actions are independent, score is factual and finished odds are hidden',
     (tester) async {

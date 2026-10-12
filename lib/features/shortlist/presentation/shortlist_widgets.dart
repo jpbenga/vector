@@ -403,32 +403,19 @@ class ShortlistFixtureTile extends StatelessWidget {
                       ],
                     ),
                   ),
-                Padding(
-                  padding: const EdgeInsets.only(left: 44, top: 5),
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 5,
-                    children: [
-                      _tag(
-                        context,
-                        Icons.bar_chart_rounded,
-                        fixture.readingsAvailable
-                            ? '${fixture.readingCount} lecture${fixture.readingCount == 1 ? '' : 's'}'
-                            : 'Lectures à actualiser',
-                        accent,
-                        filled: true,
+                // The hydrated count contains all published readings, with
+                // no user-profile scope. It must not appear as a selected count.
+                if (phase != 'upcoming')
+                  Padding(
+                    padding: const EdgeInsets.only(left: 44, top: 5),
+                    child: Text(
+                      'Exclue des tickets prématch',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: context.textColors.secondary,
                       ),
-                      if (phase != 'upcoming')
-                        Text(
-                          'Exclue des tickets prématch',
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            color: context.textColors.secondary,
-                          ),
-                        ),
-                    ],
+                    ),
                   ),
-                ),
               ],
             ),
           );
@@ -537,37 +524,6 @@ class ShortlistFixtureTile extends StatelessWidget {
         ),
       ),
     ],
-  );
-  Widget _tag(
-    BuildContext context,
-    IconData icon,
-    String label,
-    Color color, {
-    bool filled = false,
-  }) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: filled ? .1 : .05),
-      border: filled ? null : Border.all(color: color.withValues(alpha: .35)),
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 12, color: color),
-        const SizedBox(width: 5),
-        Flexible(
-          child: Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    ),
   );
 }
 

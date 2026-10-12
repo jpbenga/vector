@@ -510,65 +510,69 @@ void main() {
       );
     });
 
-    testWidgets('starts on For me with Lector readings', (tester) async {
-      await _pumpPage(
-        tester,
-        repository: _FakeMatchFeedRepository(
-          opportunities: [
-            _opportunity(
-              match: _match(
+    testWidgets(
+      'For me never promotes unselected thesis evidence into readings',
+      (tester) async {
+        await _pumpPage(
+          tester,
+          repository: _FakeMatchFeedRepository(
+            opportunities: [
+              _opportunity(
+                match: _match(
+                  id: 'chelsea-spurs',
+                  homeName: 'Chelsea',
+                  awayName: 'Tottenham',
+                  kickoff: _relativeKickoff(0, hour: 20),
+                  markets: [_matchResultMarket()],
+                ),
+                retainedTheses: [
+                  _thesis(
+                    id: 'open_match',
+                    title: 'Match ouvert',
+                    arguments: [
+                      _argument('structural_level_gap'),
+                      _argument('ranking_superiority'),
+                      _argument(
+                        'positive_streak',
+                        type: CopilotArgumentType.strongRecentForm,
+                        family: CopilotArgumentFamily.form,
+                        evidenceAction: CopilotEvidenceAction.form,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+            matches: [
+              _match(
                 id: 'chelsea-spurs',
                 homeName: 'Chelsea',
                 awayName: 'Tottenham',
                 kickoff: _relativeKickoff(0, hour: 20),
                 markets: [_matchResultMarket()],
               ),
-              retainedTheses: [
-                _thesis(
-                  id: 'open_match',
-                  title: 'Match ouvert',
-                  arguments: [
-                    _argument('structural_level_gap'),
-                    _argument('ranking_superiority'),
-                    _argument(
-                      'positive_streak',
-                      type: CopilotArgumentType.strongRecentForm,
-                      family: CopilotArgumentFamily.form,
-                      evidenceAction: CopilotEvidenceAction.form,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
-          matches: [
-            _match(
-              id: 'chelsea-spurs',
-              homeName: 'Chelsea',
-              awayName: 'Tottenham',
-              kickoff: _relativeKickoff(0, hour: 20),
-              markets: [_matchResultMarket()],
-            ),
-          ],
-        ),
-      );
+            ],
+          ),
+        );
 
-      expect(find.text('Pour moi').last, findsOneWidget);
-      expect(find.text('Ma sélection'), findsNothing);
-      expect(find.text('Chelsea'), findsWidgets);
-      expect(find.text('Tottenham'), findsWidgets);
-      expect(
-        find.byKey(const ValueKey('for-me-competition-country-flag-61')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('story-match-result-odds-chelsea-spurs')),
-        findsOneWidget,
-      );
-      expect(find.text('3 lectures'), findsOneWidget);
-      expect(find.text('Écart de niveau structurel'), findsOneWidget);
-      expect(find.text('Tous les matchs'), findsNothing);
-    });
+        expect(find.text('Pour moi').last, findsOneWidget);
+        expect(find.text('Ma sélection'), findsNothing);
+        expect(find.text('Chelsea'), findsWidgets);
+        expect(find.text('Tottenham'), findsWidgets);
+        expect(
+          find.byKey(const ValueKey('for-me-competition-country-flag-61')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('story-match-result-odds-chelsea-spurs')),
+          findsOneWidget,
+        );
+        expect(find.text('3 lectures'), findsNothing);
+        expect(find.text('Écart de niveau structurel'), findsNothing);
+        expect(find.text('Avantage classement'), findsNothing);
+        expect(find.text('Tous les matchs'), findsNothing);
+      },
+    );
 
     testWidgets('shows only an interpretable provider round in match detail', (
       tester,

@@ -20,7 +20,6 @@ import '../../domain/match_board_item.dart';
 import '../../domain/live_match_state.dart';
 import 'live_fixture_builder.dart';
 import 'live_match_status.dart';
-import '../opportunity_decision_presenter.dart';
 
 class MatchCardReading {
   const MatchCardReading({required this.id, required this.label});
@@ -120,7 +119,15 @@ class _MatchFeedCardContent extends StatelessWidget {
             liveState!.events,
             liveState!.eventsCapturedAt,
           );
-    final contextPanel = liveState?.radarSnapshot != null
+    final hasSelectedPlayerReading =
+        showReadings &&
+        analyzedMatch.profileStatus == MatchProfileStatus.inProfile &&
+        analyzedMatch.signals.any(
+          (s) => s.id.startsWith('standout_decisive_player'),
+        );
+    final contextPanel = !hasSelectedPlayerReading
+        ? null
+        : liveState?.radarSnapshot != null
         ? LectorRecordedRadarPanel(
             snapshot: liveState!.radarSnapshot!,
             contributions: contributions,
@@ -358,7 +365,7 @@ class _StoryReadingTags extends StatelessWidget {
   }
 }
 
-/// Reuses the incumbent presentation selection without recomputing readings.
+/// Displays only profile-retained signals, never published facts or thesis evidence.
 List<MatchCardReading> publishedMatchCardReadings(MatchBoardItem match) =>
     _representativeReadingTags(match);
 
@@ -369,6 +376,7 @@ int publishedMatchCardReadingCount(MatchBoardItem match) =>
     _storyReadingCount(match, _representativeReadingTags(match));
 
 List<MatchCardReading> _representativeReadingTags(MatchBoardItem match) {
+  if (match.profileStatus != MatchProfileStatus.inProfile) return const [];
   final readingsById = <String, MatchCardReading>{};
   void add(String id, String label) {
     if (id.isNotEmpty && !readingsById.containsKey(id)) {
@@ -380,26 +388,11 @@ List<MatchCardReading> _representativeReadingTags(MatchBoardItem match) {
     if (signal.id.startsWith('scenario:') || signal.id.startsWith('market:')) {
       continue;
     }
-    if (signal.id.startsWith('standout_decisive_player')) {
+    if (ReadingPreferenceCatalog.preferenceIdsForReading(signal.id).isEmpty ||
+        signal.id.startsWith('standout_decisive_player')) {
       continue;
     }
     add(signal.id, matchReadingLabelForId(signal.id, fallback: signal.title));
-  }
-  final thesis = match.thesis;
-  if (thesis != null) {
-    for (final argument in thesis.arguments) {
-      final id = FootballReadingCopyCatalog.readingIdFor(argument);
-      if (id == 'standout_decisive_player') {
-        continue;
-      }
-      add(id, FootballReadingCopyCatalog.titleFor(argument));
-    }
-    // Some legacy/demo opportunities only expose their retained thesis and do
-    // not carry the underlying reading signals. Keep that thesis visible as a
-    // presentation fallback without mixing it with explicit scenario signals.
-    if (thesis.arguments.isEmpty && thesis.id != 'standout_decisive_player') {
-      add(thesis.id, matchReadingLabelForId(thesis.id, fallback: thesis.title));
-    }
   }
   return readingsById.values.toList(growable: false);
 }
@@ -408,33 +401,8 @@ int _storyReadingCount(
   MatchBoardItem match,
   List<MatchCardReading> displayedReadings,
 ) {
-  final thesis = match.thesis;
-  if (thesis != null) {
-    final supportingArguments = thesis.arguments.where((argument) {
-      final readingId = FootballReadingCopyCatalog.readingIdFor(argument);
-      return readingId != 'standout_decisive_player' &&
-          argument.family != CopilotArgumentFamily.market &&
-          argument.family != CopilotArgumentFamily.contradiction;
-    }).length;
-    if (supportingArguments > 0) {
-      return supportingArguments;
-    }
-    if (thesis.arguments.isNotEmpty ||
-        thesis.id == 'standout_decisive_player') {
-      return 0;
-    }
-    if (thesis.supportingEvidence.isNotEmpty) {
-      return thesis.supportingEvidence.length;
-    }
-  }
-
-  final hasOnlyPlayerReading =
-      displayedReadings.isEmpty &&
-      match.signals.any(
-        (signal) => signal.id.startsWith('standout_decisive_player'),
-      );
-  if (hasOnlyPlayerReading) return 0;
-
+  if (match.profileStatus != MatchProfileStatus.inProfile) return 0;
+  if (displayedReadings.isEmpty) return 0;
   if (match.profileRelevance.readingMatches > 0) {
     return match.profileRelevance.readingMatches;
   }
@@ -442,6 +410,7 @@ int _storyReadingCount(
 }
 
 List<MatchCardScenario> _representativeScenarios(MatchBoardItem match) {
+  if (match.profileStatus != MatchProfileStatus.inProfile) return const [];
   final scenariosByRuntimeId = <String, MatchCardScenario>{};
   for (final signal in match.signals) {
     if (!signal.id.startsWith('scenario:')) {
@@ -455,6 +424,9 @@ List<MatchCardScenario> _representativeScenarios(MatchBoardItem match) {
     final catalogLabel = OpportunityProfileCatalog.byId(
       scenarioId,
     )?.displayLabel;
+    if (catalogLabel == null) {
+      continue;
+    }
     final signalLabel = signal.title.trim();
     scenariosByRuntimeId[signal.id] = MatchCardScenario(
       label: signalLabel.isNotEmpty
@@ -467,11 +439,10 @@ List<MatchCardScenario> _representativeScenarios(MatchBoardItem match) {
 }
 
 String _storySummary(MatchBoardItem match) {
-  final thesisSummary = match.thesis?.summary.trim();
-  if (thesisSummary != null && thesisSummary.isNotEmpty) {
-    return thesisSummary;
-  }
   for (final signal in match.signals) {
+    if (ReadingPreferenceCatalog.preferenceIdsForReading(signal.id).isEmpty) {
+      continue;
+    }
     final summary = signal.summary.trim();
     if (summary.isNotEmpty) {
       return summary;

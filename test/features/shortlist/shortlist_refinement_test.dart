@@ -112,7 +112,8 @@ void main() {
         expect(find.text('Vigilance'), findsNothing);
         expect(find.text('Avantage'), findsNothing);
         expect(find.text('Forme +'), findsNothing);
-        expect(find.text('3 lectures'), findsOneWidget);
+        expect(find.text('3 lectures'), findsNothing);
+        expect(find.text('Lectures à actualiser'), findsNothing);
         final size = tester.getSize(find.byTooltip('Voir Atalanta – Venezia'));
         expect(size.width, greaterThanOrEqualTo(48));
         expect(size.height, greaterThanOrEqualTo(48));
