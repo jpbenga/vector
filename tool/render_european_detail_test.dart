@@ -11,6 +11,7 @@ import 'package:copilot/core/theme/app_theme.dart';
 import 'package:copilot/core/di/service_locator.dart';
 import 'package:copilot/features/matches/data/api_football_match_adapter.dart';
 import 'package:copilot/features/matches/presentation/match_detail_page.dart';
+import 'package:copilot/features/matches/domain/match_board_item.dart';
 import 'package:copilot/features/shortlist/application/shortlist_controller.dart';
 import 'package:copilot/features/shortlist/data/shortlist_repository.dart';
 import 'package:copilot/features/shortlist/domain/shortlist.dart';
@@ -55,17 +56,17 @@ void main() {
     final matches = rows
         .expand(
           (r) => const ApiFootballMatchAdapter().fromSnapshot(
-            Map<String, Object?>.from(r['payload']),
+            Map<String, Object?>.from((r as Map)['payload'] as Map),
           ),
         )
         .where((m) => m.analysis.europeanComparison != null)
         .toList();
     matches.sort((a, b) {
-      int score(dynamic m) =>
-          m.analysis.europeanComparison.home.domesticMatches.length +
-          m.analysis.europeanComparison.away.domesticMatches.length +
-          m.analysis.europeanComparison.home.europeanMatches.length +
-          m.analysis.europeanComparison.away.europeanMatches.length;
+      int score(MatchBoardItem m) =>
+          m.analysis.europeanComparison!.home.domesticMatches.length +
+          m.analysis.europeanComparison!.away.domesticMatches.length +
+          m.analysis.europeanComparison!.home.europeanMatches.length +
+          m.analysis.europeanComparison!.away.europeanMatches.length;
       return score(b).compareTo(score(a));
     });
     final match = matches.first;

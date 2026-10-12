@@ -188,10 +188,26 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                     ),
                   ],
                 )
-              : EuropeanComparisonSections(
-                  comparison: dossier,
-                  index: index,
-                  onOpenPrevious: (pick) => openGeneratorMatch(context, pick),
+              : Column(
+                  children: [
+                    EuropeanComparisonSections(
+                      comparison: dossier,
+                      index: index,
+                      onOpenPrevious: (pick) =>
+                          openGeneratorMatch(context, pick),
+                    ),
+                    if (index == 2 &&
+                        current.fixture.kickoff != null &&
+                        current.analysis.asOf?.isBefore(
+                              current.fixture.kickoff!,
+                            ) ==
+                            true)
+                      _LectorStandingContextCard(
+                        match: current,
+                        selectedReadingIds: widget.selectedReadingIds,
+                        selectedScenarioIds: widget.selectedScenarioIds,
+                      ),
+                  ],
                 ),
         );
       }

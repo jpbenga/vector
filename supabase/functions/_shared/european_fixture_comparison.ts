@@ -18,6 +18,10 @@ export type CachedContextSource = {
   fetched_at: string;
   as_of: string;
   response_body: unknown;
+  source?: string;
+  query_hash?: string;
+  sync_run_id?: string | null;
+  response_status?: number;
 };
 
 /** Domestic year comes from the league calendar, never from the European year. */
@@ -59,13 +63,19 @@ export function resolveEuropeanDomesticContexts<S extends CachedContextSource>(
                 num(obj(entry.league).id) !== num(league.id) ||
                 obj(entry.league).type !== "League"
               ) continue;
-              for (const season of rows(entry.seasons)) {
-                const start = time(season.start), end = time(season.end);
+              const begun = rows(entry.seasons)
+                .filter((s) => (time(s.start) ?? Infinity) <= kickoff)
+                .sort((a, b) => (time(b.start) ?? 0) - (time(a.start) ?? 0));
+              const current = begun[0];
+              if (current) {
+                const start = time(current.start), end = time(current.end);
+                // The last completed domestic season remains useful for a final
+                // played during the break, until a new season has actually begun.
                 if (
-                  num(season.year) === num(league.season) && start !== null &&
-                  end !== null && kickoff >= start && kickoff < end + 86400000
+                  num(current.year) === num(league.season) && start !== null &&
+                  end !== null && kickoff < end + 120 * 86400000
                 ) {
-                  candidates.push({ source, league, season });
+                  candidates.push({ source, league, season: current });
                 }
               }
             }
@@ -96,6 +106,7 @@ export function resolveEuropeanDomesticContexts<S extends CachedContextSource>(
         },
         season_start: c.season.start,
         season_end: c.season.end,
+        context_period_valid: true,
         observed_at: c.source.fetched_at,
       });
       selected.set(`${c.league.id}:${c.league.season}`, c.source);
@@ -302,7 +313,10 @@ export function buildEuropeanComparisons(
           start = time(domestic?.season_start),
           end = time(domestic?.season_end);
         const validDomestic = di !== null && ds !== null && start !== null &&
-          end !== null && kickoff >= start && kickoff < end + 86400000;
+          end !== null && kickoff >= start &&
+          (kickoff < end + 86400000 ||
+            domestic?.context_period_valid === true &&
+              kickoff < end + 120 * 86400000);
         let dm = validDomestic ? matches(teamId, di!, ds!) : [];
         // Normalized history fallback requires explicit season and date, never an
         // undated form string nor a season guessed from the European competition.
@@ -412,6 +426,9 @@ export function buildEuropeanComparisons(
           logo: team.logo ?? null,
           domesticCompetition: validDomestic ? dl : null,
           domesticStanding,
+          domesticSeasonStart: domestic?.season_start ?? null,
+          domesticSeasonEnd: domestic?.season_end ?? null,
+          domesticSeasonEnded: validDomestic && kickoff >= end! + 86400000,
           domesticRecentMatches: dm,
           domesticSummary: summary(dm),
           domesticState,

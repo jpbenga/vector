@@ -80,11 +80,17 @@ if (import.meta.main) {
     cached.filter((c) => c.endpoint === "/leagues"),
   );
   raw.domestic_team_contexts = domestic.contexts;
+  const europeanSeasons = new Set(
+    rows(raw.fixtures).map((f) => {
+      const league = obj(f.league);
+      return `${league.id}:${league.season}`;
+    }),
+  );
   raw.standings = [
     ...rows(raw.standings),
     ...cached.filter((s) =>
       s.endpoint === "/standings" &&
-      [2, 3, 848].includes(Number(s.query_params.league))
+      europeanSeasons.has(`${s.query_params.league}:${s.query_params.season}`)
     ).flatMap((s) =>
       rows(obj(s.response_body).response).map((r) => ({
         ...r,

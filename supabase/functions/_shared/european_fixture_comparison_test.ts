@@ -211,3 +211,44 @@ Deno.test("standing observation belongs to the row, never another cached respons
   });
   assert.equal(first(p).home.domesticStanding, null);
 });
+
+Deno.test("domestic break: retain completed season for European final, never after next season begins", () => {
+  const f = fixture(100, 2, 2025, "2026-05-30T18:00:00Z", 1, 2, 0, 0, "Final");
+  const cache = (endpoint: string, response: unknown) => ({
+    endpoint,
+    query_params: {},
+    fetched_at: "2026-05-29T09:00:00Z",
+    as_of: "2026-05-29T09:00:00Z",
+    response_body: { response },
+  });
+  const standings = cache("/standings", [
+    standing(1, 94, 2025, "2026-05-29T09:00:00Z"),
+  ]);
+  const leagues = cache("/leagues", [{
+    league: { id: 94, type: "League" },
+    seasons: [
+      { year: 2025, start: "2025-08-01", end: "2026-05-24" },
+      { year: 2026, start: "2026-08-01", end: "2027-05-24" },
+    ],
+  }]);
+  const resolved = resolveEuropeanDomesticContexts([f], [standings], [leagues]);
+  assert.equal(resolved.contexts.length, 1);
+  const p = payload();
+  p.raw.fixtures = [f];
+  p.raw.domestic_team_contexts = resolved.contexts as any;
+  p.raw.standings = resolved.standings as any;
+  p.raw.league_fixtures = [fixture(11, 94, 2025, "2026-05-20T18:00:00Z")];
+  const d = first(p);
+  assert.equal(d.home.domesticCompetition.season, 2025);
+  assert.equal(d.home.domesticSeasonEnded, true);
+  assert.equal(d.home.domesticRecentMatches.length, 1);
+  const later = {
+    ...f,
+    fixture: { ...f.fixture, date: "2026-08-15T18:00:00Z" },
+  };
+  assert.equal(
+    resolveEuropeanDomesticContexts([later], [standings], [leagues]).contexts
+      .length,
+    0,
+  );
+});

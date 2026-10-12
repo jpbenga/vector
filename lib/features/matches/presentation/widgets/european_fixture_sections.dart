@@ -333,7 +333,7 @@ class EuropeanComparisonSections extends StatelessWidget {
                       ),
                       if ((n['fixtureIds'] as List? ?? []).isNotEmpty)
                         Text(
-                          'Sources : ${(n['fixtureIds'] as List).take(5).map((id) => '#$id').join(', ')}${(n['fixtureIds'] as List).length > 5 ? ' · +${(n['fixtureIds'] as List).length - 5}' : ''}',
+                          'Fondé sur ${(n['fixtureIds'] as List).length} rencontres · détails dans Forme',
                           style: TextStyle(
                             fontSize: 10,
                             color: c.textColors.secondary,
@@ -363,7 +363,7 @@ class EuropeanComparisonSections extends StatelessWidget {
               style: TextStyle(fontSize: 12, color: c.semantic.info),
             ),
             Text(
-              'Saison ${t.domesticCompetition!.season}',
+              'Saison ${t.domesticCompetition!.season}${t.json['domesticSeasonEnded'] == true ? ' · terminée' : ''}',
               style: TextStyle(fontSize: 10, color: c.textColors.secondary),
             ),
             const SizedBox(height: 8),
@@ -672,7 +672,7 @@ class EuropeanComparisonSections extends StatelessWidget {
           ),
         if (comparison.stale)
           Text(
-            'Publication ancienne : une actualisation est recommandée.',
+            'Certaines données sont anciennes : une actualisation est recommandée.',
             style: TextStyle(fontSize: 12, color: c.semantic.warning),
           ),
         for (final l in comparison.limitations)
