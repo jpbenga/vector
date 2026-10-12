@@ -1,0 +1,49 @@
+{
+  "sourceCommit": "69effaa7541cf38e1ab6da7e74b40578ec1cc1b4",
+  "ciUrl": "https://github.com/jpbenga/vector/actions/runs/38286624999",
+  "ciStatus": "Success",
+  "deploymentId": "dpl_7Ez2SAp6aoKKE763EnLrgPZ61eyf",
+  "preview": "https://lector-sports-e2htvm3x0-lector1.vercel.app",
+  "demo": "https://lector-sports-demo-lector1.vercel.app",
+  "verifiedFixture": 1635674,
+  "verifiedViewportWidth": 390,
+  "liverpool": {
+    "cardEuropeanResults": 1,
+    "synthesisDomesticResults": 5,
+    "synthesisEuropeanPhaseResults": 1
+  },
+  "delivery": {
+    "days": 6,
+    "fixtures": 108,
+    "competitionResults": 446,
+    "extraBytes": -74760,
+    "counts": {
+      "2026-10-20": {
+        "fixtures": 9,
+        "bytes": 160971
+      },
+      "2026-10-21": {
+        "fixtures": 9,
+        "bytes": 466787
+      },
+      "2026-10-15": {
+        "fixtures": 36,
+        "bytes": 1824407
+      },
+      "2026-10-14": {
+        "fixtures": 9,
+        "bytes": 455224
+      },
+      "2026-10-13": {
+        "fixtures": 9,
+        "bytes": 746594
+      },
+      "2026-10-22": {
+        "fixtures": 36,
+        "bytes": 509044
+      }
+    }
+  },
+  "paidModelCalls": 0,
+  "providerCollectionCalls": 0
+}

@@ -31,3 +31,12 @@ La démo est régénérée depuis les sources publiques locales déjà collecté
 45 tests Flutter ciblés réussis et 7 tests Deno du transport réussis. Les 7 contrôles de périmètre ont ensuite été exécutés à nouveau, dont le contrôle ajouté sur les anciennes projections en cache ; tous réussissent. L’analyse Flutter ne rapporte aucune anomalie. Les tests couvrent notamment les trois compétitions européennes, l’exclusion des autres saisons/compétitions et des matchs futurs, la synthèse comportant les deux périmètres, les données absentes, la fusion des sources et les largeurs 320/375/390/430/768 px.
 
 La présentation générale, les lectures, cotes, filtres, Shortlist et actions Générateur ne sont pas modifiés. Le bloc domestique et le parcours européen de la synthèse sont conservés.
+
+## Livraison vérifiée
+
+- Source : `69effaa7541cf38e1ab6da7e74b40578ec1cc1b4`.
+- CI complète réussie : https://github.com/jpbenga/vector/actions/runs/38286624999.
+- Déploiement prêt : `dpl_7Ez2SAp6aoKKE763EnLrgPZ61eyf`.
+- Alias habituel : https://lector-sports-demo-lector1.vercel.app.
+- Vérification dans l’application à 390 px : Liverpool a une cellule européenne et le libellé de compétition sur la carte. La synthèse montre cinq résultats de Premier League et un résultat de phase de ligue dans deux panneaux distincts.
+- Captures : `european-card-competition-form.png` et `european-synthesis-domestic-and-competition.png` dans le dossier de visualisations de cette conversation.
