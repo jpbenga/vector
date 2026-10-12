@@ -1,3 +1,4 @@
+import 'package:copilot/core/widgets/lector_shortlist_icon.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:copilot/core/di/service_locator.dart';
@@ -433,12 +434,22 @@ void main() {
     expect(opened, false);
     expect(repo.calls.last, 'remove');
     expect(find.byType(SnackBar), findsNothing);
-    expect(find.byIcon(Icons.bookmark_add_outlined), findsOneWidget);
+    expect(
+      tester
+          .widget<LectorShortlistIcon>(find.byType(LectorShortlistIcon))
+          .selected,
+      isFalse,
+    );
     await tester.tap(find.byKey(const ValueKey('shortlist-add:football:1')));
     await tester.pumpAndSettle();
     expect(repo.calls.last, 'add');
     expect(opened, false);
-    expect(find.byIcon(Icons.bookmark_rounded), findsOneWidget);
+    expect(
+      tester
+          .widget<LectorShortlistIcon>(find.byType(LectorShortlistIcon))
+          .selected,
+      isTrue,
+    );
     expect(find.byType(SnackBar), findsNothing);
     await tester.pumpWidget(const SizedBox());
     await getIt.unregister<ShortlistController>();

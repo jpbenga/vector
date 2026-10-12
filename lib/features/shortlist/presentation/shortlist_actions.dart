@@ -1,3 +1,4 @@
+import '../../../core/widgets/lector_shortlist_icon.dart';
 import 'package:flutter/material.dart';
 import '../../../app/auth/lector_account_sheet.dart';
 import '../../../core/di/service_locator.dart';
@@ -61,20 +62,47 @@ void openShortlist(BuildContext context) {
 }
 
 class ShortlistEntryButton extends StatelessWidget {
-  const ShortlistEntryButton({super.key});
+  const ShortlistEntryButton({this.compact = false, super.key});
+  final bool compact;
   @override
   Widget build(BuildContext context) {
     final controller = shortlistController();
     if (controller == null) return const SizedBox.shrink();
     return ListenableBuilder(
       listenable: controller,
-      builder: (context, _) => TextButton.icon(
-        key: const ValueKey('open-shortlist'),
-        onPressed: () => openShortlist(context),
-        icon: const Icon(Icons.bookmarks_outlined, size: 19),
-        label: Text(
-          'Shortlist${controller.items.isEmpty ? '' : ' · ${controller.items.length}'}',
-          maxLines: 1,
+      builder: (context, _) => Tooltip(
+        message: 'Ma Shortlist : ${controller.items.length} rencontres',
+        child: TextButton(
+          key: const ValueKey('open-shortlist'),
+          onPressed: () => openShortlist(context),
+          style: TextButton.styleFrom(
+            minimumSize: const Size(44, 44),
+            padding: const EdgeInsets.symmetric(horizontal: 5),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              LectorShortlistIcon(color: context.semantic.info, size: 21),
+              if (!compact) ...[
+                const SizedBox(width: 4),
+                Text(
+                  'Shortlist',
+                  style: TextStyle(fontSize: 11, color: context.semantic.info),
+                ),
+              ],
+              if (controller.items.isNotEmpty) ...[
+                const SizedBox(width: 3),
+                Text(
+                  '${controller.items.length}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: context.semantic.info,
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -97,8 +125,8 @@ class ShortlistAddButton extends StatelessWidget {
           tooltip: present
               ? 'Retirer de la Shortlist'
               : 'Ajouter à la Shortlist',
-          icon: Icon(
-            present ? Icons.bookmark_rounded : Icons.bookmark_add_outlined,
+          icon: LectorShortlistIcon(
+            selected: present,
             color: present
                 ? context.brand.accent
                 : context.textColors.secondary,

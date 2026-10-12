@@ -1,10 +1,13 @@
+import '../../../../core/widgets/lector_live_badge.dart';
+import '../../../../core/widgets/lector_compact_match_card.dart';
+import '../../../../core/widgets/lector_match_supplement.dart';
+import '../../../../core/domain/compact_match_data.dart';
+import '../compact_football_match_adapter.dart';
 import '../../../shortlist/presentation/shortlist_actions.dart';
 import '../../../../core/widgets/lector_recorded_radar_panel.dart';
 import '../../../../core/domain/lector_radar_contributions.dart';
+import '../../../../core/domain/lector_recorded_radar.dart';
 import '../../../../core/widgets/lector_reading_pill.dart';
-import '../../../../core/widgets/lector_live_badge.dart';
-import '../../../../core/domain/lector_temporal_state.dart';
-import '../../../../core/widgets/lector_match_card.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_components.dart';
@@ -18,7 +21,6 @@ import '../../domain/live_match_state.dart';
 import 'live_fixture_builder.dart';
 import 'live_match_status.dart';
 import '../opportunity_decision_presenter.dart';
-import 'sports_asset_badge.dart';
 
 class MatchCardReading {
   const MatchCardReading({required this.id, required this.label});
@@ -111,88 +113,98 @@ class _MatchFeedCardContent extends StatelessWidget {
     final visibleRadarEntries = usesLocalRadarPreview
         ? playerFormRadarFixtureEntriesForMatch(match)
         : storedRadarEntries;
-    final readingCount = showReadings
-        ? _storyReadingCount(analyzedMatch, readings)
-        : 0;
-    final actionColor = scenarios.isNotEmpty
-        ? context.strategies.violetStyle.color
-        : readings.isNotEmpty
-        ? context.opportunities.readingIdentityForId(readings.first.id).color
-        : context.brand.accent;
-
-    return LectorMatchCard(
-      preparationAction: ShortlistAddButton(fixture: shortlistFootball(match)),
-      onTap: onTap,
-      temporal:
-          liveState?.temporal ??
-          LectorTemporalState(
-            phase: match.fixture.status == FixtureStatus.live
-                ? LectorMatchPhase.live
-                : match.fixture.status == FixtureStatus.finished
-                ? LectorMatchPhase.finished
-                : LectorMatchPhase.upcoming,
-          ),
-      actionLabel: match.fixture.status == FixtureStatus.live
-          ? 'Suivre le match'
-          : 'Voir l’analyse',
-      actionColor: actionColor,
-      header: showCompetitionHeader
-          ? _StoryCompetitionHeader(
-              match: match,
-              readingCount: readingCount,
-              liveState: liveState,
-            )
-          : _StoryMatchTimeHeader(
-              match: match,
-              readingCount: readingCount,
-              liveState: liveState,
+    final contributions = liveState?.radarSnapshot == null
+        ? const <LectorRadarContribution>[]
+        : footballRadarContributions(
+            liveState!.radarSnapshot!,
+            liveState!.events,
+            liveState!.eventsCapturedAt,
+          );
+    final contextPanel = liveState?.radarSnapshot != null
+        ? LectorRecordedRadarPanel(
+            snapshot: liveState!.radarSnapshot!,
+            contributions: contributions,
+            isLive: liveState!.isLive,
+          )
+        : visibleRadarEntries.isEmpty
+        ? null
+        : FormRadarSignalPanel(
+            entries: visibleRadarEntries,
+            isLocalPreview: usesLocalRadarPreview,
+          );
+    final summary = liveState == null || !showReadings
+        ? null
+        : LiveReadingSummary(
+            match: match,
+            onOpenMatch: onTap,
+            state: liveState!,
+            hasReadings: readings.isNotEmpty,
+            entries: liveState!.visibleReadings(
+              {
+                ...readings.map((r) => r.id),
+                ...analyzedMatch.signals
+                    .where((s) => s.id.startsWith('standout_decisive_player'))
+                    .map((_) => 'standout_decisive_player'),
+              },
+              scenarioIds: analyzedMatch.signals
+                  .where((s) => s.id.startsWith('scenario:'))
+                  .map((s) => s.id.substring(9))
+                  .toSet(),
             ),
-      teams: _StoryTeams(match: match),
-      insights: _StoryInsights(
-        scenarios: scenarios,
-        readings: readings,
-        fallbackSummary: showReadings ? _storySummary(analyzedMatch) : '',
+          );
+    return LectorCompactMatchCard(
+      data: compactFootballMatch(
+        match: match,
+        analyzedMatch: analyzedMatch,
+        showReadings: showReadings,
+        liveLabel: liveState?.temporal.compactLabel,
+        competitionFormScope:
+            match.competition.isContinentalTournament ||
+                !(match.fixture.round?.startsWith('Regular Season') ?? false)
+            ? MatchFormScope.competition
+            : MatchFormScope.championship,
       ),
-      liveStatus: liveState?.isLive == true
+      preparationAction: ShortlistAddButton(fixture: shortlistFootball(match)),
+      onOpen: onTap,
+      statusWidget: liveState?.isLive == true
+          ? LectorLiveBadge(state: liveState!.temporal)
+          : null,
+      liveFooter: liveState == null
           ? null
-          : liveState == null
-          ? null
-          : LiveMatchStatus(state: liveState!),
-      liveSummary: liveState == null || !showReadings
-          ? null
-          : LiveReadingSummary(
-              match: match,
-              onOpenMatch: onTap,
-              state: liveState!,
-              hasReadings: readings.isNotEmpty,
-              entries: liveState!.visibleReadings(
-                {
-                  ...readings.map((r) => r.id),
-                  ...analyzedMatch.signals
-                      .where((s) => s.id.startsWith('standout_decisive_player'))
-                      .map((_) => 'standout_decisive_player'),
-                },
-                scenarioIds: analyzedMatch.signals
-                    .where((s) => s.id.startsWith('scenario:'))
-                    .map((s) => s.id.substring(9))
-                    .toSet(),
-              ),
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                LiveMatchStatus(
+                  state: liveState!,
+                  showBadge: false,
+                  showStatus: false,
+                ),
+                ?summary,
+              ],
             ),
-      contextPanel: liveState?.radarSnapshot != null
-          ? LectorRecordedRadarPanel(
-              snapshot: liveState!.radarSnapshot!,
-              contributions: footballRadarContributions(
-                liveState!.radarSnapshot!,
-                liveState!.events,
-                liveState!.eventsCapturedAt,
-              ),
-              isLive: liveState!.isLive,
-            )
-          : visibleRadarEntries.isEmpty
+      supplement: contextPanel == null && scenarios.isEmpty && readings.isEmpty
           ? null
-          : FormRadarSignalPanel(
-              entries: visibleRadarEntries,
-              isLocalPreview: usesLocalRadarPreview,
+          : LectorMatchSupplement(
+              identity: match.id,
+              decisiveCount: contributions
+                  .map((c) => c.playerId)
+                  .toSet()
+                  .length,
+              isLive: liveState?.isLive == true,
+              label: contextPanel != null
+                  ? 'Signaux Form Radar'
+                  : 'Lectures et suivi',
+              children: [
+                if (scenarios.isNotEmpty || readings.isNotEmpty)
+                  _StoryInsights(
+                    scenarios: scenarios,
+                    readings: readings,
+                    fallbackSummary: showReadings
+                        ? _storySummary(analyzedMatch)
+                        : '',
+                  ),
+                ?contextPanel,
+              ],
             ),
     );
   }
@@ -209,157 +221,6 @@ List<PlayerFormRadarEntry> _formRadarEntriesForMatch(MatchBoardItem match) {
             entry.profile.teamId == match.awayTeam.apiFootballTeamId,
       )
       .toList(growable: false);
-}
-
-class _StoryCompetitionHeader extends StatelessWidget {
-  const _StoryCompetitionHeader({
-    required this.match,
-    required this.readingCount,
-    this.liveState,
-  });
-
-  final MatchBoardItem match;
-  final int readingCount;
-  final LiveMatchState? liveState;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final countryFlag = Semantics(
-      label: 'Pays : ${match.competition.country.name}',
-      image: true,
-      child: SportsAssetBadge(
-        key: ValueKey('story-country-flag-${match.id}'),
-        size: 20,
-        imageUrl: match.competition.country.flagUrl,
-        fallbackLabel: match.competition.country.code,
-        borderRadius: 3,
-        padding: 0,
-      ),
-    );
-    final logo = SportsAssetBadge(
-      size: 24,
-      imageUrl: match.competition.logoUrl,
-      fallbackLabel: match.competition.name,
-      contrastPlate: true,
-    );
-    final competitionName = Text(
-      match.competition.name,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: theme.textTheme.labelLarge?.copyWith(
-        color: context.textColors.primary,
-        fontWeight: FontWeight.w900,
-      ),
-    );
-    final kickoff = match.fixture.status == FixtureStatus.live
-        ? LectorLiveBadge(
-            state:
-                liveState?.temporal ??
-                const LectorTemporalState(phase: LectorMatchPhase.live),
-          )
-        : Text(
-            matchFixtureTime(match.fixture),
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: context.textColors.secondary,
-              fontWeight: FontWeight.w700,
-            ),
-          );
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < 480) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  countryFlag,
-                  const SizedBox(width: 6),
-                  logo,
-                  const SizedBox(width: 8),
-                  Expanded(child: competitionName),
-                ],
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: 58, top: 2),
-                child: Wrap(
-                  spacing: 12,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    kickoff,
-                    if (readingCount > 0)
-                      _StoryRelevanceLabel(readingCount: readingCount),
-                  ],
-                ),
-              ),
-            ],
-          );
-        }
-
-        return Row(
-          children: [
-            countryFlag,
-            const SizedBox(width: 6),
-            logo,
-            const SizedBox(width: 8),
-            Flexible(child: competitionName),
-            const SizedBox(width: 7),
-            Text(
-              '·',
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: context.textColors.secondary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(width: 7),
-            kickoff,
-            const Spacer(),
-            if (readingCount > 0) ...[
-              const SizedBox(width: 10),
-              _StoryRelevanceLabel(readingCount: readingCount),
-            ],
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _StoryMatchTimeHeader extends StatelessWidget {
-  const _StoryMatchTimeHeader({
-    required this.match,
-    required this.readingCount,
-    this.liveState,
-  });
-
-  final MatchBoardItem match;
-  final int readingCount;
-  final LiveMatchState? liveState;
-
-  @override
-  Widget build(BuildContext context) {
-    if (match.fixture.status == FixtureStatus.live) {
-      return Row(
-        children: [
-          LectorLiveBadge(
-            state:
-                liveState?.temporal ??
-                const LectorTemporalState(phase: LectorMatchPhase.live),
-          ),
-          const Spacer(),
-          if (readingCount > 0)
-            _StoryRelevanceLabel(readingCount: readingCount),
-        ],
-      );
-    }
-    return LectorMatchTimeHeader(
-      timeLabel: matchFixtureTime(match.fixture),
-      trailing: readingCount > 0
-          ? _StoryRelevanceLabel(readingCount: readingCount)
-          : null,
-    );
-  }
 }
 
 class _StoryInsights extends StatelessWidget {
@@ -468,36 +329,6 @@ class _StoryScenarioPanel extends StatelessWidget {
   }
 }
 
-class _StoryRelevanceLabel extends StatelessWidget {
-  const _StoryRelevanceLabel({required this.readingCount});
-
-  final int readingCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final label = readingCount == 1 ? '1 lecture' : '$readingCount lectures';
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.bar_chart_rounded, color: context.brand.accent, size: 16),
-        const SizedBox(width: 5),
-        Flexible(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: context.textColors.primary,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _StoryReadingTags extends StatelessWidget {
   const _StoryReadingTags({required this.tags});
 
@@ -530,6 +361,9 @@ class _StoryReadingTags extends StatelessWidget {
 /// Reuses the incumbent presentation selection without recomputing readings.
 List<MatchCardReading> publishedMatchCardReadings(MatchBoardItem match) =>
     _representativeReadingTags(match);
+
+List<MatchCardScenario> publishedMatchCardScenarios(MatchBoardItem match) =>
+    _representativeScenarios(match);
 
 int publishedMatchCardReadingCount(MatchBoardItem match) =>
     _storyReadingCount(match, _representativeReadingTags(match));
@@ -644,123 +478,6 @@ String _storySummary(MatchBoardItem match) {
     }
   }
   return '';
-}
-
-class _StoryTeams extends StatelessWidget {
-  const _StoryTeams({required this.match});
-
-  final MatchBoardItem match;
-
-  @override
-  Widget build(BuildContext context) {
-    final resultOdds = matchResultOddsFor(match);
-    return LectorMatchTeams(
-      first: _StoryTeamLine(
-        team: match.homeTeam,
-        score: match.fixture.score?.home,
-        isLive: match.fixture.status == FixtureStatus.live,
-      ),
-      second: _StoryTeamLine(
-        team: match.awayTeam,
-        score: match.fixture.score?.away,
-        isLive: match.fixture.status == FixtureStatus.live,
-      ),
-      odds:
-          match.fixture.status == FixtureStatus.scheduled &&
-              resultOdds.length == 3
-          ? _StoryMatchResultOdds(matchId: match.id, resultOdds: resultOdds)
-          : null,
-    );
-  }
-}
-
-class _StoryTeamLine extends StatelessWidget {
-  const _StoryTeamLine({required this.team, this.score, this.isLive = false});
-  final bool isLive;
-  final int? score;
-
-  final TeamInfo team;
-
-  @override
-  Widget build(BuildContext context) {
-    return LectorTeamLine(
-      name: team.name,
-      logoUrl: team.logoUrl,
-      score: score,
-      isLive: isLive,
-    );
-  }
-}
-
-class _StoryMatchResultOdds extends StatelessWidget {
-  const _StoryMatchResultOdds({
-    required this.matchId,
-    required this.resultOdds,
-  });
-
-  final String matchId;
-  final List<MatchResultOdd> resultOdds;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: 'Cotes 1 N 2',
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            key: ValueKey('story-match-result-odds-$matchId'),
-            width: 47,
-            height: 66,
-            child: Column(
-              children: [
-                _StoryResultOddLine(odd: resultOdds[0]),
-                const SizedBox(height: 10),
-                _StoryResultOddLine(odd: resultOdds[1]),
-                const SizedBox(height: 10),
-                _StoryResultOddLine(odd: resultOdds[2]),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StoryResultOddLine extends StatelessWidget {
-  const _StoryResultOddLine({required this.odd});
-
-  final MatchResultOdd odd;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SizedBox(
-      height: (66 - 20) / 3,
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: RichText(
-          text: TextSpan(
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: context.textColors.secondary,
-              fontWeight: FontWeight.w800,
-            ),
-            children: [
-              TextSpan(text: '${odd.label} '),
-              TextSpan(
-                text: odd.value.odds.toStringAsFixed(2),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: context.textColors.primary,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 String matchReadingLabelForId(String id, {required String fallback}) {

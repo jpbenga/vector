@@ -178,16 +178,20 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('League 35'));
       await tester.pumpAndSettle();
-      expect(find.text('60 min'), findsNothing);
+      expect(find.text('Cotes indisponibles'), findsOneWidget);
+      expect(find.text('2.13'), findsNothing);
       feed.send(
         fixture(priced: true),
         date: at.toLocal().subtract(const Duration(days: 1)),
       );
       await tester.pump();
-      expect(find.text('60 min'), findsNothing);
+      expect(find.text('Cotes indisponibles'), findsOneWidget);
+      expect(find.text('2.13'), findsNothing);
       feed.send(fixture(priced: true), date: at.toLocal());
       await tester.pumpAndSettle();
       expect(find.text('60 min'), findsOneWidget);
+      expect(find.text('2.13'), findsOneWidget);
+      expect(find.text('Cotes indisponibles'), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       await feed.controller.close();

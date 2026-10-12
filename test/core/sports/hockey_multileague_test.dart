@@ -11,7 +11,7 @@ import 'package:copilot/core/sports/domain/sport_feed_repository.dart';
 import 'package:copilot/core/sports/domain/sport_fixture.dart';
 import 'package:copilot/core/sports/domain/sport_competition_context.dart';
 import 'package:copilot/core/widgets/lector_calendar.dart';
-import 'package:copilot/core/widgets/lector_match_card.dart';
+import 'package:copilot/core/widgets/lector_compact_match_card.dart';
 import 'package:copilot/core/widgets/lector_workspace_header.dart';
 import 'package:copilot/core/widgets/lector_workspace_navigation.dart';
 import 'package:copilot/features/hockey/domain/hockey_tier_preview.dart';
@@ -237,13 +237,13 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('AHL'));
       await tester.pumpAndSettle();
-      expect(find.byType(LectorMatchCard), findsOneWidget);
+      expect(find.byType(LectorCompactMatchCard), findsOneWidget);
       final calendar = tester.widget<CopilotCalendar>(
         find.byType(CopilotCalendar),
       );
       calendar.onDateSelected(DateTime(2026, 10, 2));
       await tester.pumpAndSettle();
-      expect(find.byType(LectorMatchCard), findsNothing);
+      expect(find.byType(LectorCompactMatchCard), findsNothing);
       expect(
         find.text('Aucune rencontre hockey programmée pour ce jour.'),
         findsOneWidget,
@@ -278,12 +278,12 @@ void main() {
         expect(find.byType(LectorWorkspaceNavigation), findsOneWidget);
         // A public feed must never silently become the user's opportunity feed.
         expect(find.byType(SportFixtureCard), findsNothing);
-        expect(find.byType(LectorMatchCard), findsNothing);
+        expect(find.byType(LectorCompactMatchCard), findsNothing);
         expect(find.text('Personnalisez votre Lector'), findsOneWidget);
         await tester.tap(find.text('Tous'));
         await tester.pumpAndSettle();
         expect(find.byType(LectorCompetitionGroup), findsWidgets);
-        expect(find.byType(LectorMatchCard), findsNothing);
+        expect(find.byType(LectorCompactMatchCard), findsNothing);
         final country = find.byKey(const ValueKey('hockey-country-États-Unis'));
         await tester.ensureVisible(country);
         await tester.tap(
@@ -296,7 +296,7 @@ void main() {
           find.descendant(of: league, matching: find.text('NHL')),
         );
         await tester.pumpAndSettle();
-        expect(find.byType(LectorMatchCard), findsOneWidget);
+        expect(find.byType(LectorCompactMatchCard), findsOneWidget);
         final badge = tester.widget<SportsAssetBadge>(
           find
               .descendant(of: league, matching: find.byType(SportsAssetBadge))
@@ -307,7 +307,7 @@ void main() {
         await tester.tap(find.text('Pour moi'));
         await tester.pumpAndSettle();
         expect(find.byType(SportFixtureCard), findsNothing);
-        expect(find.byType(LectorMatchCard), findsNothing);
+        expect(find.byType(LectorCompactMatchCard), findsNothing);
         expect(
           tester.getSize(find.byType(LectorWorkspaceNavigation)).width,
           lessThanOrEqualTo(520),

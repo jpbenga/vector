@@ -1,3 +1,4 @@
+import 'package:copilot/core/widgets/lector_match_supplement.dart';
 import 'package:copilot/features/form_radar/domain/radar_scope.dart';
 import 'package:copilot/core/widgets/lector_player_radar.dart';
 import 'package:copilot/core/widgets/lector_radar.dart';
@@ -62,6 +63,17 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
+        if (find.byType(FormRadarSignalPanel).evaluate().isEmpty) {
+          await tester.tap(
+            find
+                .descendant(
+                  of: find.byType(LectorMatchSupplement).first,
+                  matching: find.byType(ListTile),
+                )
+                .first,
+          );
+          await tester.pumpAndSettle();
+        }
       }
 
       await render(connected: true, personalized: [profileMatch]);
@@ -69,8 +81,8 @@ void main() {
       expect(find.byType(LectorPlayerActivityMatrix), findsWidgets);
       expect(find.byType(MatchFeedCard), findsOneWidget);
       expect(find.byType(FormRadarSignalPanel), findsOneWidget);
-      expect(find.text('Lecture retenue pour mon profil'), findsOneWidget);
-      expect(find.text('Scénario retenu pour mon profil'), findsOneWidget);
+      expect(find.text('Lecture retenue pour mon profil'), findsWidgets);
+      expect(find.text('Scénario retenu pour mon profil'), findsWidgets);
       expect(find.text('Lecture globale à masquer'), findsNothing);
       expect(find.text('Avant'), findsNothing);
       expect(

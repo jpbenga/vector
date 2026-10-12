@@ -14,10 +14,11 @@ class LiveMatchStatus extends StatefulWidget {
   const LiveMatchStatus({
     required this.state,
     this.showBadge = true,
+    this.showStatus = true,
     super.key,
   });
   final LiveMatchState state;
-  final bool showBadge;
+  final bool showBadge, showStatus;
   @override
   State<LiveMatchStatus> createState() => _LiveMatchStatusState();
 }
@@ -52,7 +53,7 @@ class _LiveMatchStatusState extends State<LiveMatchStatus> {
         children: [
           if (state.isLive && widget.showBadge)
             LectorLiveBadge(state: state.temporal)
-          else if (!state.isLive)
+          else if (!state.isLive && widget.showStatus)
             Text(
               state.statusLabel,
               style: TextStyle(

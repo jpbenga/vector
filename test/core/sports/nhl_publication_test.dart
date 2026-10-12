@@ -10,7 +10,7 @@ import 'package:copilot/core/sports/domain/sport_feed_repository.dart';
 import 'package:copilot/core/sports/domain/sport_fixture.dart';
 import 'package:copilot/features/hockey/domain/hockey_module.dart';
 import 'package:copilot/features/hockey/presentation/hockey_workspace.dart';
-import 'package:copilot/core/widgets/lector_match_card.dart';
+import 'package:copilot/core/widgets/lector_compact_match_card.dart';
 import 'package:copilot/core/widgets/lector_match_detail_view.dart';
 import 'package:copilot/core/widgets/lector_match_hero_view.dart';
 import 'package:flutter/material.dart';
@@ -127,7 +127,7 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        expect(find.byType(LectorMatchCard), findsNothing);
+        expect(find.byType(LectorCompactMatchCard), findsNothing);
         await tester.tap(find.text('Tous'));
         await tester.pumpAndSettle();
         await tester.ensureVisible(find.text('International'));
@@ -142,7 +142,7 @@ void main() {
           tester.getCenter(find.text('Boston Bruins')).dy,
           lessThan(tester.getCenter(find.text('Winnipeg Jets')).dy),
         );
-        expect(find.byType(LectorMatchCard), findsOneWidget);
+        expect(find.byType(LectorCompactMatchCard), findsOneWidget);
         expect(find.text('4'), findsOneWidget);
         expect(find.text('3'), findsOneWidget);
         expect(find.text('Extérieur'), findsOneWidget);
@@ -216,7 +216,7 @@ void main() {
         await tester.tap(find.byTooltip('Retour'));
         await tester.pumpAndSettle();
         expect(find.byType(LectorMatchDetailView), findsNothing);
-        expect(find.byType(LectorMatchCard), findsOneWidget);
+        expect(find.byType(LectorCompactMatchCard), findsOneWidget);
         expect(tester.takeException(), isNull);
       },
     );

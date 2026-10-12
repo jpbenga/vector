@@ -1,3 +1,4 @@
+import 'widgets/european_evening_briefing.dart';
 import '../../../core/widgets/lector_horizontal_transition.dart';
 import '../../../app/sports/generator_radar_context.dart';
 import '../../../core/widgets/lector_deferred_content.dart';
@@ -1161,6 +1162,13 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
           child: Column(
             children: [
               Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: _ScoresRedesignHeader(
+                  onOpenProfile: widget.onOpenProfile,
+                  onOpenTheme: widget.onOpenTheme,
+                ),
+              ),
+              Padding(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
                 child: _ScoresModeControl(
                   selected: widget.mode,
@@ -1341,9 +1349,7 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                                           _FootballTemporalSelection(
                                             title: widget.isExplorationActive
                                                 ? 'Résultats de votre exploration'
-                                                : _todayStorySectionTitle(
-                                                    widget.selectedDate,
-                                                  ),
+                                                : 'Pour moi',
                                             subtitle:
                                                 '${filteredStoryMatches.length} rencontres · ${filteredStoryMatches.map((m) => m.competition.id).toSet().length} compétitions',
                                             child: LectorTemporalFeed<MatchBoardItem>(
@@ -1383,31 +1389,59 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                                       title: listTitle,
                                       subtitle:
                                           '${visibleMatches.length} rencontres · ${visibleMatches.map((m) => m.competition.id).toSet().length} compétitions',
-                                      child: LectorTemporalFeed<MatchBoardItem>(
-                                        key: ValueKey(
-                                          'all-time-${widget.selectedDate}',
-                                        ),
-                                        items: visibleMatches,
-                                        phaseOf: _phase,
-                                        sectionBuilder:
-                                            (
-                                              context,
-                                              items,
-                                              phase,
-                                            ) => _AllMatchesCountrySection(
-                                              forceExpanded:
-                                                  phase ==
-                                                  LectorMatchPhase.live,
-                                              showHeading: false,
-
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          if (visibleMatches.any(
+                                            (m) =>
+                                                m
+                                                    .competition
+                                                    .apiFootballLeagueId ==
+                                                2,
+                                          )) ...[
+                                            EuropeanEveningBriefing(
+                                              matches: visibleMatches,
+                                              date: widget.selectedDate,
                                               showReadings: widget
                                                   .identityScope
                                                   .isAccount,
-                                              title: listTitle,
-                                              emptySubtitle: listSubtitle,
-                                              groups: _competitionGroups(items),
                                               onOpenMatch: widget.onOpenMatch,
                                             ),
+                                            const SizedBox(
+                                              height: AppSpacing.sm,
+                                            ),
+                                          ],
+                                          LectorTemporalFeed<MatchBoardItem>(
+                                            key: ValueKey(
+                                              'all-time-${widget.selectedDate}',
+                                            ),
+                                            items: visibleMatches,
+                                            phaseOf: _phase,
+                                            sectionBuilder:
+                                                (
+                                                  context,
+                                                  items,
+                                                  phase,
+                                                ) => _AllMatchesCountrySection(
+                                                  forceExpanded:
+                                                      phase ==
+                                                      LectorMatchPhase.live,
+                                                  showHeading: false,
+
+                                                  showReadings: widget
+                                                      .identityScope
+                                                      .isAccount,
+                                                  title: listTitle,
+                                                  emptySubtitle: listSubtitle,
+                                                  groups: _competitionGroups(
+                                                    items,
+                                                  ),
+                                                  onOpenMatch:
+                                                      widget.onOpenMatch,
+                                                ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                             ),
@@ -2014,7 +2048,7 @@ class _ScoresRedesignHeader extends StatelessWidget {
   }
 }
 
-const _homeNavigationControlHeight = 48.0;
+const _homeNavigationControlHeight = 54.0;
 
 class _ScoresModeControl extends StatelessWidget {
   const _ScoresModeControl({required this.selected, required this.onChanged});

@@ -1,3 +1,4 @@
+import 'lector_reading_pill.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../domain/compact_match_data.dart';
@@ -17,6 +18,9 @@ class LectorCompactMatchCard extends StatelessWidget {
     required this.preparationAction,
     this.onReadings,
     this.referenceDate,
+    this.supplement,
+    this.statusWidget,
+    this.liveFooter,
     super.key,
   });
   final CompactMatchData data;
@@ -24,15 +28,18 @@ class LectorCompactMatchCard extends StatelessWidget {
   final VoidCallback? onReadings;
   final Widget preparationAction;
   final DateTime? referenceDate;
+  final Widget? supplement, statusWidget, liveFooter;
 
-  String get _status => switch (data.phase) {
-    CompactMatchPhase.upcoming => 'À venir',
-    CompactMatchPhase.live => data.liveLabel ?? 'En direct',
-    CompactMatchPhase.finished => 'Terminé',
-    CompactMatchPhase.postponed => 'Reporté',
-    CompactMatchPhase.cancelled => 'Annulé',
-    CompactMatchPhase.unknown => 'À confirmer',
-  };
+  String get _status =>
+      data.statusLabel ??
+      switch (data.phase) {
+        CompactMatchPhase.upcoming => 'À venir',
+        CompactMatchPhase.live => data.liveLabel ?? 'En direct',
+        CompactMatchPhase.finished => 'Terminé',
+        CompactMatchPhase.postponed => 'Reporté',
+        CompactMatchPhase.cancelled => 'Annulé',
+        CompactMatchPhase.unknown => 'À confirmer',
+      };
   String get _roundLabel {
     final round = data.round ?? '';
     final regular = RegExp(r'^Regular Season - (\d+)$').firstMatch(round);
@@ -128,10 +135,21 @@ class LectorCompactMatchCard extends StatelessWidget {
                               child: _timeOrScore(context, enlarged),
                             ),
                             const SizedBox(width: AppSpacing.xxs),
-                            Icon(
-                              Icons.chevron_right_rounded,
-                              size: 23,
-                              color: context.textColors.secondary,
+                            IconButton(
+                              tooltip: data.phase == CompactMatchPhase.live
+                                  ? 'Suivre le match'
+                                  : 'Voir l’analyse',
+                              onPressed: onOpen,
+                              constraints: const BoxConstraints(
+                                minWidth: 44,
+                                minHeight: 44,
+                              ),
+                              padding: EdgeInsets.zero,
+                              icon: Icon(
+                                Icons.chevron_right_rounded,
+                                size: 23,
+                                color: context.textColors.secondary,
+                              ),
                             ),
                           ],
                         ),
@@ -168,6 +186,11 @@ class LectorCompactMatchCard extends StatelessWidget {
                             ],
                           ],
                         ),
+                      ?liveFooter,
+                      if (supplement != null) ...[
+                        const SizedBox(height: AppSpacing.xxs),
+                        supplement!,
+                      ],
                     ],
                   );
                 },
@@ -292,28 +315,29 @@ class LectorCompactMatchCard extends StatelessWidget {
           ),
         ),
         const SizedBox(width: AppSpacing.xxs),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-          decoration: BoxDecoration(
-            color: palette.background.withValues(alpha: .7),
-            borderRadius: BorderRadius.circular(AppRadius.chip),
-            border: Border.all(
-              color: data.phase == CompactMatchPhase.live
-                  ? context.semantic.live.withValues(alpha: .55)
-                  : palette.statusBorder,
+        statusWidget ??
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+              decoration: BoxDecoration(
+                color: palette.background.withValues(alpha: .7),
+                borderRadius: BorderRadius.circular(AppRadius.chip),
+                border: Border.all(
+                  color: data.phase == CompactMatchPhase.live
+                      ? context.semantic.live.withValues(alpha: .55)
+                      : palette.statusBorder,
+                ),
+              ),
+              child: Text(
+                _status,
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w500,
+                  color: data.phase == CompactMatchPhase.live
+                      ? context.semantic.live
+                      : palette.statusText,
+                ),
+              ),
             ),
-          ),
-          child: Text(
-            _status,
-            style: TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w500,
-              color: data.phase == CompactMatchPhase.live
-                  ? context.semantic.live
-                  : palette.statusText,
-            ),
-          ),
-        ),
       ],
     ),
   );
@@ -321,7 +345,7 @@ class LectorCompactMatchCard extends StatelessWidget {
   Widget _teams(BuildContext context, bool enlarged) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      _team(context, data.home, enlarged),
+      _team(context, data.reverseTeams ? data.away : data.home, enlarged),
       Padding(
         padding: const EdgeInsets.only(left: 38),
         child: Text(
@@ -333,7 +357,7 @@ class LectorCompactMatchCard extends StatelessWidget {
           ),
         ),
       ),
-      _team(context, data.away, enlarged),
+      _team(context, data.reverseTeams ? data.home : data.away, enlarged),
     ],
   );
 
@@ -367,6 +391,14 @@ class LectorCompactMatchCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (team.venueLabel != null)
+                  Text(
+                    team.venueLabel!,
+                    style: TextStyle(
+                      fontSize: 8,
+                      color: context.textColors.secondary,
+                    ),
+                  ),
                 if (team.domesticCompetition?.isNotEmpty == true)
                   Text(
                     team.domesticCompetition!,
@@ -411,6 +443,11 @@ class LectorCompactMatchCard extends StatelessWidget {
         children: [
           if (scored)
             Container(
+              key: ValueKey(
+                data.phase == CompactMatchPhase.live
+                    ? 'match-score-live'
+                    : 'match-score-final',
+              ),
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
               decoration: data.phase == CompactMatchPhase.live
                   ? BoxDecoration(
@@ -418,12 +455,27 @@ class LectorCompactMatchCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(AppRadius.tight),
                     )
                   : null,
-              child: Text(
-                '${data.homeScore ?? '—'} – ${data.awayScore ?? '—'}',
+              child: DefaultTextStyle.merge(
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                   fontFeatures: [FontFeature.tabularFigures()],
+                ),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${(data.reverseTeams ? data.awayScore : data.homeScore) ?? '—'}',
+                      ),
+                      const Text(' – '),
+                      Text(
+                        '${(data.reverseTeams ? data.homeScore : data.awayScore) ?? '—'}',
+                      ),
+                    ],
+                  ),
                 ),
               ),
             )
@@ -458,7 +510,9 @@ class LectorCompactMatchCard extends StatelessWidget {
   }
 
   Widget _readings(BuildContext context, bool enlarged, {bool narrow = false}) {
-    if (data.readingCount == null && data.readings.isEmpty) {
+    if (data.readingCount == null &&
+        data.readings.isEmpty &&
+        data.signals.isEmpty) {
       return const SizedBox.shrink();
     }
     final chips = <Widget>[
@@ -472,7 +526,10 @@ class LectorCompactMatchCard extends StatelessWidget {
           fill: context.semantic.info.withValues(alpha: .10),
           border: Colors.transparent,
         ),
-      for (final reading in data.readings.take(narrow && !enlarged ? 1 : 2))
+      for (final reading in [
+        ...data.signals,
+        ...data.readings,
+      ].take(narrow && !enlarged ? 1 : 2))
         _reading(context, reading),
     ];
     return InkWell(
@@ -499,23 +556,31 @@ class LectorCompactMatchCard extends StatelessWidget {
   }
 
   Widget _reading(BuildContext context, CompactMatchReading reading) {
-    final style = context.opportunities.badgeFor(
-      reading.id,
-      variant: AppReadingBadgeVariant.soft,
-    );
+    final scenario = reading.id.startsWith('scenario:');
+    final style = scenario
+        ? AppReadingBadgeStyle(
+            foreground: context.features.generatorAccent,
+            background: context.features.generatorFill,
+            border: context.features.generatorAccent.withValues(alpha: .35),
+            iconColor: context.features.generatorAccent,
+          )
+        : context.opportunities.badgeFor(
+            reading.id,
+            variant: AppReadingBadgeVariant.soft,
+          );
     return Tooltip(
       message: reading.label,
-      child: _pill(
-        context,
+      child: LectorReadingPill(
+        compact: true,
         label: switch (reading.id) {
           'declining_form' => 'Baisse',
           'form_advantage' || 'recent_form_advantage' => 'Forme +',
           _ => reading.label,
         },
-        icon: context.opportunities.readingIdentityForId(reading.id).icon,
-        foreground: style.foreground,
-        fill: style.background,
-        border: style.border,
+        icon: scenario
+            ? Icons.auto_awesome_rounded
+            : context.opportunities.readingIdentityForId(reading.id).icon,
+        style: style,
       ),
     );
   }
@@ -566,11 +631,21 @@ class LectorCompactMatchCard extends StatelessWidget {
         ? 'Cotes indisponibles'
         : 'Cotes 1N2';
     return Tooltip(
+      key: ValueKey('story-match-result-odds-${data.id}'),
       message:
           '$availability · ${data.quotesUpdatedAt == null ? 'Horodatage non renseigné' : '${data.bookmaker ?? 'Cotes relevées'} · ${DateFormat('dd/MM HH:mm').format(data.quotesUpdatedAt!.toLocal())}'}',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (data.quoteScopeLabel != null)
+            Text(
+              data.quoteScopeLabel!,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 8,
+                color: context.textColors.secondary,
+              ),
+            ),
           if (!complete || stale) ...[
             Text(
               availability,

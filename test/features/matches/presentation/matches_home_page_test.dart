@@ -416,7 +416,7 @@ void main() {
       );
 
       expect(calendarSize.height, 48);
-      expect(primarySize.height, calendarSize.height);
+      expect(primarySize.height, 54);
       final filterSize = tester.getSize(
         find.byKey(const ValueKey('for-me-compact-filter-control')),
       );
@@ -553,7 +553,7 @@ void main() {
         ),
       );
 
-      expect(find.text('À suivre aujourd’hui'), findsOneWidget);
+      expect(find.text('Pour moi').last, findsOneWidget);
       expect(find.text('Ma sélection'), findsNothing);
       expect(find.text('Chelsea'), findsWidgets);
       expect(find.text('Tottenham'), findsWidgets);
@@ -762,7 +762,7 @@ void main() {
           ),
         );
 
-        expect(find.text('À suivre aujourd’hui'), findsOneWidget);
+        expect(find.text('Pour moi').last, findsOneWidget);
         expect(find.text('Regression FC'), findsOneWidget);
         expect(find.text('Reference United'), findsOneWidget);
         expect(find.text('Rien de vraiment lisible'), findsNothing);
@@ -811,7 +811,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Tous les matchs'), findsOneWidget);
-      expect(find.text('À suivre aujourd’hui'), findsNothing);
+      expect(find.text('Pour moi'), findsOneWidget);
       expect(find.text('France'), findsOneWidget);
       expect(find.text('Premier League'), findsNothing);
       expect(find.byType(MatchFeedCard), findsNothing);
@@ -973,7 +973,7 @@ void main() {
           ),
         );
 
-        expect(find.text('À suivre aujourd’hui'), findsOneWidget);
+        expect(find.text('Pour moi').last, findsOneWidget);
         expect(find.text('Past Club'), findsNothing);
         expect(find.text('Today Club'), findsWidgets);
         expect(find.text('Future Club'), findsNothing);

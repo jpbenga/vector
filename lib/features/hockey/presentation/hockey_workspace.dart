@@ -1,3 +1,4 @@
+import 'compact_hockey_match_adapter.dart';
 import 'dart:async';
 import 'hockey_quote_presentation.dart';
 import '../../../core/widgets/lector_horizontal_transition.dart';
@@ -413,6 +414,18 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
           child: Column(
             children: [
               Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: LectorWorkspaceHeader(
+                  identity: auth == null
+                      ? identity()
+                      : ListenableBuilder(
+                          listenable: auth,
+                          builder: (context, _) => identity(),
+                        ),
+                  onOpenSettings: _openSpace,
+                ),
+              ),
+              Padding(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
                 child: LectorWorkspaceNavigation(
                   selected: _section,
@@ -503,6 +516,8 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
                           ? 'Radar · Hockey'
                           : _section == LectorWorkspaceSection.all
                           ? 'Tous les matchs'
+                          : _section == LectorWorkspaceSection.forMe
+                          ? 'Pour moi'
                           : 'Hockey',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
@@ -761,7 +776,30 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
         : _readings.selected(fixture, snapshot, _preferences);
     String subject(SportReadingAssessment r) =>
         r.subject == fixture.home.id ? fixture.home.name : fixture.away.name;
+    final competition = _competitions
+        .where((c) => c.id == fixture.competition)
+        .firstOrNull;
+    final playerEntries = _players(before: fixture.startsAt)
+        .where(
+          (e) =>
+              e.profile.competition == fixture.competition &&
+              (e.profile.team.id == fixture.home.id ||
+                  e.profile.team.id == fixture.away.id),
+        )
+        .toList();
     return SportFixtureCard(
+      compactData: compactHockeyMatch(
+        fixture: current,
+        competition: competition,
+        readings: assessments,
+      ),
+      decisiveCount: current.radarSnapshot == null
+          ? 0
+          : hockeyRadarContributions(
+              current.radarSnapshot!,
+              current.matchEvents,
+              current.matchEventsCapturedAt,
+            ).map((c) => c.playerId).toSet().length,
       fixture: current,
       odds: current.status == SportFixtureStatus.scheduled
           ? HockeyCardOdds(fixture: current)
@@ -784,7 +822,7 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
         'AP' || 'APEN' => 'Terminé · Tirs au but',
         _ => null,
       },
-      contextPanel: current.radarSnapshot != null
+      contextPanel: current.radarSnapshot?.players.isNotEmpty == true
           ? LectorRecordedRadarPanel(
               snapshot: current.radarSnapshot!,
               contributions: hockeyRadarContributions(
@@ -794,16 +832,9 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
               ),
               isLive: current.temporal.isLive,
             )
-          : HockeyPlayerSignalPanel(
-              entries: _players(before: fixture.startsAt)
-                  .where(
-                    (e) =>
-                        e.profile.competition == fixture.competition &&
-                        (e.profile.team.id == fixture.home.id ||
-                            e.profile.team.id == fixture.away.id),
-                  )
-                  .toList(),
-            ),
+          : playerEntries.isEmpty
+          ? null
+          : HockeyPlayerSignalPanel(entries: playerEntries),
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (_) => LectorDeferredContent<SportFeedResult>(

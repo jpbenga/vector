@@ -1,3 +1,6 @@
+import '../../domain/compact_match_data.dart';
+import '../../widgets/lector_compact_match_card.dart';
+import '../../widgets/lector_match_supplement.dart';
 import '../../../features/shortlist/presentation/shortlist_actions.dart';
 import '../../widgets/lector_live_badge.dart';
 import 'package:flutter/material.dart';
@@ -19,6 +22,8 @@ class SportFixtureCard extends StatelessWidget {
     this.insights,
     this.readingCount,
     this.odds,
+    this.compactData,
+    this.decisiveCount = 0,
     super.key,
   });
   final SportFixture fixture;
@@ -29,8 +34,37 @@ class SportFixtureCard extends StatelessWidget {
   final Widget? insights;
   final int? readingCount;
   final Widget? odds;
+  final CompactMatchData? compactData;
+  final int decisiveCount;
   @override
   Widget build(BuildContext context) {
+    if (compactData != null) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: LectorCompactMatchCard(
+          key: ValueKey('sport-fixture-${fixture.id.key}'),
+          data: compactData!,
+          onOpen: onTap,
+          statusWidget: fixture.temporal.isLive
+              ? LectorLiveBadge(state: fixture.temporal)
+              : null,
+          preparationAction: ShortlistAddButton(
+            fixture: shortlistSport(fixture),
+          ),
+          supplement: contextPanel == null && insights == null
+              ? null
+              : LectorMatchSupplement(
+                  identity: fixture.id.key,
+                  decisiveCount: decisiveCount,
+                  isLive: fixture.temporal.isLive,
+                  label: contextPanel != null
+                      ? 'Signaux Form Radar'
+                      : 'Lectures du match',
+                  children: [?insights, ?contextPanel],
+                ),
+        ),
+      );
+    }
     final (first, second) = fixture.displayedParticipants(order);
     final score =
         fixture.scoreFor(SportScoreScope.finalResult) ??

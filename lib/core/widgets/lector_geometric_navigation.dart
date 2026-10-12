@@ -82,9 +82,10 @@ class _Tab extends StatelessWidget {
       label: label,
       excludeSemantics: true,
       child: InkWell(
-        key: ValueKey('geometric-tab-${section.name}'),
+        key: ValueKey('workspace-tab-${section.name}'),
         onTap: onPressed,
         child: CustomPaint(
+          key: selected ? ValueKey('workspace-selected-${section.name}') : null,
           painter: _AnglePainter(
             fill,
             selected ? accent : context.surfaces.border,

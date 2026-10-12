@@ -134,6 +134,14 @@ CompactMatchData compactFootballMatch({
     homeScore: match.fixture.score?.home,
     awayScore: match.fixture.score?.away,
     liveLabel: liveLabel,
+    signals: showReadings
+        ? [
+            for (final (index, scenario) in publishedMatchCardScenarios(
+              evidence,
+            ).indexed)
+              CompactMatchReading(id: 'scenario:$index', label: scenario.label),
+          ]
+        : const [],
     readings: [
       for (final reading in readings)
         CompactMatchReading(id: reading.id, label: reading.label),

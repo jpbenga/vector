@@ -1,3 +1,5 @@
+import 'package:copilot/core/widgets/lector_compact_match_card.dart';
+import 'package:copilot/features/hockey/presentation/compact_hockey_match_adapter.dart';
 import '../../../fixtures/sports/hockey_readings_fixture.dart';
 import 'package:copilot/core/widgets/lector_match_form_view.dart';
 import 'package:copilot/core/widgets/lector_match_insights.dart';
@@ -17,7 +19,6 @@ import 'package:copilot/core/sports/domain/sport.dart';
 import 'package:copilot/core/sports/domain/sport_fixture.dart';
 import 'package:copilot/core/sports/domain/sport_policy.dart';
 import 'package:copilot/core/sports/presentation/sport_fixture_card.dart';
-import 'package:copilot/core/widgets/lector_match_card.dart';
 import 'package:copilot/core/widgets/lector_match_detail_view.dart';
 import 'package:copilot/core/widgets/lector_match_hero_view.dart';
 import 'package:copilot/features/appearance/data/appearance_preview_fixture.dart';
@@ -219,6 +220,7 @@ void main() {
                     onTap: () => taps++,
                   ),
                   SportFixtureCard(
+                    compactData: compactHockeyMatch(fixture: hockey),
                     fixture: hockey,
                     order: SportParticipantOrder.awayHome,
                     onTap: () => taps++,
@@ -232,8 +234,18 @@ void main() {
       await tester.pumpAndSettle();
       // The old implementation only shared the surrounding frame. Require the
       // full component and its teams/layout/action to prevent that regression.
-      expect(find.byType(LectorMatchCard), findsNWidgets(2));
-      expect(find.byType(LectorMatchTeams), findsNWidgets(2));
+      expect(find.byType(LectorCompactMatchCard), findsNWidgets(2));
+      final cards = tester.widgetList<LectorCompactMatchCard>(
+        find.byType(LectorCompactMatchCard),
+      );
+      expect(cards.map((c) => c.data.home.name).toSet(), {
+        appearancePreviewMatch.homeTeam.name,
+        hockey.home.name,
+      });
+      expect(cards.map((c) => c.data.away.name).toSet(), {
+        appearancePreviewMatch.awayTeam.name,
+        hockey.away.name,
+      });
       for (final action
           in find.byTooltip('Voir l’analyse').evaluate().toList()) {
         final target = find.byWidget(action.widget);

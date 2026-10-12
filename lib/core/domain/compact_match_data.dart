@@ -55,9 +55,10 @@ class CompactMatchTeam {
     required this.form,
     this.logoUrl,
     this.domesticCompetition,
+    this.venueLabel,
   });
   final String id, name;
-  final String? logoUrl, domesticCompetition;
+  final String? logoUrl, domesticCompetition, venueLabel;
   final RecentFormSnapshot form;
 }
 
@@ -88,11 +89,15 @@ class CompactMatchData {
     this.awayScore,
     this.liveLabel,
     this.readings = const [],
+    this.signals = const [],
     this.readingCount,
     this.quotes = const [],
     this.quotesUpdatedAt,
     this.bookmaker,
     this.formBeforeKickoff = true,
+    this.reverseTeams = false,
+    this.quoteScopeLabel,
+    this.statusLabel,
   });
   final String id, competitionName;
   final CompetitionCardIdentity identity;
@@ -101,10 +106,11 @@ class CompactMatchData {
   final CompactMatchPhase phase;
   final DateTime? kickoff, quotesUpdatedAt;
   final int? homeScore, awayScore, readingCount;
-  final List<CompactMatchReading> readings;
+  final List<CompactMatchReading> readings, signals;
   final List<CompactMatchQuote> quotes;
   final CompactQuoteState quoteState;
-  final bool formBeforeKickoff;
+  final bool formBeforeKickoff, reverseTeams;
+  final String? quoteScopeLabel, statusLabel;
   bool get hasCompleteQuotes => const ['1', 'N', '2'].every(
     (outcome) =>
         quotes

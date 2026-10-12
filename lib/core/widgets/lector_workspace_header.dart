@@ -1,3 +1,5 @@
+import 'lector_sport_header_scope.dart';
+import 'lector_compact_workspace_header.dart';
 import '../theme/app_components.dart';
 import '../theme/app_radius.dart';
 import 'package:flutter/material.dart';
@@ -14,27 +16,61 @@ class LectorWorkspaceHeader extends StatelessWidget {
   final Widget identity;
   final VoidCallback onOpenSettings;
   @override
-  Widget build(BuildContext context) => SafeArea(
-    bottom: false,
-    child: SizedBox(
-      height: 56,
-      child: Row(
-        children: [
-          const LectorBrandMark(size: 34),
-          const Spacer(),
-          const LectorThemeToggleButton(),
-          const SizedBox(width: AppSpacing.xs),
-          identity,
-          const SizedBox(width: AppSpacing.xs),
-          IconButton(
-            tooltip: 'Paramètres',
-            onPressed: onOpenSettings,
-            icon: const Icon(Icons.settings_outlined, size: 25),
-          ),
-        ],
+  Widget build(BuildContext context) {
+    final shell = LectorSportHeaderScope.maybeOf(context);
+    if (shell != null) {
+      return LectorCompactWorkspaceHeader(
+        sportSelector: shell.sportSelector,
+        shortlistAction: shell.shortlistAction,
+        identity: identity,
+        onOpenShortlist: () {},
+        onOpenSettings: onOpenSettings,
+        settingsAction: PopupMenuButton<String>(
+          tooltip: 'Paramètres',
+          icon: const Icon(Icons.settings_outlined, size: 22),
+          onSelected: (action) {
+            if (action == 'theme') {
+              appThemeController.toggleBrightness();
+            } else {
+              onOpenSettings();
+            }
+          },
+          itemBuilder: (_) => [
+            const PopupMenuItem(value: 'settings', child: Text('Réglages')),
+            PopupMenuItem(
+              value: 'theme',
+              child: Text(
+                appThemeController.value.isLight
+                    ? 'Passer en thème sombre'
+                    : 'Passer en thème clair',
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return SafeArea(
+      bottom: false,
+      child: SizedBox(
+        height: 56,
+        child: Row(
+          children: [
+            const LectorBrandMark(size: 34),
+            const Spacer(),
+            const LectorThemeToggleButton(),
+            const SizedBox(width: AppSpacing.xs),
+            identity,
+            const SizedBox(width: AppSpacing.xs),
+            IconButton(
+              tooltip: 'Paramètres',
+              onPressed: onOpenSettings,
+              icon: const Icon(Icons.settings_outlined, size: 25),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class LectorThemeToggleButton extends StatelessWidget {

@@ -1,3 +1,4 @@
+import 'package:copilot/core/widgets/lector_workspace_header.dart';
 import 'package:copilot/app/router/app_router.dart';
 import 'package:copilot/app/sports/sport_workspace_registry.dart';
 import 'package:copilot/core/sports/domain/sport.dart';
@@ -26,7 +27,15 @@ void main() {
           SportWorkspaceRegistration(
             definition: entry.definition,
             icon: entry.icon,
-            builder: (_) => Text('Content ${entry.definition.sport.label}'),
+            builder: (_) => Column(
+              children: [
+                LectorWorkspaceHeader(
+                  identity: const SizedBox(),
+                  onOpenSettings: () {},
+                ),
+                Text('Content ${entry.definition.sport.label}'),
+              ],
+            ),
           ),
       ]);
       final router = createAppRouter(
@@ -92,7 +101,15 @@ void main() {
         SportWorkspaceRegistration(
           definition: entry.definition,
           icon: entry.icon,
-          builder: (_) => Text('Content ${entry.definition.sport.label}'),
+          builder: (_) => Column(
+            children: [
+              LectorWorkspaceHeader(
+                identity: const SizedBox(),
+                onOpenSettings: () {},
+              ),
+              Text('Content ${entry.definition.sport.label}'),
+            ],
+          ),
         ),
       for (var i = 1; i <= 10; i++)
         SportWorkspaceRegistration(

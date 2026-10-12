@@ -8,11 +8,13 @@ class LectorReadingPill extends StatelessWidget {
     required this.label,
     required this.style,
     required this.icon,
+    this.compact = false,
     super.key,
   });
   final String label;
   final AppReadingBadgeStyle style;
   final IconData icon;
+  final bool compact;
   @override
   Widget build(BuildContext context) => DecoratedBox(
     decoration: BoxDecoration(
@@ -21,12 +23,15 @@ class LectorReadingPill extends StatelessWidget {
       border: Border.all(color: style.border),
     ),
     child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 6 : 8,
+        vertical: compact ? 5 : 4,
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 15, color: style.iconColor),
-          const SizedBox(width: 5),
+          Icon(icon, size: compact ? 12 : 15, color: style.iconColor),
+          SizedBox(width: compact ? 3 : 5),
           Flexible(
             child: Text(
               label,
@@ -34,7 +39,8 @@ class LectorReadingPill extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
                 color: style.foreground,
-                fontWeight: FontWeight.w900,
+                fontWeight: compact ? FontWeight.w600 : FontWeight.w900,
+                fontSize: compact ? 9 : null,
               ),
             ),
           ),

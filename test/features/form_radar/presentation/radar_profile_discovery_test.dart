@@ -1,7 +1,7 @@
+import 'package:copilot/core/widgets/lector_match_supplement.dart';
 import 'package:copilot/features/form_radar/domain/radar_scope.dart';
 import 'package:copilot/core/identity/identity_scope.dart';
 import 'package:copilot/core/theme/app_theme.dart';
-import 'package:copilot/features/form_radar/presentation/form_radar_signal_panel.dart';
 import 'package:copilot/features/matches/data/match_feed_repository.dart';
 import 'package:copilot/features/matches/presentation/match_detail_page.dart';
 import 'package:copilot/features/matches/presentation/matches_home_page.dart';
@@ -27,7 +27,7 @@ void main() {
       await tester.tap(find.text('Radar'));
       await tester.pumpAndSettle();
       _expectAccountReadings(tester);
-      expect(find.byType(FormRadarSignalPanel), findsOneWidget);
+      expect(find.byType(LectorMatchSupplement), findsOneWidget);
 
       await tester.tap(find.text('Équipes'));
       await tester.pumpAndSettle();
@@ -78,7 +78,7 @@ void main() {
       expect(card.readingMatch?.thesis, isNull);
       expect(find.text('Série positive'), findsNothing);
       expect(find.text('Forme'), findsNothing);
-      expect(find.byType(FormRadarSignalPanel), findsOneWidget);
+      expect(find.byType(LectorMatchSupplement), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
@@ -104,7 +104,7 @@ void main() {
     expect(card.readingMatch, isNull);
     expect(find.text('Série positive'), findsNothing);
     expect(find.text('Forme'), findsNothing);
-    expect(find.byType(FormRadarSignalPanel), findsOneWidget);
+    expect(find.byType(LectorMatchSupplement), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
