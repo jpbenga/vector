@@ -95,3 +95,11 @@ Les badges réutilisent les identités de lecture existantes. « Baisse » et «
 La forme reste celle des snapshots archivés, du plus ancien au plus récent. Le paramètre visuel `cellScale` du composant Radar conserve sa valeur par défaut à 1 dans les écrans existants. La correction n’introduit aucune règle d’analyse, de classement ou de pari.
 
 La prévisualisation reste un jalon isolé, avant intégration aux écrans réels et publication sur la démo.
+
+### Validation de la composition corrigée
+
+Cinq tests réussis (quatre contrats et un test de rendu aux six configurations), analyse Flutter sans erreur. Capture navigateur à 390×900 après recompilation des derniers fichiers, avec les vrais logos. Le serveur de prévisualisation est arrêté et la taille du navigateur restaurée après capture.
+
+![Cartes corrigées — capture réelle](/Users/chloe/.codex/visualizations/2026/09/16/01a0aaf1-05e5-7562-8f19-7332ea8701f5/lector-premium-cards-reference-v2-detail.jpg)
+
+[Capture complète](/Users/chloe/.codex/visualizations/2026/09/16/01a0aaf1-05e5-7562-8f19-7332ea8701f5/lector-premium-cards-reference-v2-390.jpg)
