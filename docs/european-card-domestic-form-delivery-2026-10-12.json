@@ -1,0 +1,20 @@
+{
+  "recordedAt": "2026-10-12T17:34:39.910219+00:00",
+  "sourceCommit": "1dfcec4",
+  "ci": "https://github.com/jpbenga/vector/actions/runs/38282536644",
+  "ciStatus": "success",
+  "demo": "https://lector-sports-demo-lector1.vercel.app/sports/football",
+  "preview": "https://lector-sports-rjxmkdo4r-lector1.vercel.app",
+  "deploymentId": "dpl_CNjqBfLDJFZnB5gPVrFhnzz1CE3v",
+  "fixtureVerified": 1635674,
+  "domesticResultsPerClub": {
+    "LASK": 5,
+    "Liverpool": 5
+  },
+  "coveredUniqueTeams": 84,
+  "unresolvedUniqueTeams": 24,
+  "flutterTargetedTests": 40,
+  "deliveryTests": 7,
+  "noModelCalls": true,
+  "noProviderCollection": true
+}

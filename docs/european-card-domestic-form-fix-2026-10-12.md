@@ -26,3 +26,10 @@ La carte utilisait `homeRecentLeagueMatches` et `awayRecentLeagueMatches` de la 
 40 tests Flutter ciblés réussis, dont un contrat extrait des données publiques réelles de LASK–Liverpool ; 7 tests Deno du flux réussis. Les contrôles couvrent la parité carte/fiche, les cinq résultats de Liverpool, l’absence d’un côté, les données partielles, les mauvaises identités, les dates futures, les saisons incorrectes, le dédoublonnage et les largeurs 320/375/390/430/768 px.
 
 Aucun appel IA ou collecte fournisseur lancé pour cette correction. Les observations hockey existantes et leurs dates restent distinctes de ce chantier football ; leur expiration connue n’est pas masquée.
+
+## Livraison vérifiée
+
+- CI complète verte : https://github.com/jpbenga/vector/actions/runs/38282536644 (source `1dfcec4`).
+- Déploiement `dpl_CNjqBfLDJFZnB5gPVrFhnzz1CE3v` prêt, alias démo habituel mis à jour. Le premier refus Vercel « Not authorized » ne s’est pas reproduit après vérification du compte et du projet puis nouvel essai.
+- Carte réelle contrôlée sur le lien public, 14 octobre : LASK **V V D N D**, Liverpool **N V N V D**, cinq cellules pour chaque club et libellé « Forme (championnat) ».
+- Capture : `lask-liverpool-five-domestic-results.png` dans le dossier de visualisations de cette conversation.
