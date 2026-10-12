@@ -1413,11 +1413,9 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                                             CrossAxisAlignment.stretch,
                                         children: [
                                           if (visibleMatches.any(
-                                            (m) =>
-                                                m
-                                                    .competition
-                                                    .apiFootballLeagueId ==
-                                                2,
+                                            (m) => m
+                                                .competition
+                                                .isContinentalTournament,
                                           )) ...[
                                             EuropeanEveningBriefing(
                                               matches: visibleMatches,

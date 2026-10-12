@@ -194,33 +194,9 @@ class EuropeanComparisonSections extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       if (index == 0) ...[
-        _synthesis(context),
-        const SizedBox(height: 10),
-        _form(context, false),
-        const SizedBox(height: 10),
         _domestic(context),
         const SizedBox(height: 10),
         _europe(context, false),
-      ],
-      if (index == 1) ...[
-        _domestic(context),
-        const SizedBox(height: 10),
-        _form(context, false),
-        const SizedBox(height: 10),
-        _europe(context, true),
-      ],
-      if (index == 2) ...[
-        _domestic(context),
-        const SizedBox(height: 10),
-        _Panel(
-          title: 'Classement européen',
-          icon: Icons.leaderboard_outlined,
-          subtitle: 'Position officielle connue avant la confrontation',
-          child: _pair(
-            context,
-            (t) => _standing(context, t, t.europeanStanding),
-          ),
-        ),
       ],
       if (index == 3) ...[
         _form(context, true),
@@ -277,78 +253,10 @@ class EuropeanComparisonSections extends StatelessWidget {
       ],
     ),
   );
-  Widget _synthesis(BuildContext c) => _Panel(
-    title: 'Ce qu’il faut retenir',
-    icon: Icons.track_changes_outlined,
-    child: comparison.notices.isEmpty
-        ? Text(
-            'Le contexte disponible ne permet pas encore de confronter les deux dynamiques. Consultez les parcours et leurs limites.',
-            style: TextStyle(fontSize: 13, color: c.textColors.secondary),
-          )
-        : Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (final n
-                  in (comparison.notices.toList()..sort(
-                        (a, b) =>
-                            const {
-                              'comparison': 0,
-                              'contradiction': 1,
-                              'fact': 2,
-                              'limit': 3,
-                            }[a['kind']]!.compareTo(
-                              const {
-                                'comparison': 0,
-                                'contradiction': 1,
-                                'fact': 2,
-                                'limit': 3,
-                              }[b['kind']]!,
-                            ),
-                      ))
-                      .take(4))
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        switch (n['kind']) {
-                          'comparison' => 'Comparaison contextualisée',
-                          'contradiction' => 'Dynamiques contrastées',
-                          'limit' => 'Échantillon limité',
-                          _ => 'Fait observable',
-                        },
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: n['kind'] == 'limit'
-                              ? c.semantic.warning
-                              : c.semantic.info,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${n['text']}',
-                        style: const TextStyle(fontSize: 13, height: 1.4),
-                      ),
-                      if ((n['fixtureIds'] as List? ?? []).isNotEmpty)
-                        Text(
-                          'Fondé sur ${(n['fixtureIds'] as List).length} rencontres · détails dans Forme',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: c.textColors.secondary,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-  );
   Widget _domestic(BuildContext c) => _Panel(
-    title: 'Situation domestique',
+    title: 'Situation domestique et forme récente',
     icon: Icons.bar_chart_rounded,
-    subtitle: 'Deux championnats, deux contextes · avant le match',
+    subtitle: 'Championnat · jusqu’à 5 matchs avant la rencontre',
     child: _pair(
       c,
       (t) => Column(
@@ -369,6 +277,8 @@ class EuropeanComparisonSections extends StatelessWidget {
             const SizedBox(height: 8),
             _standing(c, t, t.domesticStanding, showTeam: false),
           ],
+          const SizedBox(height: 12),
+          _domesticForm(c, t, false),
         ],
       ),
     ),
@@ -412,8 +322,14 @@ class EuropeanComparisonSections extends StatelessWidget {
       c,
       (t) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        children: [_team(c, t), _domesticForm(c, t, details)],
+      ),
+    ),
+  );
+  Widget _domesticForm(BuildContext c, EuropeanTeamContext t, bool details) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _team(c, t),
           RecentFormStrip(
             snapshot: RecentFormSnapshot(
               teamId: t.team.id,
@@ -440,9 +356,7 @@ class EuropeanComparisonSections extends StatelessWidget {
               details ? 'Résultats de championnat' : 'Voir les résultats',
             ),
         ],
-      ),
-    ),
-  );
+      );
   Widget _europe(BuildContext c, bool details) => _Panel(
     title: 'Parcours européen',
     icon: Icons.sports_soccer_rounded,

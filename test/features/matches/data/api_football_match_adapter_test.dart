@@ -12,6 +12,89 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('ApiFootballMatchAdapter', () {
     test(
+      'keeps full official cup groups separately from the fixture group',
+      () {
+        final snapshot =
+            jsonDecode(
+                  File(
+                    'assets/design_preview/champions.json',
+                  ).readAsStringSync(),
+                )
+                as Map<String, dynamic>;
+        final raw = snapshot['raw'] as Map;
+        final fixture = (raw['fixtures'] as List).single;
+        final home = fixture['teams']['home'], away = fixture['teams']['away'];
+        Map<String, Object?> row(int id, String name, String group, int rank) =>
+            {
+              'team': {'id': id, 'name': name},
+              'group': group,
+              'rank': rank,
+              'points': 6 - rank,
+              'goalsDiff': 1,
+              'all': {
+                'played': 2,
+                'win': 1,
+                'draw': 0,
+                'lose': 1,
+                'goals': {'for': 2, 'against': 1},
+              },
+              'home': {
+                'played': 1,
+                'win': 1,
+                'draw': 0,
+                'lose': 0,
+                'goals': {'for': 2, 'against': 0},
+              },
+              'away': {
+                'played': 1,
+                'win': 0,
+                'draw': 0,
+                'lose': 1,
+                'goals': {'for': 0, 'against': 1},
+              },
+            };
+        raw['standings'] = [
+          {
+            'league': {
+              'id': 2,
+              'season': 2026,
+              'standings': [
+                [
+                  row(home['id'] as int, home['name'] as String, 'Group A', 1),
+                  row(away['id'] as int, away['name'] as String, 'Group A', 2),
+                ],
+                [
+                  row(100001, 'Gamma', 'Group B', 1),
+                  row(100002, 'Delta', 'Group B', 2),
+                ],
+              ],
+            },
+          },
+        ];
+        final match = const ApiFootballMatchAdapter()
+            .fromSnapshot(snapshot)
+            .single;
+        expect(match.analysis.leagueStandings, hasLength(2));
+        expect(match.analysis.competitionStandings, hasLength(4));
+        expect(
+          match.analysis.competitionStandingTables[ChampionshipStandingView
+              .home],
+          hasLength(4),
+        );
+        final copied = match.analysis.copyWith();
+        expect(copied.competitionStandings, hasLength(4));
+        for (final group in ['Group A', 'Group B']) {
+          expect(
+            copied.competitionStandings
+                .where((s) => s.group == group)
+                .map((s) => s.rank),
+            [1, 2],
+          );
+        }
+      },
+    );
+
+    test(
       'France Belgium public snapshot exposes current players once, without July form',
       () {
         final snapshot =

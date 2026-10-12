@@ -838,6 +838,8 @@ class MatchAnalysisData {
     this.homeStanding,
     this.awayStanding,
     this.leagueStandings = const [],
+    this.competitionStandings = const [],
+    this.competitionStandingTables = const {},
     this.standingTables = const {},
     this.championshipTierSnapshot,
     this.structuralRelation,
@@ -876,6 +878,11 @@ class MatchAnalysisData {
   final TeamStandingSnapshot? homeStanding;
   final TeamStandingSnapshot? awayStanding;
   final List<TeamStandingSnapshot> leagueStandings;
+
+  /// Complete official competition table, preserving all group-local ranks.
+  final List<TeamStandingSnapshot> competitionStandings;
+  final Map<ChampionshipStandingView, List<TeamStandingSnapshot>>
+  competitionStandingTables;
   final Map<ChampionshipStandingView, List<TeamStandingSnapshot>>
   standingTables;
   final ChampionshipTierSnapshot? championshipTierSnapshot;
@@ -950,6 +957,9 @@ class MatchAnalysisData {
     TeamStandingSnapshot? homeStanding,
     TeamStandingSnapshot? awayStanding,
     List<TeamStandingSnapshot>? leagueStandings,
+    List<TeamStandingSnapshot>? competitionStandings,
+    Map<ChampionshipStandingView, List<TeamStandingSnapshot>>?
+    competitionStandingTables,
     Map<ChampionshipStandingView, List<TeamStandingSnapshot>>? standingTables,
     ChampionshipTierSnapshot? championshipTierSnapshot,
     MatchStructuralRelation? structuralRelation,
@@ -988,6 +998,9 @@ class MatchAnalysisData {
       homeStanding: homeStanding ?? this.homeStanding,
       awayStanding: awayStanding ?? this.awayStanding,
       leagueStandings: leagueStandings ?? this.leagueStandings,
+      competitionStandings: competitionStandings ?? this.competitionStandings,
+      competitionStandingTables:
+          competitionStandingTables ?? this.competitionStandingTables,
       standingTables: standingTables ?? this.standingTables,
       championshipTierSnapshot:
           championshipTierSnapshot ?? this.championshipTierSnapshot,

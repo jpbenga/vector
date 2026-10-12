@@ -188,27 +188,25 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                     ),
                   ],
                 )
-              : Column(
-                  children: [
-                    EuropeanComparisonSections(
-                      comparison: dossier,
-                      index: index,
-                      onOpenPrevious: (pick) =>
-                          openGeneratorMatch(context, pick),
-                    ),
-                    if (index == 2 &&
-                        current.fixture.kickoff != null &&
-                        current.analysis.asOf?.isBefore(
-                              current.fixture.kickoff!,
-                            ) ==
-                            true)
-                      _LectorStandingContextCard(
-                        match: current,
-                        selectedReadingIds: widget.selectedReadingIds,
-                        selectedScenarioIds: widget.selectedScenarioIds,
-                      ),
-                  ],
-                ),
+              : switch (index) {
+                  // Context retains the incumbent Lector readings and markets.
+                  1 => _LectorFreeTabContent(
+                    match: current,
+                    selectedIndex: 0,
+                    selectedReadingIds: widget.selectedReadingIds,
+                    selectedScenarioIds: widget.selectedScenarioIds,
+                  ),
+                  2 => _CupStandingContextCard(
+                    match: current,
+                    selectedReadingIds: widget.selectedReadingIds,
+                    selectedScenarioIds: widget.selectedScenarioIds,
+                  ),
+                  _ => EuropeanComparisonSections(
+                    comparison: dossier,
+                    index: index,
+                    onOpenPrevious: (pick) => openGeneratorMatch(context, pick),
+                  ),
+                },
         );
       }
       return LectorMatchDetailView(
@@ -2277,6 +2275,95 @@ class _ContextDeltaPill extends StatelessWidget {
   }
 }
 
+/// All official groups remain available, without merging their local ranks.
+/// A league phase has one table and does not manufacture a group selector.
+class _CupStandingContextCard extends StatefulWidget {
+  const _CupStandingContextCard({
+    required this.match,
+    required this.selectedReadingIds,
+    required this.selectedScenarioIds,
+  });
+  final MatchBoardItem match;
+  final List<String> selectedReadingIds, selectedScenarioIds;
+  @override
+  State<_CupStandingContextCard> createState() =>
+      _CupStandingContextCardState();
+}
+
+class _CupStandingContextCardState extends State<_CupStandingContextCard> {
+  String? _group;
+  @override
+  Widget build(BuildContext context) {
+    final match = widget.match;
+    final kickoff = match.fixture.kickoff;
+    if (kickoff == null || match.analysis.asOf?.isBefore(kickoff) != true) {
+      return const Padding(
+        padding: EdgeInsets.all(12),
+        child: Text('Classement antérieur au coup d’envoi indisponible.'),
+      );
+    }
+    final rows = match.analysis.competitionStandings.isEmpty
+        ? match.analysis.leagueStandings
+        : match.analysis.competitionStandings;
+    final groups =
+        rows
+            .map((s) => s.group)
+            .whereType<String>()
+            .where((g) => g.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+    final group = groups.contains(_group) ? _group : null;
+    final selectedRows = group == null
+        ? rows
+        : rows.where((s) => s.group == group).toList();
+    final scoped = match.copyWith(
+      analysis: match.analysis.copyWith(
+        leagueStandings: selectedRows,
+        standingTables: {
+          for (final e
+              in (match.analysis.competitionStandingTables.isEmpty
+                      ? match.analysis.standingTables
+                      : match.analysis.competitionStandingTables)
+                  .entries)
+            e.key: group == null
+                ? e.value
+                : e.value.where((s) => s.group == group).toList(),
+        },
+      ),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (groups.length > 1) ...[
+          DropdownButtonFormField<String>(
+            key: ValueKey('cup-standing-groups-${match.id}'),
+            initialValue: group ?? '',
+            decoration: const InputDecoration(
+              labelText: 'Classement de la compétition',
+            ),
+            items: [
+              const DropdownMenuItem(
+                value: '',
+                child: Text('Général · tous les groupes'),
+              ),
+              for (final g in groups)
+                DropdownMenuItem(value: g, child: Text(g)),
+            ],
+            onChanged: (g) => setState(() => _group = g == '' ? null : g),
+          ),
+          const SizedBox(height: 10),
+        ],
+        _LectorStandingContextCard(
+          match: scoped,
+          selectedReadingIds: widget.selectedReadingIds,
+          selectedScenarioIds: widget.selectedScenarioIds,
+        ),
+      ],
+    );
+  }
+}
+
 class _LectorStandingContextCard extends StatefulWidget {
   const _LectorStandingContextCard({
     required this.match,
@@ -2815,6 +2902,10 @@ class _MobileStandingTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final groups = _standingTierGroups(standings, tierSnapshot);
+    final officialGroups = <String, List<TeamStandingSnapshot>>{};
+    for (final row in standings) {
+      officialGroups.putIfAbsent(row.group ?? '', () => []).add(row);
+    }
     return LectorStandingDataTable(
       tableKey: const ValueKey('mobile-standing-table'),
       columns: [
@@ -2828,17 +2919,24 @@ class _MobileStandingTable extends StatelessWidget {
         LectorStandingColumn(lastColumnLabel, 28, bold: true),
       ],
       groups: [
-        for (final group in groups)
-          LectorStandingGroupData(
-            label: group.tier == null ? null : _tierCode(group.tier!),
-            color: group.tier == null
-                ? null
-                : _tierBandColor(context, group.tier!),
-            rows: [
-              for (final standing in group.rows)
-                _entry(context, standing, group.tier),
-            ],
-          ),
+        if (officialGroups.length > 1)
+          for (final group in officialGroups.entries)
+            LectorStandingGroupData(
+              label: group.key.isEmpty ? null : group.key,
+              rows: [for (final row in group.value) _entry(context, row, null)],
+            )
+        else
+          for (final group in groups)
+            LectorStandingGroupData(
+              label: group.tier == null ? null : _tierCode(group.tier!),
+              color: group.tier == null
+                  ? null
+                  : _tierBandColor(context, group.tier!),
+              rows: [
+                for (final standing in group.rows)
+                  _entry(context, standing, group.tier),
+              ],
+            ),
       ],
     );
   }

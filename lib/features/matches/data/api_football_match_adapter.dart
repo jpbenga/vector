@@ -328,6 +328,12 @@ class ApiFootballMatchAdapter {
         homeStanding: _standingForRows(fixtureStandings, homeTeamId),
         awayStanding: _standingForRows(fixtureStandings, awayTeamId),
         leagueStandings: fixtureStandings,
+        competitionStandings: leagueId == null
+            ? const []
+            : standingsByLeagueId[leagueId] ?? const [],
+        competitionStandingTables: leagueId == null
+            ? const {}
+            : standingTablesByLeagueId[leagueId] ?? const {},
         standingTables: fixtureStandingTables,
         homeStatistics: _statisticsFor(
           statisticsByLeagueTeamId,
