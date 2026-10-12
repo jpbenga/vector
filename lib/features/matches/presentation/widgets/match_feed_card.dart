@@ -527,6 +527,13 @@ class _StoryReadingTags extends StatelessWidget {
   }
 }
 
+/// Reuses the incumbent presentation selection without recomputing readings.
+List<MatchCardReading> publishedMatchCardReadings(MatchBoardItem match) =>
+    _representativeReadingTags(match);
+
+int publishedMatchCardReadingCount(MatchBoardItem match) =>
+    _storyReadingCount(match, _representativeReadingTags(match));
+
 List<MatchCardReading> _representativeReadingTags(MatchBoardItem match) {
   final readingsById = <String, MatchCardReading>{};
   void add(String id, String label) {

@@ -34,4 +34,10 @@ flutter:
   assets:
     - assets/brand/
     - assets/backgrounds/
+    - assets/design_preview/
+    - assets/fonts/Inter-OFL.txt
   uses-material-design: true
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-variable.ttf

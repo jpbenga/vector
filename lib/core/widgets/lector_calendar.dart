@@ -85,7 +85,9 @@ class _CopilotCalendarState extends State<CopilotCalendar> {
 
     return SizedBox(
       key: const ValueKey('home-calendar-navigation'),
-      height: 48,
+      height:
+          48 *
+          (MediaQuery.textScalerOf(context).scale(12) / 12).clamp(1.0, 1.5),
       child: Row(
         children: [
           Expanded(
@@ -94,8 +96,12 @@ class _CopilotCalendarState extends State<CopilotCalendar> {
                 const separatorWidth = 1.0;
                 final tileWidth =
                     ((constraints.maxWidth - (separatorWidth * 6)) / 7).clamp(
-                      30.0,
-                      74.0,
+                      36.0 *
+                          (MediaQuery.textScalerOf(context).scale(12) / 12)
+                              .clamp(1.0, 2.0),
+                      74.0 *
+                          (MediaQuery.textScalerOf(context).scale(12) / 12)
+                              .clamp(1.0, 2.0),
                     );
                 _dayExtent = tileWidth + separatorWidth;
 

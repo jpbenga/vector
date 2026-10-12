@@ -26,6 +26,21 @@ class AppFeatureColors {
   const AppFeatureColors._();
 }
 
+/// Match presentation identities. These values do not represent betting quality.
+class AppCompetitionColors {
+  static const background = Color(0xFF080E13);
+  static const surface = Color(0xFF0E1923);
+  static const border = Color(0xFF293B4C);
+  static const champions = Color(0xFF6BA9F0);
+  static const championsFill = Color(0xFF09182D);
+  static const europa = Color(0xFFCF985B);
+  static const europaFill = Color(0xFF211B15);
+  static const conference = Color(0xFF6ACA9C);
+  static const conferenceFill = Color(0xFF0C211B);
+  static const activeNavigation = Color(0xFF102B48);
+  const AppCompetitionColors._();
+}
+
 class AppColors {
   static const background = Color(0xFF0B1015);
   static const backgroundSecondary = Color(0xFF11181F);

@@ -197,7 +197,8 @@ class LectorFormResultStrip extends StatelessWidget {
               : switch (results[i].toUpperCase()) {
                   'W' || 'V' => 'Victoire',
                   'D' || 'N' => 'Nul',
-                  _ => 'Défaite',
+                  'L' => 'Défaite',
+                  _ => 'Résultat indisponible',
                 },
           child: InkWell(
             key: ValueKey('team-form-result-$i'),
@@ -212,7 +213,8 @@ class LectorFormResultStrip extends StatelessWidget {
                   'W' || 'V' => context.semantic.success,
                   'D' ||
                   'N' => context.textColors.secondary.withValues(alpha: .27),
-                  _ => context.semantic.error,
+                  'L' => context.semantic.error,
+                  _ => context.textColors.secondary.withValues(alpha: .12),
                 },
               ),
             ),

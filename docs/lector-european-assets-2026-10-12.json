@@ -1,0 +1,29 @@
+[
+  {
+    "asset": "assets/backgrounds/competition-champions-original-v1.png",
+    "generator": "built-in image_gen",
+    "generatedOn": "2026-10-12",
+    "sourceFile": "exec-471781cf-1023-41e5-a6e4-cb2d3ef23bbf.png",
+    "promptSummary": "Ballon traditionnel sans panneaux étoilés, stade nocturne bleu nuit, espace de lecture sombre à gauche.",
+    "sha256": "bbfa6ed91d2d114f0cba6c880e782ba76bedd2a595369b8ff824756904788995",
+    "rights": "Original generated decorative artwork. No official UEFA logo, trophy or ball design reproduced."
+  },
+  {
+    "asset": "assets/backgrounds/competition-europa-original-v1.png",
+    "generator": "built-in image_gen",
+    "generatedOn": "2026-10-12",
+    "sourceFile": "exec-68d4ea89-b7aa-4c4d-be11-fb01d1f36c94.png",
+    "promptSummary": "Plans de métal bronze et rubans cuivrés originaux ; aucun trophée officiel.",
+    "sha256": "950708e14f2ef329614c6581037a46ba7edd056362e19c55da42f79eb7eb9177",
+    "rights": "Original generated decorative artwork. No official UEFA logo, trophy or ball design reproduced."
+  },
+  {
+    "asset": "assets/backgrounds/competition-conference-original-v1.png",
+    "generator": "built-in image_gen",
+    "generatedOn": "2026-10-12",
+    "sourceFile": "exec-9522ef0e-ef97-41ee-b659-ff632fab1388.png",
+    "promptSummary": "Plans géométriques sombres et rubans verts ; aucun emblème ou trophée officiel.",
+    "sha256": "5774591196d22cd0b61d3a851634cef88dc44539744ae7c4cea5d4fe3f2a5574",
+    "rights": "Original generated decorative artwork. No official UEFA logo, trophy or ball design reproduced."
+  }
+]
