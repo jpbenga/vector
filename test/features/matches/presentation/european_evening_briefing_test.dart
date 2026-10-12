@@ -15,7 +15,7 @@ MatchBoardItem archived(String name) => SnapshotMatchFeedRepository(
 ).allMatches().single;
 void main() {
   testWidgets(
-    'briefing is absent without Champions fixtures and leaves other content available',
+    'briefing is absent without European cup fixtures and leaves other content available',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -36,7 +36,7 @@ void main() {
         ),
       );
       expect(
-        find.byKey(const ValueKey('champions-evening-briefing')),
+        find.byKey(const ValueKey('european-evening-briefing-2')),
         findsNothing,
       );
       expect(find.text('Autres rencontres'), findsOneWidget);
@@ -69,7 +69,7 @@ void main() {
       );
       expect(find.text('1 match · 13/10'), findsOneWidget);
       expect(find.text('Dynamique'), findsNothing);
-      await tester.tap(find.byKey(const ValueKey('open-champions-evening')));
+      await tester.tap(find.byKey(const ValueKey('open-european-evening-2')));
       await tester.pumpAndSettle();
       expect(
         tester
