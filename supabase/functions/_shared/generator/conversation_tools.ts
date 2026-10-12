@@ -141,7 +141,7 @@ export const conversationTools = [
   ),
   tool(
     "read_match_data",
-    "Consulter les données détaillées publiées d’une rencontre recherchée : forme, classements, H2H, score ou statistiques selon disponibilité. Ne rend jamais une cote ancienne admissible.",
+    "Consulter les données détaillées publiées d’une rencontre recherchée : forme, classements, H2H, score ou statistiques selon disponibilité. Pour une rencontre UEFA, items[].europeanComparison contient le dossier pré-match domestique/européen avec cutoff et provenance. Ne rend jamais une cote ancienne admissible.",
     { queryId: { type: "string" }, matchKey: { type: "string" } },
   ),
   tool(

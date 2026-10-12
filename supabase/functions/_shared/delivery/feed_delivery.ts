@@ -260,6 +260,7 @@ export function partArtifacts(
   if (sport === "football") {
     const raw = object(full.raw),
       {
+        european_comparisons: _european,
         fixtures: _fixtures,
         odds: _odds,
         head_to_head: _h2h,
@@ -277,6 +278,9 @@ export function partArtifacts(
       artifacts.set(path, {
         ...full,
         raw: {
+          european_comparisons: rows(raw.european_comparisons).filter((d) =>
+            String(d.fixtureId) === id
+          ),
           fixtures: [f],
           odds: rows(raw.odds).filter((r) =>
             String(object(r.fixture).id) === id

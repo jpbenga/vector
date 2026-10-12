@@ -33,6 +33,7 @@ on:
           - lector-generator-work-storage
           - lector-generator-shortlist
           - lector-visual-live-update
+          - lector-european-comparison-update
           - hockey-refresh-install
           - hockey-refresh-delivery
           - hockey-refresh-run
@@ -52,7 +53,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/main' && !startsWith(inputs.function, 'lector-generator-') && !startsWith(inputs.function, 'hockey-refresh-') && inputs.function != 'lector-visual-live-update'
+    if: github.ref == 'refs/heads/main' && !startsWith(inputs.function, 'lector-generator-') && !startsWith(inputs.function, 'hockey-refresh-') && inputs.function != 'lector-visual-live-update' && inputs.function != 'lector-european-comparison-update'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -329,3 +330,25 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           GH_TOKEN: ${{ github.token }}
         run: python3 tool/deploy_generator_work_storage_remote.py
+
+  european-comparison:
+    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-european-comparison-update'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: supabase/setup-cli@v1
+        with:
+          version: '2.120.0'
+      - name: Publish European dossiers from existing sporting caches
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tool/deploy_european_comparison_remote.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: european-comparison-publications
+          path: output/european-comparison/

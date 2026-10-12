@@ -1,3 +1,4 @@
+import '../domain/european_fixture_comparison.dart';
 import '../../form_radar/domain/player_form_radar.dart';
 import '../domain/match_board_item.dart';
 import '../domain/odds_normalization.dart';
@@ -200,7 +201,18 @@ class ApiFootballMatchAdapter {
         containsPredictions,
       );
       if (item != null) {
-        items.add(item);
+        final dossier = _list(raw['european_comparisons'])
+            .map(EuropeanFixtureComparison.decode)
+            .whereType<EuropeanFixtureComparison>()
+            .where((d) => d.fixtureId == item.fixture.apiFootballFixtureId)
+            .firstOrNull;
+        items.add(
+          dossier == null
+              ? item
+              : item.copyWith(
+                  analysis: item.analysis.copyWith(europeanComparison: dossier),
+                ),
+        );
       }
     }
 

@@ -144,3 +144,30 @@ Deno.test("card markets stay aligned with the Flutter odds catalogue", async () 
   );
   assert.deepEqual(footballCardMarketIds, ids);
 });
+Deno.test("European dossiers travel only with the requested detail, not all day cards or shared context", () => {
+  const full = structuredClone(football) as unknown as Record<string, unknown>;
+  const raw = full.raw as Record<string, unknown>;
+  raw.european_comparisons = [{ fixtureId: 1, home: { teamId: 10 } }, {
+    fixtureId: 99,
+    home: { teamId: 20 },
+  }];
+  const result = partArtifacts("football", "european-contract", full);
+  assert.equal(
+    (result.overview.raw as Record<string, unknown>).european_comparisons,
+    undefined,
+  );
+  const context = result.artifacts.get(
+    "delivery/football/european-contract/context.json",
+  )!;
+  assert.equal(
+    (context.raw as Record<string, unknown>).european_comparisons,
+    undefined,
+  );
+  const detail = result.artifacts.get(
+    "delivery/football/european-contract/match-1.json",
+  )!;
+  assert.deepEqual(
+    (detail.raw as Record<string, unknown>).european_comparisons,
+    [{ fixtureId: 1, home: { teamId: 10 } }],
+  );
+});

@@ -70,3 +70,41 @@ Deno.test("football detail pins its source and match, scopes histories and never
     null,
   );
 });
+Deno.test("European detail gives the generator the pinned structured dossier and excludes generic current standings", () => {
+  const date = "2026-10-13T19:00:00Z", capturedAt = "2026-10-12T09:00:00Z";
+  const dossier = {
+    schemaVersion: 1,
+    fixtureId: 10,
+    kickoffAt: date,
+    home: { teamId: 1 },
+    away: { teamId: 2 },
+    dataQuality: { state: "partial" },
+  };
+  const detail = projectFootballMatch(
+    {
+      id: "p",
+      captured_at: capturedAt,
+      fixtures: [{
+        fixture: { id: 10, date },
+        league: { id: 2 },
+        teams: { home: { id: 1 }, away: { id: 2 } },
+      }],
+      european_comparisons: [dossier, { fixtureId: 20 }],
+      standings: [{ league: { id: 2 } }],
+    },
+    "p",
+    capturedAt,
+    "10",
+  )!;
+  assert.deepEqual(detail.items[0].europeanComparison, dossier);
+  assert.deepEqual(detail.items[0].standings, []);
+  assert.equal(
+    projectFootballMatch(
+      { id: "p", captured_at: capturedAt, fixtures: [] },
+      "p",
+      capturedAt,
+      "10",
+    ),
+    null,
+  );
+});

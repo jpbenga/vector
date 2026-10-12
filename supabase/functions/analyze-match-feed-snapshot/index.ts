@@ -1,3 +1,4 @@
+import { buildEuropeanComparisons } from "../_shared/european_fixture_comparison.ts";
 import { publishDeliveryPart } from "../_shared/delivery/feed_delivery_store.ts";
 import { OpsReporter } from "../_shared/ops_runtime.ts";
 type JsonObject = Record<string, unknown>;
@@ -225,6 +226,7 @@ Deno.serve(async (request) => {
       window_start: stringValue(snapshot.window_start),
       window_end: stringValue(snapshot.window_end),
       raw: {
+        european_comparisons: buildEuropeanComparisons(snapshotPayload ?? {}),
         fixtures,
         odds,
         // Compact, display-only data. The app maps these values to widgets but

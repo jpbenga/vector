@@ -1,3 +1,4 @@
+import { resolveEuropeanDomesticContexts } from "../_shared/european_fixture_comparison.ts";
 import { SnapshotCacheBatch } from "../_shared/snapshot_cache_batch.ts";
 import {
   fixtureBodyForDate,
@@ -169,6 +170,12 @@ Deno.serve(async (request) => {
       season_by_league: seasonByLeague,
       bookmaker_priority: options.bookmakerPriority,
       raw: {
+        context_sources: build.sourceRows.map((row) => ({
+          endpoint: row.endpoint,
+          query_params: row.query_params,
+          fetched_at: row.fetched_at,
+          as_of: row.as_of,
+        })),
         fixtures: build.rawFixtures,
         league_fixtures: build.rawLeagueFixtures,
         odds: build.rawOdds,
@@ -445,7 +452,11 @@ async function collectSnapshotSources({
       },
     });
     addSourceRows(standingsRows);
-    rawStandings.push(...flatResponseItems(standingsRows));
+    rawStandings.push(
+      ...standingsRows.flatMap((s) =>
+        flatResponseItems([s]).map((r) => ({ ...r, observed_at: s.fetched_at }))
+      ),
+    );
 
     const leagueFixtureRows = await sourceResponsesFor({
       supabaseUrl,
@@ -459,7 +470,11 @@ async function collectSnapshotSources({
       exactQuery: true,
     });
     addSourceRows(leagueFixtureRows);
-    rawLeagueFixtures.push(...flatResponseItems(leagueFixtureRows));
+    rawLeagueFixtures.push(
+      ...leagueFixtureRows.flatMap((s) =>
+        flatResponseItems([s]).map((r) => ({ ...r, observed_at: s.fetched_at }))
+      ),
+    );
 
     const collectedOddsDates = new Set<string>();
     for (const date of dateWindow(options.windowStart, options.windowEnd)) {
@@ -535,10 +550,18 @@ async function collectSnapshotSources({
       endpoint: "/standings",
       filters: {},
     });
-    const domesticContexts = domesticTeamContextsFromCachedStandings({
-      fixtures: continentalFixtures,
-      standingRows: cachedStandingRows,
+    const cachedLeagueRows = await sourceResponsesFor({
+      supabaseUrl,
+      serviceRoleKey,
+      endpoint: "/leagues",
+      filters: {},
     });
+    const domesticContexts = resolveEuropeanDomesticContexts(
+      continentalFixtures,
+      cachedStandingRows,
+      cachedLeagueRows,
+    );
+    addSourceRows(cachedLeagueRows);
     rawDomesticTeamContexts.push(...domesticContexts.contexts);
     addSourceRows(domesticContexts.sourceRows);
     rawStandings.push(...domesticContexts.standings);
@@ -563,7 +586,14 @@ async function collectSnapshotSources({
         exactQuery: true,
       });
       addSourceRows(leagueFixtureRows);
-      rawLeagueFixtures.push(...flatResponseItems(leagueFixtureRows));
+      rawLeagueFixtures.push(
+        ...leagueFixtureRows.flatMap((s) =>
+          flatResponseItems([s]).map((r) => ({
+            ...r,
+            observed_at: s.fetched_at,
+          }))
+        ),
+      );
 
       const statisticsRows = await sourceResponsesFor({
         supabaseUrl,
@@ -988,103 +1018,8 @@ async function collectSnapshotSources({
   };
 }
 
-type DomesticTeamContexts = {
-  contexts: JsonObject[];
-  standings: JsonObject[];
-  sourceRows: CachedRawResponse[];
-};
-
-function isContinentalLeagueId(leagueId: number | null): boolean {
-  return leagueId === 2 || leagueId === 3 || leagueId === 848;
-}
-
-function domesticTeamContextsFromCachedStandings({
-  fixtures,
-  standingRows,
-}: {
-  fixtures: JsonObject[];
-  standingRows: CachedRawResponse[];
-}): DomesticTeamContexts {
-  const fixtureByTeam = new Map<number, { date: string; season: number }>();
-  for (const row of fixtures) {
-    const fixture = objectValue(row.fixture) ?? {};
-    const league = objectValue(row.league) ?? {};
-    const dateTime = stringValue(fixture.date);
-    const date = dateTime?.slice(0, 10) ?? null;
-    const season = numberValue(league.season);
-    const teams = objectValue(row.teams) ?? {};
-    if (date === null || season === null) continue;
-    for (const side of ["home", "away"]) {
-      const teamId = numberValue((objectValue(teams[side]) ?? {}).id);
-      if (teamId !== null && !fixtureByTeam.has(teamId)) {
-        fixtureByTeam.set(teamId, { date, season });
-      }
-    }
-  }
-
-  const contexts: JsonObject[] = [];
-  const standingsByIdentity = new Map<string, JsonObject>();
-  const sourceRowsByIdentity = new Map<string, CachedRawResponse>();
-  const resolvedTeams = new Set<number>();
-
-  // cachedResponsesFor orders newest first. The first current domestic table
-  // containing a club is therefore the deterministic source of truth.
-  for (const sourceRow of standingRows) {
-    for (const responseItem of flatResponseItems([sourceRow])) {
-      const league = objectValue(responseItem.league) ?? {};
-      const leagueId = numberValue(league.id);
-      const country = stringValue(league.country)?.toLowerCase();
-      if (
-        leagueId === null ||
-        isContinentalLeagueId(leagueId) ||
-        country === "world"
-      ) {
-        continue;
-      }
-      const season = numberValue(league.season);
-      if (season === null) continue;
-      for (const group of arrayValue(league.standings)) {
-        for (const standingValue of arrayValue(group)) {
-          const standing = objectValue(standingValue) ?? {};
-          const team = objectValue(standing.team) ?? {};
-          const teamId = numberValue(team.id);
-          const target = teamId === null
-            ? undefined
-            : fixtureByTeam.get(teamId);
-          if (
-            teamId === null ||
-            target === undefined ||
-            resolvedTeams.has(teamId) ||
-            season !== target.season
-          ) {
-            continue;
-          }
-          resolvedTeams.add(teamId);
-          contexts.push({
-            team: { id: teamId, name: stringValue(team.name) },
-            league: {
-              id: leagueId,
-              name: stringValue(league.name),
-              country: stringValue(league.country),
-              logo: stringValue(league.logo),
-              flag: stringValue(league.flag),
-              season,
-            },
-            fixture_date: target.date,
-          });
-          const identity = `${leagueId}:${season}`;
-          standingsByIdentity.set(identity, responseItem);
-          sourceRowsByIdentity.set(identity, sourceRow);
-        }
-      }
-    }
-  }
-
-  return {
-    contexts,
-    standings: [...standingsByIdentity.values()],
-    sourceRows: [...sourceRowsByIdentity.values()],
-  };
+function isContinentalLeagueId(id: number | null): boolean {
+  return id === 2 || id === 3 || id === 848;
 }
 
 async function cachedResponsesFor({

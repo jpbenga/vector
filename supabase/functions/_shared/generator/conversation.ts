@@ -158,6 +158,9 @@ export async function converse(
             ],
           }
           : null,
+        requestedFixture: input.context.fixtureFocus ?? null,
+        europeanDossierPolicy:
+          "Pour une fiche européenne, lire le europeanComparison canonique avec read_match_data ; distinguer championnat domestique, phase européenne et qualité. Ne jamais substituer le classement actuel à une observation historique. requestedFixture est une référence de navigation, pas une donnée sportive.",
         timezone: input.context.timezone,
         activeConstraints: active,
         focus: knownFocus(input.state),

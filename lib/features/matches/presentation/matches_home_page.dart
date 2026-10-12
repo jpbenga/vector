@@ -1,3 +1,4 @@
+import 'european_match_conversation_page.dart';
 import 'widgets/european_evening_briefing.dart';
 import '../../../core/widgets/lector_horizontal_transition.dart';
 import '../../../app/sports/generator_radar_context.dart';
@@ -782,6 +783,15 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
           load: () => _loadDetailMatch(match, detailProfile),
           builder: (context, resolved) => MatchDetailPage(
             match: resolved,
+            onAskEuropean: (compare) => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => EuropeanMatchConversationPage(
+                  match: resolved,
+                  scope: widget.identityScope,
+                  compare: compare,
+                ),
+              ),
+            ),
             selectedReadingIds: detailProfile.optionIdsFor('readings'),
             selectedScenarioIds: detailProfile.optionIdsFor(
               'opportunity_profiles',
@@ -816,6 +826,15 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
           load: () => _loadDetailMatch(analyzedMatch, detailProfile),
           builder: (context, resolved) => MatchDetailPage(
             match: resolved,
+            onAskEuropean: (compare) => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => EuropeanMatchConversationPage(
+                  match: resolved,
+                  scope: widget.identityScope,
+                  compare: compare,
+                ),
+              ),
+            ),
             opportunity: opportunity,
             selectedReadingIds: detailProfile.optionIdsFor('readings'),
             selectedScenarioIds: detailProfile.optionIdsFor(

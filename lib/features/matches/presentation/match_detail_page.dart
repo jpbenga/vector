@@ -1,3 +1,6 @@
+import '../domain/european_fixture_comparison.dart';
+import 'widgets/european_fixture_sections.dart';
+import '../../../app/sports/generator_match_navigation.dart';
 import '../../shortlist/presentation/shortlist_actions.dart';
 import '../../../core/widgets/lector_horizontal_transition.dart';
 import '../../../core/widgets/lector_match_insights.dart';
@@ -53,6 +56,7 @@ class MatchDetailPage extends StatefulWidget {
     this.onViewSavedTickets,
     this.onOpenTicketSelection,
     this.onOpenGenerator,
+    this.onAskEuropean,
     this.selectedReadingIds = const [],
     this.selectedScenarioIds = const [],
     super.key,
@@ -68,6 +72,7 @@ class MatchDetailPage extends StatefulWidget {
   final VoidCallback? onViewSavedTickets;
   final ValueChanged<TicketDraftSelection>? onOpenTicketSelection;
   final VoidCallback? onOpenGenerator;
+  final ValueChanged<bool>? onAskEuropean;
   final List<String> selectedReadingIds;
   final List<String> selectedScenarioIds;
 
@@ -83,6 +88,103 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
       final current = state?.overlay(widget.match) ?? widget.match;
       final live = current.fixture.status == FixtureStatus.live;
       final hasStats = live || current.fixture.status == FixtureStatus.finished;
+      if (current.competition.isContinentalTournament) {
+        final dossier =
+            current.analysis.europeanComparison ??
+            EuropeanFixtureComparison.unavailable(current.fixture);
+        return LectorMatchDetailView(
+          synthesisAboveTabs: false,
+          tabLabels: const {
+            0: 'Synthèse',
+            1: 'Contexte',
+            2: 'Classement',
+            3: 'Forme',
+            4: 'TAT',
+            5: 'Marchés',
+          },
+          topBar: Row(
+            children: [
+              IconButton(
+                tooltip: 'Retour',
+                onPressed: () => Navigator.of(context).maybePop(),
+                icon: const Icon(Icons.arrow_back),
+              ),
+              SportsAssetBadge(
+                size: 27,
+                imageUrl: current.competition.logoUrl,
+                fallbackLabel: current.competition.name,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  current.competition.name,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const ShortlistEntryButton(compact: true),
+            ],
+          ),
+          hero: EuropeanMatchHero(match: current, comparison: dossier),
+          synthesis: const SizedBox.shrink(),
+          stats: hasStats
+              ? FootballLiveStats(match: widget.match, state: state)
+              : null,
+          bottomNavigationBar: EuropeanMatchActions(
+            match: current,
+            onCompare: widget.onAskEuropean == null
+                ? widget.onOpenGenerator
+                : () => widget.onAskEuropean!(true),
+            onAsk: widget.onAskEuropean == null
+                ? widget.onOpenGenerator
+                : () => widget.onAskEuropean!(false),
+          ),
+          tabBuilder: (context, index) => index == 5
+              ? Column(
+                  children: [
+                    Text(
+                      'Lectures et marchés de la publication consultée',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.textColors.secondary,
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => _showScenarioReadingsSheet(
+                        context,
+                        widget.match,
+                        opportunity: widget.opportunity,
+                      ),
+                      icon: const Icon(Icons.menu_book_outlined),
+                      label: const Text('Consulter les lectures'),
+                    ),
+                    LectorMatchOdds(
+                      markets: [
+                        for (final market in current.availableMarkets)
+                          LectorOddsMarket(
+                            label: market.label,
+                            selections: [
+                              for (final selection in market.selections)
+                                (label: selection.label, odds: selection.odds),
+                            ],
+                            bookmaker: market.bookmakerName,
+                            recordedAt: current.analysis.asOf,
+                          ),
+                      ],
+                      finished:
+                          current.fixture.status == FixtureStatus.finished,
+                    ),
+                  ],
+                )
+              : EuropeanComparisonSections(
+                  comparison: dossier,
+                  index: index,
+                  onOpenPrevious: (pick) => openGeneratorMatch(context, pick),
+                ),
+        );
+      }
       return LectorMatchDetailView(
         preparationAction: ShortlistAddButton(
           fixture: shortlistFootball(current),

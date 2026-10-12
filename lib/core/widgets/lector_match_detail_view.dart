@@ -17,12 +17,18 @@ class LectorMatchDetailView extends StatefulWidget {
     this.preparationAction,
     this.stats,
     this.openStats = false,
+    this.tabLabels,
+    this.synthesisAboveTabs = true,
+    this.topBar,
     super.key,
   });
   final Widget hero, synthesis;
   final Widget Function(BuildContext, int) tabBuilder;
   final Widget? bottomNavigationBar, overlay, stats, preparationAction;
   final bool openStats;
+  final bool synthesisAboveTabs;
+  final Map<int, String>? tabLabels;
+  final Widget? topBar;
   @override
   State<LectorMatchDetailView> createState() => _LectorMatchDetailViewState();
 }
@@ -64,17 +70,21 @@ class _LectorMatchDetailViewState extends State<LectorMatchDetailView> {
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 88),
                   sliver: SliverList.list(
                     children: [
-                      LectorMatchTopBar(
-                        onBack: () => Navigator.of(context).maybePop(),
-                        preparationAction: widget.preparationAction,
-                      ),
+                      widget.topBar ??
+                          LectorMatchTopBar(
+                            onBack: () => Navigator.of(context).maybePop(),
+                            preparationAction: widget.preparationAction,
+                          ),
                       const SizedBox(height: 10),
                       widget.hero,
                       const SizedBox(height: 12),
-                      widget.synthesis,
-                      const SizedBox(height: 12),
+                      if (widget.synthesisAboveTabs) ...[
+                        widget.synthesis,
+                        const SizedBox(height: 12),
+                      ],
                       LectorMatchTabBar(
                         selectedIndex: _selected,
+                        labels: widget.tabLabels,
                         hasStats: widget.stats != null,
                         onSelected: (index) => setState(() {
                           _selected = index;
@@ -271,20 +281,24 @@ class LectorMatchTabBar extends StatelessWidget {
     required this.selectedIndex,
     required this.onSelected,
     this.hasStats = false,
+    this.labels,
     super.key,
   });
 
   final int selectedIndex;
   final bool hasStats;
+  final Map<int, String>? labels;
   final ValueChanged<int> onSelected;
 
-  Map<int, String> get _tabs => {
-    0: 'Contexte',
-    if (hasStats) -1: 'Stats',
-    1: 'Classement',
-    2: 'Forme',
-    3: 'TAT',
-  };
+  Map<int, String> get _tabs => labels == null
+      ? {
+          0: 'Contexte',
+          if (hasStats) -1: 'Stats',
+          1: 'Classement',
+          2: 'Forme',
+          3: 'TAT',
+        }
+      : {...labels!, if (hasStats) -1: 'Stats'};
 
   @override
   Widget build(BuildContext context) {

@@ -24,9 +24,11 @@ class GeneratorContext {
     this.timezone = 'Europe/Paris',
     this.radar = const {},
     this.shortlist,
+    this.fixtureFocus,
   });
   final String origin, timezone;
   final Map<String, Object?>? shortlist;
+  final Map<String, Object?>? fixtureFocus;
   final Map<String, RadarScope> radar;
   final bool discovery;
   final double budget;
@@ -42,6 +44,7 @@ class GeneratorContext {
     'preferences': preferences,
     'radar': {for (final e in radar.entries) e.key: e.value.toJson()},
     if (shortlist != null) 'shortlist': shortlist,
+    if (fixtureFocus != null) 'fixtureFocus': fixtureFocus,
   };
   GeneratorContext copyWith({
     double? budget,
@@ -55,6 +58,7 @@ class GeneratorContext {
     timezone: timezone,
     radar: radar ?? this.radar,
     shortlist: shortlist,
+    fixtureFocus: fixtureFocus,
   );
 
   static Map<String, List<String>> football(CompiledDecisionProfile profile) =>

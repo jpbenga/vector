@@ -31,6 +31,7 @@ export interface RadarScope {
   players: RadarMember[];
 }
 export interface Context {
+  fixtureFocus?: { sport: Sport; fixtureId: string; date: string };
   shortlist?: import("./shortlist.ts").ShortlistScope;
   origin: "profile" | "explorer";
   scope: "discovery" | "strict";
@@ -357,6 +358,17 @@ export function contextFrom(value: unknown): Context {
     budget,
     preferences,
     radar: radarScopesFrom(c.radar),
+    ...(obj(c.fixtureFocus).sport === "football" &&
+        /^\d{1,12}$/.test(String(obj(c.fixtureFocus).fixtureId)) &&
+        /^\d{4}-\d{2}-\d{2}$/.test(String(obj(c.fixtureFocus).date))
+      ? {
+        fixtureFocus: {
+          sport: "football" as const,
+          fixtureId: String(obj(c.fixtureFocus).fixtureId),
+          date: String(obj(c.fixtureFocus).date),
+        },
+      }
+      : {}),
   };
 }
 /** Scope identifiers are user inputs, not sports statistics or market authorizations. */

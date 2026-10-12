@@ -1,3 +1,4 @@
+import 'european_fixture_comparison.dart';
 import 'match_context_key_models.dart';
 import 'market_assessment.dart';
 import 'structural_tiers/tier_models.dart';
@@ -435,13 +436,19 @@ class TeamRecentMatchSnapshot {
     this.goalsAgainst,
     this.playedAt,
     this.fixtureId,
+    this.competitionId,
+    this.season,
+    this.round,
+    this.penaltyDecision = false,
     this.competitionName,
     this.teamLogoUrl,
     this.statistics,
     this.events = const [],
   });
 
-  final int? fixtureId;
+  final int? fixtureId, competitionId, season;
+  final String? round;
+  final bool penaltyDecision;
   final String? teamName;
   final int? opponentTeamId;
   final String opponentName;
@@ -827,6 +834,7 @@ class PlayerUnavailableSnapshot {
 class MatchAnalysisData {
   const MatchAnalysisData({
     this.asOf,
+    this.europeanComparison,
     this.homeStanding,
     this.awayStanding,
     this.leagueStandings = const [],
@@ -864,6 +872,7 @@ class MatchAnalysisData {
   });
 
   final DateTime? asOf;
+  final EuropeanFixtureComparison? europeanComparison;
   final TeamStandingSnapshot? homeStanding;
   final TeamStandingSnapshot? awayStanding;
   final List<TeamStandingSnapshot> leagueStandings;
@@ -937,6 +946,7 @@ class MatchAnalysisData {
 
   MatchAnalysisData copyWith({
     DateTime? asOf,
+    EuropeanFixtureComparison? europeanComparison,
     TeamStandingSnapshot? homeStanding,
     TeamStandingSnapshot? awayStanding,
     List<TeamStandingSnapshot>? leagueStandings,
@@ -974,6 +984,7 @@ class MatchAnalysisData {
   }) {
     return MatchAnalysisData(
       asOf: asOf ?? this.asOf,
+      europeanComparison: europeanComparison ?? this.europeanComparison,
       homeStanding: homeStanding ?? this.homeStanding,
       awayStanding: awayStanding ?? this.awayStanding,
       leagueStandings: leagueStandings ?? this.leagueStandings,

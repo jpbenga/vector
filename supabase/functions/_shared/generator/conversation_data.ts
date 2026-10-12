@@ -10,6 +10,7 @@ export const footballDetailColumns = [
   "team_statistics:payload->raw->team_statistics",
   "recent_league_matches:payload->raw->recent_league_matches",
   "head_to_head:payload->raw->head_to_head",
+  "european_comparisons:payload->raw->european_comparisons",
 ].join(",");
 
 /** Convert the legacy football publication into a single, pinned read object. */
@@ -54,6 +55,13 @@ export function projectFootballMatch(
   const computed = rows(source.computed).find((r) =>
     String(r.fixture_id) === matchId
   );
+  const european = [2, 3, 848].includes(Number(league.id));
+  const dossier =
+    rows(source.european_comparisons).find((d) =>
+      String(d.fixtureId) === matchId && d.schemaVersion === 1 &&
+      Date.parse(String(d.kickoffAt)) ===
+        Date.parse(String(obj(fixture.fixture).date))
+    ) ?? null;
   return {
     sport: "football",
     capturedAt,
@@ -61,22 +69,29 @@ export function projectFootballMatch(
     items: [{
       id: matchId,
       fixture,
+      europeanComparison: dossier,
       readings: computed?.readings ?? [],
       scenarios: computed?.scenarios ?? [],
-      tiers: computed?.tier_snapshot ?? null,
-      standings: rows(source.standings).filter(sameLeague),
-      teamStatistics: rows(source.team_statistics).filter((r) =>
-        sameLeague(r) && sameTeam(r)
-      ),
-      recentForm: rows(source.recent_league_matches).filter((r) =>
-        sameLeague(r) && sameTeam(r)
-      ).map((r) => ({ ...r, matches: rows(r.matches).map(resultFacts) })),
-      headToHead: rows(source.head_to_head).filter((r) =>
-        String(obj(r.fixture).id) === matchId
-      ).map((r) => ({
-        fixture: r.fixture,
-        matches: rows(r.matches).map(resultFacts),
-      })),
+      tiers: european ? null : computed?.tier_snapshot ?? null,
+      standings: european ? [] : rows(source.standings).filter(sameLeague),
+      teamStatistics: european
+        ? []
+        : rows(source.team_statistics).filter((r) =>
+          sameLeague(r) && sameTeam(r)
+        ),
+      recentForm: european
+        ? []
+        : rows(source.recent_league_matches).filter((r) =>
+          sameLeague(r) && sameTeam(r)
+        ).map((r) => ({ ...r, matches: rows(r.matches).map(resultFacts) })),
+      headToHead: european
+        ? []
+        : rows(source.head_to_head).filter((r) =>
+          String(obj(r.fixture).id) === matchId
+        ).map((r) => ({
+          fixture: r.fixture,
+          matches: rows(r.matches).map(resultFacts),
+        })),
     }],
     competitions: [],
     playerRadar: {},
