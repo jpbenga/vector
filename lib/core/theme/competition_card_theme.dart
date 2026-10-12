@@ -39,7 +39,13 @@ class CompetitionCardTheme {
           CompetitionCardIdentity.europa => AppCompetitionColors.europa,
           CompetitionCardIdentity.conference => AppCompetitionColors.conference,
         };
+  Color get title => light
+      ? context.textColors.primary
+      : context.textColors.primary.withValues(alpha: .9);
+  Color get statusText =>
+      light ? context.semantic.info : context.features.generatorAccent;
+  Color get statusBorder => statusText.withValues(alpha: .26);
   Color get border => identity == CompetitionCardIdentity.generic
       ? (light ? context.surfaces.border : AppCompetitionColors.border)
-      : accent.withValues(alpha: .42);
+      : accent.withValues(alpha: .60);
 }

@@ -22,7 +22,7 @@ import 'package:intl/date_symbol_data_local.dart';
 
 Future<List<MatchBoardItem>> loadCompactPreviewMatches() async {
   final matches = <MatchBoardItem>[];
-  for (final name in ['league', 'champions']) {
+  for (final name in ['champions', 'league']) {
     final json =
         jsonDecode(
               await rootBundle.loadString('assets/design_preview/$name.json'),
@@ -187,6 +187,7 @@ class _CompactMatchesPreviewPageState extends State<CompactMatchesPreviewPage> {
                           ? MatchFormScope.championship
                           : MatchFormScope.competition,
                     ),
+                    referenceDate: _date,
                     onOpen: () => _open(match),
                     preparationAction: IconButton(
                       key: ValueKey('preview-shortlist:${match.id}'),

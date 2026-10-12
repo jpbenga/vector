@@ -3,30 +3,50 @@ import 'package:intl/intl.dart';
 import '../domain/compact_match_data.dart';
 import '../theme/app_components.dart';
 import '../theme/app_radius.dart';
+import '../theme/app_spacing.dart';
 import '../theme/competition_card_theme.dart';
 import 'recent_form_strip.dart';
 import 'sports_asset_badge.dart';
 
-/// Data-driven shared layout. Sport adapters own meanings and availability.
+/// Shared reference composition: competition, teams/time, signals/odds.
+/// The sport adapter supplies facts; this widget only presents them.
 class LectorCompactMatchCard extends StatelessWidget {
   const LectorCompactMatchCard({
     required this.data,
     required this.onOpen,
     required this.preparationAction,
     this.onReadings,
+    this.referenceDate,
     super.key,
   });
   final CompactMatchData data;
   final VoidCallback onOpen;
   final VoidCallback? onReadings;
   final Widget preparationAction;
+  final DateTime? referenceDate;
+
   String get _status => switch (data.phase) {
     CompactMatchPhase.upcoming => 'À venir',
     CompactMatchPhase.live => data.liveLabel ?? 'En direct',
     CompactMatchPhase.finished => 'Terminé',
     CompactMatchPhase.postponed => 'Reporté',
     CompactMatchPhase.cancelled => 'Annulé',
-    CompactMatchPhase.unknown => 'Statut à confirmer',
+    CompactMatchPhase.unknown => 'À confirmer',
+  };
+  String get _roundLabel {
+    final round = data.round ?? '';
+    final regular = RegExp(r'^Regular Season - (\d+)$').firstMatch(round);
+    if (regular != null) return 'Journée ${regular.group(1)}';
+    final league = RegExp(r'^League Stage - (\d+)$').firstMatch(round);
+    if (league != null) return 'Phase de ligue · J${league.group(1)}';
+    return round;
+  }
+
+  String get _competitionLabel => switch (data.identity) {
+    CompetitionCardIdentity.champions => 'Ligue des champions',
+    CompetitionCardIdentity.europa => 'Europa League',
+    CompetitionCardIdentity.conference => 'Conference League',
+    _ => data.competitionName,
   };
   String get _formLabel => data.home.form.scope != data.away.form.scope
       ? 'Forme non comparable'
@@ -35,6 +55,23 @@ class LectorCompactMatchCard extends StatelessWidget {
           MatchFormScope.competition => 'Forme (compétition)',
           MatchFormScope.allCompetitions => 'Forme (toutes compétitions)',
         };
+  String get _dayLabel {
+    final kickoff = data.kickoff?.toLocal();
+    if (kickoff == null) return 'Horaire à confirmer';
+    final day = referenceDate ?? DateTime.now();
+    final delta = DateTime.utc(
+      kickoff.year,
+      kickoff.month,
+      kickoff.day,
+    ).difference(DateTime.utc(day.year, day.month, day.day)).inDays;
+    return switch (delta) {
+      0 => 'Aujourd’hui',
+      1 => 'Demain',
+      -1 => 'Hier',
+      _ => DateFormat('dd/MM').format(kickoff),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = CompetitionCardTheme(context, data.identity);
@@ -48,355 +85,473 @@ class LectorCompactMatchCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
-          if (data.identity.backgroundAsset != null)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: Opacity(
-                  opacity: palette.light ? .08 : .36,
-                  child: Image.asset(
-                    data.identity.backgroundAsset!,
-                    fit: BoxFit.cover,
-                    alignment: Alignment.centerRight,
-                    excludeFromSemantics: true,
-                  ),
-                ),
-              ),
-            ),
+          Positioned.fill(
+            child: IgnorePointer(child: _background(context, palette)),
+          ),
           InkWell(
             key: ValueKey('compact-open:${data.id}'),
             onTap: onOpen,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 10, 10),
+              padding: const EdgeInsets.all(AppSpacing.xs),
               child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final expanded =
-                      constraints.maxWidth < 260 ||
+                builder: (context, box) {
+                  final enlarged =
                       MediaQuery.textScalerOf(context).scale(12) > 16;
-                  final comparable =
-                      data.home.form.scope == data.away.form.scope;
+                  final narrow = box.maxWidth < 310;
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Row(
-                        children: [
-                          SportsAssetBadge(
-                            size: 22,
-                            imageUrl: data.competitionLogo,
-                            contrastPlate: true,
-                            fallbackLabel: data.competitionName,
-                            padding: 0,
-                          ),
-                          const SizedBox(width: 7),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  data.competitionName,
-                                  maxLines: expanded ? null : 1,
-                                  overflow: expanded
-                                      ? TextOverflow.visible
-                                      : TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    color: palette.accent,
-                                  ),
-                                ),
-                                if (data.round?.isNotEmpty == true)
-                                  Text(
-                                    data.round!,
-                                    maxLines: expanded ? null : 1,
-                                    overflow: expanded
-                                        ? TextOverflow.visible
-                                        : TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: context.textColors.secondary,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            _status,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: data.phase == CompactMatchPhase.live
-                                  ? context.semantic.live
-                                  : context.textColors.secondary,
-                            ),
-                          ),
-                          preparationAction,
-                        ],
-                      ),
-                      const SizedBox(height: 7),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              _formLabel,
-                              style: TextStyle(
-                                fontSize: 9,
-                                color: context.textColors.secondary,
+                      _competition(context, palette, enlarged),
+                      const SizedBox(height: AppSpacing.xxs),
+                      if (enlarged)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _teams(context, enlarged),
+                            const SizedBox(height: AppSpacing.xs),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: SizedBox(
+                                width: 145,
+                                child: _timeOrScore(context, enlarged),
                               ),
                             ),
-                          ),
-                          if (data.phase == CompactMatchPhase.finished &&
-                              data.formBeforeKickoff)
-                            Text(
-                              'Avant match',
-                              style: TextStyle(
-                                fontSize: 9,
-                                color: context.textColors.secondary,
+                          ],
+                        )
+                      else
+                        Row(
+                          children: [
+                            Expanded(flex: 7, child: _teams(context, enlarged)),
+                            const SizedBox(width: AppSpacing.xs),
+                            Expanded(
+                              flex: 3,
+                              child: _timeOrScore(context, enlarged),
+                            ),
+                            const SizedBox(width: AppSpacing.xxs),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              size: 23,
+                              color: context.textColors.secondary,
+                            ),
+                          ],
+                        ),
+                      const SizedBox(height: AppSpacing.xxs),
+                      if (enlarged && data.phase == CompactMatchPhase.upcoming)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _readings(context, enlarged, narrow: narrow),
+                            const SizedBox(height: AppSpacing.xs),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: SizedBox(
+                                width: enlarged ? 166 : 130,
+                                child: _quotes(context),
                               ),
                             ),
-                          if (data.phase == CompactMatchPhase.upcoming &&
-                              data.kickoff != null)
-                            Text(
-                              DateFormat(
-                                'dd/MM · HH:mm',
-                              ).format(data.kickoff!.toLocal()),
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                fontFeatures: [FontFeature.tabularFigures()],
+                          ],
+                        )
+                      else
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: _readings(
+                                context,
+                                enlarged,
+                                narrow: narrow,
                               ),
                             ),
-                        ],
-                      ),
-                      const SizedBox(height: 5),
-                      _team(
-                        context,
-                        data.home,
-                        data.homeScore,
-                        expanded: expanded,
-                        comparable: comparable,
-                      ),
-                      const SizedBox(height: 5),
-                      _team(
-                        context,
-                        data.away,
-                        data.awayScore,
-                        expanded: expanded,
-                        comparable: comparable,
-                      ),
-                      const SizedBox(height: 8),
-                      Divider(
-                        height: 1,
-                        color: context.surfaces.border.withValues(alpha: .65),
-                      ),
-                      const SizedBox(height: 7),
-                      LayoutBuilder(
-                        builder: (context, box) {
-                          final quotePanel =
-                              data.phase == CompactMatchPhase.upcoming
-                              ? _quotes(context)
-                              : null;
-                          final readingPanel = _readings(context);
-                          if (expanded && quotePanel != null) {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                readingPanel,
-                                const SizedBox(height: 8),
-                                quotePanel,
-                              ],
-                            );
-                          }
-                          return Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Expanded(child: readingPanel),
-                              if (quotePanel != null) ...[
-                                const SizedBox(width: 9),
-                                SizedBox(
-                                  width: box.maxWidth < 300 ? 119 : 135,
-                                  child: quotePanel,
-                                ),
-                              ],
-                              const SizedBox(width: 4),
-                              Icon(
-                                Icons.chevron_right_rounded,
-                                size: 18,
-                                color: context.textColors.secondary,
-                              ),
+                            if (data.phase == CompactMatchPhase.upcoming) ...[
+                              const SizedBox(width: AppSpacing.xs),
+                              SizedBox(width: 108, child: _quotes(context)),
                             ],
-                          );
-                        },
-                      ),
+                          ],
+                        ),
                     ],
                   );
                 },
               ),
             ),
           ),
+          Positioned(top: 0, right: 0, child: preparationAction),
         ],
       ),
     );
   }
 
-  Widget _team(
-    BuildContext context,
-    CompactMatchTeam team,
-    int? score, {
-    required bool expanded,
-    required bool comparable,
-  }) {
-    final identity = Row(
+  Widget _background(BuildContext context, CompetitionCardTheme palette) {
+    final asset = data.identity.backgroundAsset;
+    return Stack(
       children: [
-        SportsAssetBadge(
-          size: 25,
-          imageUrl: team.logoUrl,
-          fallbackLabel: team.name,
-          padding: 0,
-        ),
-        const SizedBox(width: 7),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                team.name,
-                maxLines: expanded ? null : 1,
-                overflow: expanded
-                    ? TextOverflow.visible
-                    : TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
+        if (asset != null)
+          Positioned.fill(
+            child: Opacity(
+              opacity: palette.light ? .10 : .95,
+              child: Image.asset(
+                asset,
+                fit: BoxFit.cover,
+                alignment: Alignment.centerRight,
+                excludeFromSemantics: true,
               ),
-              if (team.domesticCompetition?.isNotEmpty == true)
-                Text(
-                  team.domesticCompetition!,
-                  style: TextStyle(
-                    fontSize: 9,
-                    color: context.textColors.secondary,
+            ),
+          )
+        else if (data.competitionLogo?.isNotEmpty == true)
+          Positioned(
+            right: -18,
+            top: 28,
+            bottom: 12,
+            width: 150,
+            child: Opacity(
+              opacity: palette.light ? .07 : .18,
+              child: Image.network(
+                data.competitionLogo!,
+                fit: BoxFit.contain,
+                color: palette.accent,
+                colorBlendMode: BlendMode.srcIn,
+                excludeFromSemantics: true,
+                errorBuilder: (_, _, _) => const SizedBox.shrink(),
+              ),
+            ),
+          ),
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  palette.background,
+                  palette.background.withValues(alpha: .94),
+                  palette.background.withValues(
+                    alpha: palette.light ? .9 : .08,
                   ),
-                ),
-            ],
+                ],
+                stops: const [0, .47, 1],
+              ),
+            ),
           ),
         ),
       ],
     );
-    final form = comparable
-        ? RecentFormStrip(snapshot: team.form, teamName: team.name)
-        : Text('—', style: TextStyle(color: context.textColors.secondary));
-    final scored =
-        score == null ||
-            ![
-              CompactMatchPhase.live,
-              CompactMatchPhase.finished,
-            ].contains(data.phase)
-        ? null
-        : Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-            decoration: data.phase == CompactMatchPhase.live
-                ? BoxDecoration(
-                    color: context.features.liveScoreFill,
-                    borderRadius: BorderRadius.circular(AppRadius.control),
+  }
+
+  Widget _competition(
+    BuildContext context,
+    CompetitionCardTheme palette,
+    bool enlarged,
+  ) => Padding(
+    // The independent 44 px Shortlist target sits above the composition.
+    padding: const EdgeInsets.only(right: 32),
+    child: Row(
+      children: [
+        ColorFiltered(
+          colorFilter: ColorFilter.mode(palette.title, BlendMode.srcIn),
+          child: SportsAssetBadge(
+            size: 28,
+            imageUrl: data.competitionLogo,
+            fallbackLabel: data.competitionName,
+            padding: 0,
+            backgroundColor: Colors.transparent,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Expanded(
+          child: Tooltip(
+            message: data.competitionName,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _competitionLabel.toUpperCase(),
+                  maxLines: enlarged ? null : 1,
+                  overflow: enlarged
+                      ? TextOverflow.visible
+                      : TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.05,
+                    height: 1.15,
+                    color: palette.title,
+                  ),
+                ),
+                if (data.round?.isNotEmpty == true)
+                  Text(
+                    _roundLabel,
+                    maxLines: enlarged ? null : 1,
+                    overflow: enlarged
+                        ? TextOverflow.visible
+                        : TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10,
+                      height: 1.15,
+                      color: context.textColors.secondary,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.xxs),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+          decoration: BoxDecoration(
+            color: palette.background.withValues(alpha: .7),
+            borderRadius: BorderRadius.circular(AppRadius.chip),
+            border: Border.all(
+              color: data.phase == CompactMatchPhase.live
+                  ? context.semantic.live.withValues(alpha: .55)
+                  : palette.statusBorder,
+            ),
+          ),
+          child: Text(
+            _status,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w500,
+              color: data.phase == CompactMatchPhase.live
+                  ? context.semantic.live
+                  : palette.statusText,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _teams(BuildContext context, bool enlarged) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      _team(context, data.home, enlarged),
+      Padding(
+        padding: const EdgeInsets.only(left: 38),
+        child: Text(
+          'vs',
+          style: TextStyle(
+            fontSize: 9,
+            height: 1,
+            color: context.textColors.secondary,
+          ),
+        ),
+      ),
+      _team(context, data.away, enlarged),
+    ],
+  );
+
+  Widget _team(BuildContext context, CompactMatchTeam team, bool enlarged) =>
+      Row(
+        children: [
+          SportsAssetBadge(
+            size: 30,
+            imageUrl: team.logoUrl,
+            padding: 0,
+            backgroundColor: Colors.transparent,
+            fallbackLabel: team.name,
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Tooltip(
+                  message: team.name,
+                  child: Text(
+                    team.name,
+                    maxLines: enlarged ? null : 2,
+                    overflow: enlarged
+                        ? TextOverflow.visible
+                        : TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      height: 1.15,
+                    ),
+                  ),
+                ),
+                if (team.domesticCompetition?.isNotEmpty == true)
+                  Text(
+                    team.domesticCompetition!,
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: context.textColors.secondary,
+                    ),
+                  ),
+                const SizedBox(height: 3),
+                if (data.home.form.scope == data.away.form.scope)
+                  RecentFormStrip(
+                    snapshot: team.form,
+                    teamName: team.name,
+                    compact: true,
                   )
-                : null,
-            child: Text(
-              '$score',
+                else
+                  Text(
+                    '—',
+                    style: TextStyle(color: context.textColors.secondary),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      );
+
+  Widget _timeOrScore(BuildContext context, bool enlarged) {
+    final scored =
+        data.phase == CompactMatchPhase.live ||
+        data.phase == CompactMatchPhase.finished;
+    return Container(
+      padding: const EdgeInsets.only(left: AppSpacing.sm),
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(
+            color: context.surfaces.border.withValues(alpha: .8),
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (scored)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+              decoration: data.phase == CompactMatchPhase.live
+                  ? BoxDecoration(
+                      color: context.features.liveScoreFill,
+                      borderRadius: BorderRadius.circular(AppRadius.tight),
+                    )
+                  : null,
+              child: Text(
+                '${data.homeScore ?? '—'} – ${data.awayScore ?? '—'}',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
+              ),
+            )
+          else
+            Text(
+              data.kickoff == null
+                  ? '—'
+                  : DateFormat('HH:mm').format(data.kickoff!.toLocal()),
               style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
                 fontFeatures: [FontFeature.tabularFigures()],
               ),
             ),
-          );
-    return expanded
-        ? Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              identity,
-              Padding(
-                padding: const EdgeInsets.only(left: 32, top: 5),
-                child: Row(children: [form, const Spacer(), ?scored]),
-              ),
-            ],
-          )
-        : Row(
-            children: [
-              Expanded(child: identity),
-              const SizedBox(width: 6),
-              form,
-              if (scored != null) ...[const SizedBox(width: 8), scored],
-            ],
-          );
-  }
-
-  Widget _readings(BuildContext context) => InkWell(
-    onTap: onReadings ?? onOpen,
-    borderRadius: BorderRadius.circular(AppRadius.control),
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 44),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (data.readingCount != null)
-            Row(
-              children: [
-                Icon(
-                  Icons.bar_chart_rounded,
-                  size: 13,
-                  color: context.semantic.info,
-                ),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: Text(
-                    '${data.readingCount} lecture${data.readingCount == 1 ? '' : 's'}',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: context.semantic.info,
-                    ),
-                  ),
-                ),
-              ],
+          const SizedBox(height: 3),
+          Text(
+            _dayLabel,
+            style: TextStyle(fontSize: 10, color: context.textColors.secondary),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${data.phase == CompactMatchPhase.finished && data.formBeforeKickoff ? 'Avant match · ' : ''}$_formLabel',
+            style: TextStyle(
+              fontSize: 8,
+              height: 1.15,
+              color: context.textColors.secondary,
             ),
-          if (data.readings.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 4,
-              runSpacing: 3,
-              children: [
-                for (final reading in data.readings.take(2))
-                  Tooltip(
-                    message: reading.label,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 5,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: context.surfaces.backgroundSecondary.withValues(
-                          alpha: .65,
-                        ),
-                        border: Border.all(color: context.surfaces.border),
-                        borderRadius: BorderRadius.circular(AppRadius.control),
-                      ),
-                      child: Text(
-                        reading.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 9,
-                          color: context.textColors.secondary,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _readings(BuildContext context, bool enlarged, {bool narrow = false}) {
+    if (data.readingCount == null && data.readings.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final chips = <Widget>[
+      if (data.readingCount != null)
+        _pill(
+          context,
+          label:
+              '${data.readingCount} lecture${data.readingCount == 1 ? '' : 's'}',
+          icon: Icons.bar_chart_rounded,
+          foreground: context.semantic.info,
+          fill: context.semantic.info.withValues(alpha: .10),
+          border: Colors.transparent,
+        ),
+      for (final reading in data.readings.take(narrow && !enlarged ? 1 : 2))
+        _reading(context, reading),
+    ];
+    return InkWell(
+      onTap: onReadings ?? onOpen,
+      borderRadius: BorderRadius.circular(AppRadius.control),
+      child: enlarged
+          ? Wrap(
+              spacing: AppSpacing.xxs,
+              runSpacing: AppSpacing.xxs,
+              children: chips,
+            )
+          : Row(
+              children: [
+                for (var i = 0; i < chips.length; i++) ...[
+                  if (i != 0) const SizedBox(width: AppSpacing.xxs),
+                  if (i == 0 && data.readingCount != null)
+                    chips[i]
+                  else
+                    Expanded(child: chips[i]),
+                ],
+              ],
+            ),
+    );
+  }
+
+  Widget _reading(BuildContext context, CompactMatchReading reading) {
+    final style = context.opportunities.badgeFor(
+      reading.id,
+      variant: AppReadingBadgeVariant.soft,
+    );
+    return Tooltip(
+      message: reading.label,
+      child: _pill(
+        context,
+        label: switch (reading.id) {
+          'declining_form' => 'Baisse',
+          'form_advantage' || 'recent_form_advantage' => 'Forme +',
+          _ => reading.label,
+        },
+        icon: context.opportunities.readingIdentityForId(reading.id).icon,
+        foreground: style.foreground,
+        fill: style.background,
+        border: style.border,
+      ),
+    );
+  }
+
+  Widget _pill(
+    BuildContext context, {
+    required String label,
+    required IconData icon,
+    required Color foreground,
+    required Color fill,
+    required Color border,
+  }) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+    decoration: BoxDecoration(
+      color: fill,
+      borderRadius: BorderRadius.circular(AppRadius.chip),
+      border: Border.all(color: border),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: foreground),
+        const SizedBox(width: 3),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              color: foreground,
+            ),
+          ),
+        ),
+      ],
     ),
   );
 
@@ -405,83 +560,87 @@ class LectorCompactMatchCard extends StatelessWidget {
         data.hasCompleteQuotes &&
         data.quoteState != CompactQuoteState.unavailable;
     final stale = data.quoteState == CompactQuoteState.stale;
+    final availability = stale
+        ? 'Cotes à actualiser'
+        : !complete
+        ? 'Cotes indisponibles'
+        : 'Cotes 1N2';
     return Tooltip(
-      message: data.quotesUpdatedAt == null
-          ? 'Horodatage des cotes non renseigné'
-          : '${data.bookmaker ?? 'Cotes relevées'} · ${DateFormat('dd/MM HH:mm').format(data.quotesUpdatedAt!.toLocal())}',
+      message:
+          '$availability · ${data.quotesUpdatedAt == null ? 'Horodatage non renseigné' : '${data.bookmaker ?? 'Cotes relevées'} · ${DateFormat('dd/MM HH:mm').format(data.quotesUpdatedAt!.toLocal())}'}',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            stale
-                ? 'Cotes à actualiser'
-                : !complete
-                ? 'Cotes indisponibles'
-                : 'Cotes 1N2',
-            style: TextStyle(
-              fontSize: 9,
-              color: stale
-                  ? context.semantic.warning
-                  : context.textColors.secondary,
+          if (!complete || stale) ...[
+            Text(
+              availability,
+              style: TextStyle(
+                fontSize: 9,
+                color: stale
+                    ? context.semantic.warning
+                    : context.textColors.secondary,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              for (final outcome in const ['1', 'N', '2']) ...[
-                if (outcome != '1') const SizedBox(width: 4),
-                Expanded(
-                  child: Semantics(
-                    label:
-                        '${switch (outcome) {
-                          '1' => 'Domicile',
-                          'N' => 'Nul',
-                          _ => 'Extérieur',
-                        }} : ${complete ? data.quotes.firstWhere((q) => q.outcome == outcome).value.toStringAsFixed(2) : 'indisponible'}${stale ? ', cote obsolète' : ''}',
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 5),
-                      decoration: BoxDecoration(
-                        color: context.surfaces.backgroundSecondary.withValues(
-                          alpha: .7,
+            const SizedBox(height: 3),
+          ],
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: context.surfaces.backgroundSecondary.withValues(alpha: .6),
+              borderRadius: BorderRadius.circular(AppRadius.odds),
+              border: Border.all(
+                color: context.surfaces.border.withValues(alpha: .8),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              child: Row(
+                children: [
+                  for (final outcome in const ['1', 'N', '2'])
+                    Expanded(
+                      child: Semantics(
+                        label:
+                            '${switch (outcome) {
+                              '1' => 'Domicile',
+                              'N' => 'Nul',
+                              _ => 'Extérieur',
+                            }} : ${complete ? data.quotes.firstWhere((q) => q.outcome == outcome).value.toStringAsFixed(2) : 'indisponible'}${stale ? ', cote obsolète' : ''}',
+                        child: Column(
+                          children: [
+                            Text(
+                              outcome,
+                              style: TextStyle(
+                                fontSize: 9,
+                                height: 1,
+                                color: context.textColors.secondary,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              complete
+                                  ? data.quotes
+                                        .firstWhere((q) => q.outcome == outcome)
+                                        .value
+                                        .toStringAsFixed(2)
+                                  : '—',
+                              style: TextStyle(
+                                fontSize: 11,
+                                height: 1,
+                                fontWeight: FontWeight.w600,
+                                color: stale
+                                    ? context.textColors.secondary
+                                    : context.textColors.primary,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                        border: Border.all(color: context.surfaces.border),
-                        borderRadius: BorderRadius.circular(AppRadius.odds),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            outcome,
-                            style: TextStyle(
-                              fontSize: 9,
-                              color: context.textColors.secondary,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            complete
-                                ? data.quotes
-                                      .firstWhere((q) => q.outcome == outcome)
-                                      .value
-                                      .toStringAsFixed(2)
-                                : '—',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: stale
-                                  ? context.textColors.secondary
-                                  : context.textColors.primary,
-                              fontFeatures: const [
-                                FontFeature.tabularFigures(),
-                              ],
-                            ),
-                          ),
-                        ],
                       ),
                     ),
-                  ),
-                ),
-              ],
-            ],
+                ],
+              ),
+            ),
           ),
         ],
       ),

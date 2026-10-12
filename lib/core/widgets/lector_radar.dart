@@ -177,11 +177,13 @@ class LectorFormResultStrip extends StatelessWidget {
     this.onMatchTap,
     this.tooltips = const [],
     this.historyColumns = 0,
+    this.cellScale = 1,
     super.key,
   }) : assert(historyColumns >= 0);
   final List<String> results, tooltips;
   final ValueChanged<int>? onMatchTap;
   final int historyColumns;
+  final double cellScale;
   static const recentWindow = 5;
   static const cellSize = 13.0, spacing = 3.0, separatorWidth = 11.0;
   static double widthFor(int count) =>
@@ -205,8 +207,8 @@ class LectorFormResultStrip extends StatelessWidget {
             onTap: onMatchTap == null ? null : () => onMatchTap!(i),
             borderRadius: BorderRadius.circular(3),
             child: Container(
-              width: cellSize,
-              height: cellSize,
+              width: cellSize * cellScale,
+              height: cellSize * cellScale,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(3),
                 color: switch (results[i].toUpperCase()) {
@@ -220,7 +222,7 @@ class LectorFormResultStrip extends StatelessWidget {
             ),
           ),
         ),
-        if (i < to - 1) const SizedBox(width: spacing),
+        if (i < to - 1) SizedBox(width: spacing * cellScale),
       ],
     ],
   );

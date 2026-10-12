@@ -5,9 +5,15 @@ import 'lector_radar.dart';
 
 /// The same chronological cells and semantic colors as Form Radar.
 class RecentFormStrip extends StatelessWidget {
-  const RecentFormStrip({required this.snapshot, this.teamName, super.key});
+  const RecentFormStrip({
+    required this.snapshot,
+    this.teamName,
+    this.compact = false,
+    super.key,
+  });
   final RecentFormSnapshot snapshot;
   final String? teamName;
+  final bool compact;
   @override
   Widget build(BuildContext context) {
     final results = snapshot.latest;
@@ -26,7 +32,7 @@ class RecentFormStrip extends StatelessWidget {
           'Forme ${teamName ?? snapshot.teamId}, du plus ancien au plus récent : ${summary.isEmpty ? 'indisponible' : summary}',
       child: results.isEmpty
           ? Text(
-              'Indisponible',
+              compact ? '—' : 'Indisponible',
               style: TextStyle(
                 fontSize: 10,
                 color: context.textColors.secondary,
@@ -37,6 +43,7 @@ class RecentFormStrip extends StatelessWidget {
               children: [
                 LectorFormResultStrip(
                   results: results.map((r) => r.code).toList(growable: false),
+                  cellScale: compact ? .62 : 1,
                 ),
                 if (results.length < 5) ...[
                   const SizedBox(width: 4),

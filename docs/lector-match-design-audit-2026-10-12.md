@@ -76,3 +76,22 @@ Inter, la famille déjà prévue dans Lector, est désormais auto-hébergée dep
 Ces contrôles portent sur le premier point de validation, pas sur une refonte déjà généralisée. Aucun essai sur téléphone physique n’est effectué. Il reste l’intégration des callbacks et des données dans Tous et Pour moi, le raccord du header multisport, le traitement hockey applicable, le briefing européen conditionnel, puis la validation complète et la publication sur la démo. Les filtres réels, la personnalisation, les panneaux live/Radar, le stockage Shortlist, le Générateur, le Bilan et les règles métier ne sont pas réécrits par ce prototype.
 
 Dernier contrôle local : 12 tests de conservation du calendrier, du classement des équipes Radar et des contrats des cartes réussis. Analyse Flutter : No issues found. Le serveur de prévisualisation est arrêté et le navigateur restauré après vérification afin de libérer les ressources de la machine.
+
+
+## Révision après retour visuel utilisateur
+
+Référence prioritaire : la maquette Pour moi transmise dans `2513E695-A092-4608-991D-E397385E9797/1-Photo-1.jpg`. Le retour porte sur la fidélité des cartes. Le header et la navigation de l’aperçu restent hors de cette correction.
+
+| Première proposition | Composition corrigée | Motif |
+| --- | --- | --- |
+| Petits logos, horaire en haut | Logos de 30 px, équipes à gauche, horaire au centre avec séparateur fin | Reprendre les groupes de la référence |
+| Forme dominante dans la zone droite | Cellules compactes sous chaque nom, périmètre près de l’horaire | Les équipes restent la première information |
+| Compétition en texte bleu et logo sur plaque | Intitulé capitalisé, phase réelle traduite, silhouette de logo claire | Retrouver la hiérarchie de la maquette |
+| Fonds européens très atténués | Matière originale visible à droite, voile sombre côté texte | Identité plus lisible sans halo |
+| Petits badges empilés et cotes séparées | Lectures et signaux en ligne, cotes dans un groupe régulier 1/N/2 | Reprendre la ligne inférieure compacte |
+
+Les badges réutilisent les identités de lecture existantes. « Baisse » et « Forme + » sont des libellés courts de deux lectures réelles ; leurs textes complets restent accessibles par infobulle et dans la fiche. Une carte étroite peut montrer un seul signal représentatif au lieu de deux. Aucun badge Vigilance fictif n’est ajouté. Le watermark générique réutilise le logo fourni de la compétition ; aucun nouveau fichier de championnat n’est produit.
+
+La forme reste celle des snapshots archivés, du plus ancien au plus récent. Le paramètre visuel `cellScale` du composant Radar conserve sa valeur par défaut à 1 dans les écrans existants. La correction n’introduit aucune règle d’analyse, de classement ou de pari.
+
+La prévisualisation reste un jalon isolé, avant intégration aux écrans réels et publication sur la démo.
