@@ -903,13 +903,13 @@ void main() {
             ).copyWith(
               signals: const [
                 MatchSignal(
-                  id: 'account_reading',
+                  id: 'positive_streak',
                   title: 'Lecture du profil connecté',
                   summary: '',
                   proofs: [],
                 ),
                 MatchSignal(
-                  id: 'scenario:account_scenario',
+                  id: 'scenario:solid_favorite',
                   title: 'Scénario du profil connecté',
                   summary: '',
                   proofs: [],
@@ -918,6 +918,9 @@ void main() {
             );
         await _pumpPage(
           tester,
+          profile: _completedProfile().withOptionIds('readings', [
+            'positive_streak',
+          ]),
           identityScope: const IdentityScope.account('test-account'),
           repository: _FakeMatchFeedRepository(
             opportunities: const [],
@@ -926,7 +929,7 @@ void main() {
           ),
         );
         expect(find.byType(MatchFeedCard), findsOneWidget);
-        expect(find.text('Lecture du profil connecté'), findsOneWidget);
+        expect(find.text('Forme'), findsOneWidget);
         await tester.tap(find.text('Tous'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('France'));
@@ -934,7 +937,7 @@ void main() {
         await tester.tap(find.text('Championship'));
         await tester.pumpAndSettle();
         expect(find.byType(MatchFeedCard), findsOneWidget);
-        expect(find.text('Lecture du profil connecté'), findsOneWidget);
+        expect(find.text('Forme'), findsOneWidget);
         expect(find.text('Scénario du profil connecté'), findsOneWidget);
         expect(tester.takeException(), isNull);
       },
@@ -2037,6 +2040,14 @@ void main() {
                   competitionName: 'K League 1',
                   kickoff: firstFixtureDate,
                 ),
+                detectedSignals: const [
+                  MatchSignal(
+                    id: 'scenario:solid_favorite:home',
+                    title: 'Domination attendue',
+                    summary: 'Scénario retenu pour la configuration.',
+                    proofs: [],
+                  ),
+                ],
                 retainedTheses: [
                   _thesis(
                     id: 'controlled_favorite',
