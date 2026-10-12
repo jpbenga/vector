@@ -39,7 +39,7 @@ def main():
     import tempfile
     import uuid
     # Download only public sporting cache fields; never user or conversation tables.
-    cache=query("select source,endpoint,query_hash,query_params,response_status,response_body,fetched_at,as_of from api_football_cached_responses where source='api-football' and (endpoint in ('/standings','/leagues') or (endpoint='/odds' and query_params->>'league' in ('2','3','848'))) and response_status between 200 and 299 order by fetched_at desc")
+    cache=query("select source,endpoint,query_hash,query_params,response_status,response_body,fetched_at,as_of from api_football_cached_responses where source='api-football' and (endpoint in ('/standings','/leagues') or (endpoint='/odds' and query_params->>'league' in ('2','3','848') and fetched_at>now()-interval '4 days')) and response_status between 200 and 299 order by fetched_at desc")
     keys=request(base+'/api-keys',token)
     service=next(k['api_key'] for k in keys if k['name']=='service_role')
     def storage(table,body):
