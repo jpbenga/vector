@@ -22,6 +22,7 @@ on:
           - lector-generator-demo
           - lector-generator-update
           - lector-generator-diagnostic
+          - lector-football-cards-diagnostic
           - lector-generator-workshop
           - lector-generator-radar-update
           - lector-generator-sport-publications
@@ -130,7 +131,7 @@ jobs:
         run: python3 tool/deploy_generator_scope_remote.py
 
   generator-diagnostic:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-diagnostic'
+    if: github.ref == 'refs/heads/codex/multisport-hockey' && (inputs.function == 'lector-generator-diagnostic' || inputs.function == 'lector-football-cards-diagnostic')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -141,7 +142,12 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           GENERATOR_DIAGNOSTIC_SINCE: ${{ inputs.diagnostic_since }}
-        run: python3 tool/diagnose_generator_remote.py
+        run: |
+          if [ '${{ inputs.function }}' = lector-football-cards-diagnostic ]; then
+            python3 tool/diagnose_football_cards_remote.py
+          else
+            python3 tool/diagnose_generator_remote.py
+          fi
 
   sport-publications:
     if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-sport-publications'
