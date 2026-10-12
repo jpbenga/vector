@@ -388,7 +388,9 @@ List<MatchCardReading> _representativeReadingTags(MatchBoardItem match) {
     if (signal.id.startsWith('scenario:') || signal.id.startsWith('market:')) {
       continue;
     }
-    if (ReadingPreferenceCatalog.preferenceIdsForReading(signal.id).isEmpty ||
+    if ((match.profileRelevance.retainedReadingIds != null &&
+            !match.profileRelevance.retainedReadingIds!.contains(signal.id)) ||
+        ReadingPreferenceCatalog.preferenceIdsForReading(signal.id).isEmpty ||
         signal.id.startsWith('standout_decisive_player')) {
       continue;
     }
@@ -451,7 +453,8 @@ String _storySummary(MatchBoardItem match) {
 
 String matchReadingLabelForId(String id, {required String fallback}) {
   return switch (id) {
-    'ranking_gap' || 'structural_level_gap' => 'Avantage classement',
+    'ranking_gap' => 'Écarts de niveau',
+    'structural_level_gap' => 'Écart de niveau structurel',
     'ranking_superiority' => 'Écart au classement',
     'balanced_hierarchy' => 'Hiérarchie équilibrée',
     'winning_streak' ||

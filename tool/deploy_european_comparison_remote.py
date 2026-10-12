@@ -39,7 +39,7 @@ def main():
     import tempfile
     import uuid
     # Download only public sporting cache fields; never user or conversation tables.
-    cache=query("select source,endpoint,query_hash,query_params,response_status,response_body,fetched_at,as_of from api_football_cached_responses where source='api-football' and endpoint in ('/standings','/leagues') and response_status between 200 and 299 order by fetched_at desc")
+    cache=query("select source,endpoint,query_hash,query_params,response_status,response_body,fetched_at,as_of from api_football_cached_responses where source='api-football' and (endpoint in ('/standings','/leagues') or (endpoint='/odds' and query_params->>'league' in ('2','3','848'))) and response_status between 200 and 299 order by fetched_at desc")
     keys=request(base+'/api-keys',token)
     service=next(k['api_key'] for k in keys if k['name']=='service_role')
     def storage(table,body):
@@ -87,7 +87,7 @@ def main():
     counts=[]
     for s in sources:
         dossiers=s['payload']['raw']['european_comparisons']
-        counts.append({'sourceId':s['id'],'fixtures':len(dossiers),'domesticContexts':sum(1 for d in dossiers for side in ('home','away') if d[side]['domesticCompetition'] is not None),'europeanHistories':sum(1 for d in dossiers for side in ('home','away') if d[side]['europeanRecentMatches'])})
+        counts.append({'sourceId':s['id'],'fixtures':len(dossiers),'domesticContexts':sum(1 for d in dossiers for side in ('home','away') if d[side]['domesticCompetition'] is not None),'europeanHistories':sum(1 for d in dossiers for side in ('home','away') if d[side]['europeanRecentMatches']), 'newestQuoteAt':max((q.get('update','') for q in s['payload']['raw'].get('odds',[])),default=None)})
     receipt={'revision':sha,'functions':list(FUNCTIONS),'sources':counts,'builds':built,'providerCalls':0,'modelCalls':0,'personalDataWrites':0}
     (output/'receipt.json').write_text(json.dumps(receipt,indent=2))
     print(json.dumps(receipt),flush=True)

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_components.dart';
@@ -30,6 +31,7 @@ class EuropeanEveningBriefing extends StatefulWidget {
 class _EuropeanEveningBriefingState extends State<EuropeanEveningBriefing> {
   final _controller = PageController();
   int _page = 0;
+  final _heights = <int, double>{};
   static const _priority = [2, 3, 848];
   List<int> get _competitions => _priority
       .where(
@@ -50,6 +52,7 @@ class _EuropeanEveningBriefingState extends State<EuropeanEveningBriefing> {
         .join(',');
     if (oldWidget.date != widget.date || oldIds != _competitions.join(',')) {
       _page = 0;
+      _heights.clear();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _controller.hasClients) _controller.jumpToPage(0);
       });
@@ -91,13 +94,34 @@ class _EuropeanEveningBriefingState extends State<EuropeanEveningBriefing> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(
-          height: 256 * scale.clamp(1.0, 3.0),
-          child: PageView(
-            key: ValueKey('european-briefings-${widget.date}'),
-            controller: _controller,
-            onPageChanged: (p) => setState(() => _page = p),
-            children: [for (final id in ids) card(id)],
+        AnimatedSize(
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 180),
+          alignment: Alignment.topCenter,
+          child: SizedBox(
+            height: _heights[ids[_page]] ?? 200 * scale.clamp(1.0, 3.0),
+            child: PageView(
+              key: ValueKey('european-briefings-${widget.date}'),
+              controller: _controller,
+              onPageChanged: (p) => setState(() => _page = p),
+              children: [
+                for (final id in ids)
+                  OverflowBox(
+                    minHeight: 0,
+                    maxHeight: double.infinity,
+                    alignment: Alignment.topCenter,
+                    child: _BriefingHeight(
+                      onHeight: (height) {
+                        if (mounted && _heights[id] != height) {
+                          setState(() => _heights[id] = height);
+                        }
+                      },
+                      child: card(id),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
         Row(
@@ -223,7 +247,7 @@ class _BriefingCard extends StatelessWidget {
                   Text(
                     showReadings
                         ? withReadings == 0
-                              ? 'Aucune lecture publiée pour ces rencontres.'
+                              ? 'Aucune lecture de votre profil pour ces rencontres.'
                               : '$withReadings rencontre${withReadings > 1 ? 's' : ''} avec des lectures Lector.'
                         : 'Découvrez les rencontres de cette compétition.',
                     style: TextStyle(
@@ -307,4 +331,31 @@ class _EuropeanEveningPage extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _BriefingHeight extends SingleChildRenderObjectWidget {
+  const _BriefingHeight({required this.onHeight, required super.child});
+  final ValueChanged<double> onHeight;
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _BriefingHeightBox(onHeight);
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    covariant _BriefingHeightBox renderObject,
+  ) => renderObject.onHeight = onHeight;
+}
+
+class _BriefingHeightBox extends RenderProxyBox {
+  _BriefingHeightBox(this.onHeight);
+  ValueChanged<double> onHeight;
+  double? _previous;
+  @override
+  void performLayout() {
+    super.performLayout();
+    if (_previous == size.height) return;
+    _previous = size.height;
+    final height = size.height;
+    WidgetsBinding.instance.addPostFrameCallback((_) => onHeight(height));
+  }
 }

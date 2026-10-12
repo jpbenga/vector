@@ -4,6 +4,7 @@ import {
   type CachedContextSource,
   resolveEuropeanDomesticContexts,
 } from "../supabase/functions/_shared/european_fixture_comparison.ts";
+import { refreshPublishedOdds } from "../supabase/functions/_shared/refresh_published_odds.ts";
 const obj = (v: unknown): Record<string, unknown> =>
   v && typeof v === "object" ? v as Record<string, unknown> : {};
 const rows = (v: unknown): Record<string, unknown>[] =>
@@ -99,6 +100,10 @@ if (import.meta.main) {
     ),
     ...domestic.standings,
   ];
+  raw.odds = refreshPublishedOdds(
+    raw,
+    cached as unknown as Record<string, unknown>[],
+  );
   raw.context_sources = allSources;
   // Source observation timestamps stay on every standing/history. Publication
   // time identifies a new build; it never authorizes a post-kickoff statistic.

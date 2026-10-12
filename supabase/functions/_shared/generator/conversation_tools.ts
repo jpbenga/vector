@@ -1,3 +1,4 @@
+import { footballPublishedQuotes } from "./published_quotes.ts";
 import {
   mergeShortlistSources,
   shortlistGroups,
@@ -581,6 +582,14 @@ export class ConversationReader {
     this.detailsRead.add(`${q.id}:${key}`);
     return {
       ...match,
+      publishedQuotes: match.sport === "football"
+        ? q.sources.filter((s) => s.id === match.sourceId).flatMap((s) =>
+          footballPublishedQuotes(obj(s.payload.raw).odds, match.id)
+        )
+        : rows(q.sources.find((s) => s.id === match.sourceId)?.payload.items)
+          .filter((f) => String(f.id) === match.id).flatMap((f) =>
+            rows(f.quotes)
+          ),
       evidence: (this.matchSheets(q).find((s) => s.key === key)?.facts ?? [])
         .map(modelEvidence),
       candidates: analysisCandidates(

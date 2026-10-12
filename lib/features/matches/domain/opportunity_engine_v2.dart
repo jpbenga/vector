@@ -857,6 +857,7 @@ class OpportunityEngineV2 {
 
     final relevance = MatchProfileRelevance(
       readingMatches: profileReadings.length,
+      retainedReadingIds: {for (final reading in profileReadings) reading.id},
       scenarioMatches: selectedScenarioMatches.length,
       marketMatches: marketCandidates.length,
     );

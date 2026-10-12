@@ -54,6 +54,13 @@ void main() {
         final pager = find.byType(PageView);
         expect(tester.widget<PageView>(pager).controller!.page, 0);
         expect(find.text('Briefing 1 / 3'), findsOneWidget);
+        final card = tester.getRect(
+          find.byKey(const ValueKey('european-evening-briefing-2')),
+        );
+        final button = tester.getRect(
+          find.byKey(const ValueKey('open-european-evening-2')),
+        );
+        expect(card.bottom - button.bottom, lessThanOrEqualTo(14));
         expect(find.text('Vigilances'), findsNothing);
         expect(find.text('Équilibre'), findsNothing);
         await tester.drag(pager, Offset(-width, 0));
@@ -101,7 +108,7 @@ void main() {
       expect(
         find.text(
           publishedMatchCardReadings(europa).isEmpty
-              ? 'Aucune lecture publiée pour ces rencontres.'
+              ? 'Aucune lecture de votre profil pour ces rencontres.'
               : '1 rencontre avec des lectures Lector.',
         ),
         findsOneWidget,

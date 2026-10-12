@@ -216,6 +216,7 @@ enum MatchProfileStatus { inProfile, outOfProfile }
 class MatchProfileRelevance {
   const MatchProfileRelevance({
     this.readingMatches = 0,
+    this.retainedReadingIds,
     this.scenarioMatches = 0,
     this.marketMatches = 0,
   });
@@ -223,6 +224,7 @@ class MatchProfileRelevance {
   static const none = MatchProfileRelevance();
 
   final int readingMatches;
+  final Set<String>? retainedReadingIds;
   final int scenarioMatches;
   final int marketMatches;
 

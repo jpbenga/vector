@@ -1,3 +1,4 @@
+import { footballPublishedQuotes } from "./published_quotes.ts";
 import { obj, rows } from "./contracts.ts";
 
 // Fixed PostgREST projection: no raw provider envelopes, user tables or arbitrary SQL.
@@ -6,6 +7,7 @@ export const footballDetailColumns = [
   "captured_at",
   "fixtures:payload->raw->fixtures",
   "computed:payload->computed->fixtures",
+  "odds:payload->raw->odds",
   "standings:payload->raw->standings",
   "team_statistics:payload->raw->team_statistics",
   "recent_league_matches:payload->raw->recent_league_matches",
@@ -70,6 +72,7 @@ export function projectFootballMatch(
       id: matchId,
       fixture,
       europeanComparison: dossier,
+      quotes: footballPublishedQuotes(source.odds, matchId),
       readings: computed?.readings ?? [],
       scenarios: computed?.scenarios ?? [],
       tiers: european ? null : computed?.tier_snapshot ?? null,

@@ -1,3 +1,4 @@
+import { footballQuoteAvailability } from "./published_quotes.ts";
 import { hockeyMarkets } from "../sports/hockey_odds.ts";
 import { freshHockeyQuotes, hockeyCandidates } from "./hockey_markets.ts";
 import { playerSignals, teamSignals } from "./radar.ts";
@@ -384,18 +385,6 @@ export function buildCatalog(
       const prices = rows(raw.odds).filter((r) =>
         String(obj(r.fixture).id) === id
       );
-      const hasFreshQuotes = prices.some((p) => {
-        const age = now.getTime() - Date.parse(String(p.update ?? ""));
-        return Number.isFinite(age) && age >= -60000 && age <= 48 * 3600000 &&
-          rows(p.bookmakers).some((b) =>
-            rows(b.bets).some((bet) =>
-              rows(bet.values).some((v) =>
-                Number.isFinite(Number(v.odd)) && Number(v.odd) > 1 &&
-                Number(v.odd) <= 100
-              )
-            )
-          );
-      });
       matchCount++;
       matches.push({
         id: `api-fixture-${id}`,
@@ -404,7 +393,7 @@ export function buildCatalog(
         home: String(home.name),
         away: String(away.name),
         kickoff,
-        quoteAvailability: hasFreshQuotes ? "recent" : "unavailable",
+        quoteAvailability: footballQuoteAvailability(prices, id, now),
         evidence: [
           ...evidence(selected, source, [...pref.readings, ...scenarioReadings])
             .map((e) => ({

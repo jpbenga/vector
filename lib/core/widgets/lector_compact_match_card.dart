@@ -70,7 +70,7 @@ class LectorCompactMatchCard extends StatelessWidget {
         };
   String get _dayLabel {
     final kickoff = data.kickoff?.toLocal();
-    if (kickoff == null) return 'Horaire à confirmer';
+    if (kickoff == null) return 'À confirmer';
     final day = referenceDate ?? DateTime.now();
     final delta = DateTime.utc(
       kickoff.year,
@@ -133,65 +133,84 @@ class LectorCompactMatchCard extends StatelessWidget {
                         )
                       else
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(flex: 7, child: _teams(context, enlarged)),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  _teams(context, enlarged),
+                                  if (data.readingCount != null ||
+                                      data.readings.isNotEmpty ||
+                                      data.signals.isNotEmpty) ...[
+                                    const SizedBox(height: AppSpacing.xxs),
+                                    _readings(
+                                      context,
+                                      enlarged,
+                                      narrow: narrow,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
                             const SizedBox(width: AppSpacing.xs),
-                            Expanded(
-                              flex: 3,
-                              child: _timeOrScore(context, enlarged),
-                            ),
-                            const SizedBox(width: AppSpacing.xxs),
-                            IconButton(
-                              tooltip: data.phase == CompactMatchPhase.live
-                                  ? 'Suivre le match'
-                                  : 'Voir l’analyse',
-                              onPressed: onOpen,
-                              constraints: const BoxConstraints(
-                                minWidth: 44,
-                                minHeight: 44,
-                              ),
-                              padding: EdgeInsets.zero,
-                              icon: Icon(
-                                Icons.chevron_right_rounded,
-                                size: 23,
-                                color: context.textColors.secondary,
+                            SizedBox(
+                              width: 114,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _timeOrScore(context, enlarged),
+                                      ),
+                                      SizedBox(
+                                        width: 28,
+                                        child: IconButton(
+                                          tooltip:
+                                              data.phase ==
+                                                  CompactMatchPhase.live
+                                              ? 'Suivre le match'
+                                              : 'Voir l’analyse',
+                                          onPressed: onOpen,
+                                          constraints: const BoxConstraints(
+                                            minWidth: 28,
+                                            minHeight: 44,
+                                          ),
+                                          padding: EdgeInsets.zero,
+                                          icon: Icon(
+                                            Icons.chevron_right_rounded,
+                                            size: 23,
+                                            color: context.textColors.secondary,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (data.phase ==
+                                      CompactMatchPhase.upcoming) ...[
+                                    const SizedBox(height: AppSpacing.xs),
+                                    _quotes(context),
+                                  ],
+                                ],
                               ),
                             ),
                           ],
                         ),
-                      const SizedBox(height: AppSpacing.xxs),
-                      if (enlarged && data.phase == CompactMatchPhase.upcoming)
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _readings(context, enlarged, narrow: narrow),
-                            const SizedBox(height: AppSpacing.xs),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: SizedBox(
-                                width: enlarged ? 166 : 130,
-                                child: _quotes(context),
-                              ),
+                      if (enlarged) ...[
+                        const SizedBox(height: AppSpacing.xxs),
+                        _readings(context, enlarged, narrow: narrow),
+                        if (data.phase == CompactMatchPhase.upcoming) ...[
+                          const SizedBox(height: AppSpacing.xs),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: SizedBox(
+                              width: 166,
+                              child: _quotes(context),
                             ),
-                          ],
-                        )
-                      else
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Expanded(
-                              child: _readings(
-                                context,
-                                enlarged,
-                                narrow: narrow,
-                              ),
-                            ),
-                            if (data.phase == CompactMatchPhase.upcoming) ...[
-                              const SizedBox(width: AppSpacing.xs),
-                              SizedBox(width: 108, child: _quotes(context)),
-                            ],
-                          ],
-                        ),
+                          ),
+                        ],
+                      ],
                       ?liveFooter,
                       if (supplement != null) ...[
                         const SizedBox(height: AppSpacing.xxs),
@@ -232,12 +251,10 @@ class LectorCompactMatchCard extends StatelessWidget {
             bottom: 12,
             width: 150,
             child: Opacity(
-              opacity: palette.light ? .07 : .18,
+              opacity: palette.light ? .12 : .32,
               child: Image.network(
                 data.competitionLogo!,
                 fit: BoxFit.contain,
-                color: palette.accent,
-                colorBlendMode: BlendMode.srcIn,
                 excludeFromSemantics: true,
                 errorBuilder: (_, _, _) => const SizedBox.shrink(),
               ),
@@ -272,15 +289,13 @@ class LectorCompactMatchCard extends StatelessWidget {
     padding: const EdgeInsets.only(right: 32),
     child: Row(
       children: [
-        ColorFiltered(
-          colorFilter: ColorFilter.mode(palette.title, BlendMode.srcIn),
-          child: SportsAssetBadge(
-            size: 28,
-            imageUrl: data.competitionLogo,
-            fallbackLabel: data.competitionName,
-            padding: 0,
-            backgroundColor: AppColors.transparent,
-          ),
+        SportsAssetBadge(
+          size: 28,
+          imageUrl: data.competitionLogo,
+          fallbackLabel: data.competitionName,
+          padding: 0,
+          backgroundColor: AppColors.transparent,
+          contrastPlate: data.identity == CompetitionCardIdentity.generic,
         ),
         const SizedBox(width: AppSpacing.xs),
         Expanded(
@@ -386,7 +401,7 @@ class LectorCompactMatchCard extends StatelessWidget {
                   message: team.name,
                   child: Text(
                     team.name,
-                    maxLines: enlarged ? null : 2,
+                    maxLines: enlarged ? null : 1,
                     overflow: enlarged
                         ? TextOverflow.visible
                         : TextOverflow.ellipsis,
@@ -406,11 +421,16 @@ class LectorCompactMatchCard extends StatelessWidget {
                     ),
                   ),
                 if (team.domesticCompetition?.isNotEmpty == true)
-                  Text(
-                    team.domesticCompetition!,
-                    style: TextStyle(
-                      fontSize: 9,
-                      color: context.textColors.secondary,
+                  Tooltip(
+                    message: team.domesticCompetition!,
+                    child: Text(
+                      team.domesticCompetition!,
+                      maxLines: enlarged ? null : 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: context.textColors.secondary,
+                      ),
                     ),
                   ),
                 const SizedBox(height: 3),
@@ -436,7 +456,7 @@ class LectorCompactMatchCard extends StatelessWidget {
         data.phase == CompactMatchPhase.live ||
         data.phase == CompactMatchPhase.finished;
     return Container(
-      padding: const EdgeInsets.only(left: AppSpacing.sm),
+      padding: const EdgeInsets.only(left: AppSpacing.xs),
       decoration: BoxDecoration(
         border: Border(
           left: BorderSide(
@@ -499,15 +519,22 @@ class LectorCompactMatchCard extends StatelessWidget {
           const SizedBox(height: 3),
           Text(
             _dayLabel,
+            maxLines: enlarged ? null : 2,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(fontSize: 10, color: context.textColors.secondary),
           ),
           const SizedBox(height: 4),
-          Text(
-            '${data.phase == CompactMatchPhase.finished && data.formBeforeKickoff ? 'Avant match · ' : ''}$_formLabel',
-            style: TextStyle(
-              fontSize: 8,
-              height: 1.15,
-              color: context.textColors.secondary,
+          Tooltip(
+            message: _formLabel,
+            child: Text(
+              '${data.phase == CompactMatchPhase.finished && data.formBeforeKickoff ? 'Avant match · ' : ''}${data.home.form.scope == MatchFormScope.competition ? 'Forme (compétition)' : _formLabel}',
+              maxLines: enlarged ? null : 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 8,
+                height: 1.15,
+                color: context.textColors.secondary,
+              ),
             ),
           ),
         ],

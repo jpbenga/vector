@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 class AppTypography {
-  static const fontFamily = 'Inter';
+  // Before the premium prototypes bundled Inter, Flutter web rendered Roboto.
+  static const fontFamily = 'Roboto';
 
   static TextTheme textTheme({required Color color}) {
     return const TextTheme(

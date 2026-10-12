@@ -10,6 +10,7 @@ export interface MarketAvailability {
       | "fixture_not_scheduled"
       | "publication_stale"
       | "quotes_not_collected"
+      | "quotes_stale"
       | "quotes_unavailable"
       | "quotes_unknown"
       | "no_supported_candidate";
@@ -56,7 +57,13 @@ export function marketAvailability(
         "La publication analytique ne satisfait pas le contrôle de fraîcheur.",
     });
   }
-  if (quoteAvailability === "not_collected") {
+  if (quoteAvailability === "stale") {
+    reasons.push({
+      code: "quotes_stale",
+      text:
+        "Des cotes publiées sont consultables, mais leur relevé dépasse 48 h. Elles nécessitent une actualisation avant le calcul d’un combiné prématch.",
+    });
+  } else if (quoteAvailability === "not_collected") {
     reasons.push({
       code: "quotes_not_collected",
       text: "Aucune collecte de cotes n’est présente pour cette rencontre.",

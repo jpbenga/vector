@@ -150,4 +150,73 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  test(
+    'card ignores a signal absent from the exact retained profile readings',
+    () {
+      final match = appearancePreviewMatch.copyWith(
+        profileRelevance: const MatchProfileRelevance(
+          readingMatches: 1,
+          retainedReadingIds: {'form_gap'},
+        ),
+        signals: const [
+          MatchSignal(
+            id: 'structural_level_gap',
+            title: 'Écart',
+            summary: 'Non configuré',
+            proofs: [],
+          ),
+          MatchSignal(
+            id: 'form_gap',
+            title: 'Forme',
+            summary: 'Configuré',
+            proofs: [],
+          ),
+        ],
+      );
+      expect(
+        compactFootballMatch(
+          match: match,
+          showReadings: true,
+        ).readings.map((r) => r.id),
+        ['form_gap'],
+      );
+    },
+  );
+  for (final width in [320.0, 375.0, 390.0, 430.0, 768.0]) {
+    testWidgets('quotes stay beside the teams without overflow at $width', (
+      tester,
+    ) async {
+      tester.view.physicalSize = Size(width, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final data = compactFootballMatch(
+        match: appearancePreviewMatch,
+        showReadings: true,
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: CopilotTheme.dark,
+          home: Scaffold(
+            body: Padding(
+              padding: const EdgeInsets.all(12),
+              child: LectorCompactMatchCard(
+                data: data,
+                onOpen: () {},
+                preparationAction: const SizedBox.square(dimension: 44),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final odds = tester.getRect(
+        find.byKey(ValueKey('story-match-result-odds-${data.id}')),
+      );
+      final away = tester.getRect(find.text(data.away.name));
+      expect(odds.left, greaterThan(away.left));
+      expect(odds.top, lessThan(away.bottom + 32));
+      expect(tester.takeException(), isNull);
+    });
+  }
 }

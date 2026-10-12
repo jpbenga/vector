@@ -220,7 +220,8 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        expect(find.text('Forme (Ligue des champions)'), findsOneWidget);
+        expect(find.text('Forme (compétition)'), findsOneWidget);
+        expect(find.byTooltip('Forme (Ligue des champions)'), findsOneWidget);
         expect(find.text('Forme (championnat)'), findsNothing);
         expect(find.text('1 match'), findsOneWidget);
         expect(find.text('3 matchs'), findsOneWidget);
