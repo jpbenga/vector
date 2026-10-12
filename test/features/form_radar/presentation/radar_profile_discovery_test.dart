@@ -1,4 +1,5 @@
 import 'package:copilot/core/widgets/lector_match_supplement.dart';
+import 'package:copilot/core/widgets/lector_player_radar.dart';
 import 'package:copilot/features/form_radar/domain/radar_scope.dart';
 import 'package:copilot/core/identity/identity_scope.dart';
 import 'package:copilot/core/theme/app_theme.dart';
@@ -78,7 +79,8 @@ void main() {
       expect(card.readingMatch?.thesis, isNull);
       expect(find.text('Série positive'), findsNothing);
       expect(find.text('Forme'), findsNothing);
-      expect(find.byType(LectorMatchSupplement), findsOneWidget);
+      expect(find.byType(LectorMatchSupplement), findsNothing);
+      expect(find.byType(LectorRadarPlayerRow), findsWidgets);
       expect(tester.takeException(), isNull);
     },
   );
@@ -104,7 +106,8 @@ void main() {
     expect(card.readingMatch, isNull);
     expect(find.text('Série positive'), findsNothing);
     expect(find.text('Forme'), findsNothing);
-    expect(find.byType(LectorMatchSupplement), findsOneWidget);
+    expect(find.byType(LectorMatchSupplement), findsNothing);
+    expect(find.byType(LectorRadarPlayerRow), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 }
