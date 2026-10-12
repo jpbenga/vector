@@ -1,3 +1,4 @@
+import '../theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_components.dart';
 
@@ -18,7 +19,7 @@ class LectorMatchSupplement extends StatelessWidget {
   final bool isLive;
   @override
   Widget build(BuildContext context) => Theme(
-    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+    data: Theme.of(context).copyWith(dividerColor: AppColors.transparent),
     child: ExpansionTile(
       key: ValueKey('match-supplement:$identity'),
       tilePadding: const EdgeInsets.symmetric(horizontal: 4),
@@ -26,12 +27,12 @@ class LectorMatchSupplement extends StatelessWidget {
       minTileHeight: 32,
       dense: true,
       visualDensity: VisualDensity.compact,
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.transparent,
       collapsedBackgroundColor: decisiveCount > 0
           ? (isLive
                 ? context.features.radarConfirmedLiveFill
                 : context.features.radarConfirmedFinalFill)
-          : Colors.transparent,
+          : AppColors.transparent,
       shape: const Border(),
       collapsedShape: const Border(),
       title: Text(

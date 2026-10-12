@@ -1,3 +1,4 @@
+import '../theme/app_colors.dart';
 import 'lector_reading_pill.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -273,7 +274,7 @@ class LectorCompactMatchCard extends StatelessWidget {
             imageUrl: data.competitionLogo,
             fallbackLabel: data.competitionName,
             padding: 0,
-            backgroundColor: Colors.transparent,
+            backgroundColor: AppColors.transparent,
           ),
         ),
         const SizedBox(width: AppSpacing.xs),
@@ -368,7 +369,7 @@ class LectorCompactMatchCard extends StatelessWidget {
             size: 30,
             imageUrl: team.logoUrl,
             padding: 0,
-            backgroundColor: Colors.transparent,
+            backgroundColor: AppColors.transparent,
             fallbackLabel: team.name,
           ),
           const SizedBox(width: AppSpacing.xs),
@@ -524,7 +525,7 @@ class LectorCompactMatchCard extends StatelessWidget {
           icon: Icons.bar_chart_rounded,
           foreground: context.semantic.info,
           fill: context.semantic.info.withValues(alpha: .10),
-          border: Colors.transparent,
+          border: AppColors.transparent,
         ),
       for (final reading in [
         ...data.signals,

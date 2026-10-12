@@ -1,3 +1,4 @@
+import '../../../../core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_components.dart';
@@ -133,7 +134,7 @@ class EuropeanEveningBriefing extends StatelessWidget {
                         size: 28,
                         imageUrl: items.first.competition.logoUrl,
                         fallbackLabel: 'Ligue des champions',
-                        backgroundColor: Colors.transparent,
+                        backgroundColor: AppColors.transparent,
                       ),
                     ),
                     const SizedBox(width: 8),
