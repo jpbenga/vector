@@ -91,8 +91,12 @@ def main():
     receipt={'revision':sha,'functions':list(FUNCTIONS),'sources':counts,'builds':built,'providerCalls':0,'modelCalls':0,'personalDataWrites':0}
     (output/'receipt.json').write_text(json.dumps(receipt,indent=2))
     print(json.dumps(receipt),flush=True)
-    runtime={**os.environ,'SUPABASE_URL':'https://'+PROJECT+'.supabase.co','SUPABASE_SERVICE_ROLE_KEY':service}
-    subprocess.run(['deno','run','--allow-env=GITHUB_ACTIONS,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY','--allow-net='+PROJECT+'.supabase.co','tool/build_football_delivery_remote.ts'],env=runtime,check=True)
+    capabilities=query("select to_regprocedure('public.feed_delivery_claim(text)') is not null and to_regprocedure('public.feed_delivery_finish(text,uuid,bigint,jsonb,text)') is not null as cloud_delivery")[0]
+    if capabilities['cloud_delivery']:
+        runtime={**os.environ,'SUPABASE_URL':'https://'+PROJECT+'.supabase.co','SUPABASE_SERVICE_ROLE_KEY':service}
+        subprocess.run(['deno','run','--allow-env=GITHUB_ACTIONS,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY','--allow-net='+PROJECT+'.supabase.co','tool/build_football_delivery_remote.ts'],env=runtime,check=True)
+    else:
+        print(json.dumps({'cloudDelivery':'not_installed','demoDelivery':'static_files','europeanPublication':'confirmed'}))
 
 
 if __name__=='__main__':main()
