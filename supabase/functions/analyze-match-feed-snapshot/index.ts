@@ -218,6 +218,7 @@ Deno.serve(async (request) => {
       });
     }
 
+    const europeanComparisons = buildEuropeanComparisons(snapshotPayload ?? {});
     const compactPayload = {
       schema_version: 1,
       source: stringValue(snapshot.source) ?? "api-football",
@@ -226,7 +227,9 @@ Deno.serve(async (request) => {
       window_start: stringValue(snapshot.window_start),
       window_end: stringValue(snapshot.window_end),
       raw: {
-        european_comparisons: buildEuropeanComparisons(snapshotPayload ?? {}),
+        ...(europeanComparisons.length
+          ? { european_comparisons: europeanComparisons }
+          : {}),
         fixtures,
         odds,
         // Compact, display-only data. The app maps these values to widgets but
