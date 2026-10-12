@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/domain/compact_match_data.dart';
 import '../../../../core/theme/app_components.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/competition_card_theme.dart';
 import '../../../../core/widgets/recent_form_strip.dart';
 import '../../../../core/widgets/sports_asset_badge.dart';
@@ -160,7 +161,7 @@ class _HeroTeam extends StatelessWidget {
         size: 48,
         imageUrl: team.logoUrl,
         fallbackLabel: team.name,
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.transparent,
       ),
       const SizedBox(height: 6),
       Text(
@@ -264,7 +265,7 @@ class EuropeanComparisonSections extends StatelessWidget {
           size: 25,
           imageUrl: t.team.logoUrl,
           fallbackLabel: t.team.name,
-          backgroundColor: Colors.transparent,
+          backgroundColor: AppColors.transparent,
         ),
         const SizedBox(width: 6),
         Expanded(
@@ -551,7 +552,7 @@ class EuropeanComparisonSections extends StatelessWidget {
     List<TeamRecentMatchSnapshot> matches,
     String title,
   ) => Theme(
-    data: Theme.of(c).copyWith(dividerColor: Colors.transparent),
+    data: Theme.of(c).copyWith(dividerColor: AppColors.transparent),
     child: ExpansionTile(
       tilePadding: EdgeInsets.zero,
       childrenPadding: EdgeInsets.zero,
@@ -582,6 +583,14 @@ class EuropeanComparisonSections extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (m.round != null)
+                    Text(
+                      europeanPhaseLabel(m.round),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: c.textColors.secondary,
+                      ),
+                    ),
                   Text(
                     '${DateFormat('dd/MM/yy').format(m.playedAt!.toLocal())} · ${m.venue == RecentMatchVenue.home ? 'Dom.' : 'Ext.'}',
                     style: TextStyle(

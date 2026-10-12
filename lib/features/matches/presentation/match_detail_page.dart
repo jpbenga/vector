@@ -163,15 +163,25 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                     LectorMatchOdds(
                       markets: [
                         for (final market in current.availableMarkets)
-                          LectorOddsMarket(
-                            label: market.label,
-                            selections: [
-                              for (final selection in market.selections)
-                                (label: selection.label, odds: selection.odds),
-                            ],
-                            bookmaker: market.bookmakerName,
-                            recordedAt: current.analysis.asOf,
-                          ),
+                          if (current.fixture.status !=
+                                  FixtureStatus.finished ||
+                              (market.updatedAt != null &&
+                                  current.fixture.kickoff != null &&
+                                  market.updatedAt!.isBefore(
+                                    current.fixture.kickoff!,
+                                  )))
+                            LectorOddsMarket(
+                              label: market.label,
+                              selections: [
+                                for (final selection in market.selections)
+                                  (
+                                    label: selection.label,
+                                    odds: selection.odds,
+                                  ),
+                              ],
+                              bookmaker: market.bookmakerName,
+                              recordedAt: market.updatedAt,
+                            ),
                       ],
                       finished:
                           current.fixture.status == FixtureStatus.finished,

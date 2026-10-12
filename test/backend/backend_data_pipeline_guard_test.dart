@@ -201,10 +201,7 @@ void main() {
         containsAll([2, 3, 848]),
       );
       expect(snapshotBuilder, contains('domestic_team_contexts'));
-      expect(
-        snapshotBuilder,
-        contains('domesticTeamContextsFromCachedStandings'),
-      );
+      expect(snapshotBuilder, contains('resolveEuropeanDomesticContexts'));
       expect(snapshotBuilder, contains('filters: {}'));
       expect(snapshotBuilder, isNot(contains('uefaCoefficient')));
       expect(snapshotBuilder, isNot(contains('leagueStrength')));
