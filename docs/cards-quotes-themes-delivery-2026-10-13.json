@@ -1,0 +1,178 @@
+{
+  "verifiedAt": "2026-10-13T09:07:22.650849+00:00",
+  "uiSourceCommit": "09ee236a0fe6986b2bcae1ab0c1ec0d5b471b97f",
+  "ciUrl": "https://github.com/jpbenga/vector/actions/runs/38370337238",
+  "ciStatus": "success",
+  "flutterTestsPassed": 941,
+  "flutterTestsSkipped": 2,
+  "backendSourceCommit": "9e95334579e738b83cbcdcddffb7998a2826a04e",
+  "backendDeploymentUrl": "https://github.com/jpbenga/vector/actions/runs/38326777403",
+  "deploymentId": "dpl_7yKSN3YLhHyPkpehBinUPeFw3hap",
+  "preview": "https://lector-sports-bkjk91jc0-lector1.vercel.app",
+  "demo": "https://lector-sports-demo-lector1.vercel.app",
+  "anonymousHttpStatus": 200,
+  "realBrowserViewport": {
+    "width": 390,
+    "height": 844
+  },
+  "fixtureTabsVerified": [
+    "Synthèse",
+    "Contexte",
+    "Classement",
+    "Forme",
+    "TAT"
+  ],
+  "marketsTabVisible": false,
+  "fixtureQuoteBrowserRemoved": true,
+  "themesRendered": [
+    "vectorDark",
+    "vectorLight",
+    "gold",
+    "aurora",
+    "dracula",
+    "tokyoNight",
+    "catppuccinMocha",
+    "catppuccinLatte",
+    "solarizedLight",
+    "quietLight"
+  ],
+  "competitionIdentitiesTested": [
+    "generic",
+    "champions",
+    "europa",
+    "conference"
+  ],
+  "artworkContrastMinimum": 4.5,
+  "realBrowserChecks": [
+    "dark/light Champions cards",
+    "Championship logo and watermark",
+    "European fixture tabs and domestic/cup context",
+    "CL/EL/Conference intrinsic briefing heights",
+    "briefing carousel and date change"
+  ],
+  "screenshots": [
+    "/Users/chloe/.codex/visualizations/2026/09/16/01a0aaf1-05e5-7562-8f19-7332ea8701f5/demo-cards-dark-final.png",
+    "/Users/chloe/.codex/visualizations/2026/09/16/01a0aaf1-05e5-7562-8f19-7332ea8701f5/demo-detail-without-markets-final.png",
+    "/Users/chloe/.codex/visualizations/2026/09/16/01a0aaf1-05e5-7562-8f19-7332ea8701f5/demo-briefing-europa-final.png",
+    "/Users/chloe/.codex/visualizations/2026/09/16/01a0aaf1-05e5-7562-8f19-7332ea8701f5/demo-tous-dark-final.png",
+    "/Users/chloe/.codex/visualizations/2026/09/16/01a0aaf1-05e5-7562-8f19-7332ea8701f5/demo-tous-light-final.png",
+    "/Users/chloe/.codex/visualizations/2026/09/16/01a0aaf1-05e5-7562-8f19-7332ea8701f5/demo-briefing-conference-final.png",
+    "/Users/chloe/.codex/visualizations/2026/09/16/01a0aaf1-05e5-7562-8f19-7332ea8701f5/demo-cards-light-final.png",
+    "/Users/chloe/.codex/visualizations/2026/09/16/01a0aaf1-05e5-7562-8f19-7332ea8701f5/demo-championship-final.png"
+  ],
+  "originalFont": "Roboto",
+  "fontWeights": [
+    400,
+    500,
+    700,
+    900
+  ],
+  "paidModelCalls": 0,
+  "providerCollectionCalls": 0,
+  "calculatorReplay": {
+    "at": "2026-10-13T08:33:04.506Z",
+    "days": [
+      {
+        "date": "2026-10-13",
+        "competitions": [
+          {
+            "name": "Championship",
+            "matches": 8,
+            "recentQuotes": 8,
+            "staleQuotes": 0,
+            "candidates": 180
+          },
+          {
+            "name": "UEFA Champions League",
+            "matches": 9,
+            "recentQuotes": 9,
+            "staleQuotes": 0,
+            "candidates": 111
+          }
+        ]
+      },
+      {
+        "date": "2026-10-14",
+        "competitions": [
+          {
+            "name": "Championship",
+            "matches": 4,
+            "recentQuotes": 4,
+            "staleQuotes": 0,
+            "candidates": 54
+          },
+          {
+            "name": "UEFA Champions League",
+            "matches": 9,
+            "recentQuotes": 9,
+            "staleQuotes": 0,
+            "candidates": 162
+          }
+        ]
+      },
+      {
+        "date": "2026-10-15",
+        "competitions": [
+          {
+            "name": "UEFA Europa Conference League",
+            "matches": 18,
+            "recentQuotes": 0,
+            "staleQuotes": 18,
+            "candidates": 0
+          },
+          {
+            "name": "UEFA Europa League",
+            "matches": 18,
+            "recentQuotes": 18,
+            "staleQuotes": 0,
+            "candidates": 251
+          }
+        ]
+      }
+    ],
+    "mixedCalculator": {
+      "tickets": 1,
+      "picks": 6,
+      "competitions": [
+        "Championship",
+        "UEFA Champions League"
+      ],
+      "stake": 30
+    },
+    "lens": [
+      {
+        "marketId": "1",
+        "market": "Match Winner",
+        "selection": "Home",
+        "odds": 2.5,
+        "bookmaker": "Bet365",
+        "bookmakerId": "8",
+        "observedAt": "2026-10-12T20:20:16+00:00"
+      },
+      {
+        "marketId": "1",
+        "market": "Match Winner",
+        "selection": "Draw",
+        "odds": 3.75,
+        "bookmaker": "Bet365",
+        "bookmakerId": "8",
+        "observedAt": "2026-10-12T20:20:16+00:00"
+      },
+      {
+        "marketId": "1",
+        "market": "Match Winner",
+        "selection": "Away",
+        "odds": 2.55,
+        "bookmaker": "Bet365",
+        "bookmakerId": "8",
+        "observedAt": "2026-10-12T20:20:16+00:00"
+      }
+    ]
+  },
+  "limitations": [
+    "The mixed six-pick 30 EUR check uses the actual catalog and calculator; it does not replay a paid LLM turn.",
+    "Conference published quotes were over 48 hours old at 08:33 UTC; the agent can read them, but ticket candidates still require fresh observations.",
+    "Theme renders use archived public fixtures and logo fallbacks. Actual logos were separately checked on the public demo.",
+    "Browser responsive validation is not a physical iPhone test."
+  ]
+}

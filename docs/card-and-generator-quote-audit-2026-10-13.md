@@ -43,7 +43,7 @@ prices and absent recommendation support. 25 deployment guard tests pass.
 responsive cards and the briefing carousel. Full CI and real browser verification
 are recorded in the delivery receipt after deployment.
 
-No betting formulas, prices, personal preferences, historical cutoffs or saved
+No betting formulas, personal preferences, historical cutoffs or saved
 conversations have been modified by this change.
 
 ## Theme and fixture follow-up
@@ -76,3 +76,21 @@ mixing Championship and Champions League. All 18 published upcoming fixtures
 had recent quotes for each of CL, EL and Conference at that check. This was a
 calculator verification, not a paid LLM replay. Freshness continues to evolve
 with the real collection schedule.
+
+## Final delivery
+
+The demo alias points to `dpl_7yKSN3YLhHyPkpehBinUPeFw3hap` and is accessible
+without Vercel authentication (anonymous HTTP 200). UI source 09ee236 passed full
+CI: 941 Flutter tests passed, two skipped, and backend/deployment checks passed.
+The public browser confirmed dark/light Champions cards, the Championship crest
+and watermark, all five European detail tabs without Markets, and compact CL,
+EL and Conference briefings. The original theme and date were restored.
+
+A second actual catalog/calculator check at 08:33 UTC again produced the mixed
+six-pick 30 EUR ticket. CL and EL prices remained recent. Conference's 18 prices
+had crossed the unchanged 48-hour freshness threshold: they remain readable by
+the agent but need a fresh provider observation before ticket eligibility.
+
+No new competition artwork was generated; the three existing original bitmap
+assets remain in place. Themes now control their material, text and contrast.
+The delivery receipt contains source/deployment identities and capture paths.
