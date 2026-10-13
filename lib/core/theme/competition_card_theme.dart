@@ -38,8 +38,8 @@ class CompetitionCardTheme {
   Color get title => context.textColors.primary;
   Color get secondaryText => _legible(context.textColors.secondary, [
     background,
-    illustrationExtreme(Colors.white),
-    illustrationExtreme(Colors.black),
+    illustrationExtreme(AppCompetitionColors.illustrationLightPixel),
+    illustrationExtreme(AppCompetitionColors.illustrationDarkPixel),
   ]);
   Color get statusText =>
       _legible(context.features.generatorAccent, [background]);
@@ -59,15 +59,19 @@ class CompetitionCardTheme {
     final start = light ? .74 : .68;
     for (var step = 0; step <= 20; step++) {
       final alpha = start + (1 - start) * step / 20;
-      final extremes = [Colors.white, Colors.black].map(
-        (pixel) => Color.alphaBlend(
-          background.withValues(alpha: alpha),
-          Color.alphaBlend(
-            pixel.withValues(alpha: illustrationOpacity),
-            background,
-          ),
-        ),
-      );
+      final extremes =
+          [
+            AppCompetitionColors.illustrationLightPixel,
+            AppCompetitionColors.illustrationDarkPixel,
+          ].map(
+            (pixel) => Color.alphaBlend(
+              background.withValues(alpha: alpha),
+              Color.alphaBlend(
+                pixel.withValues(alpha: illustrationOpacity),
+                background,
+              ),
+            ),
+          );
       if (extremes.every((color) => _contrast(title, color) >= 4.8)) {
         return alpha;
       }

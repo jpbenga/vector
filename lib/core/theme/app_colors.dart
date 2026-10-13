@@ -28,6 +28,8 @@ class AppFeatureColors {
 
 /// Match presentation identities. These values do not represent betting quality.
 class AppCompetitionColors {
+  static const illustrationLightPixel = Color(0xFFFFFFFF);
+  static const illustrationDarkPixel = AppColors.shadow;
   static const background = Color(0xFF080E13);
   static const surface = Color(0xFF0E1923);
   static const border = Color(0xFF293B4C);

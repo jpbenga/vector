@@ -175,7 +175,7 @@ void main() {
 
   for (final theme in [AppTheme.dark, AppTheme.light]) {
     testWidgets(
-      'Context shows archived factual odds without a recommended selection in ${theme.brightness}',
+      'Context omits the unwanted quote browser without deleting sporting readings in ${theme.brightness}',
       (tester) async {
         tester.view.physicalSize = const Size(390, 844);
         tester.view.devicePixelRatio = 1;
@@ -190,14 +190,16 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.text('Contexte'));
         await tester.pumpAndSettle();
-        await tester.ensureVisible(find.text('Cotes avant-match'));
-        expect(find.text('1,57'), findsOneWidget);
-        expect(find.text('4,15'), findsOneWidget);
-        expect(find.text('5,21'), findsOneWidget);
-        expect(
-          find.textContaining('1xBet · Relevées le 08/10'),
-          findsOneWidget,
-        );
+        expect(find.text('Cotes avant-match'), findsNothing);
+        expect(find.text('Cotes disponibles'), findsNothing);
+        expect(find.text('1,57'), findsNothing);
+        expect(find.text('4,15'), findsNothing);
+        expect(find.text('5,21'), findsNothing);
+        final model = tester
+            .widget<MatchDetailPage>(find.byType(MatchDetailPage))
+            .match;
+        expect(model.availableMarkets, isNotEmpty);
+        expect(model.availableMarkets.first.selections.first.odds, 1.57);
         expect(find.text('MARCHÉS ASSOCIÉS'), findsNothing);
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox());
@@ -219,11 +221,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Contexte'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Cotes avant-match'));
-      expect(
-        find.text('Aucune cote d’avant-match archivée pour cette rencontre.'),
-        findsOneWidget,
-      );
+      expect(find.text('Cotes avant-match'), findsNothing);
+      expect(find.text('Cotes disponibles'), findsNothing);
       expect(find.text('1,57'), findsNothing);
       await tester.pumpWidget(const SizedBox());
     },
