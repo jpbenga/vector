@@ -1,13 +1,13 @@
 name: Controlled generator exploration pilot (no deployment)
-run-name: Authorized Luna pilot — 2 calls — USD 0.05
+run-name: Read pilot artifacts — zero model calls
 on:
   workflow_dispatch:
     inputs:
       function:
-        description: Compatibility input; this branch only executes the isolated pilot
+        description: Read-only artifact recovery; paid pilot already completed
         type: choice
-        options: [lector-generator-diagnostic]
-        default: lector-generator-diagnostic
+        options: [lector-football-cards-diagnostic]
+        default: lector-football-cards-diagnostic
         required: true
       diagnostic_since:
         description: Explicit one-run authorization marker
@@ -20,42 +20,20 @@ concurrency:
   group: generator-exploration-pilot-20261013
   cancel-in-progress: false
 jobs:
-  replay:
-    if: github.ref == 'refs/heads/codex/generator-pilot-20261013' && github.run_attempt == 1 && inputs.function == 'lector-generator-diagnostic' && inputs.diagnostic_since == 'authorized-2-calls-0.05-usd-2026-10-13'
-    timeout-minutes: 6
+  artifact-review:
+    if: github.ref == 'refs/heads/codex/generator-pilot-20261013' && inputs.function == 'lector-football-cards-diagnostic' && inputs.diagnostic_since == 'read-only-pilot-38462876424'
     runs-on: ubuntu-latest
+    timeout-minutes: 4
+    permissions:
+      contents: read
+      actions: read
     steps:
       - uses: actions/checkout@v4
-      - uses: denoland/setup-deno@v2
+      - uses: actions/download-artifact@v4
         with:
-          deno-version: v2.x
-      - name: Test two-call pilot contract without a model
-        run: deno test --allow-read=test/fixtures/generator_published_day.json tool/tests/generator_exploration_campaign_test.ts tool/tests/generator_validation_budget_test.ts
-      - name: Publication preflight, no paid call
-        run: deno run --allow-read=test/fixtures --allow-write=output/generator-exploration-real tool/validate_generator_exploration_real.ts --output output/generator-exploration-real
-      - name: Explicitly authorized real model replay
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          VALIDATION_MODEL: 'gpt-6-luna'
-          VALIDATION_MAX_USD: '0.05'
-          VALIDATION_MAX_CALLS: '2'
-          VALIDATION_INPUT_PRICE: '0.10'
-          VALIDATION_OUTPUT_PRICE: '0.50'
-          VALIDATION_PRICE_DATE: '2026-10-13'
-        run: >-
-          deno run --allow-read=test/fixtures,output/generator-exploration-real
-          --allow-write=output/generator-exploration-real
-          --allow-env=OPENAI_API_KEY,GITHUB_ACTIONS
-          --allow-net=api.openai.com
-          tool/validate_generator_exploration_real.ts --output output/generator-exploration-real --approved
-          --model "$VALIDATION_MODEL" --max-usd "$VALIDATION_MAX_USD"
-          --max-calls "$VALIDATION_MAX_CALLS"
-          --input-price "$VALIDATION_INPUT_PRICE" --output-price "$VALIDATION_OUTPUT_PRICE"
-          --pricing-date "$VALIDATION_PRICE_DATE"
-      - name: Retain measurements and checkpoints
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: generator-exploration-validation-${{ github.run_id }}
-          path: output/generator-exploration-real
-          retention-days: 14
+          name: generator-exploration-validation-38462876424
+          path: output/pilot-import
+          run-id: '38462876424'
+          github-token: ${{ github.token }}
+      - name: Read archived measurements and export existing checkpoints, zero model calls
+        run: python3 tool/read_generator_pilot_artifacts.py
