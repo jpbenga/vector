@@ -1,369 +1,61 @@
-name: Deploy Supabase
-
+name: Controlled generator exploration pilot (no deployment)
+run-name: Authorized Luna pilot — 2 calls — USD 0.05
 on:
   workflow_dispatch:
     inputs:
       function:
-        description: Football depuis main ; Générateur depuis la branche démo
-        required: true
-        default: sync-live-matches
+        description: Compatibility input; this branch only executes the isolated pilot
         type: choice
-        options:
-          - sync-live-matches
-          - api-football-sync
-          - build-match-feed-snapshot
-          - analyze-match-feed-snapshot
-          - publish-reading-announcements
-          - daily-football-sync
-          - ops-worker
-          - sync-match-results
-          - admin-ops
-          - all-football
-          - lector-generator-demo
-          - lector-generator-update
-          - lector-generator-diagnostic
-          - lector-football-cards-diagnostic
-          - lector-generator-workshop
-          - lector-generator-radar-update
-          - lector-generator-sport-publications
-          - lector-generator-hockey-odds
-          - lector-generator-conversation-update
-          - lector-generator-configuration-update
-          - lector-generator-match-evaluation
-          - lector-generator-day-sources
-          - lector-generator-work-storage
-          - lector-generator-shortlist
-          - lector-visual-live-update
-          - lector-european-comparison-update
-          - lector-football-quotes-update
-          - hockey-refresh-install
-          - hockey-refresh-delivery
-          - hockey-refresh-run
+        options: [lector-generator-diagnostic]
+        default: lector-generator-diagnostic
+        required: true
       diagnostic_since:
-        description: Début du diagnostic en ISO 8601 avec fuseau (facultatif)
-        required: false
-        default: ''
+        description: Explicit one-run authorization marker
         type: string
-
+        required: true
+        default: ''
 permissions:
   contents: read
-  actions: read
-
 concurrency:
-  group: supabase-football-production
+  group: generator-exploration-pilot-20261013
   cancel-in-progress: false
-
 jobs:
-  deploy:
-    if: github.ref == 'refs/heads/main' && !startsWith(inputs.function, 'lector-generator-') && !startsWith(inputs.function, 'hockey-refresh-') && inputs.function != 'lector-visual-live-update' && inputs.function != 'lector-european-comparison-update'
+  replay:
+    if: github.ref == 'refs/heads/codex/generator-pilot-20261013' && github.run_attempt == 1 && inputs.function == 'lector-generator-diagnostic' && inputs.diagnostic_since == 'authorized-2-calls-0.05-usd-2026-10-13'
+    timeout-minutes: 6
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-      - uses: supabase/setup-cli@v1
-        with:
-          version: latest
-      - name: Deploy tested football functions without local keychain
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          GH_TOKEN: ${{ github.token }}
-          DEPLOY_FUNCTION: ${{ inputs.function }}
-        run: python3 tool/deploy_supabase_remote.py
-
-  hockey-refresh:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && startsWith(inputs.function, 'hockey-refresh-')
-    uses: ./.github/workflows/refresh-hockey.yml
-    with:
-      operation: ${{ inputs.function == 'hockey-refresh-install' && 'install' || inputs.function == 'hockey-refresh-delivery' && 'delivery-only' || 'refresh' }}
-    secrets: inherit
-
-  generator-demo:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && (inputs.function == 'lector-generator-demo' || inputs.function == 'lector-generator-update' || inputs.function == 'lector-generator-workshop')
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    concurrency:
-      group: lector-generator-demo-install
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-      - uses: supabase/setup-cli@v1
-        with:
-          # A fixed release avoids the unauthenticated "latest" lookup limit.
-          version: '2.120.0'
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - name: Install and test only the generator backend
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GH_TOKEN: ${{ github.token }}
-          GENERATOR_WORKSHOP: ${{ inputs.function == 'lector-generator-workshop' && 'true' || 'false' }}
-          GENERATOR_UPDATE: ${{ inputs.function == 'lector-generator-update' && 'true' || 'false' }}
-        run: python3 tool/deploy_generator_remote.py
-      - name: Preserve the demo model evaluation
-        if: always() && inputs.function == 'lector-generator-workshop'
-        uses: actions/upload-artifact@v4
-        with:
-          name: lector-generator-model-comparison
-          path: /tmp/lector-generator-comparison.json
-          if-no-files-found: ignore
-          retention-days: 14
-
-  generator-radar-update:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-radar-update'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-      - uses: supabase/setup-cli@v1
-        with:
-          version: '2.120.0'
-      - name: Update only demo Radar scope without paid model calls
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          GH_TOKEN: ${{ github.token }}
-        run: python3 tool/deploy_generator_scope_remote.py
-
-  generator-diagnostic:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && (inputs.function == 'lector-generator-diagnostic' || inputs.function == 'lector-football-cards-diagnostic')
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-      - name: Inspect the reported generator incident without paid calls
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          GENERATOR_DIAGNOSTIC_SINCE: ${{ inputs.diagnostic_since }}
-        run: |
-          if [ '${{ inputs.function }}' = lector-football-cards-diagnostic ]; then
-            python3 tool/diagnose_football_cards_remote.py
-          else
-            python3 tool/diagnose_generator_remote.py
-          fi
-
-  sport-publications:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-sport-publications'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-      - uses: supabase/setup-cli@v1
-        with:
-          version: '2.120.0'
-      - name: Connect public sport publications to the demo Generator
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          GH_TOKEN: ${{ github.token }}
-        run: python3 tool/deploy_sport_publications_remote.py
-
-  hockey-odds:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-hockey-odds'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-      - uses: supabase/setup-cli@v1
-        with:
-          version: '2.120.0'
-      - name: Install hockey prices and demo conversation continuity
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          GH_TOKEN: ${{ github.token }}
-        run: python3 tool/deploy_hockey_odds_remote.py
-
-  generator-conversation-update:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-conversation-update'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-      - uses: supabase/setup-cli@v1
-        with:
-          version: '2.120.0'
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-      - name: Check conversation continuity with GPT-6 Luna on synthetic publications
+      - name: Test two-call pilot contract without a model
+        run: deno test --allow-read=test/fixtures/generator_published_day.json tool/tests/generator_exploration_campaign_test.ts tool/tests/generator_validation_budget_test.ts
+      - name: Publication preflight, no paid call
+        run: deno run --allow-read=test/fixtures --allow-write=output/generator-exploration-real tool/validate_generator_exploration_real.ts --output output/generator-exploration-real
+      - name: Explicitly authorized real model replay
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: deno run --allow-env=OPENAI_API_KEY,GITHUB_ACTIONS --allow-net=api.openai.com --allow-write=/tmp/lector-generator-conversation.json tool/evaluate_generator_conversation.ts
-      - name: Preserve conversation evaluation receipts
+          VALIDATION_MODEL: 'gpt-6-luna'
+          VALIDATION_MAX_USD: '0.05'
+          VALIDATION_MAX_CALLS: '2'
+          VALIDATION_INPUT_PRICE: '0.10'
+          VALIDATION_OUTPUT_PRICE: '0.50'
+          VALIDATION_PRICE_DATE: '2026-10-13'
+        run: >-
+          deno run --allow-read=test/fixtures,output/generator-exploration-real
+          --allow-write=output/generator-exploration-real
+          --allow-env=OPENAI_API_KEY,GITHUB_ACTIONS
+          --allow-net=api.openai.com
+          tool/validate_generator_exploration_real.ts --output output/generator-exploration-real --approved
+          --model "$VALIDATION_MODEL" --max-usd "$VALIDATION_MAX_USD"
+          --max-calls "$VALIDATION_MAX_CALLS"
+          --input-price "$VALIDATION_INPUT_PRICE" --output-price "$VALIDATION_OUTPUT_PRICE"
+          --pricing-date "$VALIDATION_PRICE_DATE"
+      - name: Retain measurements and checkpoints
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: lector-generator-conversation-evaluation
-          path: /tmp/lector-generator-conversation.json
-          if-no-files-found: ignore
+          name: generator-exploration-validation-${{ github.run_id }}
+          path: output/generator-exploration-real
           retention-days: 14
-      - name: Update only the demo conversation with read capabilities
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          GH_TOKEN: ${{ github.token }}
-        run: python3 tool/deploy_generator_conversation_remote.py
-
-  generator-configuration-update:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-configuration-update'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-      - uses: supabase/setup-cli@v1
-        with:
-          version: '2.120.0'
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-      - name: Verify request constraints without paid model calls
-        run: deno test --no-lock --allow-env supabase/functions/_shared/generator
-      - name: Update only the demo conversation function
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          GH_TOKEN: ${{ github.token }}
-        run: python3 tool/deploy_generator_conversation_remote.py
-
-  generator-match-evaluation:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-match-evaluation'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-      - uses: supabase/setup-cli@v1
-        with:
-          version: '2.120.0'
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-      - name: Evaluate every one of 500 synthetic matches with GPT-6 Luna
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: deno run --allow-env=OPENAI_API_KEY,GITHUB_ACTIONS --allow-net=api.openai.com --allow-write=/tmp/lector-generator-matches.json tool/evaluate_generator_matches.ts
-      - name: Preserve match evaluations and actual model receipts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: lector-generator-matches-evaluation
-          path: /tmp/lector-generator-matches.json
-          if-no-files-found: ignore
-          retention-days: 14
-      - name: Update only the demo Generator after the exact revision passes CI
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          GH_TOKEN: ${{ github.token }}
-        run: python3 tool/deploy_generator_conversation_remote.py
-
-  generator-day-sources:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-day-sources'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-      - uses: supabase/setup-cli@v1
-        with:
-          version: '2.120.0'
-      - name: Install and check paged public day reads without paid model calls
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          GH_TOKEN: ${{ github.token }}
-        run: python3 tool/deploy_generator_day_sources_remote.py
-
-  visual-live-update:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-visual-live-update'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-      - uses: supabase/setup-cli@v1
-        with:
-          version: '2.120.0'
-      - name: Install recorded Radar evidence and bounded hockey events
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          GH_TOKEN: ${{ github.token }}
-        run: python3 tool/deploy_lector_visual_live_remote.py
-
-  generator-shortlist:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-shortlist'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-      - uses: supabase/setup-cli@v1
-        with:
-          version: '2.120.0'
-      - name: Install Shortlist and update the demo without paid calls
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          GH_TOKEN: ${{ github.token }}
-        run: python3 tool/deploy_shortlist_remote.py
-
-  generator-work-storage:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-work-storage'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-      - uses: supabase/setup-cli@v1
-        with:
-          version: '2.120.0'
-      - name: Install independent conversation work storage without paid calls
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          GH_TOKEN: ${{ github.token }}
-        run: python3 tool/deploy_generator_work_storage_remote.py
-
-  european-comparison:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && (inputs.function == 'lector-european-comparison-update' || inputs.function == 'lector-football-quotes-update')
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-      - uses: supabase/setup-cli@v1
-        with:
-          version: '2.120.0'
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-      - name: Publish European dossiers from existing sporting caches
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ '${{ inputs.function }}' = lector-football-quotes-update ]; then
-            python3 tool/deploy_football_quotes_remote.py
-          else
-            python3 tool/deploy_european_comparison_remote.py
-          fi
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: european-comparison-publications
-          path: output/european-comparison/

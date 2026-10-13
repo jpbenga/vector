@@ -1,3 +1,4 @@
+import type { ExplorationReportV1 } from "./exploration.ts";
 /** The model expresses intent only. Prices, evidence and tickets are server facts. */
 export type Sport = "football" | "hockey";
 export type Json = Record<string, unknown>;
@@ -168,6 +169,16 @@ export interface AnalysisMatch {
   quoteAvailability: "recent" | "stale" | "unavailable" | "not_collected";
 }
 export interface Analysis {
+  exploration?:
+    & Record<string, unknown>
+    & Pick<
+      ExplorationReportV1,
+      | "schemaVersion"
+      | "evaluationId"
+      | "criterion"
+      | "coverage"
+      | "selectedKeys"
+    >;
   context: {
     date: string;
     view: string;
@@ -272,6 +283,12 @@ export interface State {
   messages: {
     id?: string;
     analysisRef?: string;
+    explorationRef?:
+      & Pick<
+        NonNullable<Analysis["exploration"]>,
+        "evaluationId" | "criterion" | "coverage"
+      >
+      & { version?: unknown };
     role: "user" | "assistant";
     text: string;
     ticketIds?: string[];

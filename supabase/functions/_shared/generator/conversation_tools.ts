@@ -1,3 +1,13 @@
+import {
+  changedSheets,
+  compareExploration,
+  explorationView,
+  frozenQuery,
+  requireSnapshot,
+  reusableRows,
+} from "./exploration_continuity.ts";
+import { buildExplorationReport, explorationCriterion } from "./exploration.ts";
+import { ExplorationBudget } from "./exploration_budget.ts";
 import { footballPublishedQuotes } from "./published_quotes.ts";
 import {
   mergeShortlistSources,
@@ -119,12 +129,39 @@ export const conversationTools = [
       queryId: { type: "string" },
       criteria: { type: "string" },
       matchKeys: { anyOf: [array, { type: "null" }] },
+      observationCount: {
+        type: ["integer", "null"],
+        minimum: 1,
+        maximum: 20,
+        description: "Nombre d’observations sans ticket ; null pour composer.",
+      },
+      useProfileReadings: {
+        type: ["boolean", "null"],
+        description:
+          "True pour le critère explicite mes lectures. Null hors exploration.",
+      },
+      formScope: {
+        type: ["string", "null"],
+        enum: ["domestic_championship", "competition", null],
+        description:
+          "Périmètre de forme explicite. Championnat domestique par défaut pour l'exploration football.",
+      },
     },
   ),
   tool(
     "continue_match_evaluation",
     "Reprendre uniquement les lots non évalués d’une évaluation incomplète de cet échange, avec exactement le même critère, les mêmes sources et le même périmètre. Conserve les évaluations validées et retourne la couverture cumulée de l’ensemble original. Un appel supplémentaire borné, jamais une relance de toute la journée. Aucun changement de données ou de profil.",
     { evaluationId: { type: "string" } },
+  ),
+  tool(
+    "reevaluate_exploration",
+    "Actualiser explicitement une préparation archivée : même critère et périmètre, nouvelle version et différences. Évaluer seulement les données sportives modifiées ou manquantes.",
+    { evaluationId: { type: "string" } },
+  ),
+  tool(
+    "compare_exploration",
+    "Comparer les faits archivés des rencontres choisies, sans nouvelle évaluation ni actualisation.",
+    { evaluationId: { type: "string" }, matchKeys: array },
   ),
   tool(
     "read_match_evaluations",
@@ -201,6 +238,7 @@ export interface ConversationReadPort {
     id: string,
     capturedAt: string,
     sourceId: string,
+    signal?: AbortSignal,
   ): Promise<unknown>;
   bilan?(): Promise<unknown>;
   archivedTicket?(id: string): Promise<State["tickets"][number] | null>;
@@ -229,6 +267,8 @@ export interface ReadQuery {
     status: string;
     sourceId: string;
     capturedAt: string;
+    homeLogo?: string;
+    awayLogo?: string;
     marketAvailability?: MarketAvailability;
   }[];
 }
@@ -288,6 +328,25 @@ export class ConversationReader {
   private reads = 0;
   private totalMatches = 0;
   private state: State | null;
+  private explorationBudget?: ExplorationBudget;
+  private archiveExplorationRead = false;
+  get hasExploration() {
+    return this.archiveExplorationRead ||
+      [...this.evaluations.values()].some((r) => r.exploration) ||
+      this.state?.messages.some((m) =>
+        m.analysis?.exploration || m.explorationRef
+      );
+  }
+  private explorationDetails = new Map<string, unknown>();
+  private clock = () => performance.now();
+  private startedAt: number;
+  private explorationBaseCalls: number | null = null;
+  get explorationDeadline() {
+    return this.explorationBudget?.deadline;
+  }
+  get explorationFinalizationMs() {
+    return this.explorationBudget?.config.finalizationMs;
+  }
   constructor(
     readonly input: {
       context: Context;
@@ -305,6 +364,8 @@ export class ConversationReader {
       onEvaluation?: (r: DayEvaluation) => Promise<void>;
     },
   ) {
+    this.clock = evaluator?.clock ?? this.clock;
+    this.startedAt = this.clock();
     this.state = input.state ? structuredClone(input.state) : null;
     // Existing sessions/ticket revisions inherit the current server policy too.
     if (this.state && usesRequestConfiguration(input.context)) {
@@ -532,6 +593,8 @@ export class ConversationReader {
               ? raw.competitionName ?? raw.competitionId
               : obj(raw.league).name,
           ),
+          homeLogo: String(obj(teams.home).logo ?? ""),
+          awayLogo: String(obj(teams.away).logo ?? ""),
           home: String(obj(teams.home).name),
           away: String(obj(teams.away).name),
           kickoff,
@@ -575,6 +638,192 @@ export class ConversationReader {
       throw new Error("Recherchez d’abord ces rencontres dans la session.");
     }
     return query;
+  }
+  private async evolveExploration(
+    previous: DayEvaluation,
+    mode: "resume" | "refresh",
+  ) {
+    if (!this.evaluator || this.evaluations.size >= 2) {
+      throw new Error("Budget de versions atteint pour cet échange.");
+    }
+    const snapshot = requireSnapshot(previous);
+    const current = await this.refreshedQuery(previous);
+    const freshSheets = prepareMatchSheets(
+      current,
+      this.input.now,
+      previous.exploration!.criterion,
+    );
+    const changes = changedSheets(previous, freshSheets);
+    if (
+      mode === "resume" &&
+      (changes.changedKeys.length || changes.addedKeys.length ||
+        changes.removedKeys.length)
+    ) {
+      return {
+        conflict: true,
+        evaluationId: previous.id,
+        ...changes,
+        noEvaluation: true,
+        limitation:
+          "Les publications ont changé. La préparation initiale reste intacte ; demandez une réévaluation explicite.",
+      };
+    }
+    const q = mode === "resume"
+      ? frozenQuery(previous, current.id, this.input.now)
+      : current;
+    this.queries.set(q.id, q);
+    const sheets = mode === "resume"
+      ? structuredClone(snapshot.sheets)
+      : freshSheets;
+    this.sheets.set(q.id, sheets);
+    this.explorationBudget ??= new ExplorationBudget(
+      this.evaluator.explorationBudget,
+      this.clock,
+      this.startedAt,
+    );
+    const rows = mode === "resume"
+      ? structuredClone(previous.rows)
+      : reusableRows(previous, freshSheets);
+    const report = await evaluateMatches({
+      id: crypto.randomUUID(),
+      query: q,
+      criteria: previous.criteria,
+      exploration: previous.exploration!.criterion,
+      now: this.input.now,
+      deadline: this.evaluator.deadline,
+      budget: this.explorationBudget,
+      preparedSheets: sheets,
+      reusedRows: rows,
+      snapshotAsOf: mode === "resume" ? snapshot.asOf : undefined,
+      version: {
+        rootId: previous.version?.rootId ?? previous.id,
+        parentId: previous.id,
+        mode,
+        ...changes,
+        reusedKeys: rows.map((r) => r.key),
+        previousSelectedKeys: [...previous.exploration!.selectedKeys],
+      },
+      onCheckpoint: this.evaluator.onEvaluation,
+      onProgress: (n, total) =>
+        this.progress(
+          "evaluate",
+          `${n} / ${total} rencontres évaluées · ${rows.length} résultats réutilisés`,
+        ),
+    }, this.evaluator);
+    report.version = {
+      rootId: previous.version?.rootId ?? previous.id,
+      parentId: previous.id,
+      mode,
+      ...changes,
+      reusedKeys: rows.map((r) => r.key),
+      previousSelectedKeys: [...previous.exploration!.selectedKeys],
+    };
+    this.explorationBaseCalls ??= report.batches;
+    this.evaluations.set(report.id, report);
+    for (const row of report.rows) this.detailsRead.add(`${q.id}:${row.key}`);
+    await this.evaluator.onEvaluation?.(report);
+    return evaluationOverview(report, q);
+  }
+  private async archivedExploration(id: string) {
+    if (id !== "latest" && !/^[0-9a-f-]{36}$/i.test(id)) {
+      throw new Error("Référence d’exploration invalide.");
+    }
+    const report =
+      (id === "latest"
+        ? [...this.evaluations.values()].at(-1)
+        : this.evaluations.get(id)) ?? await this.port.evaluation?.(id);
+    if (!report) {
+      throw new Error("Préparation inaccessible dans cette session.");
+    }
+    return report;
+  }
+  private async refreshedQuery(previous: DayEvaluation) {
+    const snapshot = requireSnapshot(previous);
+    const context = structuredClone(snapshot.context);
+    const fixedMembership = ["radar", "shortlist"].includes(context.view ?? "");
+    const other = new ConversationReader({
+      ...this.input,
+      date: previous.scope.date,
+      state: null,
+      context: fixedMembership
+        ? { ...context, view: "all", shortlist: undefined, radar: undefined }
+        : context,
+    }, this.port);
+    let current: ReadQuery;
+    if (!fixedMembership) {
+      current = await other.query(
+        previous.scope.date,
+        previous.scope.sports as Sport[],
+        context.view ?? "profile",
+        context.radarKind ?? "teams",
+      );
+    } else {
+      // Archived preparation membership is independent of a later Shortlist
+      // expiry or a new Radar ranking. Refresh only those owned fixture IDs,
+      // using latest publications across all of their original dates.
+      const allowed = new Set(snapshot.sheets.map((s) => s.key));
+      const groups = new Map<string, Sport[]>();
+      for (const sheet of snapshot.sheets) {
+        const day = calendarDay(sheet.match.kickoff, context.timezone);
+        const sports = groups.get(day) ?? [];
+        if (!sports.includes(sheet.match.sport)) sports.push(sheet.match.sport);
+        groups.set(day, sports);
+      }
+      const parts: ReadQuery[] = [];
+      for (const [day, sports] of groups) {
+        const fresh = await other.query(
+          day,
+          sports,
+          "all",
+          context.radarKind ?? "teams",
+        );
+        const scoped = structuredClone(context);
+        if (scoped.view === "radar") {
+          for (const sport of sports) {
+            const scope = scoped.radar?.[sport],
+              pool = fresh.sources.filter((s) => s.sport === sport);
+            if (scope && pool.length) {
+              scope.sourceIds = pool.map((s) => s.id);
+              scope.capturedAt = pool.map((s) => s.capturedAt).sort().at(-1)!;
+            }
+          }
+        }
+        parts.push({
+          ...fresh,
+          context: scoped,
+          matches: fresh.matches.filter((m) => allowed.has(m.key)),
+          catalog: buildCatalog(fresh.sources, scoped, day, this.input.now, {
+            includePastAndLive: true,
+          }),
+        });
+      }
+      const matches = parts.flatMap((p) => p.matches);
+      const facts = parts.flatMap((p) => p.catalog.matches ?? []).filter((m) =>
+        allowed.has(matchKey(m.sport, m.id))
+      );
+      current = {
+        id: "refresh",
+        date: previous.scope.date,
+        context,
+        sports: previous.scope.sports as Sport[],
+        sources: mergeShortlistSources(parts.flatMap((p) => p.sources)),
+        matches,
+        catalog: {
+          candidates: [],
+          matches: facts,
+          signals: facts.flatMap((m) => m.evidence),
+          sources: [...new Set(parts.flatMap((p) => p.catalog.sources))],
+          matchCount: matches.length,
+          radarCount: context.view === "radar" ? matches.length : 0,
+          missing: [...allowed].filter((key) =>
+            !matches.some((m) => m.key === key)
+          ).map((key) => `Publication indisponible pour ${key}`),
+        },
+      };
+    }
+    const q = { ...current, id: `q${this.queries.size + 1}` };
+    this.queries.set(q.id, q);
+    return q;
   }
   private details(q: ReadQuery, key: string) {
     const match = q.matches.find((m) => m.key === key);
@@ -685,8 +934,28 @@ export class ConversationReader {
             : "Configuration active transmise par l’application ; lecture seule, jamais modifiée par Hector.",
         };
       case "evaluate_matches": {
-        exact(args, ["queryId", "criteria", "matchKeys"]);
+        const extended = "observationCount" in args;
+        exact(args, [
+          "queryId",
+          "criteria",
+          "matchKeys",
+          ...(extended
+            ? ["observationCount", "useProfileReadings", "formScope"]
+            : []),
+        ]);
         const q = this.getQuery(args.queryId);
+        if (
+          extended && args.observationCount != null &&
+          typeof args.observationCount !== "number"
+        ) {
+          throw new Error("Nombre d’observations invalide.");
+        }
+        if (
+          extended && args.observationCount === null &&
+          (args.useProfileReadings !== null || args.formScope !== null)
+        ) {
+          throw new Error("Paramètres d’exploration sans nombre demandé.");
+        }
         if (!this.evaluator) {
           throw new Error(
             "Évaluation individuelle IA indisponible dans cette session.",
@@ -724,6 +993,14 @@ export class ConversationReader {
         }
         const previous = [...this.evaluations.values()].findLast((r) =>
           r.queryId === q.id && r.criteria === args.criteria &&
+          (args.observationCount != null
+            ? r.exploration?.criterion.observationCount ===
+                args.observationCount &&
+              r.exploration.criterion.useProfileReadings ===
+                (args.useProfileReadings ?? false) &&
+              r.exploration.criterion.formScope ===
+                (args.formScope ?? "domestic_championship")
+            : !r.exploration) &&
           r.expected === query.matches.length && [
             ...r.rows.map((r) => r.key),
             ...r.failed.flatMap((f) => f.keys),
@@ -734,6 +1011,31 @@ export class ConversationReader {
         if (this.evaluations.size >= 2) {
           throw new Error(
             "Deux évaluations ont déjà été réalisées dans cet échange ; poursuivez au message suivant.",
+          );
+        }
+        const criterion = args.observationCount != null
+          ? explorationCriterion({
+            request: this.input.message,
+            criteria: String(args.criteria),
+            query,
+            observationCount: Number(args.observationCount),
+            useProfileReadings: args.useProfileReadings == null
+              ? false
+              : args.useProfileReadings as boolean,
+            formScope: args.formScope == null
+              ? "domestic_championship"
+              : args.formScope as "domestic_championship" | "competition",
+          })
+          : undefined;
+        if (criterion) {
+          this.explorationBudget ??= new ExplorationBudget(
+            this.evaluator.explorationBudget,
+            this.clock,
+            this.startedAt,
+          );
+          this.sheets.set(
+            q.id,
+            prepareMatchSheets(q, this.input.now, criterion),
           );
         }
         const cachedReport = await this.port.evaluation?.("latest").catch(() =>
@@ -749,12 +1051,26 @@ export class ConversationReader {
           ],
           now: this.input.now,
           deadline: this.evaluator.deadline,
+          ...(criterion ? { exploration: criterion } : {}),
+          ...(this.explorationBudget
+            ? {
+              budget: this.explorationBudget,
+              ...(this.explorationBaseCalls !== null
+                ? {
+                  batchCallLimit: this.explorationBaseCalls +
+                    this.explorationBudget.config.extraBatchCalls,
+                }
+                : {}),
+            }
+            : {}),
+          onCheckpoint: criterion ? this.evaluator.onEvaluation : undefined,
           onProgress: (n, total) =>
             this.progress(
               "evaluate",
               `${n} / ${total} rencontres évaluées selon votre critère`,
             ),
         }, this.evaluator);
+        if (criterion) this.explorationBaseCalls ??= report.batches;
         this.evaluations.set(report.id, report);
         for (const row of report.rows) {
           this.detailsRead.add(`${q.id}:${row.key}`);
@@ -764,7 +1080,12 @@ export class ConversationReader {
       }
       case "continue_match_evaluation": {
         exact(args, ["evaluationId"]);
-        const previous = this.evaluations.get(String(args.evaluationId));
+        const previous = await this.archivedExploration(
+          String(args.evaluationId),
+        );
+        if (previous.exploration && previous.snapshot) {
+          return await this.evolveExploration(previous, "resume");
+        }
         if (!previous || !this.evaluator) {
           throw new Error("Évaluation inconnue dans cet échange.");
         }
@@ -789,6 +1110,14 @@ export class ConversationReader {
           criteria: previous.criteria,
           now: this.input.now,
           deadline: this.evaluator.deadline,
+          ...(previous.exploration
+            ? {
+              exploration: previous.exploration.criterion,
+              budget: this.explorationBudget,
+              batchCallLimit: (this.explorationBaseCalls ?? 0) +
+                (this.explorationBudget?.config.extraBatchCalls ?? 0),
+            }
+            : {}),
           onProgress: (n) =>
             this.progress(
               "evaluate",
@@ -833,12 +1162,40 @@ export class ConversationReader {
           inputBytes: previous.inputBytes + retry.inputBytes,
           batches: previous.batches + retry.batches,
         };
+        if (previous.exploration) {
+          report.exploration = await buildExplorationReport(
+            report,
+            this.matchSheets(q).filter((s) =>
+              previous.exploration!.manifest.some((m) => m.key === s.key)
+            ),
+            previous.exploration.criterion,
+            this.input.now,
+          );
+        }
         this.evaluations.set(report.id, report);
         for (const row of report.rows) {
           this.detailsRead.add(`${q.id}:${row.key}`);
         }
         await this.evaluator.onEvaluation?.(report);
         return evaluationOverview(report, q);
+      }
+      case "reevaluate_exploration": {
+        exact(args, ["evaluationId"]);
+        return await this.evolveExploration(
+          await this.archivedExploration(String(args.evaluationId)),
+          "refresh",
+        );
+      }
+      case "compare_exploration": {
+        exact(args, ["evaluationId", "matchKeys"]);
+        if (
+          !Array.isArray(args.matchKeys) ||
+          strings(args.matchKeys).length !== args.matchKeys.length
+        ) throw new Error("Rencontres de comparaison invalides.");
+        return compareExploration(
+          await this.archivedExploration(String(args.evaluationId)),
+          strings(args.matchKeys),
+        );
       }
       case "read_match_evaluations": {
         exact(args, ["evaluationId", "offset", "limit"]);
@@ -852,15 +1209,61 @@ export class ConversationReader {
             : this.evaluations.get(evaluationId)) ??
             await this.port.evaluation?.(evaluationId);
         if (!report) throw new Error("Évaluation inconnue dans cet échange.");
+        if (report.exploration) this.archiveExplorationRead = true;
+        const manifestPage = report.exploration?.manifest.slice(
+          p.offset,
+          p.offset + p.limit,
+        );
+        const rowMap = new Map(report.rows.map((row) => [row.key, row]));
+        const total = report.exploration?.manifest.length ?? report.rows.length;
         return {
           evaluationId: report.id,
           criteria: report.criteria,
           scope: report.scope,
-          total: report.rows.length,
-          rows: report.rows.slice(p.offset, p.offset + p.limit),
-          nextOffset: p.offset + p.limit < report.rows.length
-            ? p.offset + p.limit
-            : null,
+          total,
+          rows: manifestPage
+            ? manifestPage.flatMap((m) =>
+              rowMap.has(m.key) ? [rowMap.get(m.key)!] : []
+            )
+            : report.rows.slice(p.offset, p.offset + p.limit),
+          ...(report.exploration
+            ? {
+              exploration: {
+                criterion: report.exploration.criterion,
+                coverage: report.exploration.coverage,
+                selectedKeys: report.exploration.selectedKeys,
+                decisions: report.exploration.decisions.slice(
+                  p.offset,
+                  p.offset + p.limit,
+                ),
+                manifest: report.exploration.manifest.slice(
+                  p.offset,
+                  p.offset + p.limit,
+                ),
+                forms: Object.fromEntries(
+                  manifestPage!.map((
+                    m,
+                  ) => [m.key, report.exploration!.forms[m.key] ?? null]),
+                ),
+                evidence: Object.fromEntries(
+                  report.exploration.manifest.slice(
+                    p.offset,
+                    p.offset + p.limit,
+                  )
+                    .map((
+                      m,
+                    ) => [m.key, report.exploration!.evidence[m.key] ?? []]),
+                ),
+                nextManifestOffset:
+                  p.offset + p.limit < report.exploration.manifest.length
+                    ? p.offset + p.limit
+                    : null,
+                limitations: report.exploration.limitations,
+              },
+              budgetUsage: report.budgetUsage,
+            }
+            : {}),
+          nextOffset: p.offset + p.limit < total ? p.offset + p.limit : null,
           complete: report.complete,
           failed: report.failed,
         };
@@ -940,6 +1343,70 @@ export class ConversationReader {
         exact(args, ["queryId", "matchKey"]);
         const q = this.getQuery(args.queryId),
           m = this.details(q, String(args.matchKey));
+        const detailCacheKey = `${q.id}:${m.key}`;
+        if (
+          this.explorationBudget && this.explorationDetails.has(detailCacheKey)
+        ) {
+          return structuredClone(this.explorationDetails.get(detailCacheKey));
+        }
+        const detailedReport = [...this.evaluations.values()].findLast((r) =>
+          r.queryId === q.id && r.exploration
+        );
+        const finishDetail = (
+          value: unknown,
+          status:
+            | "available"
+            | "absent"
+            | "timeout"
+            | "version_mismatch"
+            | "oversized"
+            | "failed",
+        ) => {
+          if (this.explorationBudget) {
+            this.explorationBudget.recordDeepening(m.key, status);
+            if (detailedReport) {
+              detailedReport.budgetUsage = this.explorationBudget.snapshot();
+            }
+            this.explorationDetails.set(detailCacheKey, structuredClone(value));
+          }
+          return value;
+        };
+        let detailFailure: "timeout" | "failed" | undefined;
+        if (this.explorationBudget) {
+          const report = [...this.evaluations.values()].findLast((r) =>
+            r.queryId === q.id && r.exploration
+          );
+          const row = report?.rows.find((r) => r.key === m.key);
+          const boundary = report?.rows.find((r) =>
+            r.key === report.exploration?.selectedKeys.at(-1)
+          );
+          const comparison = /compar|confront/i.test(this.input.message);
+          const reason = comparison
+            ? "explicit_comparison"
+            : row?.status === "mixed"
+            ? "relevant_conflict"
+            : row?.limitations.length
+            ? "missing_decisive_fact"
+            : "boundary_tie";
+          const eligible = Boolean(
+            this.port.matchData && row &&
+              (comparison || row.status === "mixed" ||
+                row.limitations.length ||
+                row.fit > 0 && row.fit === boundary?.fit),
+          );
+          if (!this.explorationBudget.admitDeepening(m.key, reason, eligible)) {
+            if (report) report.budgetUsage = this.explorationBudget.snapshot();
+            return {
+              match: m,
+              live: null,
+              data: null,
+              limitation:
+                "Approfondissement non justifié ou budget atteint ; les observations évaluées restent consultables.",
+              budgetUsage: this.explorationBudget.snapshot(),
+            };
+          }
+          if (report) report.budgetUsage = this.explorationBudget.snapshot();
+        }
         const response = obj(
           await this.port.matchData?.(
             m.sport,
@@ -947,32 +1414,52 @@ export class ConversationReader {
             m.id,
             m.capturedAt,
             m.sourceId,
-          ),
+            this.explorationBudget
+              ? AbortSignal.timeout(Math.max(
+                1,
+                Math.floor(
+                  this.explorationBudget.deepeningDeadline(
+                    this.evaluator!.deadline,
+                  ) - this.clock(),
+                ),
+              ))
+              : undefined,
+          ).catch((error) => {
+            if (this.explorationBudget) {
+              detailFailure = error instanceof Error &&
+                  ["TimeoutError", "AbortError"].includes(error.name)
+                ? "timeout"
+                : "failed";
+              return null;
+            }
+            throw error;
+          }),
         );
         const payload = obj(
             "publication" in response ? response.publication : response,
           ),
           live = response.live ?? null;
         if (!Object.keys(payload).length) {
-          return {
+          return finishDetail({
             match: m,
             live,
             data: null,
-            limitation:
-              "Les données détaillées de cette publication ne sont pas disponibles.",
-          };
+            limitation: detailFailure === "timeout"
+              ? "Budget d’approfondissement atteint ; le classement initial est conservé."
+              : "Les données détaillées de cette publication ne sont pas disponibles.",
+          }, detailFailure ?? "absent");
         }
         if (
           payload.sport !== m.sport || payload.capturedAt !== m.capturedAt ||
           !rows(payload.items).some((f) => String(f.id) === m.id)
         ) {
-          return {
+          return finishDetail({
             match: m,
             live,
             data: null,
             limitation:
               "La version détaillée disponible diffère de la recherche ; ses données ne sont pas substituées à la publication consultée.",
-          };
+          }, "version_mismatch");
         }
         // Only published sports fields; cap a single detail without truncating JSON.
         const projection = {
@@ -983,15 +1470,15 @@ export class ConversationReader {
           playerRadar: obj(payload.playerRadar),
         };
         if (JSON.stringify(projection).length > 65000) {
-          return {
+          return finishDetail({
             match: m,
             live,
             data: null,
             limitation:
               "Détail trop volumineux ; les lectures et marchés vérifiés restent consultables.",
-          };
+          }, "oversized");
         }
-        return projection;
+        return finishDetail(projection, "available");
       }
       case "read_session": {
         exact(args, ["offset", "limit", "ticketId"]);
