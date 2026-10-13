@@ -18,7 +18,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.2'
+          flutter-version: "3.44.2"
           channel: stable
           cache: true
 
@@ -50,16 +50,19 @@ jobs:
         run: >-
           deno test
           --allow-read=test/fixtures/sports/hockey_meeting_phases.json,lib/features/matches/domain/odds_normalization.dart
-          --allow-env=FEED_DELIVERY_ENABLED,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_URL,SUPABASE_ANON_KEY,API_FOOTBALL_KEY,API_FOOTBALL_SYNC_SECRET,API_FOOTBALL_BASE_URL,API_FOOTBALL_REQUEST_DELAY_MS
+          --allow-env=FEED_DELIVERY_ENABLED,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_URL,SUPABASE_ANON_KEY,API_FOOTBALL_KEY,API_FOOTBALL_SYNC_SECRET,API_FOOTBALL_BASE_URL,API_FOOTBALL_REQUEST_DELAY_MS,LECTOR_EXPLORATION_INTERNAL_MS,LECTOR_EXPLORATION_EVALUATION_MS,LECTOR_EXPLORATION_DEEPENING_MS,LECTOR_EXPLORATION_FINALIZATION_MS,LECTOR_EXPLORATION_MAX_DEEPENED,LECTOR_EXPLORATION_EXTRA_BATCH_CALLS,LECTOR_GENERATOR_CANARY_ENABLED,LECTOR_GENERATOR_CANARY_USER_IDS,LECTOR_GENERATOR_CANARY_EMAILS,LECTOR_RELEASE_REVISION
           supabase/functions/_shared
 
       - name: Test Bilan SQL migration
-        run: deno test --node-modules-dir=none --no-lock --allow-read test/backend/generator_work_storage_sql_test.ts test/backend/shortlist_sql_test.ts test/backend/lector_generator_sql_test.ts test/backend/generator_radar_scope_sql_test.ts test/backend/generator_day_sources_sql_test.ts test/backend/shared_sport_publications_sql_test.ts test/backend/hockey_market_quotes_sql_test.ts test/backend/generator_decisions_sql_test.ts test/backend/feed_delivery_sql_test.ts test/backend/reading_bilan_sql_test.ts test/backend/live_match_sql_test.ts test/backend/sport_feed_sql_test.ts test/backend/hockey_live_sql_test.ts test/backend/form_radar_match_sql_test.ts
+        run: deno test --node-modules-dir=none --no-lock --allow-read test/backend/generator_work_storage_sql_test.ts test/backend/generator_exploration_archive_sql_test.ts test/backend/generator_request_audit_sql_test.ts test/backend/shortlist_sql_test.ts test/backend/lector_generator_sql_test.ts test/backend/generator_radar_scope_sql_test.ts test/backend/generator_day_sources_sql_test.ts test/backend/shared_sport_publications_sql_test.ts test/backend/hockey_market_quotes_sql_test.ts test/backend/generator_decisions_sql_test.ts test/backend/feed_delivery_sql_test.ts test/backend/reading_bilan_sql_test.ts test/backend/live_match_sql_test.ts test/backend/sport_feed_sql_test.ts test/backend/hockey_live_sql_test.ts test/backend/form_radar_match_sql_test.ts
 
       - name: Test remote deployment guards
         run: |
           python3 -m unittest discover -s tool/tests -p 'test_deploy*remote.py'
-          python3 -m unittest discover -s tool/tests -p 'hockey_publication_health_test.py'
+          python3 -m unittest discover -s tool/tests -p 'test_hockey_freshness_alarm.py'
+
+      - name: Test controlled exploration pilot and cost admission
+        run: deno test --allow-read=test/fixtures/generator_published_day.json tool/tests/generator_exploration_campaign_test.ts tool/tests/generator_validation_budget_test.ts
 
       - name: Test historical demo publications
         run: deno test --allow-read --allow-write tool/tests/feed_delivery_demo_test.ts

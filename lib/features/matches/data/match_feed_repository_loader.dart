@@ -61,31 +61,28 @@ class MatchFeedRepositoryLoader {
 
   void prefetch(DateTime date) {
     if (remoteDataSource != null) return;
-    final days = navigationFeedDays(date, clock());
+    final days = nearbyNavigationFeedDays(date, clock());
     _navigation.preload([
       for (final day in days)
         () async {
           await _prefetchPublishedDay(day);
         },
-      if (days.isNotEmpty)
-        () async {
-          final source = _defaultDataSource;
-          if (source is SupabaseMatchFeedSnapshotRepository) {
-            final payload = await source.loadRadar(date);
-            if (payload != null) {
-              await _navigation.read(
-                _radarKey(date),
-                () async => _parsed[payload] ??= factory.create(
-                  MatchDataSourceMode.snapshot,
-                  snapshot: payload,
-                ),
-                isUsable: (repository) => _usable(repository, date),
-                ttl: const Duration(minutes: 10),
-              );
-            }
-          }
-        },
     ]);
+  }
+
+  Future<MatchFeedRepository> refresh(DateTime date, {bool radar = false}) {
+    cancelPrefetch();
+    _currentLoadedAt = null;
+    _snapshots[_dateKey(date)]?.invalidate();
+    _navigation.invalidate(_radarKey(date));
+    final source = remoteDataSource ?? (_defaultDataSource ??= _publicSource());
+    if (source is SupabaseMatchFeedSnapshotRepository) source.invalidate(date);
+    return _navigation.read(
+      radar ? _radarKey(date) : 'day:${_dateKey(date)}',
+      () => _loadUncached(now: date, forceRemote: true),
+      force: true,
+      isUsable: (repository) => _usable(repository, date),
+    );
   }
 
   Future<void> _prefetchPublishedDay(DateTime day) async {
@@ -103,14 +100,19 @@ class MatchFeedRepositoryLoader {
     );
   }
 
-  Future<MatchFeedRepository> _loadUncached({DateTime? now}) async {
+  Future<MatchFeedRepository> _loadUncached({
+    DateTime? now,
+    bool forceRemote = false,
+  }) async {
     final source = config.matchFeedSource.trim().toLowerCase();
     final effectiveNow = now ?? DateTime.now();
 
     return switch (source) {
       'demo' => factory.create(MatchDataSourceMode.demo),
-      'supabase' || 'remote' || 'api' => _loadRemoteSnapshot(effectiveNow),
-      'auto' || '' => _loadAuto(effectiveNow),
+      'supabase' ||
+      'remote' ||
+      'api' => _loadRemoteSnapshot(effectiveNow, forceRemote: forceRemote),
+      'auto' || '' => _loadAuto(effectiveNow, forceRemote: forceRemote),
       _ => throw StateError(
         'Unknown MATCH_FEED_SOURCE "$source". '
         'Use "auto", "supabase" or "demo".',
@@ -118,7 +120,10 @@ class MatchFeedRepositoryLoader {
     };
   }
 
-  Future<MatchFeedRepository> _loadAuto(DateTime now) async {
+  Future<MatchFeedRepository> _loadAuto(
+    DateTime now, {
+    bool forceRemote = false,
+  }) async {
     if (!config.isSupabaseConfigured) {
       throw StateError(
         'Supabase n’est pas configuré. Aucun snapshot local de secours '
@@ -126,13 +131,17 @@ class MatchFeedRepositoryLoader {
       );
     }
 
-    return _loadRemoteSnapshot(now);
+    return _loadRemoteSnapshot(now, forceRemote: forceRemote);
   }
 
-  Future<MatchFeedRepository> _loadRemoteSnapshot(DateTime now) async {
+  Future<MatchFeedRepository> _loadRemoteSnapshot(
+    DateTime now, {
+    bool forceRemote = false,
+  }) async {
     final today = DateTime(clock().year, clock().month, clock().day);
     final retained = _currentRepository;
-    if (!now.isBefore(today) &&
+    if (!forceRemote &&
+        !now.isBefore(today) &&
         _currentLoadedAt != null &&
         clock().difference(_currentLoadedAt!) < const Duration(minutes: 2) &&
         retained?.snapshotMetadata?.covers(now) == true &&
@@ -140,7 +149,10 @@ class MatchFeedRepositoryLoader {
       return retained;
     }
     try {
-      final remoteSnapshot = await _loadCurrentRemoteSnapshot(now);
+      final remoteSnapshot = await _loadCurrentRemoteSnapshot(
+        now,
+        forceRemote: forceRemote,
+      );
       if (remoteSnapshot != null) {
         final repository = _parsed[remoteSnapshot] ??= factory.create(
           MatchDataSourceMode.snapshot,
@@ -196,8 +208,9 @@ class MatchFeedRepositoryLoader {
   }
 
   Future<Map<String, Object?>?> _loadCurrentRemoteSnapshot(
-    DateTime date,
-  ) async {
+    DateTime date, {
+    bool forceRemote = false,
+  }) async {
     final key = _dateKey(date);
     final cached =
         _snapshots.remove(key) ??
@@ -207,7 +220,11 @@ class MatchFeedRepositoryLoader {
       _snapshots.remove(_snapshots.keys.first);
     }
     final source = remoteDataSource ?? (_defaultDataSource ??= _publicSource());
-    return cached.read(() => source.loadLatestForDate(date));
+    return cached.read(
+      () => forceRemote && source is SupabaseMatchFeedSnapshotRepository
+          ? source.refreshForDate(date)
+          : source.loadLatestForDate(date),
+    );
   }
 
   Future<MatchFeedRepository?> loadDetails(

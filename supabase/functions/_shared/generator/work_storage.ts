@@ -21,6 +21,16 @@ export function archiveWork(
   const messages = next.messages.map((m) => ({
     ...m,
     id: m.id ?? crypto.randomUUID(),
+    ...(m.analysis?.exploration
+      ? {
+        explorationRef: {
+          evaluationId: m.analysis.exploration.evaluationId,
+          criterion: m.analysis.exploration.criterion,
+          coverage: m.analysis.exploration.coverage,
+          version: m.analysis.exploration.version,
+        },
+      }
+      : {}),
   }));
   const turns = (next.conversation?.turns ?? []).map((t) => ({
     ...t,
@@ -39,6 +49,16 @@ export function archiveWork(
       ...m,
       text: m.text.slice(0, 500),
       ...(analysis ? { analysisRef: m.id } : {}),
+      ...(analysis?.exploration
+        ? {
+          explorationRef: {
+            evaluationId: analysis.exploration.evaluationId,
+            criterion: analysis.exploration.criterion,
+            coverage: analysis.exploration.coverage,
+            version: analysis.exploration.version,
+          },
+        }
+        : {}),
     })),
     // Older composition identities can be rediscovered through read_session.
     compositions: (next.compositions ?? []).slice(-100),
@@ -99,6 +119,19 @@ export function compactModelMemory(state: State | null) {
         selection: p.selection,
       })),
     })),
+    ...(state?.messages.some((m) => m.analysis?.exploration || m.explorationRef)
+      ? {
+        explorations: state.messages.filter((m) =>
+          m.analysis?.exploration || m.explorationRef
+        ).slice(-4).map((m) => ({
+          evaluationId:
+            (m.analysis?.exploration ?? m.explorationRef)!.evaluationId,
+          criterion: (m.analysis?.exploration ?? m.explorationRef)!.criterion,
+          coverage: (m.analysis?.exploration ?? m.explorationRef)!.coverage,
+          version: (m.analysis?.exploration ?? m.explorationRef)!.version,
+        })),
+      }
+      : {}),
     archivedHistory: state?.history ?? null,
   };
 }

@@ -68,7 +68,7 @@ class PublishedFeedDelivery {
           'Calendar publication unavailable (${response.statusCode})',
         );
       }
-      final decoded = jsonDecode(response.body);
+      final decoded = _decodeTransportJson(response);
       final manifest = base != null
           ? _map(decoded)
           : ((decoded as List).isEmpty
@@ -124,7 +124,7 @@ class PublishedFeedDelivery {
           'Publication artifact unavailable (${response.statusCode})',
         );
       }
-      final value = jsonDecode(response.body);
+      final value = _decodeTransportJson(response);
       if (value is! Map<String, dynamic>) {
         throw const FormatException('Invalid publication JSON');
       }
@@ -170,6 +170,21 @@ class PublishedFeedDelivery {
 
   static String dateKey(DateTime d) =>
       '${d.year.toString().padLeft(4, "0")}-${d.month.toString().padLeft(2, "0")}-${d.day.toString().padLeft(2, "0")}';
+}
+
+/// Missing static files can be rewritten to the SPA document with HTTP 200.
+/// This is a transport failure, so repositories can use their public server
+/// reader. Valid JSON with a different sport/day remains a hard identity error.
+Object? _decodeTransportJson(http.Response response) {
+  final contentType = response.headers['content-type'] ?? '';
+  if (contentType.toLowerCase().contains('text/html')) {
+    throw StateError('Publication transport returned HTML instead of JSON');
+  }
+  try {
+    return jsonDecode(response.body);
+  } on FormatException {
+    throw StateError('Publication transport returned unreadable JSON');
+  }
 }
 
 Map<String, Object?> _map(Object? v) =>

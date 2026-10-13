@@ -66,6 +66,20 @@ class SupabaseMatchFeedSnapshotRepository
 
   final SupabaseClient _client;
 
+  void invalidate(DateTime date) {
+    delivery?.invalidateDay('football', date);
+    _delivered.remove(PublishedFeedDelivery.dateKey(date));
+    _radarSelection = null;
+    _radarPayload = null;
+  }
+
+  Future<Map<String, Object?>?> refreshForDate(DateTime date) {
+    invalidate(date);
+    // A manual refresh checks the authoritative public snapshots, not the
+    // static demo manifest. It never calls a sporting provider or collector.
+    return _withSessionRecovery(() => _loadLatestForDate(date));
+  }
+
   @override
   Future<Map<String, Object?>?> loadLatestForDate(DateTime date) async {
     final overview = await loadPublishedForDate(date);

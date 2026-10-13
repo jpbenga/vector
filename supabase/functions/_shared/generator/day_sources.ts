@@ -137,10 +137,23 @@ function mergeSource(previous: Source | undefined, next: Source): Source {
             br.player_form_radar,
             (r) => `${obj(r.team).id}:${obj(r.player).id}`,
           ),
+          european_comparisons: union(
+            ar.european_comparisons,
+            br.european_comparisons,
+            (r) => String(r.fixtureId),
+          ),
+          generator_domestic_forms: union(
+            ar.generator_domestic_forms,
+            br.generator_domestic_forms,
+            (r) => String(r.fixtureId),
+          ),
           recent_league_matches: union(
             ar.recent_league_matches,
             br.recent_league_matches,
-            (r) => `${obj(r.league).id}:${obj(r.team).id}`,
+            (r) =>
+              `${obj(r.league).id}:${obj(r.league).season ?? "unknown"}:${
+                obj(r.team).id
+              }`,
           ),
         },
         computed: {

@@ -1,4 +1,4 @@
-import { type Json, obj } from "./contracts.ts";
+import { type Json, obj, rows } from "./contracts.ts";
 import { generatorTimeoutMessage } from "./failures.ts";
 
 export function canReadTurnResponse(
@@ -25,6 +25,18 @@ export function turnStatus(row: Json | undefined, workshop: boolean): Json {
           steps: usage.steps ?? [],
           context: usage.context ?? null,
           summary: usage.summary ?? null,
+        }
+        : {}),
+      ...(workshop && ["failed", "cancelled"].includes(String(status)) &&
+          rows(usage.evaluations).some((r) =>
+            obj(r.exploration).schemaVersion === 1
+          )
+        ? {
+          explorationCheckpoint: {
+            evaluationId: rows(usage.evaluations).filter((r) =>
+              obj(r.exploration).schemaVersion === 1
+            ).at(-1)!.id,
+          },
         }
         : {}),
       ...(status === "failed"

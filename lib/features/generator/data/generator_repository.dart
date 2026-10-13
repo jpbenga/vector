@@ -28,6 +28,12 @@ class SupabaseGeneratorRepository implements GeneratorRepository {
               defaultValue: 'lector-generator',
             ),
             body: body,
+            headers: {
+              'x-lector-client-revision': const String.fromEnvironment(
+                'LECTOR_RELEASE_REVISION',
+                defaultValue: 'unversioned',
+              ),
+            },
           )
           .timeout(const Duration(seconds: 120));
       final data = generatorMap(response.data);

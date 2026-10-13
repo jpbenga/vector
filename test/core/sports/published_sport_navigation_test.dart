@@ -21,6 +21,37 @@ void main() {
   final captured = DateTime.parse(payload['capturedAt'] as String);
   final day = DateTime(2026, 10, 4);
 
+  testWidgets(
+    'hockey warming reads only neighbours; Radar waits for explicit opening',
+    (tester) async {
+      final remote = _Remote()
+        ..day.complete(payload)
+        ..radar.complete(payload);
+      final repository = PublishedSportFeedRepository(
+        sport: SportId.hockey,
+        source: remote,
+        clock: () => captured.add(const Duration(hours: 1)),
+      );
+      await repository.load(day);
+      repository.prefetch(day);
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(remote.dayDates.map(PublishedFeedDelivery.dateKey).toSet(), {
+        '2026-10-04',
+        '2026-10-05',
+        '2026-10-03',
+      });
+      expect(remote.radarCalls, 0);
+      final before = remote.dayCalls;
+      await repository.load(day);
+      expect(remote.dayCalls, before);
+      await repository.loadRadar(day);
+      expect(remote.radarCalls, 1);
+      repository.cancelPrefetch();
+      await tester.pump(const Duration(seconds: 1));
+    },
+  );
+
   ({
     PublishedSportFeedRepository repository,
     List<String> paths,
@@ -264,12 +295,19 @@ class _Remote implements ProgressiveSportPublicationSource {
   final radar = Completer<Map<String, dynamic>?>();
   final match = Completer<Map<String, dynamic>?>();
   int dayCalls = 0, matchCalls = 0;
+  int radarCalls = 0;
+  final dayDates = <DateTime>[];
   DateTime? matchVersion;
   @override
-  Future<Map<String, dynamic>?> read(SportId sport) => radar.future;
+  Future<Map<String, dynamic>?> read(SportId sport) {
+    radarCalls++;
+    return radar.future;
+  }
+
   @override
   Future<Map<String, dynamic>?> readDay(SportId sport, DateTime date) {
     dayCalls++;
+    dayDates.add(date);
     return day.future;
   }
 

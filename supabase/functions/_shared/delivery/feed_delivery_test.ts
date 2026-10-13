@@ -18,6 +18,9 @@ import hockey from "../../../../test/fixtures/sports/nhl_compact.json" with {
 import europeanFormFixture from "../../../../test/fixtures/european_lask_liverpool_card_form.json" with {
   type: "json",
 };
+import domesticCapture from "../../../../test/fixtures/generator_domestic_form_capture.json" with {
+  type: "json",
+};
 function part(
   sport: "football" | "hockey",
   payload: Record<string, unknown>,
@@ -35,6 +38,28 @@ function part(
     fullPath: `delivery/${sport}/${id}/full.json`,
   };
 }
+Deno.test("European overview keeps a compact domestic dossier with real provenance and does not duplicate generic league histories", () => {
+  const full = {
+    ...football,
+    captured_at: domesticCapture.capturedAt,
+    window_start: "2026-10-14",
+    window_end: "2026-10-14",
+    raw: domesticCapture.raw,
+  } as unknown as Record<string, unknown>;
+  const p = part("football", full, "european");
+  const overview = p.overview.raw as any;
+  assert.equal(overview.generator_domestic_forms.length, 1);
+  assert.equal(overview.generator_domestic_forms[0].home.results.length, 5);
+  assert.equal(overview.generator_domestic_forms[0].away.results.length, 5);
+  assert.equal(overview.european_comparisons, undefined);
+  const daily = dayOverview("football", [p], "2026-10-14")!;
+  assert.equal((daily.raw as any).generator_domestic_forms.length, 1);
+  assert.equal(
+    (part("football", football).overview.raw as any).generator_domestic_forms
+      .length,
+    0,
+  );
+});
 Deno.test("football daily delivery retains all card odds and server readings without rankings or history", () => {
   const p = part("football", football);
   const day = dayOverview("football", [p], "2030-10-04")!;

@@ -14,6 +14,10 @@ import {
   type DaySourcePort,
   loadDaySources,
 } from "../../supabase/functions/_shared/generator/day_sources.ts";
+import capture from "../fixtures/generator_domestic_form_capture.json" with {
+  type: "json",
+};
+import { publishedFixtureForm } from "../../supabase/functions/_shared/generator/published_form.ts";
 
 const day = "2026-10-10", timezone = "Europe/Paris";
 const footballId = "11111111-1111-4111-8111-111111111111";
@@ -55,6 +59,11 @@ Deno.test("day source SQL reads a complete large multisport day, keeps scope and
     await db.exec(
       await Deno.readTextFile(
         "supabase/migrations/20261010090000_lector_generator_day_sources.sql",
+      ),
+    );
+    await db.exec(
+      await Deno.readTextFile(
+        "supabase/migrations/20261013210000_generator_domestic_form_projection.sql",
       ),
     );
     const at = new Date(Date.now() - 120000).toISOString();
@@ -416,6 +425,93 @@ Deno.test("day source SQL reads a complete large multisport day, keeps scope and
         paidModelCalls: 0,
       }),
     );
+  } finally {
+    await db.close();
+  }
+});
+
+Deno.test("additive day projection transports real archived domestic results, season and provenance without forwarding unrelated details", async () => {
+  const db = new PGlite();
+  try {
+    await db.exec(
+      `create role anon; create role authenticated; create role service_role;
+      create table match_feed_analysis_snapshots(id uuid primary key,scope_key text,as_of timestamptz,captured_at timestamptz,window_start date,window_end date,payload jsonb);
+      create table sport_feed_snapshots(id uuid primary key,sport text,captured_at timestamptz,window_start date,window_end date,overview jsonb);
+      create function with_hockey_market_quotes(jsonb) returns jsonb language sql stable as $$select $1$$;`,
+    );
+    await db.exec(
+      await Deno.readTextFile(
+        "supabase/migrations/20261010090000_lector_generator_day_sources.sql",
+      ),
+    );
+    await db.exec(
+      await Deno.readTextFile(
+        "supabase/migrations/20261013210000_generator_domestic_form_projection.sql",
+      ),
+    );
+    const at = new Date(Date.now() - 120000).toISOString();
+    const dossier = capture.raw.european_comparisons[0];
+    const fixture = capture.raw.fixtures[0];
+    const matchDay = "2026-10-14";
+    await db.query(
+      "insert into match_feed_analysis_snapshots values($1,'european',now(),$2,$3,$3,$4)",
+      [footballId, at, matchDay, {
+        raw: {
+          fixtures: [fixture],
+          european_comparisons: [
+            { ...dossier, privateUnused: "must-not-travel" },
+            { ...dossier, fixtureId: 999999, privateUnused: "foreign-dossier" },
+          ],
+          recent_league_matches: [{
+            team: { id: fixture.teams.home.id },
+            league: { id: 39, season: 2026, type: "League" },
+            matches: [{
+              fixture: {
+                id: 100,
+                date: "2026-10-01T12:00:00Z",
+                status: { short: "FT" },
+              },
+              league: { id: 39, season: 2026 },
+              goals: { for: 2, against: 1 },
+              result: "W",
+              opponent: { name: "Published opponent" },
+              venue: "home",
+            }],
+          }],
+        },
+        computed: { fixtures: [] },
+      }],
+    );
+    const manifest = (await db.query<{ v: any }>(
+      "select lector_generator_day_manifest($1,$2,$3) v",
+      [matchDay, timezone, ["football"]],
+    )).rows[0].v;
+    const page = (await db.query<{ v: any }>(
+      "select lector_generator_day_page($1,$2,$3,$4) v",
+      [matchDay, timezone, manifest.sources, manifest.matches],
+    )).rows[0].v;
+    const raw = page.sources[0].payload.raw;
+    assert.equal(raw.european_comparisons.length, 1);
+    assert.ok(!JSON.stringify(raw).includes("must-not-travel"));
+    assert.ok(!JSON.stringify(raw).includes("foreign-dossier"));
+    assert.equal(raw.recent_league_matches[0].matches[0].league.season, 2026);
+    assert.equal(
+      raw.recent_league_matches[0].matches[0].fixture.status.short,
+      "FT",
+    );
+    assert.equal(raw.recent_league_matches[0].matches[0].goals.for, 2);
+    const form = publishedFixtureForm(
+      raw,
+      raw.fixtures[0],
+      at,
+      "domestic_championship",
+      new Date("2026-10-13T10:00:00Z"),
+    );
+    assert.equal(form.home.results.length, 5);
+    assert.equal(form.away.results.length, 5);
+    assert.equal(form.home.competitionId, "39");
+    assert.equal(form.away.competitionId, "61");
+    assert.equal(form.home.observedAt, dossier.home.domesticObservedAt);
   } finally {
     await db.close();
   }

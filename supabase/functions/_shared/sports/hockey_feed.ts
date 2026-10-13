@@ -304,7 +304,7 @@ export async function collectNhl(
     season: String(season),
     capturedAt: now.toISOString(),
     windowStart: shiftDate(today, -7),
-    windowEnd: shiftDate(today, 13),
+    windowEnd: shiftDate(today, 13 + calendarRolloverBufferDays),
     timezone: "Europe/Paris",
     collectionId,
   });
@@ -391,7 +391,7 @@ export function compactHockeyCollection(
 ): SportPublication {
   const today = calendarDate(now),
     windowStart = shiftDate(today, -7),
-    windowEnd = shiftDate(today, 13);
+    windowEnd = shiftDate(today, 13 + calendarRolloverBufferDays);
   const competitions: PublicCompetition[] = [], items: PublicFixture[] = [];
   if (new Set(raw.map((r) => r.leagueId)).size !== raw.length) {
     throw new Error("Duplicate hockey competition");
@@ -548,3 +548,4 @@ export async function collectHockey(
   await ports.publish(publication);
   return publication;
 }
+import { calendarRolloverBufferDays } from "../calendar_window.ts";

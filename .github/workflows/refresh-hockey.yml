@@ -33,11 +33,15 @@ jobs:
     # The first cold run also builds several years of H2H event history.
     timeout-minutes: 60
     steps:
-      # This scheduling file also lives on main, as required by GitHub. The
-      # football application is not merged with the multisport codebase.
+      - name: Require an immutable reviewed collector revision
+        env:
+          LECTOR_RELEASE_REF: ${{ vars.LECTOR_RELEASE_REF }}
+        run: '[[ "$LECTOR_RELEASE_REF" =~ ^[a-fA-F0-9]{40}$ ]]'
+      # This scheduling file must be installed on main after production approval.
+      # The collector code is pinned separately from the football main branch.
       - uses: actions/checkout@v4
         with:
-          ref: codex/multisport-hockey
+          ref: ${{ vars.LECTOR_RELEASE_REF }}
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
@@ -86,6 +90,11 @@ jobs:
           path: hockey-refresh-receipt.json
           if-no-files-found: ignore
           retention-days: 30
+      - name: Verify fourteen current day heads and publication freshness
+        if: success() && inputs.operation != 'install'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: python3 tool/sports/check_hockey_publication_health.py --remote-readonly
       # Preserve validated provider responses even if a later publication
       # check fails. Credentials are outside this directory.
       - uses: actions/cache/save@v4

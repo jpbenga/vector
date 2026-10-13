@@ -19,6 +19,7 @@ import '../data/generator_voice.dart';
 import 'generator_ticket_card.dart';
 import 'generator_compositions.dart';
 import 'generator_analysis.dart';
+import 'generator_exploration.dart';
 import 'generator_selection_sheet.dart';
 import 'generator_decisions.dart';
 import '../domain/generator_context.dart';
@@ -70,13 +71,14 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
   Timer? _progressTimer, _voiceTimer, _sessionTimer;
   final Map<String, Map<String, dynamic>> _decisions = {};
   String? _requestId, _retryMessage, _retryRequestId, _retryReferenceTicketId;
+  Map<String, Object?>? _retryExplorationAction;
   String _phase = 'Analyse de votre demande…';
   Map<String, dynamic> _progress = {};
   bool _recording = false, _transcribing = false;
   int _recordSeconds = 0;
   GeneratorContext? _context;
   GeneratorConversation? _conversation;
-  Map<String, dynamic>? _preparation;
+  Map<String, dynamic>? _preparation, _interruptedExploration;
   String _id = generatorUuid();
   String? _error;
   String? _submittedMessage;
@@ -136,6 +138,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
       _retryMessage = null;
       _retryRequestId = null;
       _retryReferenceTicketId = null;
+      _retryExplorationAction = null;
       _conversation = null;
       _initializing = true;
       _positioning = false;
@@ -201,6 +204,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
     _progressTimer?.cancel();
     setState(() {
       _conversation = null;
+      _interruptedExploration = null;
       _id = generatorUuid();
       _busy = false;
       _submittedMessage = null;
@@ -237,11 +241,20 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
               'revision': 0,
             });
             if (!mounted || generation != _generation) return;
+            _id = result['expired'] == true
+                ? generatorUuid()
+                : value['id'].toString();
             if (result['state'] != null) {
               setState(
                 () => _conversation = GeneratorConversation(
                   generatorMap(result['state']),
                 ),
+              );
+            }
+            if (result['expired'] != true && value['requestId'] is String) {
+              await _recoverExploration(
+                value['requestId'].toString(),
+                generation,
               );
             }
           } on Object {
@@ -305,7 +318,11 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
     }
   }
 
-  Future<void> _send([String? preset, String? referenceTicketId]) async {
+  Future<void> _send([
+    String? preset,
+    String? referenceTicketId,
+    Map<String, Object?>? explorationAction,
+  ]) async {
     final message = preset ?? _message.text.trim();
     if (_busy || _initializing || _context == null || message.isEmpty) return;
     final expires = DateTime.tryParse(
@@ -315,6 +332,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
         expires != null &&
         !expires.isAfter(DateTime.now())) {
       _conversation = null;
+      _interruptedExploration = null;
       _id = generatorUuid();
     }
     if (!widget.scope.isAccount) {
@@ -338,6 +356,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
     _retryMessage = message;
     _retryRequestId = requestId;
     _retryReferenceTicketId = referenceTicketId;
+    _retryExplorationAction = explorationAction;
     setState(() {
       _busy = true;
       _error = null;
@@ -347,6 +366,15 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
     _scrollToEnd();
     _startProgress(requestId);
     try {
+      await widget.persistence.write(
+        widget.scope,
+        _storageKey,
+        jsonEncode({
+          'id': _conversation?.id ?? _id,
+          'date': generatorDay(widget.date),
+          'requestId': requestId,
+        }),
+      );
       if (_context!.shortlist != null) {
         _context = await widget.loadContext();
         if (!mounted || generation != _generation || _requestId != requestId) {
@@ -369,6 +397,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
         'message': message,
         'requestId': requestId,
         'referenceTicketId': ?referenceTicketId,
+        'explorationAction': ?explorationAction,
       });
       if (!mounted || generation != _generation || _requestId != requestId) {
         return;
@@ -376,10 +405,12 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
       final conversation = GeneratorConversation(generatorMap(result['state']));
       setState(() {
         _conversation = conversation;
+        _interruptedExploration = null;
         _submittedMessage = null;
         _retryMessage = null;
         _retryRequestId = null;
         _retryReferenceTicketId = null;
+        _retryExplorationAction = null;
       });
       if (_followingLatest) _scrollToEnd();
       await widget.persistence.write(
@@ -392,6 +423,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
         setState(
           () => _error = error.toString().replaceFirst('Bad state: ', ''),
         );
+        await _recoverExploration(requestId, generation);
       }
     } finally {
       if (mounted && generation == _generation && _requestId == requestId) {
@@ -403,6 +435,93 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
       }
     }
   }
+
+  Future<void> _recoverExploration(String requestId, int generation) async {
+    if (!widget.durableSessions || _repository == null) return;
+    try {
+      final status = await _repository!.request({
+        ..._body('status'),
+        'requestId': requestId,
+        'includeResult': true,
+      });
+      if (!mounted || generation != _generation) return;
+      final turn = generatorMap(status['turn']);
+      if (turn['status'] == 'complete' && status['state'] is Map) {
+        setState(() {
+          _conversation = GeneratorConversation(generatorMap(status['state']));
+          _interruptedExploration = null;
+          _submittedMessage = null;
+          _error = null;
+          _retryMessage = null;
+          _retryRequestId = null;
+          _retryReferenceTicketId = null;
+          _retryExplorationAction = null;
+        });
+        return;
+      }
+      if (turn['status'] == 'pending') {
+        setState(() {
+          _retryRequestId = requestId;
+          _error =
+              'Cette demande est encore en cours. Retrouvez son résultat sans la relancer.';
+        });
+        return;
+      }
+      final checkpoint = generatorMap(turn['explorationCheckpoint']);
+      if (checkpoint['evaluationId'] == null) return;
+      if (_conversation?.messages.any(
+            (m) =>
+                generatorMap(
+                  generatorMap(m['analysis'])['exploration'],
+                )['evaluationId'] ==
+                checkpoint['evaluationId'],
+          ) ==
+          true) {
+        return;
+      }
+      final data = await _repository!.request({
+        ..._body('exploration_read'),
+        'evaluationId': checkpoint['evaluationId'],
+        'offset': 0,
+        'limit': 40,
+      });
+      if (mounted && generation == _generation) {
+        setState(
+          () => _interruptedExploration = generatorMap(data['exploration']),
+        );
+      }
+    } on Object {
+      /* Recovery only reads. It never submits a new model request. */
+    }
+  }
+
+  Widget _exploration(
+    Map<String, dynamic> report,
+  ) => GeneratorExplorationResult(
+    key: ValueKey('exploration-${report['evaluationId']}'),
+    report: report,
+    busy: _busy,
+    read: (action, parameters) async {
+      final result = await _repository!.request({
+        ..._body(action),
+        ...parameters,
+      });
+      return generatorMap(
+        result['exploration'] ??
+            result['comparison'] ??
+            result['explanation'] ??
+            result['changes'],
+      );
+    },
+    onAction: (evaluationId, mode) => _send(
+      mode == 'resume'
+          ? 'Reprends uniquement les rencontres non évaluées de cette préparation.'
+          : 'Réévalue explicitement cette préparation avec les données disponibles et montre les différences.',
+      null,
+      {'evaluationId': evaluationId, 'mode': mode},
+    ),
+    onOpenMatch: widget.onOpenMatch,
+  );
 
   Future<void> _operation(String action, {String? ticketId}) async {
     if (_busy || _conversation == null) return;
@@ -672,12 +791,14 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
     if (!mounted) return;
     setState(() {
       _conversation = null;
+      _interruptedExploration = null;
       _id = generatorUuid();
       _error = null;
       _submittedMessage = null;
       _retryMessage = null;
       _retryRequestId = null;
       _retryReferenceTicketId = null;
+      _retryExplorationAction = null;
       _voice.cancel();
       _voiceTimer?.cancel();
       _recording = false;
@@ -936,6 +1057,7 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
   Future<void> _retry() async {
     final message = _retryMessage;
     final referenceTicketId = _retryReferenceTicketId;
+    final explorationAction = _retryExplorationAction;
     if (message == null || _busy) return;
     final generation = _generation;
     try {
@@ -966,11 +1088,12 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
             _retryMessage = null;
             _retryRequestId = null;
             _retryReferenceTicketId = null;
+            _retryExplorationAction = null;
           }
         });
         if (completed) return;
       }
-      await _send(message, referenceTicketId);
+      await _send(message, referenceTicketId, explorationAction);
     } on Object {
       if (mounted && generation == _generation) {
         setState(
@@ -1388,8 +1511,28 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
                               text: message['text']?.toString() ?? '',
                               user: message['role'] == 'user',
                               at: message['at']?.toString(),
+                              compact:
+                                  generatorMap(
+                                    generatorMap(
+                                      message['analysis'],
+                                    )['exploration'],
+                                  )['schemaVersion'] ==
+                                  1,
                             ),
-                            if (message['analysis'] is Map)
+                            if (generatorMap(
+                                  generatorMap(
+                                    message['analysis'],
+                                  )['exploration'],
+                                )['schemaVersion'] ==
+                                1)
+                              _exploration(
+                                generatorMap(
+                                  generatorMap(
+                                    message['analysis'],
+                                  )['exploration'],
+                                ),
+                              )
+                            else if (message['analysis'] is Map)
                               GeneratorAnalysisResult(
                                 analysis: generatorMap(message['analysis']),
                                 onInspect: (pick) => showGeneratorSelectionDetail(
@@ -1476,6 +1619,8 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
                               style: theme.textTheme.bodySmall,
                             ),
                           ],
+                          if (_interruptedExploration != null)
+                            _exploration(_interruptedExploration!),
                           if (_submittedMessage != null)
                             GeneratorMessageBubble(
                               text: _submittedMessage!,
@@ -1499,6 +1644,16 @@ class _LectorGeneratorPageState extends State<LectorGeneratorPage>
                                       color: context.semantic.warning,
                                     ),
                                   ),
+                                  if (_retryRequestId != null &&
+                                      _retryMessage == null &&
+                                      !_busy)
+                                    TextButton(
+                                      onPressed: () => _recoverExploration(
+                                        _retryRequestId!,
+                                        _generation,
+                                      ),
+                                      child: const Text('Retrouver la demande'),
+                                    ),
                                   if (_retryMessage != null && !_busy)
                                     TextButton.icon(
                                       onPressed: _retry,

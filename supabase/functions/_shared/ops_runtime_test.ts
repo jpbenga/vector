@@ -14,7 +14,7 @@ Deno.test("stage dependencies use exact predecessor and date window", () => {
     },
   };
   const collect = stageCall({ ...task, stage: 0 });
-  assert.equal(collect.payload.window_end, "2026-10-13");
+  assert.equal(collect.payload.window_end, "2026-10-15"); // fourteen dates plus rollover reserve
   assert.equal(collect.payload.include_player_statistics, false);
   assert.equal(
     stageCall({ ...task, stage: 0, job_kind: "enrichment" }).payload

@@ -1,7 +1,7 @@
 import {
   collectOddsPages,
   fixtureBodyForDate,
-  footballCalendarDays,
+  footballCollectionDays,
   oddsDatesForFixtures,
   usesDatedFixtureSource,
 } from "../_shared/football_calendar_policy.ts";
@@ -29,7 +29,7 @@ type EnrichmentTask = {
 const source = "api-football";
 const defaultBaseUrl = "https://v3.football.api-sports.io";
 const defaultTimezone = "Europe/Paris";
-const maxDays = footballCalendarDays;
+const maxDays = footballCollectionDays;
 const maxLeagues = 40;
 // Enrichment is processed in small resumable batches. The limit is per worker
 // invocation, not per competition or per daily run.

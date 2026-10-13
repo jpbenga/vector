@@ -123,9 +123,9 @@ with tempfile.TemporaryDirectory(prefix='lector-hockey-delivery-', dir=OUTPUT.pa
 (OUTPUT / 'vercel.json').write_text(json.dumps({
     'buildCommand': None, 'installCommand': None, 'outputDirectory': '.',
     'rewrites': [
-        {'source': '/delivery/:path*', 'destination': '/delivery/:path*'},
         {'source': '/sports/hockey/feed', 'destination': '/data/hockey-feed.json'},
-        {'source': '/(.*)', 'destination': '/index.html'},
+        {'source': '/sports/:sport', 'destination': '/index.html'},
+        {'source': '/admin', 'destination': '/index.html'},
     ],
     'headers': [{'source': '/(.*)', 'headers': [
         {'key': 'X-Robots-Tag', 'value': 'noindex, nofollow'},

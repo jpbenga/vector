@@ -11,7 +11,9 @@ import {
   compactNhlGames,
   currentNhlSeason,
   providerRows,
+  shiftDate,
 } from "./hockey_feed.ts";
+import { calendarRolloverBufferDays } from "../calendar_window.ts";
 const now = new Date(expected.capturedAt);
 const metadata = {
   season: "2026",
@@ -43,8 +45,12 @@ Deno.test("real NHL response -> raw -> compact public contract consumed by Flutt
     now,
     "nhl-contract-example",
   );
-  assert.deepEqual(result, expected);
-  assert.deepEqual(published, expected);
+  const withRolloverReserve = {
+    ...expected,
+    windowEnd: shiftDate(calendarDate(now), 13 + calendarRolloverBufferDays),
+  };
+  assert.deepEqual(result, withRolloverReserve);
+  assert.deepEqual(published, withRolloverReserve);
   assert.equal(stored.get("games"), raw.games);
   assert.deepEqual(queries, [["leagues", { id: "57" }], ["games", {
     league: "57",

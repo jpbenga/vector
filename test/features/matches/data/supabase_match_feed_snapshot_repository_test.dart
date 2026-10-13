@@ -13,6 +13,67 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test(
+    'HTML 200 missing manifest falls back to server and manual refresh rereads it',
+    () async {
+      var reads = 0;
+      final fresh = {
+        'schema_version': 1,
+        'captured_at': '2026-10-14T06:28:00Z',
+        'window_start': '2026-10-14',
+        'window_end': '2026-10-29',
+        'raw': {'fixtures': <Object?>[]},
+        'computed': {'fixtures': <Object?>[]},
+      };
+      final transport = MockClient((request) async {
+        if (request.url.path.endsWith('manifest.json')) {
+          return http.Response(
+            '<html>Fallback</html>',
+            200,
+            headers: {'content-type': 'text/html'},
+          );
+        }
+        reads++;
+        return http.Response(
+          jsonEncode([
+            {
+              'id': 'fresh',
+              'scope': 'league',
+              'league_ids': [61],
+              if (request.url.queryParameters['select']!.contains('payload'))
+                'payload': fresh,
+            },
+          ]),
+          200,
+          headers: {'content-type': 'application/json'},
+          request: request,
+        );
+      });
+      final client = SupabaseClient(
+        'https://server.test',
+        'public',
+        httpClient: transport,
+      );
+      addTearDown(client.dispose);
+      final reader = SupabaseMatchFeedSnapshotRepository(
+        client,
+        clock: () => DateTime.utc(2026, 10, 14, 8),
+        delivery: PublishedFeedDelivery(
+          projectUrl: Uri.parse('https://server.test'),
+          publicKey: 'public',
+          hostedBaseUrl: Uri.parse('https://demo.test/'),
+          localOffset: (_) => const Duration(hours: 1),
+          client: transport,
+        ),
+      );
+      final selected = DateTime(2026, 10, 27);
+      final loaded = await reader.loadLatestForDate(selected);
+      expect(loaded!['captured_at'], fresh['captured_at']);
+      final initial = reads;
+      await reader.refreshForDate(selected);
+      expect(reads, greaterThan(initial));
+    },
+  );
+  test(
     'an obsolete demo day falls back to the newer public snapshots',
     () async {
       final calls = <String>[];

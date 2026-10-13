@@ -36,6 +36,57 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
+  testWidgets(
+    'manual football refresh rereads data and retains the visible card while waiting',
+    (tester) async {
+      var calls = 0;
+      final next = Completer<MatchFeedRepository>();
+      final initial = _FakeMatchFeedRepository(
+        opportunities: const [],
+        matches: [
+          _match(
+            id: 'refresh-fixture',
+            homeName: 'Visible FC',
+            awayName: 'Away FC',
+            kickoff: _relativeKickoff(0, hour: 20),
+          ),
+        ],
+      );
+      await _pumpPage(
+        tester,
+        repositoryForDateLoader: (_) {
+          calls++;
+          return calls == 1 ? Future.value(initial) : next.future;
+        },
+      );
+      await tester.tap(find.text('Tous'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('France'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ligue 1'));
+      await tester.pumpAndSettle();
+      expect(find.text('Visible FC'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('football-refresh')));
+      await tester.pump();
+      expect(calls, 2);
+      expect(find.text('Visible FC'), findsOneWidget);
+      expect(
+        tester
+            .widget<IconButton>(find.byKey(const ValueKey('football-refresh')))
+            .onPressed,
+        isNull,
+      );
+      next.complete(initial);
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<IconButton>(find.byKey(const ValueKey('football-refresh')))
+            .onPressed,
+        isNotNull,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets('Primary navigation preserves the football calendar', (
     tester,
   ) async {

@@ -36,14 +36,27 @@ class GeneratorMessageBubble extends StatelessWidget {
     required this.text,
     this.user = false,
     this.at,
+    this.compact = false,
     super.key,
   });
   final String text;
   final bool user;
   final String? at;
+  final bool compact;
   @override
   Widget build(BuildContext context) => Padding(
-    padding: EdgeInsets.only(top: user ? 12 : 16, bottom: user ? 12 : 20),
+    padding: EdgeInsets.only(
+      top: user
+          ? 12
+          : compact
+          ? 6
+          : 16,
+      bottom: user
+          ? 12
+          : compact
+          ? 6
+          : 20,
+    ),
     child: LayoutBuilder(
       builder: (context, constraints) => Align(
         alignment: user ? Alignment.centerRight : Alignment.centerLeft,

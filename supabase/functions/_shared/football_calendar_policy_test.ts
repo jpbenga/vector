@@ -4,10 +4,47 @@ import {
   collectOddsPages,
   fixtureBodyForDate,
   fixturesEligibleForAnnouncements,
+  footballCalendarDays,
+  footballCollectionDays,
   localCalendarDate,
   oddsDatesForFixtures,
   selectCachedOddsPages,
 } from "./football_calendar_policy.ts";
+import { shiftDate } from "./sports/hockey_feed.ts";
+import { calendarRolloverBufferDays } from "./calendar_window.ts";
+
+Deno.test("rollover reserve keeps fourteen civil dates at both midnights inside a 36h valid publication", () => {
+  assert.equal(footballCalendarDays, 14);
+  assert.equal(footballCollectionDays, 16);
+  const captured = new Date("2026-10-24T21:30:00Z"); // 24 Oct 23:30 Paris; two midnights within 36h
+  const first = localCalendarDate(captured.toISOString(), "Europe/Paris");
+  const end = shiftDate(
+    first,
+    footballCalendarDays - 1 + calendarRolloverBufferDays,
+  );
+  for (const elapsed of [0, 24, 35.5]) {
+    const now = new Date(captured.getTime() + elapsed * 3600000);
+    const current = localCalendarDate(now.toISOString(), "Europe/Paris");
+    assert.ok(shiftDate(current, footballCalendarDays - 1) <= end);
+  }
+  const afterSecondMidnight = localCalendarDate(
+    new Date(captured.getTime() + 35.5 * 3600000).toISOString(),
+    "Europe/Paris",
+  );
+  assert.equal(afterSecondMidnight, "2026-10-26");
+  assert.ok(
+    shiftDate(afterSecondMidnight, footballCalendarDays - 1) >
+      calendarEnd(first),
+  );
+  assert.equal(
+    localCalendarDate("2026-10-25T00:30:00Z", "America/New_York"),
+    "2026-10-24",
+  );
+  assert.equal(
+    localCalendarDate("2026-10-25T00:30:00Z", "Asia/Tokyo"),
+    "2026-10-25",
+  );
+});
 const fixture = (id: number, date: string) => ({ fixture: { id, date } });
 Deno.test("calendar includes 14 local days across a month, year and DST change", () => {
   assert.equal(calendarEnd("2026-10-04"), "2026-10-17");

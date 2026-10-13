@@ -21,6 +21,7 @@ import '../../../core/auth/user_presentation.dart';
 import '../../../core/widgets/lector_workspace_navigation.dart';
 import '../../../core/widgets/lector_workspace_header.dart';
 import 'dart:convert';
+import '../../../core/widgets/lector_publication_age.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -106,6 +107,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
   bool _hasTracedMatchesLoaded = false;
   DateTime _selectedScoresDate = _todayDate();
   bool _hasUserSelectedScoresDate = false;
+  bool _refreshing = false;
   _ScoresRedesignMode _scoresMode = _ScoresRedesignMode.forMe;
   LectorExplorationSelection? _explorationSelection;
 
@@ -195,6 +197,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
               wasRadar ||
               mode == _ScoresRedesignMode.radar ||
               _readRecovery.inProgress)) {
+        _refreshing = false;
         _repository = _loadRepository(
           _selectedScoresDate,
           radar: mode == _ScoresRedesignMode.radar,
@@ -329,7 +332,10 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
 
           return _ScoresRedesignHome(
             readRecovery: _readRecovery,
-            isLoading: snapshot.connectionState == ConnectionState.waiting,
+            isLoading:
+                snapshot.connectionState == ConnectionState.waiting &&
+                !_refreshing,
+            isRefreshing: _refreshing,
             loadError: loadError,
             profile: effectiveProfile,
             identityScope: widget.identityScope,
@@ -343,6 +349,7 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
             selectedDate: effectiveSelectedDate,
             mode: _scoresMode,
             onModeChanged: _selectWorkspaceMode,
+            onRefresh: _refreshRepository,
             onDateSelected: (date) {
               _selectScoresDate(date);
             },
@@ -415,10 +422,37 @@ class _MatchesHomePageState extends State<MatchesHomePage> {
     _selectScoresDate(selected);
   }
 
+  Future<void> _refreshRepository() async {
+    if (widget.repositoryOverride != null || _refreshing) return;
+    final date = _selectedScoresDate;
+    final testLoader = widget.repositoryForDateLoader;
+    final pending = testLoader != null
+        ? testLoader(date)
+        : getIt<MatchFeedRepositoryLoader>().refresh(
+            date,
+            radar: _scoresMode == _ScoresRedesignMode.radar,
+          );
+    // FutureBuilder keeps the last rendered repository while this refresh runs.
+    setState(() {
+      _repository = pending;
+      _refreshing = true;
+    });
+    try {
+      await pending;
+    } on Object {
+      // FutureBuilder presents the failure; the async tap must not throw again.
+    } finally {
+      if (mounted && identical(_repository, pending)) {
+        setState(() => _refreshing = false);
+      }
+    }
+  }
+
   void _selectScoresDate(DateTime date) {
     final selectedDate = _dateOnly(date);
     setState(() {
       _selectedScoresDate = selectedDate;
+      _refreshing = false;
       _hasUserSelectedScoresDate = true;
       if (widget.repositoryOverride == null) {
         _repository = _loadRepository(
@@ -963,6 +997,7 @@ class _ScoresRedesignHome extends StatefulWidget {
   const _ScoresRedesignHome({
     required this.readRecovery,
     this.isLoading = false,
+    this.isRefreshing = false,
     this.loadError,
     required this.profile,
     required this.identityScope,
@@ -976,6 +1011,7 @@ class _ScoresRedesignHome extends StatefulWidget {
     required this.selectedDate,
     required this.mode,
     required this.onModeChanged,
+    required this.onRefresh,
     required this.onDateSelected,
     required this.onChooseDate,
     required this.onOpenMatch,
@@ -996,6 +1032,7 @@ class _ScoresRedesignHome extends StatefulWidget {
 
   final ReadRecovery readRecovery;
   final bool isLoading;
+  final bool isRefreshing;
   final Object? loadError;
   final DecisionProfile profile;
   final IdentityScope identityScope;
@@ -1009,6 +1046,7 @@ class _ScoresRedesignHome extends StatefulWidget {
   final DateTime selectedDate;
   final _ScoresRedesignMode mode;
   final ValueChanged<_ScoresRedesignMode> onModeChanged;
+  final Future<void> Function() onRefresh;
   final ValueChanged<DateTime> onDateSelected;
   final VoidCallback onChooseDate;
   final ValueChanged<MatchBoardItem> onOpenMatch;
@@ -1204,7 +1242,7 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
     return Stack(
       children: [
         RefreshIndicator(
-          onRefresh: () async {},
+          onRefresh: widget.onRefresh,
           child: CustomScrollView(
             slivers: [
               SliverToBoxAdapter(
@@ -1234,6 +1272,30 @@ class _ScoresRedesignHomeState extends State<_ScoresRedesignHome> {
                             selected: widget.mode,
                             onChanged: widget.onModeChanged,
                           ),
+                          if (widget.mode != _ScoresRedesignMode.bilan) ...[
+                            Row(
+                              children: [
+                                if (widget.radarCapturedAt != null)
+                                  Expanded(
+                                    child: LectorPublicationAge(
+                                      capturedAt: widget.radarCapturedAt!,
+                                    ),
+                                  )
+                                else
+                                  const Spacer(),
+                                IconButton(
+                                  key: const ValueKey('football-refresh'),
+                                  tooltip: 'Relire la publication',
+                                  onPressed:
+                                      widget.isLoading || widget.isRefreshing
+                                      ? null
+                                      : widget.onRefresh,
+                                  icon: const Icon(Icons.refresh_rounded),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                              ],
+                            ),
+                          ],
                           const SizedBox(height: 8),
                           LectorHorizontalTransition(
                             position: DateTime.utc(

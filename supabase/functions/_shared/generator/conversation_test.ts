@@ -64,7 +64,7 @@ Deno.test("a tiny conversational request still answers after a large ticket; arc
       ]);
     }) as typeof fetch,
   });
-  assert.ok(bytes < 30000);
+  assert.ok(bytes < 30000, `Small follow-up payload grew to ${bytes} bytes`);
   assert.equal(answered.next.messages.at(-1)!.text, "Avec plaisir");
   assert.equal(
     archiveWork(answered.next).tickets[0].picks[0].evidence[0].text.length,

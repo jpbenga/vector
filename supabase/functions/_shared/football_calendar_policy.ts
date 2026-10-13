@@ -1,6 +1,9 @@
 // Calendar availability is independent of bookmaker availability. Offsets are
 // inclusive: 14 calendar days means today through today + 13, in the league TZ.
+import { calendarRolloverBufferDays } from "./calendar_window.ts";
 export const footballCalendarDays = 14;
+export const footballCollectionDays = footballCalendarDays +
+  calendarRolloverBufferDays;
 export const footballAnalysisDays = 4;
 type Obj = Record<string, unknown>;
 const object = (value: unknown): Obj =>

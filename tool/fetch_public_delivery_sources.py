@@ -30,7 +30,7 @@ def timestamp(value):
 
 def selected_sources(metadata, today):
     chosen = {}
-    for offset in range(-7, 14):
+    for offset in range(-7, 16):  # Two extra dates protect the next midnight.
         day = today + datetime.timedelta(days=offset)
         end = datetime.datetime.combine(
             day + datetime.timedelta(days=1), datetime.time(), PARIS)

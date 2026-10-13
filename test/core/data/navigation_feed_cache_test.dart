@@ -4,6 +4,23 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('automatic warming is limited to immediate civil neighbours', () {
+    for (final date in [DateTime(2026, 10, 25), DateTime(2026, 3, 29)]) {
+      final neighbours = nearbyNavigationFeedDays(date, date);
+      expect(neighbours, [
+        DateTime(date.year, date.month, date.day + 1),
+        DateTime(date.year, date.month, date.day - 1),
+      ]);
+    }
+    expect(
+      nearbyNavigationFeedDays(DateTime(2026, 10, 27), DateTime(2026, 10, 14)),
+      [DateTime(2026, 10, 26)],
+    );
+    expect(
+      nearbyNavigationFeedDays(DateTime(2026, 10, 28), DateTime(2026, 10, 14)),
+      isEmpty,
+    );
+  });
   testWidgets(
     'preloading warms the next day and cancellation stops remaining work',
     (tester) async {

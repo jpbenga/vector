@@ -176,15 +176,10 @@ class PublishedSportFeedRepository
     if (delivery == null && source is! ProgressiveSportPublicationSource) {
       return;
     }
-    final days = navigationFeedDays(date, _navigation.clock());
+    final days = nearbyNavigationFeedDays(date, _navigation.clock());
     _navigation.preload([
-      // One shared Radar publication warms every date using references to the
-      // same decoded fixtures and standings, rather than 20 copies of them.
-      () async {
-        final result = await loadRadar(date);
-        if (_radarDelivery != null) _warmDays(result, date);
-      },
-      for (final day in (delivery == null ? days : days.take(4)))
+      // Radar is loaded when opened, never as a prerequisite for a calendar.
+      for (final day in days)
         () async {
           await _navigation.read(
             'day:${PublishedFeedDelivery.dateKey(day)}',

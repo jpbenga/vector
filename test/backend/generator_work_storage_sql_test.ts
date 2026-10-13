@@ -22,6 +22,7 @@ Deno.test("work storage survives large repeated analyses, tiny follow-up, old re
         "20261008210000_lector_generator_workshop.sql",
         "20261009120000_lector_generator_decisions.sql",
         "20261011200000_lector_generator_work_storage.sql",
+        "20261014090000_generator_request_audit.sql",
       ]
     ) await db.exec(await Deno.readTextFile(`supabase/migrations/${file}`));
     await db.query("select lector_generator_session($1,$2,true)", [user, id]);

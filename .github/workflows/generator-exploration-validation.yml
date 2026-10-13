@@ -1,0 +1,75 @@
+name: Controlled generator exploration validation
+on:
+  workflow_dispatch:
+    inputs:
+      authorize_paid:
+        description: 'Authorize paid model replay, without deployment'
+        type: boolean
+        default: false
+      model:
+        description: 'Model to test'
+        type: choice
+        options: [gpt-6-luna]
+        default: gpt-6-luna
+      max_usd:
+        description: 'Admission envelope USD, not a billing measurement'
+        required: true
+        default: '0.05'
+      max_calls:
+        description: 'Initial pilot is strictly limited to 2 evaluation calls'
+        type: choice
+        options: ['2']
+        default: '2'
+      input_price:
+        description: 'Verified Standard input price USD/million tokens'
+        required: true
+        default: '0.10'
+      output_price:
+        description: 'Verified Standard output price USD/million tokens'
+        required: true
+        default: '0.50'
+      pricing_date:
+        description: 'Price verification date YYYY-MM-DD, recheck before launch'
+        required: true
+        default: '2026-10-13'
+permissions:
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Test two-call pilot contract without a model
+        run: deno test --allow-read=test/fixtures/generator_published_day.json tool/tests/generator_exploration_campaign_test.ts tool/tests/generator_validation_budget_test.ts
+      - name: Publication preflight, no paid call
+        run: deno run --allow-read=test/fixtures --allow-write=output/generator-exploration-real tool/validate_generator_exploration_real.ts --output output/generator-exploration-real
+      - name: Explicitly authorized real model replay
+        if: inputs.authorize_paid
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          VALIDATION_MODEL: ${{ inputs.model }}
+          VALIDATION_MAX_USD: ${{ inputs.max_usd }}
+          VALIDATION_MAX_CALLS: ${{ inputs.max_calls }}
+          VALIDATION_INPUT_PRICE: ${{ inputs.input_price }}
+          VALIDATION_OUTPUT_PRICE: ${{ inputs.output_price }}
+          VALIDATION_PRICE_DATE: ${{ inputs.pricing_date }}
+        run: >-
+          deno run --allow-read=test/fixtures,output/generator-exploration-real
+          --allow-write=output/generator-exploration-real
+          --allow-env=OPENAI_API_KEY,GITHUB_ACTIONS
+          --allow-net=api.openai.com
+          tool/validate_generator_exploration_real.ts --output output/generator-exploration-real --approved
+          --model "$VALIDATION_MODEL" --max-usd "$VALIDATION_MAX_USD"
+          --max-calls "$VALIDATION_MAX_CALLS"
+          --input-price "$VALIDATION_INPUT_PRICE" --output-price "$VALIDATION_OUTPUT_PRICE"
+          --pricing-date "$VALIDATION_PRICE_DATE"
+      - name: Retain measurements and checkpoints
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generator-exploration-validation-${{ github.run_id }}
+          path: output/generator-exploration-real
+          retention-days: 14

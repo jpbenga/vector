@@ -134,3 +134,15 @@ List<DateTime> navigationFeedDays(DateTime selected, DateTime now) {
         DateTime(selected.year, selected.month, selected.day + offset),
   ];
 }
+
+/// Only immediate neighbours are fetched automatically. The full window stays
+/// available for navigation and for projecting a Radar already opened by the user.
+List<DateTime> nearbyNavigationFeedDays(DateTime selected, DateTime now) {
+  final anchor = DateTime.utc(selected.year, selected.month, selected.day);
+  return navigationFeedDays(selected, now)
+      .where((day) {
+        final calendar = DateTime.utc(day.year, day.month, day.day);
+        return calendar.difference(anchor).inDays.abs() == 1;
+      })
+      .toList(growable: false);
+}

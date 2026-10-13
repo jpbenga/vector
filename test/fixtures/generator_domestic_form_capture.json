@@ -1,0 +1,454 @@
+{
+  "sourceNote": "Archived public dossier captured 2026-10-12; not a live API or AI result.",
+  "capturedAt": "2026-10-12T12:50:07.349060+00:00",
+  "raw": {
+    "fixtures": [
+      {
+        "fixture": {
+          "id": 1635690,
+          "date": "2026-10-14T21:00:00+02:00",
+          "status": {
+            "short": "NS"
+          }
+        },
+        "league": {
+          "id": 2,
+          "name": "UEFA Champions League",
+          "season": 2026
+        },
+        "teams": {
+          "home": {
+            "id": 50,
+            "name": "Manchester City"
+          },
+          "away": {
+            "id": 85,
+            "name": "Paris Saint Germain"
+          }
+        }
+      }
+    ],
+    "european_comparisons": [
+      {
+        "schemaVersion": 1,
+        "fixtureId": 1635690,
+        "kickoffAt": "2026-10-14T21:00:00+02:00",
+        "competition": {
+          "id": 2,
+          "name": "UEFA Champions League",
+          "season": 2026
+        },
+        "home": {
+          "logo": "https://media.api-sports.io/football/teams/50.png",
+          "name": "Manchester City",
+          "teamId": 50,
+          "dataAsOf": "2026-10-14T21:00:00+02:00",
+          "domesticState": "available",
+          "europeanPhase": "league",
+          "europeanState": "partial",
+          "domesticSummary": {
+            "wins": 5,
+            "draws": 0,
+            "losses": 0,
+            "played": 5,
+            "points": 15,
+            "goalsFor": 14,
+            "fixtureIds": [
+              1557381,
+              1557394,
+              1557404,
+              1557413,
+              1557424
+            ],
+            "goalsAgainst": 4
+          },
+          "europeanSummary": {
+            "wins": 1,
+            "draws": 0,
+            "losses": 0,
+            "played": 1,
+            "points": 3,
+            "goalsFor": 2,
+            "fixtureIds": [
+              1635654
+            ],
+            "goalsAgainst": 0
+          },
+          "domesticStanding": {
+            "rank": 1,
+            "wins": 6,
+            "draws": 0,
+            "group": "Premier League",
+            "losses": 0,
+            "played": 6,
+            "points": 18,
+            "teamId": 50,
+            "goalDiff": 11,
+            "goalsFor": 16,
+            "teamName": "Manchester City",
+            "observedAt": "2026-10-12 00:33:01.597+00",
+            "goalsAgainst": 5
+          },
+          "europeanStanding": {
+            "rank": 8,
+            "wins": 1,
+            "draws": 0,
+            "group": "UEFA Champions League",
+            "losses": 0,
+            "played": 1,
+            "points": 3,
+            "teamId": 50,
+            "goalDiff": 2,
+            "goalsFor": 2,
+            "teamName": "Manchester City",
+            "observedAt": "2026-10-12 01:27:01.77+00",
+            "goalsAgainst": 0
+          },
+          "domesticSeasonEnd": "2027-05-30",
+          "domesticObservedAt": "2026-10-12 00:33:02.038+00",
+          "europeanObservedAt": "2026-10-12 00:00:14.985+00",
+          "domesticCompetition": {
+            "id": 39,
+            "logo": "https://media.api-sports.io/football/leagues/39.png",
+            "name": "Premier League",
+            "season": 2026,
+            "country": "England"
+          },
+          "domesticSeasonEnded": false,
+          "domesticSeasonStart": "2026-08-21",
+          "europeanPhaseMatches": [
+            {
+              "round": "League Stage - 1",
+              "venue": "away",
+              "result": "W",
+              "season": 2026,
+              "goalsFor": 2,
+              "playedAt": "2026-09-08T21:00:00+02:00",
+              "fixtureId": 1635654,
+              "observedAt": "2026-10-12 00:00:14.985+00",
+              "goalsAgainst": 0,
+              "opponentLogo": "https://media.api-sports.io/football/teams/212.png",
+              "opponentName": "FC Porto",
+              "competitionId": 2,
+              "opponentTeamId": 212,
+              "competitionName": "UEFA Champions League",
+              "penaltyDecision": false
+            }
+          ],
+          "domesticRecentMatches": [
+            {
+              "round": "Regular Season - 2",
+              "venue": "away",
+              "result": "W",
+              "season": 2026,
+              "goalsFor": 4,
+              "playedAt": "2026-08-28T21:00:00+02:00",
+              "fixtureId": 1557381,
+              "observedAt": "2026-10-12 00:33:02.038+00",
+              "goalsAgainst": 1,
+              "opponentLogo": "https://media.api-sports.io/football/teams/52.png",
+              "opponentName": "Crystal Palace",
+              "competitionId": 39,
+              "opponentTeamId": 52,
+              "competitionName": "Premier League",
+              "penaltyDecision": false
+            },
+            {
+              "round": "Regular Season - 3",
+              "venue": "home",
+              "result": "W",
+              "season": 2026,
+              "goalsFor": 1,
+              "playedAt": "2026-09-05T16:00:00+02:00",
+              "fixtureId": 1557394,
+              "observedAt": "2026-10-12 00:33:02.038+00",
+              "goalsAgainst": 0,
+              "opponentLogo": "https://media.api-sports.io/football/teams/1346.png",
+              "opponentName": "Coventry",
+              "competitionId": 39,
+              "opponentTeamId": 1346,
+              "competitionName": "Premier League",
+              "penaltyDecision": false
+            },
+            {
+              "round": "Regular Season - 4",
+              "venue": "away",
+              "result": "W",
+              "season": 2026,
+              "goalsFor": 1,
+              "playedAt": "2026-09-13T17:30:00+02:00",
+              "fixtureId": 1557404,
+              "observedAt": "2026-10-12 00:33:02.038+00",
+              "goalsAgainst": 0,
+              "opponentLogo": "https://media.api-sports.io/football/teams/33.png",
+              "opponentName": "Manchester United",
+              "competitionId": 39,
+              "opponentTeamId": 33,
+              "competitionName": "Premier League",
+              "penaltyDecision": false
+            },
+            {
+              "round": "Regular Season - 5",
+              "venue": "home",
+              "result": "W",
+              "season": 2026,
+              "goalsFor": 5,
+              "playedAt": "2026-09-20T15:00:00+02:00",
+              "fixtureId": 1557413,
+              "observedAt": "2026-10-12 00:33:02.038+00",
+              "goalsAgainst": 3,
+              "opponentLogo": "https://media.api-sports.io/football/teams/746.png",
+              "opponentName": "Sunderland",
+              "competitionId": 39,
+              "opponentTeamId": 746,
+              "competitionName": "Premier League",
+              "penaltyDecision": false
+            },
+            {
+              "round": "Regular Season - 6",
+              "venue": "away",
+              "result": "W",
+              "season": 2026,
+              "goalsFor": 3,
+              "playedAt": "2026-10-11T17:30:00+02:00",
+              "fixtureId": 1557424,
+              "observedAt": "2026-10-12 00:33:02.038+00",
+              "goalsAgainst": 0,
+              "opponentLogo": "https://media.api-sports.io/football/teams/40.png",
+              "opponentName": "Liverpool",
+              "competitionId": 39,
+              "opponentTeamId": 40,
+              "competitionName": "Premier League",
+              "penaltyDecision": false
+            }
+          ],
+          "europeanRecentMatches": [
+            {
+              "round": "League Stage - 1",
+              "venue": "away",
+              "result": "W",
+              "season": 2026,
+              "goalsFor": 2,
+              "playedAt": "2026-09-08T21:00:00+02:00",
+              "fixtureId": 1635654,
+              "observedAt": "2026-10-12 00:00:14.985+00",
+              "goalsAgainst": 0,
+              "opponentLogo": "https://media.api-sports.io/football/teams/212.png",
+              "opponentName": "FC Porto",
+              "competitionId": 2,
+              "opponentTeamId": 212,
+              "competitionName": "UEFA Champions League",
+              "penaltyDecision": false
+            }
+          ],
+          "europeanCoverageComplete": true
+        },
+        "away": {
+          "logo": "https://media.api-sports.io/football/teams/85.png",
+          "name": "Paris Saint Germain",
+          "teamId": 85,
+          "dataAsOf": "2026-10-14T21:00:00+02:00",
+          "domesticState": "available",
+          "europeanPhase": "league",
+          "europeanState": "partial",
+          "domesticSummary": {
+            "wins": 3,
+            "draws": 1,
+            "losses": 1,
+            "played": 5,
+            "points": 10,
+            "goalsFor": 9,
+            "fixtureIds": [
+              1552746,
+              1552753,
+              1552757,
+              1552773,
+              1552780
+            ],
+            "goalsAgainst": 6
+          },
+          "europeanSummary": {
+            "wins": 1,
+            "draws": 0,
+            "losses": 0,
+            "played": 1,
+            "points": 3,
+            "goalsFor": 6,
+            "fixtureIds": [
+              1635705
+            ],
+            "goalsAgainst": 1
+          },
+          "domesticStanding": {
+            "rank": 6,
+            "wins": 3,
+            "draws": 2,
+            "group": "Ligue 1",
+            "losses": 1,
+            "played": 6,
+            "points": 11,
+            "teamId": 85,
+            "goalDiff": 3,
+            "goalsFor": 11,
+            "teamName": "Paris Saint Germain",
+            "observedAt": "2026-10-12 01:59:02.02+00",
+            "goalsAgainst": 8
+          },
+          "europeanStanding": {
+            "rank": 1,
+            "wins": 1,
+            "draws": 0,
+            "group": "UEFA Champions League",
+            "losses": 0,
+            "played": 1,
+            "points": 3,
+            "teamId": 85,
+            "goalDiff": 5,
+            "goalsFor": 6,
+            "teamName": "Paris Saint Germain",
+            "observedAt": "2026-10-12 01:27:01.77+00",
+            "goalsAgainst": 1
+          },
+          "domesticSeasonEnd": "2027-05-29",
+          "domesticObservedAt": "2026-10-12 00:35:27.028+00",
+          "europeanObservedAt": "2026-10-12 00:00:14.985+00",
+          "domesticCompetition": {
+            "id": 61,
+            "logo": "https://media.api-sports.io/football/leagues/61.png",
+            "name": "Ligue 1",
+            "season": 2026,
+            "country": "France"
+          },
+          "domesticSeasonEnded": false,
+          "domesticSeasonStart": "2026-08-21",
+          "europeanPhaseMatches": [
+            {
+              "round": "League Stage - 1",
+              "venue": "home",
+              "result": "W",
+              "season": 2026,
+              "goalsFor": 6,
+              "playedAt": "2026-09-09T21:00:00+02:00",
+              "fixtureId": 1635705,
+              "observedAt": "2026-10-12 00:00:14.985+00",
+              "goalsAgainst": 1,
+              "opponentLogo": "https://media.api-sports.io/football/teams/656.png",
+              "opponentName": "Slovan Bratislava",
+              "competitionId": 2,
+              "opponentTeamId": 656,
+              "competitionName": "UEFA Champions League",
+              "penaltyDecision": false
+            }
+          ],
+          "domesticRecentMatches": [
+            {
+              "round": "Regular Season - 2",
+              "venue": "away",
+              "result": "D",
+              "season": 2026,
+              "goalsFor": 2,
+              "playedAt": "2026-08-28T20:45:00+02:00",
+              "fixtureId": 1552746,
+              "observedAt": "2026-10-12 00:35:27.028+00",
+              "goalsAgainst": 2,
+              "opponentLogo": "https://media.api-sports.io/football/teams/79.png",
+              "opponentName": "Lille",
+              "competitionId": 61,
+              "opponentTeamId": 79,
+              "competitionName": "Ligue 1",
+              "penaltyDecision": false
+            },
+            {
+              "round": "Regular Season - 3",
+              "venue": "home",
+              "result": "L",
+              "season": 2026,
+              "goalsFor": 1,
+              "playedAt": "2026-09-04T21:05:00+02:00",
+              "fixtureId": 1552753,
+              "observedAt": "2026-10-12 00:35:27.028+00",
+              "goalsAgainst": 2,
+              "opponentLogo": "https://media.api-sports.io/football/teams/91.png",
+              "opponentName": "Monaco",
+              "competitionId": 61,
+              "opponentTeamId": 91,
+              "competitionName": "Ligue 1",
+              "penaltyDecision": false
+            },
+            {
+              "round": "Regular Season - 4",
+              "venue": "away",
+              "result": "W",
+              "season": 2026,
+              "goalsFor": 1,
+              "playedAt": "2026-09-13T20:45:00+02:00",
+              "fixtureId": 1552757,
+              "observedAt": "2026-10-12 00:35:27.028+00",
+              "goalsAgainst": 0,
+              "opponentLogo": "https://media.api-sports.io/football/teams/106.png",
+              "opponentName": "Stade Brestois 29",
+              "competitionId": 61,
+              "opponentTeamId": 106,
+              "competitionName": "Ligue 1",
+              "penaltyDecision": false
+            },
+            {
+              "round": "Regular Season - 5",
+              "venue": "away",
+              "result": "W",
+              "season": 2026,
+              "goalsFor": 2,
+              "playedAt": "2026-09-20T20:45:00+02:00",
+              "fixtureId": 1552773,
+              "observedAt": "2026-10-12 00:35:27.028+00",
+              "goalsAgainst": 1,
+              "opponentLogo": "https://media.api-sports.io/football/teams/81.png",
+              "opponentName": "Marseille",
+              "competitionId": 61,
+              "opponentTeamId": 81,
+              "competitionName": "Ligue 1",
+              "penaltyDecision": false
+            },
+            {
+              "round": "Regular Season - 6",
+              "venue": "home",
+              "result": "W",
+              "season": 2026,
+              "goalsFor": 3,
+              "playedAt": "2026-10-10T20:45:00+02:00",
+              "fixtureId": 1552780,
+              "observedAt": "2026-10-12 00:35:27.028+00",
+              "goalsAgainst": 1,
+              "opponentLogo": "https://media.api-sports.io/football/teams/1298.png",
+              "opponentName": "Le Mans",
+              "competitionId": 61,
+              "opponentTeamId": 1298,
+              "competitionName": "Ligue 1",
+              "penaltyDecision": false
+            }
+          ],
+          "europeanRecentMatches": [
+            {
+              "round": "League Stage - 1",
+              "venue": "home",
+              "result": "W",
+              "season": 2026,
+              "goalsFor": 6,
+              "playedAt": "2026-09-09T21:00:00+02:00",
+              "fixtureId": 1635705,
+              "observedAt": "2026-10-12 00:00:14.985+00",
+              "goalsAgainst": 1,
+              "opponentLogo": "https://media.api-sports.io/football/teams/656.png",
+              "opponentName": "Slovan Bratislava",
+              "competitionId": 2,
+              "opponentTeamId": 656,
+              "competitionName": "UEFA Champions League",
+              "penaltyDecision": false
+            }
+          ],
+          "europeanCoverageComplete": true
+        }
+      }
+    ]
+  }
+}

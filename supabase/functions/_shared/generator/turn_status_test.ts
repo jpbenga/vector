@@ -51,7 +51,17 @@ Deno.test("authenticated recovery reads only the requested owner's conversation 
   const state = { id: conversation, revision: 4, tickets: [{ id: "ticket" }] };
   const calls: string[] = [];
   const originalFetch = globalThis.fetch;
+  const originalGet = Deno.env.get;
   try {
+    Deno.env.get = (name: string) =>
+      ({
+        LECTOR_GENERATOR_CANARY_ENABLED: "true",
+        LECTOR_GENERATOR_CANARY_USER_IDS: user,
+        LECTOR_RELEASE_REVISION: "a".repeat(40),
+        SUPABASE_URL: "https://db.test",
+        SUPABASE_ANON_KEY: "public-test",
+        SUPABASE_SERVICE_ROLE_KEY: "server-test",
+      } as Record<string, string>)[name];
     for (
       const scenario of [
         { includeResult: true, valid: true, exists: true },
@@ -122,6 +132,7 @@ Deno.test("authenticated recovery reads only the requested owner's conversation 
     }
   } finally {
     globalThis.fetch = originalFetch;
+    Deno.env.get = originalGet;
   }
 });
 
@@ -181,4 +192,28 @@ Deno.test("browser preflight and authentication errors both carry CORS headers",
   );
   assert.equal(unauthorized.status, 401);
   assert.equal(unauthorized.headers.get("access-control-allow-origin"), "*");
+});
+
+Deno.test("failed workshop turns expose a checkpoint reference, not the private sporting dossier", () => {
+  const report = {
+    id: "checkpoint",
+    exploration: { schemaVersion: 1 },
+    snapshot: { secret: "full dossier" },
+  };
+  const status = turnStatus({
+    status: "failed",
+    usage: { evaluations: [report] },
+  }, true);
+  assert.equal(
+    obj(obj(status.turn).explorationCheckpoint).evaluationId,
+    "checkpoint",
+  );
+  assert.equal(JSON.stringify(status).includes("full dossier"), false);
+  assert.equal(
+    obj(
+      turnStatus({ status: "failed", usage: { evaluations: [report] } }, false)
+        .turn,
+    ).explorationCheckpoint,
+    undefined,
+  );
 });

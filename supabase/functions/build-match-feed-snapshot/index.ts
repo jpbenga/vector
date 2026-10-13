@@ -2,7 +2,7 @@ import { resolveEuropeanDomesticContexts } from "../_shared/european_fixture_com
 import { SnapshotCacheBatch } from "../_shared/snapshot_cache_batch.ts";
 import {
   fixtureBodyForDate,
-  footballCalendarDays,
+  footballCollectionDays,
   oddsDatesForFixtures,
   selectCachedOddsPages,
   usesDatedFixtureSource,
@@ -15,7 +15,7 @@ const source = "api-football";
 const schemaVersion = 1;
 const snapshotKind = "pre_match_feed";
 const defaultTimezone = "Europe/Paris";
-const maxDays = footballCalendarDays;
+const maxDays = footballCollectionDays;
 const maxLeagues = 40;
 const injuryCollectionWindowMs = 24 * 60 * 60 * 1000;
 
@@ -993,6 +993,12 @@ async function collectSnapshotSources({
     asOf: sourceAsOf,
   });
 
+  const leagueMetadata = new Map(
+    flatResponseItems([...sourceRowsByKey.values()]
+      .filter((r) => r.endpoint === "/leagues"))
+      .map((r) => objectValue(r.league) ?? {})
+      .map((r) => [numberValue(r.id), r]),
+  );
   return {
     sourceRows: [...sourceRowsByKey.values()],
     rawFixtures,
@@ -1000,7 +1006,25 @@ async function collectSnapshotSources({
     rawOdds,
     rawStandings,
     rawTeamStatistics,
-    rawRecentLeagueMatches: enrichedRecentLeagueMatches,
+    rawRecentLeagueMatches: enrichedRecentLeagueMatches.map((row) => {
+      const league = objectValue(row.league) ?? {};
+      const metadata = leagueMetadata.get(numberValue(league.id));
+      const seasons = new Set(
+        arrayValue(row.matches).map((m) =>
+          numberValue((objectValue((objectValue(m) ?? {}).league) ?? {}).season)
+        ),
+      );
+      return {
+        ...row,
+        league: {
+          ...league,
+          ...(metadata ? { name: metadata.name, type: metadata.type } : {}),
+          ...(seasons.size === 1 && !seasons.has(null)
+            ? { season: [...seasons][0] }
+            : {}),
+        },
+      };
+    }),
     rawHeadToHead: enrichHeadToHeadMatches({
       headToHead: rawHeadToHead,
       fixtureStatisticsRows,
@@ -1991,6 +2015,12 @@ function normalizeRecentFixturesForTeam({
       fixture: {
         id: fixtureId,
         date: stringValue(fixture.date),
+        status: fixture.status,
+      },
+      league: {
+        id: numberValue(league.id),
+        season: numberValue(league.season),
+        name: stringValue(league.name),
       },
       competition_name: stringValue(league.name),
       team_logo: stringValue(own.logo),

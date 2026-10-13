@@ -1,5 +1,6 @@
 import 'compact_hockey_match_adapter.dart';
 import 'dart:async';
+import '../../../core/widgets/lector_publication_age.dart';
 import 'hockey_quote_presentation.dart';
 import '../../../core/widgets/lector_horizontal_transition.dart';
 import '../../../app/sports/generator_radar_context.dart';
@@ -551,6 +552,15 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
                 ),
                 const SizedBox(height: 8),
               ],
+              if (_feed?.snapshot != null &&
+                  _section != LectorWorkspaceSection.generator &&
+                  _section != LectorWorkspaceSection.bilan)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: LectorPublicationAge(
+                    capturedAt: _feed!.snapshot!.capturedAt,
+                  ),
+                ),
               if (_section == LectorWorkspaceSection.all &&
                   !_loading &&
                   _feed?.snapshot != null) ...[

@@ -1,3 +1,10 @@
+import {
+  compareExploration,
+  explorationChanges,
+  explorationView,
+} from "./exploration_continuity.ts";
+import { explainExplorationChoice } from "./exploration.ts";
+import { explorationBudgetFromEnvironment } from "./exploration_budget.ts";
 import { archiveWork } from "./work_storage.ts";
 import {
   resolveShortlist,
@@ -49,11 +56,11 @@ import { canReadTurnResponse, turnStatus } from "./turn_status.ts";
 const cors = {
   "access-control-allow-origin": "*",
   "access-control-allow-headers":
-    "authorization, apikey, content-type, x-client-info",
+    "authorization, apikey, content-type, x-client-info, x-lector-client-revision",
   "access-control-allow-methods": "POST, OPTIONS",
+  "access-control-expose-headers":
+    "x-lector-release-revision, x-lector-request-id, x-lector-generator-mode",
 };
-const reply = (body: unknown, status = 200) =>
-  Response.json(body, { status, headers: cors });
 const uuid = (value: unknown) =>
   typeof value === "string" &&
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
@@ -62,6 +69,7 @@ async function rest(
   body?: unknown,
   method = body ? "POST" : "GET",
   timeoutMs = 15000,
+  signal?: AbortSignal,
 ) {
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const result = await fetch(
@@ -69,7 +77,9 @@ async function rest(
     {
       method,
       redirect: "error",
-      signal: AbortSignal.timeout(timeoutMs),
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
+        : AbortSignal.timeout(timeoutMs),
       headers: {
         authorization: `Bearer ${key}`,
         apikey: key,
@@ -102,6 +112,19 @@ async function rest(
 }
 export function generatorHandler(options: { workshop?: boolean } = {}) {
   return async (request: Request) => {
+    const releaseConfig = canaryConfiguration((name) => Deno.env.get(name));
+    let trace: Json = {};
+    let serverRequestId: string = crypto.randomUUID();
+    const reply = (body: unknown, status = 200) =>
+      Response.json(body, {
+        status,
+        headers: {
+          ...cors,
+          "x-lector-release-revision": releaseConfig.revision,
+          "x-lector-request-id": serverRequestId,
+          "x-lector-generator-mode": options.workshop ? "workshop" : "legacy",
+        },
+      });
     if (request.method === "OPTIONS") return reply({});
     if (request.method !== "POST") {
       return reply({ error: "Méthode non autorisée." }, 405);
@@ -123,12 +146,13 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
       body?: unknown,
       method?: string,
       timeoutMs?: number,
+      signal?: AbortSignal,
     ) => {
       const operation = path.split("?")[0];
       stage = operation;
       const began = performance.now();
       try {
-        return await rest(path, body, method, timeoutMs);
+        return await rest(path, body, method, timeoutMs, signal);
       } catch (error) {
         throw new GeneratorFailure(error, operation);
       } finally {
@@ -209,6 +233,40 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
           }) as State
           : state;
       const commit = async (parameters: Record<string, unknown>) => {
+        const state = obj(parameters.p_state);
+        parameters = {
+          ...parameters,
+          p_usage: {
+            ...obj(parameters.p_usage),
+            ...trace,
+            interpretedIntent: {
+              ...obj(state.intent),
+              message: typeof obj(state.intent).message === "string"
+                ? redactAuditText(String(obj(state.intent).message))
+                : null,
+            },
+            catalogSummary: {
+              matchCount: obj(state.catalog).matchCount,
+              sourceIds: obj(state.catalog).sources,
+              exclusions: obj(state.catalog).missing,
+            },
+            ticketRefs: rows(state.tickets).map((t) => ({
+              id: t.id,
+              number: t.number,
+              version: t.version,
+              selections: rows(t.picks).map((p) => ({
+                id: p.id,
+                sport: p.sport,
+                matchId: p.matchId,
+                marketId: p.marketId,
+                scope: p.scope,
+                oddsAt: p.oddsAt,
+                snapshotId: p.snapshotId,
+                evidence: rows(p.evidence).map((e) => e.id),
+              })),
+            })),
+          },
+        };
         if (!options.workshop) {
           return await call("rpc/lector_generator_commit", parameters);
         }
@@ -251,6 +309,53 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
         return reply({ error: "Demande trop longue." }, 413);
       }
       const input = obj(JSON.parse(text)), action = input.action;
+      const access = options.workshop === true &&
+        canUseWorkshop(user, releaseConfig);
+      if (action === "capabilities") {
+        return reply({
+          workshop: access,
+          exploration: access,
+          revision: releaseConfig.revision,
+          fallbackEndpoint: "lector-generator",
+        });
+      }
+      const clientRevision = request.headers.get("x-lector-client-revision");
+      if (
+        access && clientRevision && clientRevision !== releaseConfig.revision
+      ) {
+        return reply({
+          error:
+            "Cette interface et le Générateur utilisent des versions différentes. Rechargez l’application.",
+        }, 409);
+      }
+      if (options.workshop && !access) {
+        return await forwardLegacy(
+          request,
+          text,
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_ANON_KEY")!,
+        );
+      }
+      trace = requestAudit(
+        {
+          ...input,
+          requestId: uuid(input.requestId) ? input.requestId : serverRequestId,
+        },
+        releaseConfig.revision,
+        options.workshop === true,
+      );
+      if (uuid(input.requestId)) serverRequestId = String(input.requestId);
+      if (action === "audit") {
+        if (!uuid(input.requestId)) {
+          return reply({ error: "Identifiant de requête invalide." }, 400);
+        }
+        return reply({
+          audit: await call("rpc/lector_generator_request_audit_read", {
+            p_user: user.id,
+            p_request: input.requestId,
+          }),
+        });
+      }
       if (action !== "transcribe" && text.length > 75000) {
         return reply({ error: "Demande trop longue." }, 413);
       }
@@ -415,6 +520,87 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
               "Cette session a expiré. Vos éléments enregistrés restent dans Mes suivis.",
             expired: true,
           }, 410);
+      }
+      if (
+        options.workshop &&
+        [
+          "exploration_read",
+          "exploration_compare",
+          "exploration_explain",
+          "exploration_changes",
+        ]
+          .includes(String(action))
+      ) {
+        if (!uuid(input.evaluationId)) {
+          return reply({ error: "Référence invalide." }, 400);
+        }
+        const report = await call("rpc/lector_generator_exploration_read", {
+          p_user: user.id,
+          p_conversation: id,
+          p_evaluation: input.evaluationId,
+        }) as DayEvaluation;
+        if (!report) return reply({ error: "Préparation inaccessible." }, 404);
+        const audited = async (body: unknown) => {
+          await call("rpc/lector_generator_request_audit_write", {
+            p_user: user.id,
+            p_request: serverRequestId,
+            p_usage: {
+              ...trace,
+              auditReports: [{
+                reportId: report.id,
+                scope: report.scope,
+                evaluated: report.evaluated,
+                found: report.expected,
+                complete: report.complete,
+              }],
+            },
+          });
+          return reply(body);
+        };
+        if (action === "exploration_changes") {
+          if (!uuid(report.version?.parentId)) {
+            return reply({ error: "Version précédente inaccessible." }, 404);
+          }
+          const parent = await call("rpc/lector_generator_exploration_read", {
+            p_user: user.id,
+            p_conversation: id,
+            p_evaluation: report.version!.parentId,
+          }) as DayEvaluation;
+          if (!parent) {
+            return reply({ error: "Version précédente inaccessible." }, 404);
+          }
+          return await audited({ changes: explorationChanges(report, parent) });
+        }
+        if (action === "exploration_compare") {
+          if (
+            !Array.isArray(input.matchKeys) ||
+            input.matchKeys.some((k) => typeof k !== "string")
+          ) return reply({ error: "Sélection invalide." }, 400);
+          return await audited({
+            comparison: compareExploration(report, input.matchKeys as string[]),
+          });
+        }
+        if (action === "exploration_explain") {
+          return await audited({
+            explanation: explainExplorationChoice(
+              report,
+              String(input.matchKey),
+            ),
+          });
+        }
+        const offset = input.offset ?? 0, limit = input.limit ?? 40;
+        if (
+          !Number.isInteger(offset) || Number(offset) < 0 ||
+          !Number.isInteger(limit) || Number(limit) < 1 || Number(limit) > 40
+        ) return reply({ error: "Page invalide." }, 400);
+        return await audited({
+          exploration: explorationView(
+            report,
+            new Date(),
+            Number(offset),
+            Number(limit),
+          ),
+        });
       }
       if (options.workshop && action === "keep") {
         if (
@@ -601,6 +787,14 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
         });
         return reply({ state });
       }
+      const explorationAction = input.explorationAction === undefined
+        ? undefined
+        : obj(input.explorationAction);
+      if (
+        explorationAction &&
+        (!uuid(explorationAction.evaluationId) ||
+          !["resume", "refresh"].includes(String(explorationAction.mode)))
+      ) return reply({ error: "Action d’exploration invalide." }, 400);
       let context = contextFrom(input.context);
       const date = String(input.date ?? "");
       // This policy is assigned by the demo endpoint, never accepted from model/client input.
@@ -609,7 +803,10 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
         return reply({ error: "Date invalide." }, 400);
       }
       const requestedShortlist = obj(input.context).shortlist;
-      if (options.workshop && requestedShortlist !== undefined) {
+      if (
+        options.workshop && requestedShortlist !== undefined &&
+        !explorationAction
+      ) {
         context = shortlistContext(
           context,
           resolveShortlist(
@@ -690,12 +887,15 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
       }
       reservation = String(input.requestId);
       const progressState: {
+        release?: Json["release"];
+        request?: Json["request"];
+        auditReports?: Json[];
         phase: string;
         steps: { phase: string; detail: string; at: string }[];
         summary?: string;
         context?: AnalysisProgress["context"];
         evaluations?: DayEvaluation[];
-      } = { phase: "interpret", steps: [] };
+      } = { ...trace, phase: "interpret", steps: [] };
       let lastProgressAt = 0, lastProgressPhase = "", publishedEvaluations = 0;
       const progress = async (phase: string, event?: AnalysisProgress) => {
         const labels: Record<string, string> = {
@@ -722,6 +922,7 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
           });
         }
         progressState.phase = phase;
+        progressState.auditReports = reportsAudit(progressState.evaluations);
         if (event?.context) progressState.context = event.context;
         if (event?.summary) progressState.summary = event.summary;
         // Batch evaluation callbacks can arrive together. Publishing every item
@@ -737,7 +938,7 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
         publishedEvaluations = reportCount;
         await rest(
           `lector_generator_turns?request_id=eq.${reservation}&user_id=eq.${user.id}&status=eq.pending`,
-          { usage: options.workshop ? progressState : { phase } },
+          { usage: options.workshop ? progressState : { ...trace, phase } },
           "PATCH",
         );
         const turn = await rest(
@@ -772,6 +973,14 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
         }
         stage = "conversation";
         const conversation = await converse({
+          ...(explorationAction
+            ? {
+              explorationAction: explorationAction as {
+                evaluationId: string;
+                mode: "resume" | "refresh";
+              },
+            }
+            : {}),
           message: String(input.message).trim(),
           date,
           context,
@@ -789,6 +998,9 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
           evaluationConcurrency: Number(
             Deno.env.get("LECTOR_EVALUATION_CONCURRENCY") ?? 24,
           ),
+          explorationBudget: explorationBudgetFromEnvironment((name) =>
+            Deno.env.get(name)
+          ),
           onContractError: (error) => {
             console.error(
               JSON.stringify({
@@ -800,7 +1012,9 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
           onProgress: (event) => progress(event.phase, event),
           onEvaluation: async (report) => {
             progressState.evaluations = [
-              ...progressState.evaluations ?? [],
+              ...(progressState.evaluations ?? []).filter((r) =>
+                r.id !== report.id
+              ),
               report,
             ];
             await progress("evaluate", {
@@ -815,7 +1029,14 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
             sources: (scope, day, sports) => sourcesFor(scope, day, sports),
             daySources: (scope, day, sports, onCoverage) =>
               daySourcesFor(scope, day, sports, onCoverage),
-            matchData: async (sport, day, matchId, capturedAt, sourceId) => {
+            matchData: async (
+              sport,
+              day,
+              matchId,
+              capturedAt,
+              sourceId,
+              signal,
+            ) => {
               const found = await Promise.allSettled([
                 sport === "football"
                   ? (uuid(sourceId)
@@ -823,23 +1044,38 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
                       `match_feed_analysis_snapshots?id=eq.${sourceId}&captured_at=eq.${
                         encodeURIComponent(capturedAt)
                       }&select=${footballDetailColumns}&limit=1`,
+                      undefined,
+                      undefined,
+                      undefined,
+                      signal,
                     ).then((r) =>
                       projectFootballMatch(r[0], sourceId, capturedAt, matchId)
                     )
                     : Promise.resolve(null))
-                  : call("rpc/read_sport_feed", {
-                    p_sport: sport,
-                    p_day: day,
-                    p_section: "match",
-                    p_match: matchId,
-                    p_captured_at: capturedAt,
-                  }),
+                  : call(
+                    "rpc/read_sport_feed",
+                    {
+                      p_sport: sport,
+                      p_day: day,
+                      p_section: "match",
+                      p_match: matchId,
+                      p_captured_at: capturedAt,
+                    },
+                    undefined,
+                    undefined,
+                    signal,
+                  ),
                 call(
                   sport === "hockey"
                     ? `sport_live_states?sport=eq.hockey&provider=eq.api-hockey&fixture_id=eq.${matchId}&select=fixture_id,captured_at,payload&limit=1`
                     : `match_live_states?fixture_id=eq.${matchId}&select=fixture_id,status,elapsed,extra,home_goals,away_goals,captured_at,statistics,statistics_captured_at,events,events_captured_at&limit=1`,
+                  undefined,
+                  undefined,
+                  undefined,
+                  signal,
                 ),
               ]);
+              signal?.throwIfAborted();
               return {
                 publication: found[0].status === "fulfilled"
                   ? found[0].value
@@ -881,26 +1117,12 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
                   "Résultats descriptifs, aucune probabilité de pari ni vérification déclenchée.",
               };
             },
-            evaluation: async (evaluationId) => {
-              const filter = evaluationId === "latest"
-                ? ""
-                : `&usage->evaluations=cs.${
-                  encodeURIComponent(JSON.stringify([{ id: evaluationId }]))
-                }`;
-              const turns = await call(
-                `lector_generator_turns?user_id=eq.${user.id}&conversation_id=eq.${id}&select=usage&order=started_at.desc&limit=10${filter}`,
-              );
-              for (const turn of turns) {
-                const reports = Array.isArray(obj(turn.usage).evaluations)
-                  ? obj(turn.usage).evaluations as DayEvaluation[]
-                  : [];
-                const report = evaluationId === "latest"
-                  ? reports.at(-1)
-                  : reports.find((r) => r.id === evaluationId);
-                if (report) return report;
-              }
-              return null;
-            },
+            evaluation: async (evaluationId) =>
+              await call("rpc/lector_generator_exploration_read", {
+                p_user: user.id,
+                p_conversation: id,
+                p_evaluation: evaluationId === "latest" ? null : evaluationId,
+              }),
             sessionHistory: async (offset, limit) =>
               await call("rpc/lector_generator_work_history", {
                 p_user: user.id,
@@ -1261,13 +1483,14 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
           failure_stage: stage,
           failure_name: error instanceof Error ? error.name : "unknown",
           failure_message: error instanceof Error
-            ? error.message.slice(0, 1000)
+            ? redactAuditText(error.message).slice(0, 1000)
             : "unknown",
           elapsed_ms: Math.round(performance.now() - started),
           ai_usage: aiUsage,
           ai: receipts,
           timings_ms: timings,
           comparison,
+          ...trace,
         };
         if (options.workshop) {
           await rest("rpc/lector_generator_workshop_record_failure", {
@@ -1295,9 +1518,17 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
         error: timeout
           ? generatorTimeoutMessage(stage)
           : error instanceof Error
-          ? error.message
+          ? redactAuditText(error.message)
           : "La préparation a échoué. Aucune mise n’a été engagée.",
       }, timeout ? 504 : 400);
     }
   };
 }
+import {
+  canaryConfiguration,
+  canUseWorkshop,
+  forwardLegacy,
+  redactAuditText,
+  reportsAudit,
+  requestAudit,
+} from "./release.ts";

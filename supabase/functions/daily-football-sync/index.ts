@@ -1,4 +1,5 @@
 import { footballCalendarDays } from "../_shared/football_calendar_policy.ts";
+import { calendarRolloverBufferDays } from "../_shared/calendar_window.ts";
 type JsonObject = Record<string, unknown>;
 
 const defaultTimezone = "Europe/Paris";
@@ -251,7 +252,7 @@ function dailyOptionsFromPayload(payload: JsonObject): DailyOptions {
   );
   const feedWindowStart = stringValue(payload.feed_window_start) ?? today;
   const feedWindowEnd = stringValue(payload.feed_window_end) ??
-    addDays(feedWindowStart, futureDays);
+    addDays(feedWindowStart, futureDays + calendarRolloverBufferDays);
   const resultsWindowStart = stringValue(payload.results_window_start) ??
     subtractDays(feedWindowStart, resultsDaysBack);
   const resultsWindowEnd = stringValue(payload.results_window_end) ??

@@ -6,6 +6,7 @@ import {
   type Json,
 } from "./feed_delivery.ts";
 import { deliveryRpc, putDeliveryJson } from "./feed_delivery_store.ts";
+import { calendarRolloverBufferDays } from "../calendar_window.ts";
 
 /** Same immutable delivery job, usable in the worker or the publication runner. */
 export async function buildFeedDelivery(sport: FeedSport): Promise<Json> {
@@ -19,7 +20,7 @@ export async function buildFeedDelivery(sport: FeedSport): Promise<Json> {
     const today = dayKey(new Date().toISOString()), manifests = [];
     const generation = crypto.randomUUID();
     const cachedOverviews = new Map<string, Record<string, unknown>>();
-    for (let offset = -7; offset <= 13; offset++) {
+    for (let offset = -7; offset <= 13 + calendarRolloverBufferDays; offset++) {
       const date = new Date(`${today}T12:00:00Z`);
       date.setUTCDate(date.getUTCDate() + offset);
       const day = date.toISOString().slice(0, 10);

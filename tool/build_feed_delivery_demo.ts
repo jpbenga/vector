@@ -6,6 +6,7 @@ import {
   partArtifacts,
   selectParts,
 } from "../supabase/functions/_shared/delivery/feed_delivery.ts";
+import { calendarRolloverBufferDays } from "../supabase/functions/_shared/calendar_window.ts";
 
 /** Read archives individually; only publish details for their selected days. */
 export async function buildDemoDelivery(
@@ -41,11 +42,14 @@ export async function buildDemoDelivery(
       ),
     ),
   ).map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 24);
-  const days = Array.from({ length: 21 }, (_, i) => {
-    const date = new Date(`${today}T12:00:00Z`);
-    date.setUTCDate(date.getUTCDate() + i - 7);
-    return date.toISOString().slice(0, 10);
-  });
+  const days = Array.from(
+    { length: 21 + calendarRolloverBufferDays },
+    (_, i) => {
+      const date = new Date(`${today}T12:00:00Z`);
+      date.setUTCDate(date.getUTCDate() + i - 7);
+      return date.toISOString().slice(0, 10);
+    },
+  );
   for (const sport of ["football", "hockey"] as const) {
     if (onlyHockey && sport !== "hockey") continue;
     const sourceRows: Json[] = sport === "football"

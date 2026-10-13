@@ -1,3 +1,4 @@
+import type { ExplorationBudgetConfig } from "./exploration_budget.ts";
 import { obj } from "./contracts.ts";
 
 /** Paid demo evaluations use Luna only; no automatic Sol comparison. */
@@ -46,6 +47,8 @@ export interface ModelOptions {
   fetcher?: typeof fetch;
   onReceipt?: (receipt: ModelReceipt) => void;
   evaluationConcurrency?: number;
+  clock?: () => number;
+  explorationBudget?: Partial<ExplorationBudgetConfig>;
 }
 export function receiptFor(
   model: string,

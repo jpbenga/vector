@@ -13,6 +13,18 @@ import {
 import { reviseWorkshop } from "./compositions.ts";
 import { generatorHandler } from "./handler.ts";
 
+function enableControlledCanary() {
+  const get = Deno.env.get;
+  Deno.env.get = (name: string) =>
+    name === "LECTOR_GENERATOR_CANARY_ENABLED"
+      ? "true"
+      : name === "LECTOR_RELEASE_REVISION"
+      ? "a".repeat(40)
+      : name === "LECTOR_GENERATOR_CANARY_USER_IDS"
+      ? "00000000-0000-4000-8000-000000000002,11111111-1111-4111-8111-111111111111"
+      : get(name);
+}
+
 import { context, intent, now, source } from "./evaluation_cases.ts";
 function generate(state: State | null = null, request = intent) {
   return applyIntent({
@@ -169,6 +181,7 @@ Deno.test("workshop handler uses its uncapped reservation and replays without a 
       LECTOR_WORKSHOP_MODEL: "gpt-6-luna",
       LECTOR_WORKSHOP_ENABLED: "true",
     }[name]);
+    enableControlledCanary();
     globalThis.fetch = ((url) => {
       const path = new URL(String(url)).pathname;
       paths.push(path);
@@ -312,6 +325,7 @@ for (const view of ["profile", "radar"] as const) {
         LECTOR_WORKSHOP_MODEL: "gpt-6.1-sol",
         LECTOR_WORKSHOP_ENABLED: "true",
       }[name]);
+      enableControlledCanary();
       globalThis.fetch = (async (url: unknown, init?: RequestInit) => {
         const u = new URL(String(url)),
           payload = init?.body ? JSON.parse(String(init.body)) : null;
@@ -534,6 +548,7 @@ Deno.test("retained choices use authenticated ownership and server identifiers; 
       SUPABASE_ANON_KEY: "public",
       SUPABASE_SERVICE_ROLE_KEY: "server",
     }[key]);
+    enableControlledCanary();
     globalThis.fetch = (async (url, init) => {
       const path = new URL(String(url)).pathname;
       const body = init?.body ? JSON.parse(String(init.body)) : {};

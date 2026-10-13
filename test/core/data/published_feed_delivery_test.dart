@@ -5,6 +5,34 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 void main() {
+  for (final broken in ['<html>SPA fallback</html>', '{malformed']) {
+    test(
+      'invalid transport JSON becomes a recoverable availability error: $broken',
+      () async {
+        final gateway = PublishedFeedDelivery(
+          projectUrl: Uri.parse('https://db.test'),
+          publicKey: 'public',
+          hostedBaseUrl: Uri.parse('https://demo.test/'),
+          localOffset: (_) => const Duration(hours: 1),
+          client: MockClient(
+            (_) async => http.Response(
+              broken,
+              200,
+              headers: {
+                'content-type': broken.startsWith('<')
+                    ? 'text/html'
+                    : 'application/json',
+              },
+            ),
+          ),
+        );
+        await expectLater(
+          gateway.loadDay('football', DateTime(2026, 10, 27)),
+          throwsStateError,
+        );
+      },
+    );
+  }
   test(
     'other local calendars retain the full reader instead of dropping midnight games',
     () async {

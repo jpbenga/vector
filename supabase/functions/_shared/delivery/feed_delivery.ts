@@ -1,3 +1,4 @@
+import { projectDomesticForms } from "../generator/published_form.ts";
 /** Public, immutable presentation artifacts. Never accepts provider credentials. */
 export type Json = Record<string, unknown>;
 export type FeedSport = "football" | "hockey";
@@ -107,6 +108,10 @@ export function overviewPart(sport: FeedSport, full: Json): Json {
         odds: cardOdds(raw.odds),
         player_form_radar: raw.player_form_radar ?? [],
         recent_league_matches: raw.recent_league_matches ?? [],
+        generator_domestic_forms: projectDomesticForms(
+          raw,
+          String(full.captured_at),
+        ),
         ...(forms.length ? { european_card_forms: forms } : {}),
       },
       computed: {
@@ -306,6 +311,14 @@ export function dayOverview(
       odds,
       player_form_radar: players,
       recent_league_matches: recent,
+      generator_domestic_forms: parts.flatMap((part) =>
+        rows(object(part.overview.raw).generator_domestic_forms)
+          .filter((d) =>
+            fixtures.some((f) =>
+              Number(object(f.fixture).id) === Number(d.fixtureId)
+            ) && owners.get(Number(d.fixtureId)) === part.id
+          )
+      ),
       ...(forms.length ? { european_card_forms: forms } : {}),
     },
     computed: { fixtures: computed },

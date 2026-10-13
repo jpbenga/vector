@@ -4,7 +4,11 @@
   "installCommand": "true",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/sports/:sport",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/admin",
       "destination": "/index.html"
     }
   ]
