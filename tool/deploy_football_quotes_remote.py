@@ -44,7 +44,7 @@ def main():
         ), newest as materialized (
           select distinct on(quote#>>'{{fixture,id}}') quote from price_pool
           where quote#>>'{{fixture,id}}' in(select id from fixtures)
-          order by quote#>>'{{fixture,id}}',(quote->>'update')::timestamptz desc nulls last,collected desc
+          order by quote#>>'{{fixture,id}}',nullif(quote->>'update','')::timestamptz desc nulls last,collected desc
         ), prices as materialized (
           select coalesce(jsonb_agg(quote order by quote#>>'{{fixture,id}}'),'[]') odds from newest
         ), raw_revision as (
@@ -54,6 +54,18 @@ def main():
             r.bookmaker_priority,jsonb_set(r.payload,'{{raw,odds}}',p.odds)||jsonb_build_object('captured_at',now(),'as_of',now()),
             r.coverage_summary,r.provenance||jsonb_build_object('quoteRevisionOf',b.id),r.source_sync_run_ids,now(),now(),now(),r.scope,r.scope_key,r.league_ids
           from base b join match_feed_snapshots r on r.id=b.raw_id cross join prices p returning id
+        ), fixture_index as (
+          insert into match_feed_snapshot_fixtures(snapshot_id,fixture_id,api_football_fixture_id,api_football_league_id,season,
+            fixture_date,kickoff_at,status,competition_id,competition_name,country_code,country_name,home_team_id,home_team_name,
+            away_team_id,away_team_name,has_odds,has_standings,has_team_statistics,has_recent_form,has_expected_goals,contains_predictions,payload)
+          select distinct on(i.fixture_id) r.id,i.fixture_id,i.api_football_fixture_id,i.api_football_league_id,i.season,
+            i.fixture_date,i.kickoff_at,i.status,i.competition_id,i.competition_name,i.country_code,i.country_name,i.home_team_id,i.home_team_name,
+            i.away_team_id,i.away_team_name,exists(select 1 from newest n where n.quote#>>'{{fixture,id}}'=f.id),
+            i.has_standings,i.has_team_statistics,i.has_recent_form,i.has_expected_goals,i.contains_predictions,i.payload
+          from raw_revision r cross join fixtures f join match_feed_snapshot_fixtures i on i.api_football_fixture_id::text=f.id
+          where i.api_football_league_id={league} and i.season=f.season::integer
+            and i.fixture_date between (select window_start from base) and (select window_end from base)
+          order by i.fixture_id,i.created_at desc returning fixture_id
         ), inherited_sources as (
           insert into match_feed_snapshot_sources(snapshot_id,source,endpoint,query_hash,sync_run_id,response_status,fetched_at,as_of)
           select '{raw_id}'::uuid,s.source,s.endpoint,s.query_hash,s.sync_run_id,s.response_status,s.fetched_at,s.as_of
@@ -72,11 +84,11 @@ def main():
               'quoteRevision',jsonb_build_object('originalAnalysisId',b.id,'analysisAsOf',b.as_of)),b.coverage_summary
           from base b cross join prices p cross join raw_revision r returning id,captured_at
         ) select id as source_id,captured_at,{league} as league,
-          (select count(*) from fixtures) as fixtures,(select count(*) from newest) as priced_fixtures,
-          (select count(*) from newest where (quote->>'update')::timestamptz>=now()-interval '48 hours') as recent_priced_fixtures,
+          (select count(*) from fixtures) as fixtures,(select count(*) from fixture_index) as indexed_fixtures,(select count(*) from newest) as priced_fixtures,
+          (select count(*) from newest where nullif(quote->>'update','')::timestamptz>=now()-interval '48 hours') as recent_priced_fixtures,
           (select max(quote->>'update') from newest) as newest_quote_at from analysis_revision"""
         result=query(sql,False)
-        if len(result)!=1:raise ValueError('Price revision not confirmed')
+        if len(result)!=1 or result[0]['indexed_fixtures']!=result[0]['fixtures']:raise ValueError('Price revision or fixture index not confirmed')
         results.extend(result);print(json.dumps(result),flush=True)
     receipt={'revision':sha,'priceRevisions':results,'providerCalls':0,'modelCalls':0,'analysisRecomputed':False,'personalDataWrites':0}
     out=Path('output/european-comparison');out.mkdir(parents=True,exist_ok=True)
