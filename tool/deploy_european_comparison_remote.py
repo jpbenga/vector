@@ -43,10 +43,30 @@ def main():
     keys=request(base+'/api-keys',token)
     service=next(k['api_key'] for k in keys if k['name']=='service_role')
     def storage(table,body):
-        req=urllib.request.Request(f'https://{PROJECT}.supabase.co/rest/v1/'+table,data=json.dumps(body).encode(),headers={'Content-Type':'application/json','apikey':service,'Authorization':'Bearer '+service,'Prefer':'return=representation'},method='POST')
-        try:
-            with urllib.request.urlopen(req,timeout=60) as response:return json.load(response)
-        except urllib.error.HTTPError as error:raise RuntimeError(f'Snapshot storage HTTP {error.code}; response withheld') from None
+        # The caller needs no response payload. Echoing a full sporting snapshot
+        # needlessly doubles a large transfer through the database gateway.
+        encoded=json.dumps(body).encode()
+        print(json.dumps({'snapshotUpload':table,'bytes':len(encoded)}),flush=True)
+        for attempt in range(3):
+            req=urllib.request.Request(f'https://{PROJECT}.supabase.co/rest/v1/'+table,data=encoded,headers={'Content-Type':'application/json','apikey':service,'Authorization':'Bearer '+service,'Prefer':'return=minimal'},method='POST')
+            try:
+                with urllib.request.urlopen(req,timeout=90) as response:
+                    if response.status not in (200,201,204):
+                        raise RuntimeError('Snapshot storage did not confirm success')
+                return
+            except urllib.error.HTTPError as error:
+                # A gateway error may follow a committed insert. Check the exact
+                # newly generated UUID before retrying; never create a duplicate.
+                if table=='match_feed_snapshots' and isinstance(body,dict):
+                    identity=body['id']
+                    import re
+                    if not re.fullmatch(r'[a-f0-9-]{36}',identity):raise ValueError('Invalid snapshot identity')
+                    if query("select id from match_feed_snapshots where id='"+identity+"'"):
+                        return
+                if error.code not in (500,502,503,504,520,522,524) or attempt==2:
+                    raise RuntimeError(f'Snapshot storage HTTP {error.code}; response withheld') from None
+                import time
+                time.sleep(2*(attempt+1))
     built=[]
     for league in (2,3,848):
         print('Preparing European league '+str(league)+' from archived sources',flush=True)
