@@ -35,6 +35,7 @@ on:
           - lector-generator-shortlist
           - lector-visual-live-update
           - lector-european-comparison-update
+          - lector-football-quotes-update
           - hockey-refresh-install
           - hockey-refresh-delivery
           - hockey-refresh-run
@@ -338,7 +339,7 @@ jobs:
         run: python3 tool/deploy_generator_work_storage_remote.py
 
   european-comparison:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-european-comparison-update'
+    if: github.ref == 'refs/heads/codex/multisport-hockey' && (inputs.function == 'lector-european-comparison-update' || inputs.function == 'lector-football-quotes-update')
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -355,7 +356,12 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           GH_TOKEN: ${{ github.token }}
-        run: python3 tool/deploy_european_comparison_remote.py
+        run: |
+          if [ '${{ inputs.function }}' = lector-football-quotes-update ]; then
+            python3 tool/deploy_football_quotes_remote.py
+          else
+            python3 tool/deploy_european_comparison_remote.py
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
