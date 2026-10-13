@@ -9,7 +9,6 @@ import '../../../core/widgets/lector_match_detail_view.dart';
 import 'widgets/football_live_stats.dart';
 import '../../../core/widgets/lector_standing_table.dart';
 import '../../../core/widgets/lector_match_section_card.dart';
-import '../../../core/widgets/lector_match_odds.dart';
 import '../../../core/widgets/lector_result_badge.dart';
 // ignore_for_file: unused_element, unused_element_parameter
 
@@ -100,7 +99,6 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
             2: 'Classement',
             3: 'Forme',
             4: 'TAT',
-            5: 'Marchés',
           },
           topBar: Row(
             children: [
@@ -141,72 +139,25 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                 ? widget.onOpenGenerator
                 : () => widget.onAskEuropean!(false),
           ),
-          tabBuilder: (context, index) => index == 5
-              ? Column(
-                  children: [
-                    Text(
-                      'Lectures et marchés de la publication consultée',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: context.textColors.secondary,
-                      ),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => _showScenarioReadingsSheet(
-                        context,
-                        widget.match,
-                        opportunity: widget.opportunity,
-                      ),
-                      icon: const Icon(Icons.menu_book_outlined),
-                      label: const Text('Consulter les lectures'),
-                    ),
-                    LectorMatchOdds(
-                      markets: [
-                        for (final market in current.availableMarkets)
-                          if (current.fixture.status !=
-                                  FixtureStatus.finished ||
-                              (market.updatedAt != null &&
-                                  current.fixture.kickoff != null &&
-                                  market.updatedAt!.isBefore(
-                                    current.fixture.kickoff!,
-                                  )))
-                            LectorOddsMarket(
-                              label: market.label,
-                              selections: [
-                                for (final selection in market.selections)
-                                  (
-                                    label: selection.label,
-                                    odds: selection.odds,
-                                  ),
-                              ],
-                              bookmaker: market.bookmakerName,
-                              recordedAt: market.updatedAt,
-                            ),
-                      ],
-                      finished:
-                          current.fixture.status == FixtureStatus.finished,
-                    ),
-                  ],
-                )
-              : switch (index) {
-                  // Context retains the incumbent Lector readings and markets.
-                  1 => _LectorFreeTabContent(
-                    match: current,
-                    selectedIndex: 0,
-                    selectedReadingIds: widget.selectedReadingIds,
-                    selectedScenarioIds: widget.selectedScenarioIds,
-                  ),
-                  2 => _CupStandingContextCard(
-                    match: current,
-                    selectedReadingIds: widget.selectedReadingIds,
-                    selectedScenarioIds: widget.selectedScenarioIds,
-                  ),
-                  _ => EuropeanComparisonSections(
-                    comparison: dossier,
-                    index: index,
-                    onOpenPrevious: (pick) => openGeneratorMatch(context, pick),
-                  ),
-                },
+          tabBuilder: (context, index) => switch (index) {
+            // Context retains the incumbent Lector readings.
+            1 => _LectorFreeTabContent(
+              match: current,
+              selectedIndex: 0,
+              selectedReadingIds: widget.selectedReadingIds,
+              selectedScenarioIds: widget.selectedScenarioIds,
+            ),
+            2 => _CupStandingContextCard(
+              match: current,
+              selectedReadingIds: widget.selectedReadingIds,
+              selectedScenarioIds: widget.selectedScenarioIds,
+            ),
+            _ => EuropeanComparisonSections(
+              comparison: dossier,
+              index: index,
+              onOpenPrevious: (pick) => openGeneratorMatch(context, pick),
+            ),
+          },
         );
       }
       return LectorMatchDetailView(
@@ -779,44 +730,7 @@ class _LectorFreeTabContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return switch (selectedIndex) {
-      0 => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _LectorQuickContextCard(match: match),
-          const SizedBox(height: 14),
-          LectorMatchOdds(
-            finished: match.fixture.status == FixtureStatus.finished,
-            markets: [
-              for (final market in match.availableMarkets)
-                if (market.selections.any(
-                      (s) => s.odds.isFinite && s.odds > 1,
-                    ) &&
-                    (match.fixture.status != FixtureStatus.finished ||
-                        market.updatedAt == null ||
-                        match.fixture.kickoff == null ||
-                        !market.updatedAt!.isAfter(match.fixture.kickoff!)))
-                  LectorOddsMarket(
-                    label: market.label,
-                    bookmaker: market.bookmakerName,
-                    recordedAt: market.updatedAt,
-                    selections: [
-                      for (final selection in market.selections)
-                        if (selection.odds.isFinite && selection.odds > 1)
-                          (
-                            label: switch (selection.apiFootballValue) {
-                              'Home' => match.homeTeam.name,
-                              'Away' => match.awayTeam.name,
-                              'Draw' => 'Match nul',
-                              _ => selection.label,
-                            },
-                            odds: selection.odds,
-                          ),
-                    ],
-                  ),
-            ],
-          ),
-        ],
-      ),
+      0 => _LectorQuickContextCard(match: match),
       1 => _LectorStandingContextCard(
         match: match,
         selectedReadingIds: selectedReadingIds,

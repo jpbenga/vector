@@ -134,7 +134,7 @@ class LectorMatchBackground extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            surfaces.shadow.withValues(alpha: 0.94),
+            surfaces.backgroundSecondary,
             surfaces.background,
             surfaces.backgroundSecondary,
           ],

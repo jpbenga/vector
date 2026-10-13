@@ -45,3 +45,34 @@ are recorded in the delivery receipt after deployment.
 
 No betting formulas, prices, personal preferences, historical cutoffs or saved
 conversations have been modified by this change.
+
+## Theme and fixture follow-up
+
+The unwanted European Markets tab and the full quote browser in fixture Context
+have been removed. Sporting readings in Context, card 1N2 quotes and Generator
+quote data remain available.
+
+`CompetitionCardTheme` now derives surfaces and borders from the selected app
+palette. Competition color only tints that surface. `CompetitionCardBackground`
+is reused by match cards, briefing cards and the European fixture hero. Artwork
+has a themed scrim; its opacity is limited against both white and black pixels.
+Text and status colors retain at least 4.5:1 contrast. Secondary text may become
+slightly stronger on artwork while keeping the selected theme's text hue. Odds
+use an opaque surface. The match page no longer puts a black top gradient in
+light themes, and the top navigation selected fill follows the selected palette.
+
+Coverage includes all ten selectable themes, all four competition identities,
+320 px card/briefing composition, existing 320/375/390/430/tablet card checks and
+European detail navigation/actions. The render tool captures real shared Flutter
+components using archived public sporting snapshots. It performs no account,
+provider or model call.
+
+The final live backend update used price-only SQL snapshot revisions. Context
+reconstruction was too large to transfer reliably; the price revision clones the
+original data inside the database, merges already collected prices and preserves
+fixture indexes, sporting dossiers and actual observation dates. On 13 October
+at 00:26 UTC, the actual catalog/calculator produced a six-pick, 30 EUR ticket
+mixing Championship and Champions League. All 18 published upcoming fixtures
+had recent quotes for each of CL, EL and Conference at that check. This was a
+calculator verification, not a paid LLM replay. Freshness continues to evolve
+with the real collection schedule.

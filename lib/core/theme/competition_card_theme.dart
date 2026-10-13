@@ -21,31 +21,91 @@ class CompetitionCardTheme {
   final BuildContext context;
   final CompetitionCardIdentity identity;
   bool get light => Theme.of(context).brightness == Brightness.light;
-  Color get background => light
+  // Competition identity tints the chosen theme; it never replaces its surface.
+  Color get identityAccent => switch (identity) {
+    CompetitionCardIdentity.generic => context.semantic.info,
+    CompetitionCardIdentity.champions => AppCompetitionColors.champions,
+    CompetitionCardIdentity.europa => AppCompetitionColors.europa,
+    CompetitionCardIdentity.conference => AppCompetitionColors.conference,
+  };
+  Color get background => identity == CompetitionCardIdentity.generic
       ? context.surfaces.surface
-      : switch (identity) {
-          CompetitionCardIdentity.generic => AppCompetitionColors.surface,
-          CompetitionCardIdentity.champions =>
-            AppCompetitionColors.championsFill,
-          CompetitionCardIdentity.europa => AppCompetitionColors.europaFill,
-          CompetitionCardIdentity.conference =>
-            AppCompetitionColors.conferenceFill,
-        };
-  Color get accent => light
-      ? context.semantic.info
-      : switch (identity) {
-          CompetitionCardIdentity.generic => context.semantic.info,
-          CompetitionCardIdentity.champions => AppCompetitionColors.champions,
-          CompetitionCardIdentity.europa => AppCompetitionColors.europa,
-          CompetitionCardIdentity.conference => AppCompetitionColors.conference,
-        };
-  Color get title => light
-      ? context.textColors.primary
-      : context.textColors.primary.withValues(alpha: .9);
+      : Color.alphaBlend(
+          identityAccent.withValues(alpha: light ? .05 : .10),
+          context.surfaces.surface,
+        );
+  Color get accent => _legible(identityAccent, [background]);
+  Color get title => context.textColors.primary;
+  Color get secondaryText => _legible(context.textColors.secondary, [
+    background,
+    illustrationExtreme(Colors.white),
+    illustrationExtreme(Colors.black),
+  ]);
   Color get statusText =>
-      light ? context.semantic.info : context.features.generatorAccent;
+      _legible(context.features.generatorAccent, [background]);
   Color get statusBorder => statusText.withValues(alpha: .26);
   Color get border => identity == CompetitionCardIdentity.generic
-      ? (light ? context.surfaces.border : AppCompetitionColors.border)
-      : accent.withValues(alpha: .60);
+      ? context.surfaces.border
+      : Color.alphaBlend(
+          accent.withValues(alpha: .40),
+          context.surfaces.border,
+        );
+
+  // The image is an underlay. A themed scrim keeps the darkest and brightest
+  // image pixels below the contrast limit, including warm and light themes.
+  double get illustrationOpacity => light ? .18 : .72;
+  double get watermarkOpacity => light ? .16 : .36;
+  double get scrimEndOpacity {
+    final start = light ? .74 : .68;
+    for (var step = 0; step <= 20; step++) {
+      final alpha = start + (1 - start) * step / 20;
+      final extremes = [Colors.white, Colors.black].map(
+        (pixel) => Color.alphaBlend(
+          background.withValues(alpha: alpha),
+          Color.alphaBlend(
+            pixel.withValues(alpha: illustrationOpacity),
+            background,
+          ),
+        ),
+      );
+      if (extremes.every((color) => _contrast(title, color) >= 4.8)) {
+        return alpha;
+      }
+    }
+    return 1;
+  }
+
+  Color illustrationExtreme(Color pixel) => Color.alphaBlend(
+    background.withValues(alpha: scrimEndOpacity),
+    Color.alphaBlend(pixel.withValues(alpha: illustrationOpacity), background),
+  );
+
+  ThemeData get contentTheme {
+    final theme = Theme.of(context);
+    return theme.copyWith(
+      textTheme: theme.textTheme.apply(bodyColor: title, displayColor: title),
+      extensions: [
+        for (final extension in theme.extensions.values)
+          if (extension is AppTextPalette)
+            extension.copyWith(primary: title, secondary: secondaryText)
+          else
+            extension,
+      ],
+    );
+  }
+
+  Color _legible(Color color, List<Color> backgrounds) {
+    for (var step = 0; step <= 20; step++) {
+      final candidate = Color.lerp(color, title, step / 20)!;
+      if (backgrounds.every((b) => _contrast(candidate, b) >= 4.5)) {
+        return candidate;
+      }
+    }
+    return title;
+  }
+
+  static double _contrast(Color a, Color b) {
+    final x = a.computeLuminance(), y = b.computeLuminance();
+    return ((x > y ? x : y) + .05) / ((x > y ? y : x) + .05);
+  }
 }

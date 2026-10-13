@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../theme/app_components.dart';
-import '../theme/app_colors.dart';
 import '../theme/app_radius.dart';
 import 'lector_workspace_navigation.dart';
 
@@ -67,15 +66,11 @@ class _Tab extends StatelessWidget {
         : section == LectorWorkspaceSection.generator
         ? context.features.generatorAccent
         : context.semantic.info;
-    final dark = Theme.of(context).brightness == Brightness.dark;
     final fill = selected
-        ? (dark
-              ? (section == LectorWorkspaceSection.generator
-                    ? context.features.generatorFill
-                    : section == LectorWorkspaceSection.radar
-                    ? context.features.radarFill
-                    : AppCompetitionColors.activeNavigation)
-              : accent.withValues(alpha: .12))
+        ? Color.alphaBlend(
+            accent.withValues(alpha: .12),
+            context.surfaces.surface,
+          )
         : context.surfaces.backgroundSecondary;
     return Semantics(
       button: true,

@@ -5,6 +5,7 @@ import '../../../../core/theme/app_components.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/competition_card_theme.dart';
 import '../../../../core/widgets/recent_form_strip.dart';
+import '../../../../core/widgets/competition_card_background.dart';
 import '../../../../core/widgets/sports_asset_badge.dart';
 import '../../../shortlist/presentation/shortlist_actions.dart';
 import '../../domain/european_fixture_comparison.dart';
@@ -41,7 +42,7 @@ class EuropeanMatchHero extends StatelessWidget {
         k = f.kickoff?.toLocal();
     return _Panel(
       title: null,
-      backgroundAsset: _identity(match.competition).backgroundAsset,
+      identity: _identity(match.competition),
       child: Column(
         children: [
           Row(
@@ -674,68 +675,77 @@ class _Panel extends StatelessWidget {
     required this.child,
     this.subtitle,
     this.icon,
-    this.backgroundAsset,
+    this.identity,
   });
-  final String? title, subtitle, backgroundAsset;
+  final String? title, subtitle;
+  final CompetitionCardIdentity? identity;
   final IconData? icon;
   final Widget child;
   @override
-  Widget build(BuildContext context) => Material(
-    clipBehavior: Clip.antiAlias,
-    color: context.surfaces.surface,
-    shape: RoundedRectangleBorder(
-      side: BorderSide(color: context.surfaces.border),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Stack(
-      children: [
-        if (backgroundAsset != null)
-          Positioned.fill(
-            child: Opacity(
-              opacity: .20,
-              child: Image.asset(backgroundAsset!, fit: BoxFit.cover),
-            ),
+  Widget build(BuildContext context) {
+    final palette = CompetitionCardTheme(
+      context,
+      identity ?? CompetitionCardIdentity.generic,
+    );
+    return Theme(
+      data: palette.contentTheme,
+      child: Builder(
+        builder: (context) => Material(
+          clipBehavior: Clip.antiAlias,
+          color: palette.background,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(color: palette.border),
+            borderRadius: BorderRadius.circular(12),
           ),
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: Stack(
             children: [
-              if (title != null) ...[
-                Row(
+              if (identity != null)
+                Positioned.fill(
+                  child: CompetitionCardBackground(palette: palette),
+                ),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (icon != null) ...[
-                      Icon(icon, size: 19, color: context.semantic.info),
-                      const SizedBox(width: 8),
-                    ],
-                    Expanded(
-                      child: Text(
-                        title!,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    if (title != null) ...[
+                      Row(
+                        children: [
+                          if (icon != null) ...[
+                            Icon(icon, size: 19, color: context.semantic.info),
+                            const SizedBox(width: 8),
+                          ],
+                          Expanded(
+                            child: Text(
+                              title!,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          subtitle!,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: context.textColors.secondary,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                    ],
+                    child,
                   ],
                 ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle!,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: context.textColors.secondary,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 12),
-              ],
-              child,
+              ),
             ],
           ),
         ),
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }

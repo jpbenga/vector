@@ -38,6 +38,7 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(find.text('Synthèse'), findsOneWidget);
+        expect(find.text('Marchés'), findsNothing);
         expect(find.text('Ce qu’il faut retenir'), findsNothing);
         expect(
           find.text('Situation domestique et forme récente'),
@@ -59,6 +60,7 @@ void main() {
           findsNothing,
         );
         expect(find.text('Parcours européen'), findsNothing);
+        expect(find.text('Cotes disponibles'), findsNothing);
         expect(find.textContaining('éléments différenciants'), findsOneWidget);
         await tester.tap(find.text('Classement'));
         await tester.pumpAndSettle();

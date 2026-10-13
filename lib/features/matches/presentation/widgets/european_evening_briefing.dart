@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_components.dart';
 import '../../../../core/theme/competition_card_theme.dart';
+import '../../../../core/widgets/competition_card_background.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/widgets/sports_asset_badge.dart';
 import '../../domain/match_board_item.dart';
@@ -177,111 +178,109 @@ class _BriefingCard extends StatelessWidget {
     final withReadings = matches
         .where((m) => publishedMatchCardReadings(m).isNotEmpty)
         .length;
-    return Material(
-      key: ValueKey(
-        'european-evening-briefing-${competition.apiFootballLeagueId}',
-      ),
-      color: palette.background,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        side: BorderSide(color: palette.border),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: IgnorePointer(
-              child: Opacity(
-                opacity: palette.light ? .08 : .28,
-                child: Image.asset(
-                  identity.backgroundAsset!,
-                  fit: BoxFit.cover,
-                  alignment: Alignment.centerRight,
-                  excludeFromSemantics: true,
-                ),
-              ),
-            ),
+    return Theme(
+      data: palette.contentTheme,
+      child: Builder(
+        builder: (context) => Material(
+          key: ValueKey(
+            'european-evening-briefing-${competition.apiFootballLeagueId}',
           ),
-          SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
+          color: palette.background,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            side: BorderSide(color: palette.border),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: CompetitionCardBackground(palette: palette),
+              ),
+              SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      SportsAssetBadge(
-                        size: 28,
-                        imageUrl: competition.logoUrl,
-                        contrastPlate: true,
-                        fallbackLabel: competition.name,
-                        backgroundColor: AppColors.transparent,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          competition.name,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: palette.title,
+                      Row(
+                        children: [
+                          SportsAssetBadge(
+                            size: 28,
+                            imageUrl: competition.logoUrl,
+                            contrastPlate: true,
+                            fallbackLabel: competition.name,
+                            backgroundColor: AppColors.transparent,
                           ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              competition.name,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: palette.title,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Briefing de la soirée',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${matches.length} match${matches.length > 1 ? 's' : ''} · ${DateFormat('dd/MM').format(date)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: context.textColors.secondary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        showReadings
+                            ? withReadings == 0
+                                  ? 'Aucune lecture de votre profil pour ces rencontres.'
+                                  : '$withReadings rencontre${withReadings > 1 ? 's' : ''} avec des lectures Lector.'
+                            : 'Découvrez les rencontres de cette compétition.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: context.textColors.secondary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        key: ValueKey(
+                          'open-european-evening-${competition.apiFootballLeagueId}',
+                        ),
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => _EuropeanEveningPage(
+                              matches: matches,
+                              date: date,
+                              showReadings: showReadings,
+                              onOpenMatch: onOpenMatch,
+                            ),
+                          ),
+                        ),
+                        icon: const Icon(Icons.emoji_events_outlined, size: 16),
+                        label: const Text(
+                          'Explorer la soirée',
+                          style: TextStyle(fontSize: 12),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Briefing de la soirée',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${matches.length} match${matches.length > 1 ? 's' : ''} · ${DateFormat('dd/MM').format(date)}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: context.textColors.secondary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    showReadings
-                        ? withReadings == 0
-                              ? 'Aucune lecture de votre profil pour ces rencontres.'
-                              : '$withReadings rencontre${withReadings > 1 ? 's' : ''} avec des lectures Lector.'
-                        : 'Découvrez les rencontres de cette compétition.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: context.textColors.secondary,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    key: ValueKey(
-                      'open-european-evening-${competition.apiFootballLeagueId}',
-                    ),
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => _EuropeanEveningPage(
-                          matches: matches,
-                          date: date,
-                          showReadings: showReadings,
-                          onOpenMatch: onOpenMatch,
-                        ),
-                      ),
-                    ),
-                    icon: const Icon(Icons.emoji_events_outlined, size: 16),
-                    label: const Text(
-                      'Explorer la soirée',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
