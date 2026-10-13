@@ -295,7 +295,7 @@ class LectorCompactMatchCard extends StatelessWidget {
           fallbackLabel: data.competitionName,
           padding: 0,
           backgroundColor: AppColors.transparent,
-          contrastPlate: data.identity == CompetitionCardIdentity.generic,
+          contrastPlate: true,
         ),
         const SizedBox(width: AppSpacing.xs),
         Expanded(

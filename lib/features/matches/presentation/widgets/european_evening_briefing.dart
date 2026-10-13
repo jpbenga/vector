@@ -214,6 +214,7 @@ class _BriefingCard extends StatelessWidget {
                       SportsAssetBadge(
                         size: 28,
                         imageUrl: competition.logoUrl,
+                        contrastPlate: true,
                         fallbackLabel: competition.name,
                         backgroundColor: AppColors.transparent,
                       ),
