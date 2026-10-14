@@ -35,6 +35,10 @@ export function toolAudit(
       sourceIds: r.sourceIds,
       missing: r.missing,
       error: typeof r.error === "string" ? redactAuditText(r.error) : undefined,
+      contract: r.contract,
+      scope: r.scope,
+      dossiers: r.dossiers,
+      projectionId: r.projectionId,
       alreadyConsulted: r.alreadyConsulted,
       previousCallId: r.previousCallId,
       matches: matches.slice(0, 60).map((m) => ({

@@ -21,8 +21,15 @@ MIGRATIONS = ('20261013210000_generator_domestic_form_projection.sql',
               '20261013220000_generator_exploration_archive_reader.sql',
               '20261014090000_generator_request_audit.sql',
               '20261014160000_hockey_publication_storage.sql',
-              '20261014190000_generator_discovery_publication_parity.sql')
-DISCOVERY_MIGRATION = MIGRATIONS[-1]
+              '20261014190000_generator_discovery_publication_parity.sql',
+              '20261015090000_generator_composition_contract_audit.sql')
+DISCOVERY_MIGRATION = '20261014190000_generator_discovery_publication_parity.sql'
+CONTRACT_MIGRATION = '20261015090000_generator_composition_contract_audit.sql'
+
+def functions_for_migrations(pending):
+    only_workshop = not pending or all(name in (DISCOVERY_MIGRATION, CONTRACT_MIGRATION) for name, _ in pending)
+    return ('lector-generator-workshop',) if only_workshop else FUNCTIONS
+
 PREREQUISITES = ('20261010090000', '20261011200000', '20261009120000',
                  '20261009170000', '20261011050000')
 # Lookup the approved account without publishing its email or auth identifier.
@@ -148,7 +155,7 @@ def main():
                     version, label = name[:-4].split('_', 1)
                     sql += body + "\ninsert into supabase_migrations.schema_migrations(version,name,statements) values ('" + version + "','" + label + "',array[$lector_release_migration$" + body + "$lector_release_migration$]);\n"
                 query(sql + 'commit;', False)
-            deployed = ('lector-generator-workshop',) if pending and all(name == DISCOVERY_MIGRATION for name, _ in pending) else FUNCTIONS
+            deployed = functions_for_migrations(pending)
             for function in deployed:
                 subprocess.run(['supabase', 'functions', 'deploy', function, '--project-ref', PROJECT,
                                 '--use-api', '--no-verify-jwt'], check=True)

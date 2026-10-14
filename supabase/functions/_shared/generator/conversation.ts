@@ -21,9 +21,7 @@ import {
   knownFocus,
   matchKey,
   rememberTurn,
-  resolvePlan,
   validatePlan,
-  workingIntent,
 } from "./conversation_memory.ts";
 import {
   ConversationReader,
@@ -36,6 +34,7 @@ import { applyIntent } from "./service.ts";
 import { attachReview, buildReviewBrief, fallbackReview } from "./review.ts";
 import type { DayEvaluation } from "./match_evaluation.ts";
 import { GeneratorFailure } from "./failures.ts";
+import { CompositionContractError } from "./conversation_scope.ts";
 import { assertCatalogueAnswer, toolAudit } from "./tool_audit.ts";
 
 export const conversationSchema = {
@@ -153,7 +152,7 @@ export async function converse(
       { evaluationId: input.explorationAction.evaluationId },
     )
     : null;
-  const active = workingIntent(input.state, input.context, input.date);
+  const active = reader.activeIntent();
   const messages: unknown[] = [
     {
       role: "developer",
@@ -228,6 +227,7 @@ export async function converse(
   let finalizing = false;
   let summary = "", validationRepairs = 0;
   const toolAudits: ReturnType<typeof toolAudit>[] = [];
+  const contractRefusals = new Map<string, number>();
   for (let round = 0; round < rounds; round++) {
     const remaining = Math.floor(
       Math.min(deadline, reader.explorationDeadline ?? deadline) - clock(),
@@ -386,17 +386,27 @@ export async function converse(
             toolResults.set(cacheKey, call.call_id);
           }
         } catch (error) {
-          data = {
-            error: error instanceof Error
-              ? error.message
-              : "Consultation impossible",
-            noMutation: true,
-            catalogueUnavailable: [
-              "search_matches",
-              "read_shortlist",
-              "read_matches",
-            ].includes(String(call.name)),
-          };
+          if (error instanceof CompositionContractError) {
+            const key = error.fingerprint();
+            const count = (contractRefusals.get(key) ?? 0) + 1;
+            contractRefusals.set(key, count);
+            // One actionable feedback, then stop. Changed arguments do not reset
+            // the budget when they produce the same missing dossiers/scope.
+            if (count >= 2) throw error;
+            data = error.result();
+          } else {
+            data = {
+              error: error instanceof Error
+                ? error.message
+                : "Consultation impossible",
+              noMutation: true,
+              catalogueUnavailable: [
+                "search_matches",
+                "read_shortlist",
+                "read_matches",
+              ].includes(String(call.name)),
+            };
+          }
         }
         const audit = toolAudit(
           String(call.name),
@@ -477,11 +487,11 @@ export async function converse(
             "Le ticket doit être calculé et consulté avant sa présentation.",
           );
         }
-        intent = resolvePlan(
+        intent = reader.resolveIntent(
           plan,
-          reader.sessionState(),
-          input.context,
-          input.date,
+          value.queryId !== null
+            ? reader.queries.get(String(value.queryId))
+            : undefined,
         );
         // Native resume/refresh explicitly refers to the archived scope. The
         // current screen/date cannot silently replace that immutable scope.

@@ -1,7 +1,6 @@
 import {
   changedSheets,
   compareExploration,
-  explorationView,
   frozenQuery,
   requireSnapshot,
   reusableRows,
@@ -38,7 +37,13 @@ import {
   matchKey,
   resolvePlan,
   validatePlan,
+  workingIntent,
 } from "./conversation_memory.ts";
+import {
+  CompositionContractError,
+  requestedSports,
+  sameSports,
+} from "./conversation_scope.ts";
 import { intentSchema } from "./openai.ts";
 import {
   modelCandidate,
@@ -347,6 +352,7 @@ export class ConversationReader {
   private explorationDetails = new Map<string, unknown>();
   private clock = () => performance.now();
   private startedAt: number;
+  private requestSports: Sport[] | null;
   private explorationBaseCalls: number | null = null;
   get explorationDeadline() {
     return this.explorationBudget?.deadline;
@@ -374,6 +380,7 @@ export class ConversationReader {
     this.clock = evaluator?.clock ?? this.clock;
     this.startedAt = this.clock();
     this.state = input.state ? structuredClone(input.state) : null;
+    this.requestSports = requestedSports(input.message);
     // Existing sessions/ticket revisions inherit the current server policy too.
     if (this.state && usesRequestConfiguration(input.context)) {
       this.state.context.configurationPolicy = "request";
@@ -386,6 +393,101 @@ export class ConversationReader {
         ]
       ) ticket.context.configurationPolicy = "request";
     }
+  }
+  /** A sport instruction is effective throughout the turn, before any model patch.
+   * Persisted working constraints win over the two-sport preference catalogue. */
+  private constrainedSports() {
+    return this.requestSports ??
+      this.state?.conversation?.workingIntent.sports ?? null;
+  }
+  private scope(
+    date: string,
+    sports: Sport[],
+    view: string,
+    radarKind: string,
+  ) {
+    return { date, sports: [...sports].sort() as Sport[], view, radarKind };
+  }
+  private assertSports(
+    date: string,
+    sports: Sport[],
+    view: string,
+    radarKind: string,
+    referenceSports?: Sport[],
+  ) {
+    const expected = this.requestSports ?? referenceSports ??
+      this.constrainedSports();
+    if (expected && !sameSports(expected, sports)) {
+      throw new CompositionContractError({
+        code: "sport_scope_mismatch",
+        expected: this.scope(date, expected, view, radarKind),
+        received: this.scope(date, sports, view, radarKind),
+        queryId: null,
+        dossierKeys: [],
+        compatibleQueryIds: [...this.queries.values()].filter((q) =>
+          sameSports(q.sports, expected)
+        ).map((q) => q.id),
+        repair:
+          "Conserver le sport demandé. Un changement de discipline nécessite une demande explicite, pas l’élargissement aux préférences enregistrées.",
+      });
+    }
+  }
+  resolveIntent(plan: ConversationPlan, binding?: ReadQuery) {
+    let normalized = plan;
+    const reference = plan.intent.referenceTicketId
+      ? [
+        ...(this.state?.tickets ?? []),
+        ...(this.state?.drafts ?? []),
+        ...(this.state?.pending ?? []),
+      ].find((t) => t.id === plan.intent.referenceTicketId)
+      : undefined;
+    const sports = this.requestSports ?? reference?.constraints?.sports ??
+      this.constrainedSports() ??
+      (!plan.changedFields.includes("sports") && binding &&
+          sameSports(binding.sports, plan.intent.sports)
+        ? binding.sports
+        : null);
+    if (sports) {
+      if (plan.changedFields.includes("sports")) {
+        this.assertSports(
+          plan.intent.date,
+          plan.intent.sports,
+          plan.intent.view ?? "profile",
+          plan.intent.radarKind ?? "teams",
+          reference?.constraints?.sports,
+        );
+      }
+      // This normalization repairs a missing sports patch only. Dates, markets,
+      // stakes, counts and explicit ticket references keep their patch semantics.
+      const resolved = resolvePlan(
+        plan,
+        this.state,
+        this.input.context,
+        this.input.date,
+      );
+      normalized = {
+        ...plan,
+        intent: { ...plan.intent, sports },
+        changedFields: sameSports(resolved.sports, sports)
+          ? plan.changedFields
+          : [...new Set([...plan.changedFields, "sports"])],
+      };
+    }
+    const intent = resolvePlan(
+      normalized,
+      this.state,
+      this.input.context,
+      this.input.date,
+    );
+    return intent;
+  }
+  activeIntent() {
+    const intent = workingIntent(
+      this.state,
+      this.input.context,
+      this.input.date,
+    );
+    return { ...intent, sports: this.constrainedSports() ?? intent.sports };
   }
   private validDay(date: unknown): string {
     if (
@@ -407,9 +509,13 @@ export class ConversationReader {
     sports: Sport[],
     view: "profile" | "radar" | "all" | "shortlist",
     radarKind: "teams" | "players",
+    referenceSports?: Sport[],
   ) {
     this.validDay(date);
-    if (view === "shortlist") return this.queryShortlist(sports);
+    this.assertSports(date, sports, view, radarKind, referenceSports);
+    if (view === "shortlist") {
+      return this.queryShortlist(sports, referenceSports);
+    }
     if (
       !sports.length || sports.length > 2 ||
       new Set(sports).size !== sports.length ||
@@ -428,7 +534,14 @@ export class ConversationReader {
     }
     return await this.requests.get(key)!;
   }
-  private async queryShortlist(sports: Sport[]) {
+  private async queryShortlist(sports: Sport[], referenceSports?: Sport[]) {
+    this.assertSports(
+      this.input.date,
+      sports,
+      "shortlist",
+      "teams",
+      referenceSports,
+    );
     const scope = this.input.context.shortlist;
     if (!scope) {
       throw new Error("Aucune sélection Shortlist liée à cette conversation.");
@@ -864,11 +977,23 @@ export class ConversationReader {
     };
   }
   async resolve(plan: ConversationPlan) {
-    const intent = resolvePlan(
+    // Bind a chosen set only to a verified query with the declared scope. Do not
+    // infer a sport from the chosen match IDs (a subset of a multisport ticket
+    // can legitimately contain a single sport).
+    const bindings = [...this.queries.values()].filter((q) =>
+      q.date === plan.intent.date && sameSports(q.sports, plan.intent.sports) &&
+      q.context.view === plan.intent.view &&
+      (plan.intent.radarKind === "current" ||
+        q.context.radarKind === plan.intent.radarKind) &&
+      plan.focusMode === "choose" && plan.focusKeys.every((key) =>
+        q.matches.some((m) =>
+          m.key === key
+        ) && this.detailsRead.has(`${q.id}:${key}`)
+      )
+    );
+    const intent = this.resolveIntent(
       plan,
-      this.state,
-      this.input.context,
-      this.input.date,
+      bindings.length === 1 ? bindings[0] : undefined,
     );
     const context = analysisContext(this.input.context, intent);
     const query = await this.query(
@@ -876,14 +1001,48 @@ export class ConversationReader {
       intent.sports,
       context.view ?? "profile",
       context.radarKind ?? "teams",
+      intent.referenceTicketId ? intent.sports : undefined,
     );
     if (plan.focusMode === "choose") {
       intent.fixtureFocus = plan.focusKeys.map((key) => {
         const match = query.matches.find((m) => m.key === key);
-        if (!match || !this.detailsRead.has(`${query.id}:${key}`)) {
-          throw new Error(
-            "Consultez les détails avant de retenir cette rencontre.",
+        if (match && !this.detailsRead.has(`${query.id}:${key}`)) {
+          const compatible = [...this.queries.values()].find((q) =>
+            q.date === query.date && q.context.view === query.context.view &&
+            q.context.radarKind === query.context.radarKind &&
+            JSON.stringify(q.context) === JSON.stringify(query.context) &&
+            this.detailsRead.has(`${q.id}:${key}`) && q.matches.some((m) =>
+              m.key === key && m.sourceId === match.sourceId &&
+              m.capturedAt === match.capturedAt && m.kickoff === match.kickoff
+            )
           );
+          if (compatible) this.detailsRead.add(`${query.id}:${key}`);
+        }
+        if (!match || !this.detailsRead.has(`${query.id}:${key}`)) {
+          throw new CompositionContractError({
+            code: "composition_details_missing",
+            expected: this.scope(
+              query.date,
+              query.sports,
+              context.view ?? "profile",
+              context.radarKind ?? "teams",
+            ),
+            received: this.scope(
+              plan.intent.date,
+              plan.intent.sports,
+              plan.intent.view ?? "profile",
+              plan.intent.radarKind ?? "teams",
+            ),
+            queryId: query.id,
+            dossierKeys: plan.focusKeys.filter((k) =>
+              !this.detailsRead.has(`${query.id}:${k}`)
+            ),
+            compatibleQueryIds: [...this.queries.values()].filter((q) =>
+              plan.focusKeys.some((k) => this.detailsRead.has(`${q.id}:${k}`))
+            ).map((q) => q.id),
+            repair:
+              "Lire uniquement les dossiers manquants avec read_matches et le queryId indiqué. Un autre périmètre ou une autre version ne remplace pas ces preuves.",
+          });
         }
         return {
           sport: match.sport,
@@ -915,7 +1074,11 @@ export class ConversationReader {
           };
         }
         const q = await this.queryShortlist([
-          ...new Set(scope.items.map((i) => i.sport)),
+          ...new Set(
+            scope.items.map((i) => i.sport).filter((s) =>
+              !this.constrainedSports() || this.constrainedSports()!.includes(s)
+            ),
+          ),
         ]);
         return {
           queryId: q.id,
@@ -1730,6 +1893,17 @@ export class ConversationReader {
         ];
         return {
           projectionId: id,
+          queryId: query.id,
+          scope: this.scope(
+            query.date,
+            query.sports,
+            context.view ?? "profile",
+            context.radarKind ?? "teams",
+          ),
+          dossiers: plan.focusKeys.map((key) => {
+            const m = query.matches.find((m) => m.key === key);
+            return { key, sourceId: m?.sourceId, capturedAt: m?.capturedAt };
+          }),
           intent,
           result: attached.text,
           clarification: validateIntent(intent, context, this.input.now),

@@ -52,6 +52,7 @@ import { decodeVoice, transcribe } from "./voice.ts";
 import { buildCatalog } from "./catalog.ts";
 import { type DayReadCoverage, loadDaySources } from "./day_sources.ts";
 import { GeneratorFailure, generatorTimeoutMessage } from "./failures.ts";
+import { CompositionContractError } from "./conversation_scope.ts";
 import { canReadTurnResponse, turnStatus } from "./turn_status.ts";
 const cors = {
   "access-control-allow-origin": "*",
@@ -744,7 +745,7 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
                 now,
               );
             }
-            const date = calendarDay(
+            const _date = calendarDay(
               ticket.picks[0].kickoff,
               ticket.context.timezone,
             );
@@ -1500,7 +1501,10 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
       reservation = null;
       return reply({ state });
     } catch (error) {
-      if (error instanceof GeneratorFailure) stage = error.stage;
+      if (
+        error instanceof GeneratorFailure ||
+        error instanceof CompositionContractError
+      ) stage = error.stage;
       if (reservation) {
         const failure = {
           failure_stage: stage,
@@ -1508,6 +1512,9 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
           failure_message: error instanceof Error
             ? redactAuditText(error.message).slice(0, 1000)
             : "unknown",
+          ...(error instanceof CompositionContractError
+            ? { failure_contract: error.contract }
+            : {}),
           elapsed_ms: Math.round(performance.now() - started),
           ai_usage: aiUsage,
           ai: receipts,

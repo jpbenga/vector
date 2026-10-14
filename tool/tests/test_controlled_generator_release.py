@@ -31,4 +31,10 @@ class ControlledReleaseTests(unittest.TestCase):
     def test_legacy_endpoint_not_replaced(self):
         self.assertNotIn('lector-generator', module.FUNCTIONS)
 
+    def test_contract_fix_only_publishes_workshop(self):
+        self.assertEqual(module.functions_for_migrations([]), ('lector-generator-workshop',))
+        self.assertEqual(module.functions_for_migrations([(module.CONTRACT_MIGRATION, 'sql')]), ('lector-generator-workshop',))
+        self.assertEqual(module.functions_for_migrations([(module.DISCOVERY_MIGRATION, 'sql'), (module.CONTRACT_MIGRATION, 'sql')]), ('lector-generator-workshop',))
+        self.assertEqual(module.DISCOVERY_MIGRATION, '20261014190000_generator_discovery_publication_parity.sql')
+
 if __name__ == '__main__': unittest.main()

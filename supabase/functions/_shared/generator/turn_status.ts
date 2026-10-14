@@ -45,7 +45,14 @@ export function turnStatus(row: Json | undefined, workshop: boolean): Json {
               String(usage.failure_name),
             )
             ? generatorTimeoutMessage(String(usage.failure_stage ?? ""))
+            : usage.failure_name === "CompositionContractError"
+            ? `${
+              String(usage.failure_message).slice(0, 1000)
+            } Votre conversation est conservée.`
             : "Cette préparation s’est arrêtée côté serveur. Votre conversation est conservée.",
+          ...(usage.failure_name === "CompositionContractError"
+            ? { contract: usage.failure_contract }
+            : {}),
         }
         : {}),
     },
