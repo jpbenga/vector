@@ -1,6 +1,8 @@
 import importlib.util
 from pathlib import Path
 import unittest
+import tempfile
+from unittest.mock import patch
 
 path = Path(__file__).resolve().parents[1] / 'deploy_controlled_generator_release.py'
 spec = importlib.util.spec_from_file_location('controlled_release', path)
@@ -36,5 +38,23 @@ class ControlledReleaseTests(unittest.TestCase):
         self.assertEqual(module.functions_for_migrations([(module.CONTRACT_MIGRATION, 'sql')]), ('lector-generator-workshop',))
         self.assertEqual(module.functions_for_migrations([(module.DISCOVERY_MIGRATION, 'sql'), (module.CONTRACT_MIGRATION, 'sql')]), ('lector-generator-workshop',))
         self.assertEqual(module.DISCOVERY_MIGRATION, '20261014190000_generator_discovery_publication_parity.sql')
+
+    def test_served_workshop_is_backed_up_and_must_match_checkout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            local = root / 'supabase/functions/lector-generator-workshop/index.ts'
+            local.parent.mkdir(parents=True)
+            local.write_text('reviewed-source')
+            def download(args, **kwargs):
+                target = Path(args[args.index('--workdir') + 1]) / 'supabase/functions/lector-generator-workshop/index.ts'
+                target.parent.mkdir(parents=True)
+                target.write_text('reviewed-source')
+            with patch.object(module, 'ROOT', root), patch.object(module.subprocess, 'run', side_effect=download):
+                backup = module.workshop_source()
+                self.assertTrue((root / backup['archive']).is_file())
+                self.assertIn('lector-generator-workshop/index.ts', module.workshop_source(verify=True)['sourceSha256'])
+                local.write_text('different-source')
+                with self.assertRaisesRegex(ValueError, 'source differs'):
+                    module.workshop_source(verify=True)
 
 if __name__ == '__main__': unittest.main()

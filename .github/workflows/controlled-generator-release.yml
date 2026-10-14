@@ -32,7 +32,7 @@ jobs:
         with:
           ref: ${{ inputs.revision }}
       - uses: supabase/setup-cli@v1
-        if: inputs.operation == 'install' || inputs.operation == 'install-freshness' || inputs.operation == 'activate-freshness'
+        if: inputs.operation == 'install' || inputs.operation == 'activate' || inputs.operation == 'install-freshness' || inputs.operation == 'activate-freshness'
         with:
           version: '2.120.0'
       - name: Publish only the reviewed canary backend without model calls
@@ -57,6 +57,7 @@ jobs:
           name: controlled-generator-release-${{ inputs.operation }}
           path: |
             controlled-generator-release-receipt.json
+            controlled-generator-workshop-rollback.tar.gz
             european-freshness-release-receipt.json
           if-no-files-found: ignore
           retention-days: 30

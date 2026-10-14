@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import subprocess
 import tempfile
+import tarfile
 import urllib.error
 import urllib.request
 
@@ -97,6 +98,31 @@ def legacy_source_hash():
             raise ValueError('Legacy source download is empty.')
         return {str(p.relative_to(source)): hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
 
+def workshop_source(verify=False):
+    """Back up the actual served source before mutation, verify it after publication."""
+    with tempfile.TemporaryDirectory(prefix='lector-workshop-check-') as directory:
+        subprocess.run(['supabase', 'functions', 'download', 'lector-generator-workshop',
+                        '--project-ref', PROJECT, '--use-api', '--workdir', directory], check=True)
+        source = Path(directory) / 'supabase/functions'
+        files = sorted(p for p in source.rglob('*') if p.is_file() and p.suffix in ('.ts', '.json'))
+        if not any(p.relative_to(source).as_posix() == 'lector-generator-workshop/index.ts' for p in files):
+            raise ValueError('Downloaded workshop entry point missing')
+        hashes = {}
+        for p in files:
+            rel = p.relative_to(source).as_posix()
+            if verify:
+                local = ROOT / 'supabase/functions' / rel
+                if not local.is_file() or p.read_bytes() != local.read_bytes():
+                    raise ValueError('Served workshop source differs: ' + rel)
+            hashes[rel] = hashlib.sha256(p.read_bytes()).hexdigest()
+        if not verify:
+            archive = ROOT / 'controlled-generator-workshop-rollback.tar.gz'
+            with tarfile.open(archive, 'w:gz') as target:
+                for p in files:
+                    target.add(p, arcname='supabase/functions/' + p.relative_to(source).as_posix(), recursive=False)
+            return {'archive': archive.name, 'sha256': hashlib.sha256(archive.read_bytes()).hexdigest(), 'sourceSha256': hashes}
+        return {'sourceSha256': hashes}
+
 def main():
     revision, operation = validate_environment(os.environ,
         subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip())
@@ -132,6 +158,7 @@ def main():
             raise ValueError('Reviewed deployment configuration differs from the installed functions.')
         if operation == 'install':
             legacy_hash = legacy_source_hash()
+            rollback = workshop_source()
             secrets({'LECTOR_GENERATOR_CANARY_ENABLED': 'false',
                      'LECTOR_GENERATOR_CANARY_USER_IDS': owner,
                      'LECTOR_GENERATOR_CANARY_EMAILS': '', 'LECTOR_RELEASE_REVISION': revision})
@@ -171,14 +198,17 @@ def main():
                        'migrations': [name for name, _ in files], 'functions': {f: after[f]['version'] for f in FUNCTIONS},
                        'deployed_functions': list(deployed),
                        'legacy_version': after['lector-generator']['version'], 'legacy_source_sha256': legacy_hash,
-                       'legacy_endpoint_replaced': False, 'model_calls': 0}
+                       'legacy_endpoint_replaced': False, 'model_calls': 0,
+                       'workshopRollback': rollback, 'workshopServed': workshop_source(verify=True)}
         else:
             if pending:
                 raise ValueError('Install migrations before activation.')
+            served = workshop_source(verify=True)
             secrets({'LECTOR_GENERATOR_CANARY_USER_IDS': owner, 'LECTOR_GENERATOR_CANARY_EMAILS': '',
                      'LECTOR_RELEASE_REVISION': revision, 'LECTOR_GENERATOR_CANARY_ENABLED': 'true'})
             receipt = {'revision': revision, 'operation': operation, 'canary_enabled': True,
-                       'allowed_accounts': 1, 'legacy_endpoint_replaced': False, 'model_calls': 0}
+                       'allowed_accounts': 1, 'legacy_endpoint_replaced': False, 'model_calls': 0,
+                       'workshopServed': served}
     (ROOT / 'controlled-generator-release-receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
     print(json.dumps(receipt))
 
