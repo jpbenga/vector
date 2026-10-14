@@ -18,11 +18,12 @@ class ControlledReleaseTests(unittest.TestCase):
         with self.assertRaises(ValueError): module.validate_environment(env, 'b' * 40)
         with self.assertRaises(ValueError): module.validate_environment({**env, 'GITHUB_REF': 'refs/heads/other'}, sha)
 
-    def test_partial_or_different_migration_refused(self):
+    def test_installed_prefix_allowed_but_holes_or_differences_refused(self):
         prerequisite = [{'version': v} for v in module.PREREQUISITES]
         files = [('111_new.sql', 'first'), ('222_next.sql', 'second')]
         self.assertEqual(module.migration_plan(prerequisite, files), files)
-        with self.assertRaises(ValueError): module.migration_plan(prerequisite + [{'version': '111', 'statements': ['first']}], files)
+        self.assertEqual(module.migration_plan(prerequisite + [{'version': '111', 'statements': ['first']}], files), files[1:])
+        with self.assertRaises(ValueError): module.migration_plan(prerequisite + [{'version': '222', 'statements': ['second']}], files)
         with self.assertRaises(ValueError): module.migration_plan(prerequisite + [{'version': '111', 'statements': ['changed']}], files)
         all_installed = prerequisite + [{'version': '111', 'statements': ['first']}, {'version': '222', 'statements': ['second']}]
         self.assertEqual(module.migration_plan(all_installed, files), [])

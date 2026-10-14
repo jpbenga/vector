@@ -12,6 +12,7 @@ MIGRATIONS = [
     '20261013210000_generator_domestic_form_projection.sql',
     '20261013220000_generator_exploration_archive_reader.sql',
     '20261014090000_generator_request_audit.sql',
+    '20261014160000_hockey_publication_storage.sql',
 ]
 FUNCTIONS = [
     'lector-generator', 'lector-generator-workshop', 'api-football-sync',
