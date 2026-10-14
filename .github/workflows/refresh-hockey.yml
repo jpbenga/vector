@@ -19,6 +19,9 @@ on:
         default: refresh
         options: [install, refresh, delivery-only]
 
+env:
+  LECTOR_REMOTE_WRITES_ENABLED: ${{ vars.LECTOR_REMOTE_WRITES_ENABLED }}
+
 permissions:
   contents: read
   actions: read
@@ -29,6 +32,7 @@ concurrency:
 
 jobs:
   refresh:
+    if: vars.LECTOR_REMOTE_WRITES_ENABLED == 'true' && (github.event_name != 'schedule' || vars.LECTOR_HOCKEY_SCHEDULE_ENABLED == 'true')
     runs-on: ubuntu-latest
     # The first cold run also builds several years of H2H event history.
     timeout-minutes: 60
@@ -37,8 +41,8 @@ jobs:
         env:
           LECTOR_RELEASE_REF: ${{ vars.LECTOR_RELEASE_REF }}
         run: '[[ "$LECTOR_RELEASE_REF" =~ ^[a-fA-F0-9]{40}$ ]]'
-      # This scheduling file must be installed on main after production approval.
-      # The collector code is pinned separately from the football main branch.
+      # Keep collection paused until backup/restore and publication are approved.
+      # Pin the collector to the same reviewed main revision as the application.
       - uses: actions/checkout@v4
         with:
           ref: ${{ vars.LECTOR_RELEASE_REF }}

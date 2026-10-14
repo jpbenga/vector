@@ -60,6 +60,7 @@ jobs:
         run: |
           python3 -m unittest discover -s tool/tests -p 'test_deploy*remote.py'
           python3 -m unittest discover -s tool/tests -p 'test_hockey_freshness_alarm.py'
+          python3 -m unittest discover -s tool/tests -p 'test_main_promotion_guards.py'
 
       - name: Test controlled exploration pilot and cost admission
         run: deno test --allow-read=test/fixtures/generator_published_day.json tool/tests/generator_exploration_campaign_test.ts tool/tests/generator_validation_budget_test.ts

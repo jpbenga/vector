@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       function:
-        description: Football depuis main ; Générateur depuis la branche démo
+        description: Opérations autorisées depuis main uniquement
         required: true
         default: sync-live-matches
         type: choice
@@ -45,6 +45,9 @@ on:
         default: ''
         type: string
 
+env:
+  LECTOR_REMOTE_WRITES_ENABLED: ${{ vars.LECTOR_REMOTE_WRITES_ENABLED }}
+
 permissions:
   contents: read
   actions: read
@@ -55,7 +58,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/main' && !startsWith(inputs.function, 'lector-generator-') && !startsWith(inputs.function, 'hockey-refresh-') && inputs.function != 'lector-visual-live-update' && inputs.function != 'lector-european-comparison-update'
+    if: vars.LECTOR_REMOTE_WRITES_ENABLED == 'true' && github.ref == 'refs/heads/main' && !startsWith(inputs.function, 'lector-') && !startsWith(inputs.function, 'hockey-refresh-') && inputs.function != 'lector-visual-live-update' && inputs.function != 'lector-european-comparison-update'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -73,14 +76,14 @@ jobs:
         run: python3 tool/deploy_supabase_remote.py
 
   hockey-refresh:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && startsWith(inputs.function, 'hockey-refresh-')
+    if: vars.LECTOR_REMOTE_WRITES_ENABLED == 'true' && github.ref == 'refs/heads/main' && startsWith(inputs.function, 'hockey-refresh-')
     uses: ./.github/workflows/refresh-hockey.yml
     with:
       operation: ${{ inputs.function == 'hockey-refresh-install' && 'install' || inputs.function == 'hockey-refresh-delivery' && 'delivery-only' || 'refresh' }}
     secrets: inherit
 
   generator-demo:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && (inputs.function == 'lector-generator-demo' || inputs.function == 'lector-generator-update' || inputs.function == 'lector-generator-workshop')
+    if: vars.LECTOR_REMOTE_WRITES_ENABLED == 'true' && github.ref == 'refs/heads/main' && (inputs.function == 'lector-generator-demo' || inputs.function == 'lector-generator-update' || inputs.function == 'lector-generator-workshop')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
@@ -115,7 +118,7 @@ jobs:
           retention-days: 14
 
   generator-radar-update:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-radar-update'
+    if: vars.LECTOR_REMOTE_WRITES_ENABLED == 'true' && github.ref == 'refs/heads/main' && inputs.function == 'lector-generator-radar-update'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -132,7 +135,7 @@ jobs:
         run: python3 tool/deploy_generator_scope_remote.py
 
   generator-diagnostic:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && (inputs.function == 'lector-generator-diagnostic' || inputs.function == 'lector-football-cards-diagnostic')
+    if: github.ref == 'refs/heads/main' && (inputs.function == 'lector-generator-diagnostic' || inputs.function == 'lector-football-cards-diagnostic')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -151,7 +154,7 @@ jobs:
           fi
 
   sport-publications:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-sport-publications'
+    if: vars.LECTOR_REMOTE_WRITES_ENABLED == 'true' && github.ref == 'refs/heads/main' && inputs.function == 'lector-generator-sport-publications'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -168,7 +171,7 @@ jobs:
         run: python3 tool/deploy_sport_publications_remote.py
 
   hockey-odds:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-hockey-odds'
+    if: vars.LECTOR_REMOTE_WRITES_ENABLED == 'true' && github.ref == 'refs/heads/main' && inputs.function == 'lector-generator-hockey-odds'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -185,7 +188,7 @@ jobs:
         run: python3 tool/deploy_hockey_odds_remote.py
 
   generator-conversation-update:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-conversation-update'
+    if: vars.LECTOR_REMOTE_WRITES_ENABLED == 'true' && github.ref == 'refs/heads/main' && inputs.function == 'lector-generator-conversation-update'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -217,7 +220,7 @@ jobs:
         run: python3 tool/deploy_generator_conversation_remote.py
 
   generator-configuration-update:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-configuration-update'
+    if: vars.LECTOR_REMOTE_WRITES_ENABLED == 'true' && github.ref == 'refs/heads/main' && inputs.function == 'lector-generator-configuration-update'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -239,7 +242,7 @@ jobs:
         run: python3 tool/deploy_generator_conversation_remote.py
 
   generator-match-evaluation:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-match-evaluation'
+    if: vars.LECTOR_REMOTE_WRITES_ENABLED == 'true' && github.ref == 'refs/heads/main' && inputs.function == 'lector-generator-match-evaluation'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -271,7 +274,7 @@ jobs:
         run: python3 tool/deploy_generator_conversation_remote.py
 
   generator-day-sources:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-day-sources'
+    if: vars.LECTOR_REMOTE_WRITES_ENABLED == 'true' && github.ref == 'refs/heads/main' && inputs.function == 'lector-generator-day-sources'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -288,7 +291,7 @@ jobs:
         run: python3 tool/deploy_generator_day_sources_remote.py
 
   visual-live-update:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-visual-live-update'
+    if: vars.LECTOR_REMOTE_WRITES_ENABLED == 'true' && github.ref == 'refs/heads/main' && inputs.function == 'lector-visual-live-update'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -305,7 +308,7 @@ jobs:
         run: python3 tool/deploy_lector_visual_live_remote.py
 
   generator-shortlist:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-shortlist'
+    if: vars.LECTOR_REMOTE_WRITES_ENABLED == 'true' && github.ref == 'refs/heads/main' && inputs.function == 'lector-generator-shortlist'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -322,7 +325,7 @@ jobs:
         run: python3 tool/deploy_shortlist_remote.py
 
   generator-work-storage:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && inputs.function == 'lector-generator-work-storage'
+    if: vars.LECTOR_REMOTE_WRITES_ENABLED == 'true' && github.ref == 'refs/heads/main' && inputs.function == 'lector-generator-work-storage'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -339,7 +342,7 @@ jobs:
         run: python3 tool/deploy_generator_work_storage_remote.py
 
   european-comparison:
-    if: github.ref == 'refs/heads/codex/multisport-hockey' && (inputs.function == 'lector-european-comparison-update' || inputs.function == 'lector-football-quotes-update')
+    if: vars.LECTOR_REMOTE_WRITES_ENABLED == 'true' && github.ref == 'refs/heads/main' && (inputs.function == 'lector-european-comparison-update' || inputs.function == 'lector-football-quotes-update')
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:

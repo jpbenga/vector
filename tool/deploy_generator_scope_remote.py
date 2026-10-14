@@ -14,10 +14,12 @@ FUNCTION = 'lector-generator-workshop'
 
 
 def validate_environment(env):
+    if env.get("LECTOR_REMOTE_WRITES_ENABLED") != "true":
+        raise ValueError("Remote writes require the explicit post-backup activation flag.")
     if (env.get('GITHUB_ACTIONS') != 'true'
-            or env.get('GITHUB_REF') != 'refs/heads/codex/multisport-hockey'
+            or env.get('GITHUB_REF') != 'refs/heads/main'
             or env.get('GITHUB_REPOSITORY') != 'jpbenga/vector'):
-        raise ValueError('This update runs on the multisport GitHub branch only.')
+        raise ValueError('This update runs on the main GitHub branch only.')
     for name in ('SUPABASE_ACCESS_TOKEN', 'GH_TOKEN', 'GITHUB_SHA'):
         if not env.get(name):
             raise ValueError(f'Missing repository secret {name}. No keychain fallback.')

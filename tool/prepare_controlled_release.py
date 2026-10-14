@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -40,8 +41,9 @@ def main():
         raise ValueError('Use a dedicated build subdirectory')
     target.mkdir(parents=True,exist_ok=True)
     definitions = {
-        'APP_ENV':'staging', 'MATCH_FEED_SOURCE':'auto', 'LECTOR_GENERATOR_UI':'true',
+        'APP_ENV':'production', 'MATCH_FEED_SOURCE':'auto', 'LECTOR_GENERATOR_UI':'true',
         'LECTOR_GENERATOR_ENDPOINT':'lector-generator-workshop', 'LECTOR_RELEASE_REVISION':revision,
+        'APP_PUBLIC_URL':'https://lector-sports.vercel.app/',
     }
     if args.build:
         public = {}
@@ -53,9 +55,11 @@ def main():
         if public.get('SUPABASE_URL') != 'https://ednvvxxvlawaagjyshkj.supabase.co' or not public.get('SUPABASE_ANON_KEY'):
             raise ValueError('Expected public project configuration is missing')
         # No server/provider key, account allowlist or private environment is compiled.
-        subprocess.run(['flutter','build','web','--release','--no-pub','--no-wasm-dry-run',
-            '--target=lib/main.dart','--output='+str(target),
-            *['--dart-define='+name+'='+value for name,value in {**definitions,**public}.items()]],cwd=ROOT,check=True)
+        # The same recipe is used by local packaging and Vercel. No divergent
+        # static hockey/demo bundle is produced by a principal release.
+        subprocess.run(['bash','tool/build_web_staging.sh'], cwd=ROOT, check=True,
+            env={**os.environ, **definitions, **public,
+                 'LECTOR_BUILD_OUTPUT':str(target), 'LECTOR_SKIP_PUB':'true'})
         for required in ['index.html','main.dart.js','flutter_bootstrap.js','assets/AssetManifest.bin.json']:
             if not (target/required).is_file():
                 raise ValueError('Build artifact incomplete: '+required)
@@ -63,7 +67,7 @@ def main():
         config=json.loads((ROOT/'vercel.json').read_text())
         config.update({'buildCommand':None,'installCommand':None,'outputDirectory':'.'})
         (target/'vercel.json').write_text(json.dumps(config,indent=2)+'\n')
-    sources = subprocess.check_output(['git','ls-files','lib','supabase/functions','tool/sports','.github/workflows/refresh-hockey.yml','.github/workflows/hockey-publication-health.yml'],cwd=ROOT,text=True).splitlines()
+    sources = subprocess.check_output(['git','ls-files','lib','supabase/functions','tool','.github/workflows','vercel.json'],cwd=ROOT,text=True).splitlines()
     report = {
         'revision':revision,'builtLocally':args.build,'published':False,
         'defaultCanaryEnabled':False,'clientDefines':definitions,

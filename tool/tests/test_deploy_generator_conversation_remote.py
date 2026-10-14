@@ -7,7 +7,7 @@ import deploy_generator_conversation_remote as module
 
 class ConversationDeployTests(unittest.TestCase):
     def environment(self):
-        return {'GITHUB_ACTIONS': 'true', 'GITHUB_REF': 'refs/heads/codex/multisport-hockey',
+        return {'LECTOR_REMOTE_WRITES_ENABLED': 'true', 'GITHUB_ACTIONS': 'true', 'GITHUB_REF': 'refs/heads/main',
                 'GITHUB_REPOSITORY': 'jpbenga/vector', 'GITHUB_SHA': 'abc',
                 'SUPABASE_ACCESS_TOKEN': 'test', 'GH_TOKEN': 'test'}
 
@@ -15,9 +15,9 @@ class ConversationDeployTests(unittest.TestCase):
         module.validate_environment(self.environment())
         self.assertEqual(module.FUNCTION, 'lector-generator-workshop')
         with self.assertRaises(ValueError):
-            module.validate_environment({**self.environment(), 'GITHUB_REF': 'refs/heads/main'})
+            module.validate_environment({**self.environment(), 'GITHUB_REF': 'refs/heads/codex/multisport-hockey'})
         with self.assertRaises(ValueError):
-            module.require_ci([{'path': '.github/workflows/ci.yml', 'head_sha': 'old', 'head_branch': 'codex/multisport-hockey', 'event': 'push', 'conclusion': 'success'}], 'abc')
+            module.require_ci([{'path': '.github/workflows/ci.yml', 'head_sha': 'old', 'head_branch': 'main', 'event': 'push', 'conclusion': 'success'}], 'abc')
 
     def test_no_local_keychain_fallback(self):
         with self.assertRaisesRegex(ValueError, 'No keychain'):

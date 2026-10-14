@@ -10,12 +10,12 @@ spec.loader.exec_module(module)
 
 class GeneratorDeploymentTests(unittest.TestCase):
     def environment(self):
-        return {"GITHUB_ACTIONS":"true", "GITHUB_REF":"refs/heads/codex/multisport-hockey", "GITHUB_REPOSITORY":"jpbenga/vector", "GITHUB_SHA":"abc", "OPENAI_API_KEY":"test", "SUPABASE_ACCESS_TOKEN":"test", "GH_TOKEN":"test"}
+        return {"LECTOR_REMOTE_WRITES_ENABLED":"true", "GITHUB_ACTIONS":"true", "GITHUB_REF":"refs/heads/main", "GITHUB_REPOSITORY":"jpbenga/vector", "GITHUB_SHA":"abc", "OPENAI_API_KEY":"test", "SUPABASE_ACCESS_TOKEN":"test", "GH_TOKEN":"test"}
 
-    def test_only_the_multisport_branch_may_install(self):
+    def test_only_the_main_branch_may_install(self):
         module.validate_environment(self.environment())
         with self.assertRaises(ValueError):
-            module.validate_environment({**self.environment(), "GITHUB_REF":"refs/heads/main"})
+            module.validate_environment({**self.environment(), "GITHUB_REF":"refs/heads/codex/multisport-hockey"})
 
     def test_missing_key_never_uses_local_credentials(self):
         env = self.environment()
@@ -24,7 +24,7 @@ class GeneratorDeploymentTests(unittest.TestCase):
             module.validate_environment(env)
 
     def test_ci_requires_exact_branch_and_sha(self):
-        good = {"path":".github/workflows/ci.yml", "head_sha":"abc", "head_branch":"codex/multisport-hockey", "event":"push", "conclusion":"success"}
+        good = {"path":".github/workflows/ci.yml", "head_sha":"abc", "head_branch":"main", "event":"push", "conclusion":"success"}
         module.require_ci([good],"abc")
         with self.assertRaises(ValueError):
             module.require_ci([{**good,"head_sha":"old"}],"abc")

@@ -17,7 +17,9 @@ MIGRATION = ROOT / 'supabase/migrations/20261011050000_hockey_automatic_delivery
 
 
 def validate_environment(env):
-    if env.get('GITHUB_ACTIONS') != 'true' or env.get('GITHUB_REPOSITORY') != 'jpbenga/vector' or env.get('GITHUB_REF') not in ('refs/heads/main', 'refs/heads/codex/multisport-hockey'):
+    if env.get("LECTOR_REMOTE_WRITES_ENABLED") != "true":
+        raise ValueError("Remote writes require the explicit post-backup activation flag.")
+    if env.get('GITHUB_ACTIONS') != 'true' or env.get('GITHUB_REPOSITORY') != 'jpbenga/vector' or env.get('GITHUB_REF') != 'refs/heads/main':
         raise ValueError('Refresh runs in the trusted repository workflow only')
     if not all(env.get(k) for k in ('SUPABASE_ACCESS_TOKEN', 'GH_TOKEN')):
         raise ValueError('Missing existing workflow credentials')

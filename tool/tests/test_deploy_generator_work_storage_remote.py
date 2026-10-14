@@ -10,10 +10,10 @@ spec.loader.exec_module(module)
 
 
 class WorkStorageDeploymentTests(unittest.TestCase):
-    def test_only_demo_branch_and_existing_server_secret(self):
-        env = {'GITHUB_ACTIONS': 'true', 'GITHUB_REF': 'refs/heads/codex/multisport-hockey', 'GITHUB_REPOSITORY': 'jpbenga/vector', 'GITHUB_SHA': 'test', 'SUPABASE_ACCESS_TOKEN': 'test', 'GH_TOKEN': 'test'}
+    def test_only_main_branch_and_existing_server_secret(self):
+        env = {'LECTOR_REMOTE_WRITES_ENABLED': 'true', 'GITHUB_ACTIONS': 'true', 'GITHUB_REF': 'refs/heads/main', 'GITHUB_REPOSITORY': 'jpbenga/vector', 'GITHUB_SHA': 'test', 'SUPABASE_ACCESS_TOKEN': 'test', 'GH_TOKEN': 'test'}
         module.validate_environment(env)
-        for field, value in [('GITHUB_REF', 'refs/heads/main'), ('GITHUB_ACTIONS', 'false'), ('SUPABASE_ACCESS_TOKEN', '')]:
+        for field, value in [('GITHUB_REF', 'refs/heads/codex/multisport-hockey'), ('GITHUB_ACTIONS', 'false'), ('SUPABASE_ACCESS_TOKEN', '')]:
             with self.assertRaises(ValueError):
                 module.validate_environment({**env, field: value})
         self.assertEqual(module.FUNCTION, 'lector-generator-workshop')

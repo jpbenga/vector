@@ -4,7 +4,7 @@ import os
 from deploy_generator_remote import PROJECT, request
 
 def main():
-    if os.environ.get('GITHUB_ACTIONS') != 'true' or os.environ.get('GITHUB_REF') != 'refs/heads/codex/multisport-hockey':
+    if os.environ.get('GITHUB_ACTIONS') != 'true' or os.environ.get('GITHUB_REF') != 'refs/heads/main':
         raise ValueError('Demo workflow only')
     def query(sql):
         return request(f'https://api.supabase.com/v1/projects/{PROJECT}/database/query', os.environ['SUPABASE_ACCESS_TOKEN'], {'query':sql,'read_only':True})

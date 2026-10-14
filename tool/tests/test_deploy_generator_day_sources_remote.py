@@ -10,11 +10,11 @@ spec.loader.exec_module(module)
 
 
 class DayReaderDeploymentTests(unittest.TestCase):
-    def test_day_update_uses_only_existing_server_secret_and_demo_branch(self):
-        env = {'GITHUB_ACTIONS': 'true', 'GITHUB_REF': 'refs/heads/codex/multisport-hockey', 'GITHUB_REPOSITORY': 'jpbenga/vector', 'GITHUB_SHA': 'abc', 'SUPABASE_ACCESS_TOKEN': 'test', 'GH_TOKEN': 'test'}
+    def test_day_update_uses_only_existing_server_secret_and_main_branch(self):
+        env = {'LECTOR_REMOTE_WRITES_ENABLED': 'true', 'GITHUB_ACTIONS': 'true', 'GITHUB_REF': 'refs/heads/main', 'GITHUB_REPOSITORY': 'jpbenga/vector', 'GITHUB_SHA': 'abc', 'SUPABASE_ACCESS_TOKEN': 'test', 'GH_TOKEN': 'test'}
         module.validate_environment(env)
         with self.assertRaises(ValueError):
-            module.validate_environment({**env, 'GITHUB_REF': 'refs/heads/main'})
+            module.validate_environment({**env, 'GITHUB_REF': 'refs/heads/codex/multisport-hockey'})
         self.assertEqual(module.FUNCTION, 'lector-generator-workshop')
 
     def test_sql_literal_keeps_quotes_inside_data(self):

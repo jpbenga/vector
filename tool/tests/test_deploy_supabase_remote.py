@@ -13,7 +13,7 @@ class RemoteDeploymentTests(unittest.TestCase):
         return {"GITHUB_ACTIONS": "true", "GITHUB_REF": "refs/heads/main",
                 "GITHUB_REPOSITORY": "jpbenga/vector", "GITHUB_SHA": "abc",
                 "SUPABASE_ACCESS_TOKEN": "test-only", "GH_TOKEN": "test-only",
-                "DEPLOY_FUNCTION": "sync-live-matches"}
+                "LECTOR_REMOTE_WRITES_ENABLED": "true", "DEPLOY_FUNCTION": "sync-live-matches"}
 
     def test_missing_secret_fails_without_a_keychain_fallback(self):
         env = self.environment()

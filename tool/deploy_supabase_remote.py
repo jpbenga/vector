@@ -28,6 +28,8 @@ def api(url, token):
 
 
 def validate_environment(env):
+    if env.get("LECTOR_REMOTE_WRITES_ENABLED") != "true":
+        raise ValueError("Remote writes require the explicit post-backup activation flag.")
     if env.get("GITHUB_ACTIONS") != "true" or env.get("GITHUB_REF") != "refs/heads/main":
         raise ValueError("Run this workflow on GitHub Actions, from main only.")
     if env.get("GITHUB_REPOSITORY") != "jpbenga/vector":

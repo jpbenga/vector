@@ -38,16 +38,18 @@ def request(url, token, body=None):
 
 
 def validate_environment(env):
-    if env.get("GITHUB_ACTIONS") != "true" or env.get("GITHUB_REF") != "refs/heads/codex/multisport-hockey" or env.get("GITHUB_REPOSITORY") != "jpbenga/vector":
-        raise ValueError("This generator installation runs on the multisport GitHub branch only.")
+    if env.get("LECTOR_REMOTE_WRITES_ENABLED") != "true":
+        raise ValueError("Remote writes require the explicit post-backup activation flag.")
+    if env.get("GITHUB_ACTIONS") != "true" or env.get("GITHUB_REF") != "refs/heads/main" or env.get("GITHUB_REPOSITORY") != "jpbenga/vector":
+        raise ValueError("This generator installation runs on the main GitHub branch only.")
     for name in ("SUPABASE_ACCESS_TOKEN", "OPENAI_API_KEY", "GH_TOKEN", "GITHUB_SHA"):
         if not env.get(name):
             raise ValueError(f"Missing repository secret {name}. No keychain fallback.")
 
 
 def require_ci(runs, sha):
-    if not any(r.get("path") == ".github/workflows/ci.yml" and r.get("head_sha") == sha and r.get("head_branch") == "codex/multisport-hockey" and r.get("event") == "push" and r.get("conclusion") == "success" for r in runs):
-        raise ValueError("CI must pass for the exact multisport revision before installation.")
+    if not any(r.get("path") == ".github/workflows/ci.yml" and r.get("head_sha") == sha and r.get("head_branch") == "main" and r.get("event") == "push" and r.get("conclusion") == "success" for r in runs):
+        raise ValueError("CI must pass for the exact main revision before installation.")
 
 
 def main():

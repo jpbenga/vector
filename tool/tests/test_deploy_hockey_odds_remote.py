@@ -13,9 +13,9 @@ from publish_sport_feed import verify_publication
 class HockeyOddsDeployTests(unittest.TestCase):
     def test_install_is_hockey_and_demo_only_and_requires_branch_ci(self):
         self.assertEqual(deploy.FUNCTIONS,('sync-hockey-odds','lector-generator-workshop'))
-        env={'GITHUB_ACTIONS':'true','GITHUB_REF':'refs/heads/codex/multisport-hockey','GITHUB_REPOSITORY':'jpbenga/vector','GITHUB_SHA':'abc','GH_TOKEN':'test','SUPABASE_ACCESS_TOKEN':'test'}
+        env={'LECTOR_REMOTE_WRITES_ENABLED':'true','GITHUB_ACTIONS':'true','GITHUB_REF':'refs/heads/main','GITHUB_REPOSITORY':'jpbenga/vector','GITHUB_SHA':'abc','GH_TOKEN':'test','SUPABASE_ACCESS_TOKEN':'test'}
         deploy.validate_environment(env)
-        with self.assertRaises(ValueError): deploy.validate_environment({**env,'GITHUB_REF':'refs/heads/main'})
+        with self.assertRaises(ValueError): deploy.validate_environment({**env,'GITHUB_REF':'refs/heads/codex/multisport-hockey'})
         with self.assertRaises(ValueError): deploy.require_ci([], 'abc')
 
 class GeneratorReadAccessTests(unittest.TestCase):

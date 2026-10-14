@@ -8,7 +8,7 @@ from deploy_generator_remote import PROJECT, request
 
 
 def main():
-    if os.environ.get("GITHUB_ACTIONS") != "true" or os.environ.get("GITHUB_REF") != "refs/heads/codex/multisport-hockey" or os.environ.get("GITHUB_REPOSITORY") != "jpbenga/vector":
+    if os.environ.get("GITHUB_ACTIONS") != "true" or os.environ.get("GITHUB_REF") != "refs/heads/main" or os.environ.get("GITHUB_REPOSITORY") != "jpbenga/vector":
         raise ValueError("Incident diagnostics run on the demo branch only.")
     now = datetime.datetime.now(datetime.timezone.utc)
     value = os.environ.get("GENERATOR_DIAGNOSTIC_SINCE", "").strip()
