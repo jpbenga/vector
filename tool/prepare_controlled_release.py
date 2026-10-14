@@ -67,6 +67,11 @@ def main():
         config=json.loads((ROOT/'vercel.json').read_text())
         config.update({'buildCommand':None,'installCommand':None,'outputDirectory':'.'})
         (target/'vercel.json').write_text(json.dumps(config,indent=2)+'\n')
+    # A concurrently changed checkout must never receive an immutable receipt.
+    if subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip() != revision:
+        raise ValueError('Source revision changed while packaging; rebuild the final committed revision')
+    if subprocess.run(['git','diff','--quiet','HEAD','--','lib','supabase','tool','.github','vercel.json'],cwd=ROOT).returncode:
+        raise ValueError('Source changed while packaging; do not publish this artifact')
     sources = subprocess.check_output(['git','ls-files','lib','supabase/functions','tool','.github/workflows','vercel.json'],cwd=ROOT,text=True).splitlines()
     report = {
         'revision':revision,'builtLocally':args.build,'published':False,
