@@ -8,7 +8,7 @@ on:
         required: true
         type: choice
         default: install
-        options: [install, activate, disable, build, verify-catalogue]
+        options: [install, activate, disable, build, verify-catalogue, install-freshness, activate-freshness, disable-freshness]
       revision:
         description: Exact reviewed main SHA
         required: true
@@ -32,21 +32,32 @@ jobs:
         with:
           ref: ${{ inputs.revision }}
       - uses: supabase/setup-cli@v1
-        if: inputs.operation == 'install'
+        if: inputs.operation == 'install' || inputs.operation == 'install-freshness' || inputs.operation == 'activate-freshness'
         with:
           version: '2.120.0'
       - name: Publish only the reviewed canary backend without model calls
+        if: inputs.operation == 'install' || inputs.operation == 'activate' || inputs.operation == 'disable'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           GH_TOKEN: ${{ github.token }}
           LECTOR_APPROVED_RELEASE: ${{ inputs.revision }}
           LECTOR_RELEASE_OPERATION: ${{ inputs.operation }}
         run: python3 tool/deploy_controlled_generator_release.py
+      - name: Publish or activate the separately approved European collector supplement
+        if: contains(inputs.operation, '-freshness')
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          LECTOR_APPROVED_RELEASE: ${{ inputs.revision }}
+          LECTOR_RELEASE_OPERATION: ${{ inputs.operation }}
+        run: python3 tool/deploy_european_freshness_release.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: controlled-generator-release-${{ inputs.operation }}
-          path: controlled-generator-release-receipt.json
+          path: |
+            controlled-generator-release-receipt.json
+            european-freshness-release-receipt.json
           if-no-files-found: ignore
           retention-days: 30
   verify-catalogue:

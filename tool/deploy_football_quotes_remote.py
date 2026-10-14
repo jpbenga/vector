@@ -51,8 +51,8 @@ def main():
           insert into match_feed_snapshots(id,schema_version,source,kind,season,timezone,window_start,window_end,date_window,
             bookmaker_priority,payload,coverage_summary,provenance,source_sync_run_ids,captured_at,as_of,snapshot_created_at,scope,scope_key,league_ids)
           select '{raw_id}'::uuid,r.schema_version,r.source,r.kind,r.season,r.timezone,r.window_start,r.window_end,r.date_window,
-            r.bookmaker_priority,jsonb_set(r.payload,'{{raw,odds}}',p.odds)||jsonb_build_object('captured_at',now(),'as_of',now()),
-            r.coverage_summary,r.provenance||jsonb_build_object('quoteRevisionOf',b.id),r.source_sync_run_ids,now(),now(),now(),r.scope,r.scope_key,r.league_ids
+            r.bookmaker_priority,jsonb_set(r.payload,'{{raw,odds}}',p.odds)||jsonb_build_object('captured_at',coalesce((b.payload#>>'{{quoteRevision,analysisAsOf}}')::timestamptz,b.as_of),'as_of',coalesce((b.payload#>>'{{quoteRevision,analysisAsOf}}')::timestamptz,b.as_of),'quotesPublishedAt',now()),
+            r.coverage_summary,r.provenance||jsonb_build_object('quoteRevisionOf',b.id),r.source_sync_run_ids,coalesce((b.payload#>>'{{quoteRevision,analysisAsOf}}')::timestamptz,b.as_of),coalesce((b.payload#>>'{{quoteRevision,analysisAsOf}}')::timestamptz,b.as_of),now(),r.scope,r.scope_key,r.league_ids
           from base b join match_feed_snapshots r on r.id=b.raw_id cross join prices p returning id
         ), fixture_index as (
           insert into match_feed_snapshot_fixtures(snapshot_id,fixture_id,api_football_fixture_id,api_football_league_id,season,
@@ -79,9 +79,9 @@ def main():
           insert into match_feed_analysis_snapshots(id,source_snapshot_id,schema_version,source,scope,scope_key,league_ids,timezone,
             window_start,window_end,captured_at,as_of,payload,coverage_summary)
           select '{analysis_id}'::uuid,r.id,b.schema_version,b.source,b.scope,b.scope_key,b.league_ids,b.timezone,
-            b.window_start,b.window_end,now(),now(),
-            jsonb_set(b.payload,'{{raw,odds}}',p.odds)||jsonb_build_object('captured_at',now(),'as_of',now(),
-              'quoteRevision',jsonb_build_object('originalAnalysisId',b.id,'analysisAsOf',b.as_of)),b.coverage_summary
+            b.window_start,b.window_end,coalesce((b.payload#>>'{{quoteRevision,analysisAsOf}}')::timestamptz,b.as_of),coalesce((b.payload#>>'{{quoteRevision,analysisAsOf}}')::timestamptz,b.as_of),
+            jsonb_set(b.payload,'{{raw,odds}}',p.odds)||jsonb_build_object('captured_at',coalesce((b.payload#>>'{{quoteRevision,analysisAsOf}}')::timestamptz,b.as_of),'as_of',coalesce((b.payload#>>'{{quoteRevision,analysisAsOf}}')::timestamptz,b.as_of),'quotesPublishedAt',now(),
+              'quoteRevision',jsonb_build_object('originalAnalysisId',b.id,'analysisAsOf',coalesce((b.payload#>>'{{quoteRevision,analysisAsOf}}')::timestamptz,b.as_of))),b.coverage_summary
           from base b cross join prices p cross join raw_revision r returning id,captured_at
         ) select id as source_id,captured_at,{league} as league,
           (select count(*) from fixtures) as fixtures,(select count(*) from fixture_index) as indexed_fixtures,(select count(*) from newest) as priced_fixtures,

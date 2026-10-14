@@ -9,6 +9,7 @@ import {
   eligibleHeadToHeadFixtureIds,
 } from "../_shared/head_to_head_history.ts";
 import { fixtureSample, OpsReporter } from "../_shared/ops_runtime.ts";
+import { collectEuropeanBatch } from "../_shared/european_collection.ts";
 
 type JsonObject = Record<string, unknown>;
 
@@ -154,7 +155,8 @@ Deno.serve(async (request) => {
       });
     if (
       continuedRunId !== null &&
-      (run.status !== "running" ||
+      ((run.status !== "running" &&
+        !(payload.bounded_european === true && run.status === "failed")) ||
         JSON.stringify(run.league_ids) !== JSON.stringify(options.leagueIds))
     ) {
       throw new Error(
@@ -162,6 +164,92 @@ Deno.serve(async (request) => {
       );
     }
     runId = String(run.id);
+
+    if (payload.bounded_european === true) {
+      if (options.leagueIds.length !== 1) {
+        throw Error("One UEFA competition per bounded collection");
+      }
+      if (continuedRunId !== null) {
+        Object.assign(summary, objectValue(run.response_summary) ?? {});
+      }
+      const result = await collectEuropeanBatch({
+        leagueId: options.leagueIds[0],
+        runId,
+        timezone: options.timezone,
+        windowStart: options.windowStart,
+        windowEnd: options.windowEnd,
+        recentDays: options.recentFormDaysBack,
+        cursor: batchCursor,
+        now: new Date(),
+        includeTeamStatistics: options.includeTeamStatistics,
+        includeExpectedGoals: options.includeExpectedGoals,
+        includeRecentPlayerPerformances:
+          options.includeRecentPlayerPerformances,
+        bookmakerId: options.bookmakerId,
+        recentMatches: options.recentFormMatches,
+      }, {
+        fetch: (request) =>
+          fetchAndAccount({
+            apiBaseUrl,
+            apiKey,
+            supabaseUrl,
+            serviceRoleKey,
+            runId: runId!,
+            requestDelayMs: apiRequestDelayMs,
+            ...request,
+          }),
+        season: (body) =>
+          seasonForWindowFromLeaguesPayload(
+            body,
+            options.fallbackSeason,
+            options.windowStart,
+            options.windowEnd,
+          ),
+        record: (kind, body) => {
+          summary.cachedResponses++;
+          const count = responseRows(body).length;
+          if (kind === "league") {
+            summary.leagueFixtureRows = count;
+            summary.leagues = 1;
+          }
+          if (kind === "standings") summary.standings = count;
+          if (kind === "fixtures") summary.fixtures += count;
+          if (kind === "odds") summary.odds += count;
+          if (kind === "recent") summary.recentFixtureRows += count;
+          if (kind === "statistics") summary.teamStatistics++;
+          if (kind === "headToHead") summary.headToHead++;
+          if (kind === "injury") summary.injuries += count;
+          if (kind === "players") {
+            summary.playerStatisticsPages++;
+            summary.playerStatisticsPlayers += count;
+          }
+          if (kind === "fixtureStatistics") summary.fixtureStatistics++;
+          if (kind === "fixturePlayers") summary.fixturePlayerStatistics++;
+          if (kind === "fixtureEvents") summary.fixtureEvents++;
+        },
+        missingStatistics: (team) => {
+          summary.unavailableTeamStatistics = [
+            ...new Set([...(summary.unavailableTeamStatistics ?? []), team]),
+          ];
+        },
+      });
+      summary.leagueSeasons[String(options.leagueIds[0])] = result.season;
+      await updateSyncRun({
+        supabaseUrl,
+        serviceRoleKey,
+        runId,
+        status: result.done ? "succeeded" : "running",
+        summary,
+      });
+      return jsonResponse({
+        ok: true,
+        runId,
+        summary,
+        ...(!result.done
+          ? { continue: true, batch_cursor: result.cursor }
+          : {}),
+      }, 200);
+    }
 
     for (const leagueId of options.leagueIds) {
       const leagueInfo = await fetchAndAccount({
@@ -992,6 +1080,7 @@ type SyncSummary = {
   cachedResponses: number;
   providerRequests: number;
   leagueSeasons: Record<string, number>;
+  unavailableTeamStatistics?: string[];
 };
 
 type CachedResponse = {
@@ -1132,8 +1221,10 @@ async function markStaleSyncRuns({
   await supabaseFetch({
     supabaseUrl,
     serviceRoleKey,
-    path: `/rest/v1/api_football_sync_runs?status=eq.running&started_at=lt.${
-      encodeURIComponent(staleBefore)
+    path: `/rest/v1/api_football_sync_runs?status=eq.running&or=${
+      encodeURIComponent(
+        `(response_summary->>_checkpointAt.lt.${staleBefore},and(response_summary->>_checkpointAt.is.null,started_at.lt.${staleBefore}))`,
+      )
     }${
       exceptRunId === undefined
         ? ""
@@ -1197,7 +1288,7 @@ async function findSyncRun({
     serviceRoleKey,
     path: `/rest/v1/api_football_sync_runs?id=eq.${
       encodeURIComponent(runId)
-    }&select=id,league_ids,status&limit=1`,
+    }&select=id,league_ids,status,response_summary&limit=1`,
     method: "GET",
   });
   const row = objectValue(rows[0]);
@@ -1231,7 +1322,7 @@ async function updateSyncRun({
     method: "PATCH",
     body: {
       status,
-      response_summary: summary,
+      response_summary: { ...summary, _checkpointAt: new Date().toISOString() },
       error_message: errorMessage ?? null,
       finished_at: status === "running" ? null : new Date().toISOString(),
     },

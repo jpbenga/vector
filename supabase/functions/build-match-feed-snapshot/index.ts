@@ -388,17 +388,28 @@ async function collectSnapshotSources({
       anyFilter: { field, ids },
     })
   );
+  const responseMemo = new Map<string, Promise<CachedRawResponse[]>>();
   const sourceResponsesFor = (
     request: Parameters<typeof cachedResponsesFor>[0],
   ) => {
+    const key = JSON.stringify([
+      request.endpoint,
+      Object.entries(request.filters).sort(),
+      request.exactQuery === true,
+      request.anyFilter ?? null,
+    ]);
+    const existing = responseMemo.get(key);
+    if (existing) return existing;
     const rows = batch.read(
       request.endpoint,
       request.filters,
       request.exactQuery,
     );
-    return rows === undefined
+    const result = rows === undefined
       ? cachedResponsesFor(request)
       : Promise.resolve(validCachedRows(rows, request.endpoint));
+    responseMemo.set(key, result);
+    return result;
   };
   const sourceRowsByKey = new Map<string, CachedRawResponse>();
   const rawFixtures: JsonObject[] = [];
@@ -566,6 +577,8 @@ async function collectSnapshotSources({
     addSourceRows(domesticContexts.sourceRows);
     rawStandings.push(...domesticContexts.standings);
 
+    const appendedDomesticLeagues = new Set<string>();
+    const appendedDomesticTeams = new Set<string>();
     for (const context of domesticContexts.contexts) {
       const teamId = numberValue((objectValue(context.team) ?? {}).id);
       const league = objectValue(context.league) ?? {};
@@ -586,40 +599,48 @@ async function collectSnapshotSources({
         exactQuery: true,
       });
       addSourceRows(leagueFixtureRows);
-      rawLeagueFixtures.push(
-        ...leagueFixtureRows.flatMap((s) =>
-          flatResponseItems([s]).map((r) => ({
-            ...r,
-            observed_at: s.fetched_at,
-          }))
-        ),
-      );
+      const domesticLeagueKey = `${leagueId}:${season}`;
+      if (!appendedDomesticLeagues.has(domesticLeagueKey)) {
+        appendedDomesticLeagues.add(domesticLeagueKey);
+        rawLeagueFixtures.push(
+          ...leagueFixtureRows.flatMap((s) =>
+            flatResponseItems([s]).map((r) => ({
+              ...r,
+              observed_at: s.fetched_at,
+            }))
+          ),
+        );
+      }
+      const domesticTeamKey = `${domesticLeagueKey}:${teamId}`;
+      if (!appendedDomesticTeams.has(domesticTeamKey)) {
+        appendedDomesticTeams.add(domesticTeamKey);
 
-      const statisticsRows = await sourceResponsesFor({
-        supabaseUrl,
-        serviceRoleKey,
-        endpoint: "/teams/statistics",
-        filters: {
-          league: String(leagueId),
-          season: String(season),
-          team: String(teamId),
-        },
-      });
-      addSourceRows(statisticsRows);
-      rawTeamStatistics.push(...flatResponseItems(statisticsRows));
+        const statisticsRows = await sourceResponsesFor({
+          supabaseUrl,
+          serviceRoleKey,
+          endpoint: "/teams/statistics",
+          filters: {
+            league: String(leagueId),
+            season: String(season),
+            team: String(teamId),
+          },
+        });
+        addSourceRows(statisticsRows);
+        rawTeamStatistics.push(...flatResponseItems(statisticsRows));
 
-      const playerRows = await sourceResponsesFor({
-        supabaseUrl,
-        serviceRoleKey,
-        endpoint: "/players",
-        filters: {
-          league: String(leagueId),
-          season: String(season),
-          team: String(teamId),
-        },
-      });
-      addSourceRows(playerRows);
-      rawPlayerStatistics.push(...flatResponseItems(playerRows));
+        const playerRows = await sourceResponsesFor({
+          supabaseUrl,
+          serviceRoleKey,
+          endpoint: "/players",
+          filters: {
+            league: String(leagueId),
+            season: String(season),
+            team: String(teamId),
+          },
+        });
+        addSourceRows(playerRows);
+        rawPlayerStatistics.push(...flatResponseItems(playerRows));
+      }
 
       if (fixtureDate !== null) {
         const recentRows = await sourceResponsesFor({
@@ -655,7 +676,14 @@ async function collectSnapshotSources({
     )
   );
   const teamRequests = teamStatisticsRequests(
-    [...rawFixtures, ...scopedLeagueFixtures],
+    [
+      ...rawFixtures,
+      ...scopedLeagueFixtures.filter((row) =>
+        ![2, 3, 848].includes(
+          numberValue((objectValue(row.league) ?? {}).id) ?? -1,
+        )
+      ),
+    ],
     options,
   );
   const teamGroups = new Map<
@@ -1126,6 +1154,13 @@ function validCachedRows(
   const errorRows = rows.filter((row) =>
     apiFootballErrorMessages(row.response_body).length > 0
   );
+  // Provider 5xEr statistics failures are explicitly missing statistics.
+  // Mandatory fixture/odds errors still block publication.
+  if (endpoint === "/teams/statistics") {
+    return rows.filter((row) =>
+      apiFootballErrorMessages(row.response_body).length === 0
+    );
+  }
   if (errorRows.length > 0 && errorRows.length === rows.length) {
     const message = apiFootballErrorMessages(errorRows[0].response_body).join(
       "; ",

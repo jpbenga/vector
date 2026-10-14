@@ -52,11 +52,23 @@ Deno.serve(async (request) => {
 
   const options = dailyOptionsFromPayload(payload);
   const queueJobId = stringValue(payload.queue_job_id);
+  const boundedEuropean = options.leagueIds.length === 1 &&
+    [2, 3, 848].includes(options.leagueIds[0]) &&
+    !options.includePlayerStatistics;
+  const stage = boundedEuropean
+    ? stringValue(payload.european_stage) ?? "collect"
+    : "all";
+  if (!["all", "collect", "results", "snapshot", "analysis"].includes(stage)) {
+    return jsonResponse({ error: "Invalid European stage" }, 400);
+  }
 
   let runId: string | null = null;
-  let syncResponse: JsonObject = {};
-  let snapshotResponse: JsonObject = {};
-  let resultResponse: JsonObject = {};
+  let syncResponse: JsonObject = objectValue(payload.european_sync_response) ??
+    {};
+  let snapshotResponse: JsonObject =
+    objectValue(payload.european_snapshot_response) ?? {};
+  let resultResponse: JsonObject =
+    objectValue(payload.european_result_response) ?? {};
   let analysisResponse: JsonObject = {};
 
   try {
@@ -64,48 +76,127 @@ Deno.serve(async (request) => {
       supabaseUrl,
       serviceRoleKey,
     });
-    const run = await insertDailyRun({
-      supabaseUrl,
-      serviceRoleKey,
-      options,
-    });
+    const continuedDailyRun = boundedEuropean
+      ? stringValue(payload.daily_run_id)
+      : null;
+    const run = continuedDailyRun === null
+      ? await insertDailyRun({ supabaseUrl, serviceRoleKey, options })
+      : await resumeDailyRun({
+        supabaseUrl,
+        serviceRoleKey,
+        runId: continuedDailyRun,
+        options,
+      });
     runId = String(run.id);
+    const checkpoint = async (nextStage: string, cursor?: JsonObject) => {
+      await supabaseFetch({
+        supabaseUrl,
+        serviceRoleKey,
+        path: `/rest/v1/daily_football_sync_runs?id=eq.${
+          encodeURIComponent(runId!)
+        }`,
+        method: "PATCH",
+        body: {
+          sync_response: {
+            ...syncResponse,
+            _checkpointAt: new Date().toISOString(),
+          },
+          result_response: resultResponse,
+          snapshot_response: snapshotResponse,
+          api_football_sync_run_id: stringValue(syncResponse.runId),
+          api_request_count: apiRequestCountFromSyncResponse(syncResponse),
+          snapshot_id: stringValue(snapshotResponse.snapshotId),
+        },
+        prefer: "return=minimal",
+      });
+      const nextPayload: JsonObject = {
+        ...payload,
+        daily_run_id: runId,
+        european_stage: nextStage,
+        bounded_european: true,
+        european_sync_response: syncResponse,
+        european_result_response: resultResponse,
+        european_snapshot_response: snapshotResponse,
+        window_start: options.feedWindowStart,
+        window_end: options.feedWindowEnd,
+        results_window_start: options.resultsWindowStart,
+        results_window_end: options.resultsWindowEnd,
+        ops_batch_cursor: cursor,
+      };
+      delete nextPayload._queue_job;
+      delete nextPayload.process_queue;
+      return jsonResponse({
+        ok: true,
+        continue: true,
+        runId,
+        next_payload: nextPayload,
+      }, 200);
+    };
 
-    syncResponse = await callFunction({
-      supabaseUrl,
-      name: "api-football-sync",
-      syncSecret,
-      payload: syncPayload(options, queueJobId),
-    });
+    if (stage === "all" || stage === "collect") {
+      syncResponse = await callFunction({
+        supabaseUrl,
+        name: "api-football-sync",
+        syncSecret,
+        payload: {
+          ...syncPayload(options, queueJobId),
+          ...(boundedEuropean
+            ? {
+              bounded_european: true,
+              ops_batch_cursor: objectValue(payload.ops_batch_cursor) ?? {},
+            }
+            : {}),
+        },
+      });
+    }
 
-    resultResponse = await callFunction({
-      supabaseUrl,
-      name: "sync-match-results",
-      syncSecret,
-      payload: {
-        league_ids: options.leagueIds,
-        season_by_league: objectValue(
-          objectValue(syncResponse.summary)?.leagueSeasons,
-        ),
-        fallback_season: options.season,
-        timezone: options.timezone,
-        window_start: options.resultsWindowStart,
-        window_end: options.resultsWindowEnd,
-        api_request_delay_ms: options.apiRequestDelayMs,
-        api_football_sync_run_id: stringValue(syncResponse.runId),
-        queue_job_id: queueJobId,
-      },
-    });
+    if (boundedEuropean && stage === "collect") {
+      return await checkpoint(
+        booleanValue(syncResponse.continue) === true ? "collect" : "results",
+        objectValue(syncResponse.batch_cursor) ?? undefined,
+      );
+    }
+
+    if (stage === "all" || stage === "results") {
+      resultResponse = await callFunction({
+        supabaseUrl,
+        name: "sync-match-results",
+        syncSecret,
+        payload: {
+          league_ids: options.leagueIds,
+          season_by_league: objectValue(
+            objectValue(syncResponse.summary)?.leagueSeasons,
+          ),
+          fallback_season: options.season,
+          timezone: options.timezone,
+          window_start: options.resultsWindowStart,
+          window_end: options.resultsWindowEnd,
+          api_request_delay_ms: options.apiRequestDelayMs,
+          api_football_sync_run_id: stringValue(syncResponse.runId),
+          queue_job_id: queueJobId,
+        },
+      });
+    }
+
+    if (boundedEuropean && stage === "results") {
+      return await checkpoint("snapshot");
+    }
 
     // A valid snapshot remains valuable during an international break: it
     // carries global Radar form and an intentionally empty fixture calendar.
     // Publishing it keeps the application usable without reviving stale data.
-    snapshotResponse = await callFunction({
-      supabaseUrl,
-      name: "build-match-feed-snapshot",
-      syncSecret,
-      payload: snapshotPayload(options, syncResponse),
-    });
+    if (stage === "all" || stage === "snapshot") {
+      snapshotResponse = await callFunction({
+        supabaseUrl,
+        name: "build-match-feed-snapshot",
+        syncSecret,
+        payload: snapshotPayload(options, syncResponse),
+      });
+    }
+
+    if (boundedEuropean && stage === "snapshot") {
+      return await checkpoint("analysis");
+    }
 
     const publishedSnapshotId = stringValue(snapshotResponse.snapshotId);
     analysisResponse = publishedSnapshotId === null
@@ -168,7 +259,7 @@ Deno.serve(async (request) => {
       analysis: analysisResponse,
     }, status === "succeeded" ? 200 : 207);
   } catch (error) {
-    if (runId !== null) {
+    if (runId !== null && !boundedEuropean) {
       const databaseSizeBytes = await currentDatabaseSizeBytes({
         supabaseUrl,
         serviceRoleKey,
@@ -415,8 +506,10 @@ async function markStaleDailyRuns({
   await supabaseFetch({
     supabaseUrl,
     serviceRoleKey,
-    path: `/rest/v1/daily_football_sync_runs?status=eq.running&started_at=lt.${
-      encodeURIComponent(staleBefore)
+    path: `/rest/v1/daily_football_sync_runs?status=eq.running&or=${
+      encodeURIComponent(
+        `(sync_response->>_checkpointAt.lt.${staleBefore},and(sync_response->>_checkpointAt.is.null,started_at.lt.${staleBefore}))`,
+      )
     }`,
     method: "PATCH",
     body: {
@@ -426,6 +519,31 @@ async function markStaleDailyRuns({
     },
     prefer: "return=minimal",
   });
+}
+
+async function resumeDailyRun(
+  { supabaseUrl, serviceRoleKey, runId, options }: {
+    supabaseUrl: string;
+    serviceRoleKey: string;
+    runId: string;
+    options: DailyOptions;
+  },
+): Promise<JsonObject> {
+  const rows = await supabaseFetch({
+    supabaseUrl,
+    serviceRoleKey,
+    path: `/rest/v1/daily_football_sync_runs?id=eq.${
+      encodeURIComponent(runId)
+    }&select=id,status,league_ids&limit=1`,
+    method: "GET",
+    prefer: "return=representation",
+  });
+  const run = objectValue(rows[0]);
+  if (
+    run === null || run.status !== "running" ||
+    JSON.stringify(run.league_ids) !== JSON.stringify(options.leagueIds)
+  ) throw Error("European daily checkpoint is unavailable");
+  return run;
 }
 
 async function insertDailyRun({
@@ -665,7 +783,7 @@ async function enqueueDailySync({
   }, 202);
 }
 
-const queueWorkerTimeBudgetMs = 4 * 60 * 1000;
+const queueWorkerTimeBudgetMs = 90 * 1000;
 
 type QueueProcessOutcome = {
   queueJobId: string;
@@ -695,6 +813,9 @@ async function processQueuedJob({
     });
     if (outcome === null) break;
     outcomes.push(outcome);
+    // Reserve a complete invocation for the next stage. Never begin a second
+    // slow child immediately before this worker's own wall-clock deadline.
+    if (deadline - Date.now() < 60000 || outcome.status === "retrying") break;
   }
   return jsonResponse({
     ok: outcomes.every((outcome) => outcome.status === "succeeded"),
@@ -741,6 +862,31 @@ async function processOneQueuedJob({
       throw new Error(
         `Queued orchestration returned ${JSON.stringify(response)}`,
       );
+    }
+    if (booleanValue(response.continue) === true) {
+      const next = objectValue(response.next_payload);
+      if (next === null) throw Error("Missing European continuation payload");
+      // Cursor and lease release are one atomic row update. Successful batches
+      // reset the failure counter; three successive failures remain terminal.
+      await supabaseFetch({
+        supabaseUrl,
+        serviceRoleKey,
+        path: `/rest/v1/api_football_sync_queue_jobs?id=eq.${
+          encodeURIComponent(job.id)
+        }&status=eq.running`,
+        method: "PATCH",
+        body: {
+          payload: next,
+          status: "retrying",
+          attempts: 0,
+          lease_expires_at: null,
+          available_at: new Date(Date.now() + 60000).toISOString(),
+          updated_at: new Date().toISOString(),
+          last_error: null,
+        },
+        prefer: "return=minimal",
+      });
+      return { queueJobId: job.id, status: "retrying" };
     }
     await finishQueuedJob({
       supabaseUrl,
