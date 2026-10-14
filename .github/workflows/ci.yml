@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - codex/multisport-hockey
+      - codex/lector-main-promotion-20261014
 
 jobs:
   flutter:
