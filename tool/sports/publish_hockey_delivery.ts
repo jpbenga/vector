@@ -53,11 +53,25 @@ try {
   }
   await walk(`${dir}/out/delivery/hockey`);
   // Only immutable public hockey objects. Never publish raw provider responses.
+  async function upload(path: string, body: Record<string, unknown>) {
+    for (let attempt = 0;; attempt++) {
+      try {
+        await putDeliveryJson(path, body);
+        return;
+      } catch (error) {
+        if (
+          !(error instanceof Error) ||
+          error.message !== "Delivery upload HTTP 429" || attempt >= 3
+        ) throw error;
+        await new Promise((resolve) =>
+          setTimeout(resolve, 10_000 * 2 ** attempt)
+        );
+      }
+    }
+  }
   for (let start = 0; start < objects.length; start += 4) {
     await Promise.all(
-      objects.slice(start, start + 4).map(([path, body]) =>
-        putDeliveryJson(path, body)
-      ),
+      objects.slice(start, start + 4).map(([path, body]) => upload(path, body)),
     );
     if (start % 100 === 0) {
       console.log(
@@ -66,6 +80,11 @@ try {
           total: objects.length,
         }),
       );
+    }
+    // Bound the batch below 80 uploads/minute rather than exhausting the
+    // Storage request window. Publish day pointers only after every upload.
+    if (start + 4 < objects.length) {
+      await new Promise((resolve) => setTimeout(resolve, 3_000));
     }
   }
   const days = await deliveryRpc("hockey_delivery_publish", {
