@@ -8,7 +8,7 @@ on:
         required: true
         type: choice
         default: install
-        options: [install, activate, disable, build]
+        options: [install, activate, disable, build, verify-catalogue]
       revision:
         description: Exact reviewed main SHA
         required: true
@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   release:
-    if: github.ref == 'refs/heads/main' && inputs.operation != 'build'
+    if: github.ref == 'refs/heads/main' && inputs.operation != 'build' && inputs.operation != 'verify-catalogue'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -47,6 +47,29 @@ jobs:
         with:
           name: controlled-generator-release-${{ inputs.operation }}
           path: controlled-generator-release-receipt.json
+          if-no-files-found: ignore
+          retention-days: 30
+  verify-catalogue:
+    if: github.ref == 'refs/heads/main' && inputs.operation == 'verify-catalogue'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.revision }}
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Compare public app and server tool catalogues without AI calls
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          LECTOR_APPROVED_RELEASE: ${{ inputs.revision }}
+        run: python3 tool/check_generator_catalogue_live.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: catalogue-parity-results
+          path: catalogue-parity-results.json
           if-no-files-found: ignore
           retention-days: 30
   build:

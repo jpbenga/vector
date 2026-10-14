@@ -261,6 +261,8 @@ export interface ReadQuery {
     id: string;
     sport: Sport;
     competition: string;
+    competitionId?: string;
+    season?: string;
     home: string;
     away: string;
     kickoff: string;
@@ -288,6 +290,11 @@ const page = (args: Record<string, unknown>, maximum: number) => {
 };
 const normalize = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const competitionAliases: Record<string, string> = {
+  "2": "Ligue des champions Champions League",
+  "3": "Ligue Europa Europa League",
+  "848": "Ligue Conference Conference League Ligue de conference",
+};
 export class ConversationReader {
   readonly queries = new Map<string, ReadQuery>();
   readonly previews = new Map<
@@ -592,6 +599,12 @@ export class ConversationReader {
             native
               ? raw.competitionName ?? raw.competitionId
               : obj(raw.league).name,
+          ),
+          competitionId: String(
+            native ? raw.competitionId : obj(raw.league).id,
+          ),
+          season: String(
+            native ? raw.season ?? "" : obj(raw.league).season ?? "",
           ),
           homeLogo: String(obj(teams.home).logo ?? ""),
           awayLogo: String(obj(teams.away).logo ?? ""),
@@ -1293,7 +1306,13 @@ export class ConversationReader {
         );
         const found = q.matches.filter((m) =>
           args.query === null ||
-          normalize(`${m.home} ${m.away} ${m.competition}`).includes(
+          normalize(
+            `${m.home} ${m.away} ${m.competition} ${
+              m.sport === "football"
+                ? competitionAliases[m.competitionId ?? ""] ?? ""
+                : ""
+            }`,
+          ).includes(
             normalize(String(args.query)),
           )
         );

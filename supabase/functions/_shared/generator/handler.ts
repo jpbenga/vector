@@ -234,15 +234,25 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
           : state;
       const commit = async (parameters: Record<string, unknown>) => {
         const state = obj(parameters.p_state);
+        const interpreted = obj(
+          state.intent ?? obj(state.conversation).workingIntent,
+        );
         parameters = {
           ...parameters,
           p_usage: {
             ...obj(parameters.p_usage),
             ...trace,
+            responseText: redactAuditText(
+              String(
+                rows(state.messages).filter((m) => m.role === "assistant").at(
+                  -1,
+                )?.text ?? "",
+              ),
+            ).slice(0, 7000),
             interpretedIntent: {
-              ...obj(state.intent),
-              message: typeof obj(state.intent).message === "string"
-                ? redactAuditText(String(obj(state.intent).message))
+              ...interpreted,
+              message: typeof interpreted.message === "string"
+                ? redactAuditText(String(interpreted.message))
                 : null,
             },
             catalogSummary: {
@@ -995,6 +1005,19 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
           key,
           model,
           onReceipt: (r) => receipts.push(r),
+          onToolAudit: (event) => {
+            const events = Array.isArray(trace.tools) ? trace.tools : [];
+            if (
+              JSON.stringify(events).length + JSON.stringify(event).length <=
+                64000
+            ) {
+              trace.tools = [...events, event];
+            } else {
+              trace.toolsTruncated = true;
+              trace.toolsOmittedCount = Number(trace.toolsOmittedCount ?? 0) +
+                1;
+            }
+          },
           evaluationConcurrency: Number(
             Deno.env.get("LECTOR_EVALUATION_CONCURRENCY") ?? 24,
           ),

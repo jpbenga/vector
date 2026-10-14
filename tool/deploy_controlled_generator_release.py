@@ -20,7 +20,9 @@ FUNCTIONS = ('lector-generator-workshop', 'api-football-sync',
 MIGRATIONS = ('20261013210000_generator_domestic_form_projection.sql',
               '20261013220000_generator_exploration_archive_reader.sql',
               '20261014090000_generator_request_audit.sql',
-              '20261014160000_hockey_publication_storage.sql')
+              '20261014160000_hockey_publication_storage.sql',
+              '20261014190000_generator_discovery_publication_parity.sql')
+DISCOVERY_MIGRATION = MIGRATIONS[-1]
 PREREQUISITES = ('20261010090000', '20261011200000', '20261009120000',
                  '20261009170000', '20261011050000')
 # Lookup the approved account without publishing its email or auth identifier.
@@ -130,10 +132,14 @@ def main():
                 current = query("select p.oid::regprocedure::text as rpc, encode(extensions.digest(pg_get_functiondef(p.oid),'sha256'),'hex') as hash from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in ('lector_generator_cleanup','lector_generator_day_page')")
                 if {row['rpc'].removeprefix('public.'): row['hash'] for row in current} != RPC_BASELINE:
                     raise ValueError('Installed RPCs differ from the verified backup.')
-            if any(name == MIGRATIONS[-1] for name, _ in pending):
+            if any(name == '20261014160000_hockey_publication_storage.sql' for name, _ in pending):
                 prior = query("select encode(extensions.digest(pg_get_functiondef('public.publish_sport_feed(jsonb,jsonb)'::regprocedure),'sha256'),'hex') as hash")
                 if prior != [{'hash': '1261d49d5554d82274f300485ee5bfd5c1fe1a9d6cfc387f3735fffbaa4f42e6'}]:
                     raise ValueError('Hockey writer differs from the reviewed backup.')
+            if any(name == DISCOVERY_MIGRATION for name, _ in pending):
+                prior = query("select encode(extensions.digest(pg_get_functiondef('public.lector_generator_day_manifest(date,text,text[],text[],text[],text[],jsonb)'::regprocedure),'sha256'),'hex') as hash")
+                if prior != [{'hash': '99fe6aa743a617eca54723570688577613d872d1a6823724c849267fdeec3826'}]:
+                    raise ValueError('Discovery reader differs from the incident baseline.')
             if pending:
                 sql = "begin; select pg_advisory_xact_lock(hashtext('lector-controlled-generator-release'));\n"
                 for name, body in pending:
@@ -142,7 +148,8 @@ def main():
                     version, label = name[:-4].split('_', 1)
                     sql += body + "\ninsert into supabase_migrations.schema_migrations(version,name,statements) values ('" + version + "','" + label + "',array[$lector_release_migration$" + body + "$lector_release_migration$]);\n"
                 query(sql + 'commit;', False)
-            for function in FUNCTIONS:
+            deployed = ('lector-generator-workshop',) if pending and all(name == DISCOVERY_MIGRATION for name, _ in pending) else FUNCTIONS
+            for function in deployed:
                 subprocess.run(['supabase', 'functions', 'deploy', function, '--project-ref', PROJECT,
                                 '--use-api', '--no-verify-jwt'], check=True)
             after = {row['slug']: row for row in api(BASE + '/functions', token)}
@@ -155,6 +162,7 @@ def main():
                 raise ValueError('Server-only RPC permissions not verified.')
             receipt = {'revision': revision, 'operation': operation, 'canary_enabled': False,
                        'migrations': [name for name, _ in files], 'functions': {f: after[f]['version'] for f in FUNCTIONS},
+                       'deployed_functions': list(deployed),
                        'legacy_version': after['lector-generator']['version'], 'legacy_source_sha256': legacy_hash,
                        'legacy_endpoint_replaced': False, 'model_calls': 0}
         else:
