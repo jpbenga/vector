@@ -90,7 +90,10 @@ def main():
         if not installed:raise ValueError('No installed freshness control')
         query("begin;update european_refresh_control set enabled=false;select cron.alter_job(job_id:=jobid,active:=false) from cron.job where jobname='lector-european-prematch-freshness';commit;",False)
         receipt['refreshEnabled']=False
-    receipt['health']=query('select * from european_publication_health()')
+    # The Management read_only role lacks EXECUTE on server-only RPCs.
+    # This fixed SELECT invokes a STABLE health reader as the approved admin;
+    # it changes no data and does not expand the RPC ACL.
+    receipt['health']=query('select * from european_publication_health()',False)
     (ROOT/'european-freshness-release-receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
     print(json.dumps(receipt))
 
