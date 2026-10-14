@@ -101,7 +101,7 @@ def main():
         if '--delivery-only' in sys.argv:
             publication.write_text(json.dumps(verify_publication(payload, configuration()), separators=(',', ':')))
         else:
-            publish()
+            publish(server_key=service)
         payload = json.loads(publication.read_text())
         runtime = {**os.environ, 'SUPABASE_URL':URL, 'SUPABASE_SERVICE_ROLE_KEY':service}
         subprocess.run(['deno','run','--allow-env=SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY','--allow-read','--allow-write','--allow-net='+PROJECT+'.supabase.co','tool/sports/publish_hockey_delivery.ts',str(publication)], cwd=ROOT, env=runtime, check=True)

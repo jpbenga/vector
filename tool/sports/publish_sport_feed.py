@@ -62,7 +62,7 @@ def verify_publication(payload, values, *, include_quotes=True):
     return {**stored, 'items': hydrated}
 
 
-def main():
+def main(*, server_key=None):
     values = configuration()
     if not values.get('API_FOOTBALL_SYNC_SECRET'):
         raise ValueError('Existing server sync secret is required. No keychain fallback.')
@@ -74,9 +74,22 @@ def main():
         subprocess.run(['dart', 'run', 'tool/sports/prepare_hockey_publication.dart', str(source), str(prepared)], cwd=ROOT, check=True)
         text = prepared.read_text()
         payload = json.loads(text)
-        req = urllib.request.Request(PROJECT_URL + '/functions/v1/publish-sport-feed',
-            data=text.encode(), headers={'Authorization': 'Bearer ' + values['API_FOOTBALL_SYNC_SECRET'],
-            'Content-Type': 'application/json'}, method='POST')
+        if server_key:
+            # The existing trusted workflow already holds this server key.
+            # Validate with the same adapter and prepare the same overview on
+            # the runner, avoiding a large JSON transformation in an Edge relay.
+            request_file = Path(staging) / 'storage-request.json'
+            subprocess.run(['deno', 'run', '--allow-read=' + str(prepared),
+                            '--allow-write=' + str(request_file),
+                            'tool/sports/prepare_hockey_storage_request.ts',
+                            str(prepared), str(request_file)], cwd=ROOT, check=True)
+            req = urllib.request.Request(PROJECT_URL + '/rest/v1/rpc/publish_sport_feed_document',
+                data=request_file.read_bytes(), headers={'Authorization': 'Bearer ' + server_key,
+                'apikey': server_key, 'Content-Type': 'application/json'}, method='POST')
+        else:
+            req = urllib.request.Request(PROJECT_URL + '/functions/v1/publish-sport-feed',
+                data=text.encode(), headers={'Authorization': 'Bearer ' + values['API_FOOTBALL_SYNC_SECRET'],
+                'Content-Type': 'application/json'}, method='POST')
         try:
             with urllib.request.urlopen(req, timeout=90) as response:
                 receipt = json.load(response)
@@ -84,13 +97,19 @@ def main():
             # Server errors never expose credentials or submitted provider data.
             try:
                 detail = json.load(error)
-                status = detail.get('storageStatus')
-                code = detail.get('storageCode')
-                reason = detail.get('reason')
+                status = error.code if server_key else detail.get('storageStatus')
+                candidate_code = detail.get('code') if server_key else detail.get('storageCode')
+                import re
+                code = candidate_code if isinstance(candidate_code, str) and re.fullmatch('[A-Z0-9]{5,10}', candidate_code) else 'unknown'
+                reason = 'Publication storage rejected' if server_key else detail.get('reason')
                 diagnostic = f"; storage {status}/{code}: {reason}" if status and code and reason else ''
             except (ValueError, AttributeError):
                 diagnostic = ''
             raise RuntimeError(f'Publication rejected (HTTP {error.code}){diagnostic}') from None
+        if server_key:
+            if not receipt.get('id') or receipt.get('sport') != 'hockey' or receipt.get('capturedAt') != payload['capturedAt']:
+                raise ValueError('Server publication identity was not confirmed')
+            receipt = {'ok': True, 'publication': receipt}
         if not receipt.get('ok'):
             raise ValueError('Server publication was not confirmed')
         hydrated = verify_publication(payload, values)
