@@ -7,6 +7,7 @@ import subprocess
 import urllib.request
 from zoneinfo import ZoneInfo
 from deploy_controlled_generator_release import api, BASE, REPOSITORY
+from generator_catalogue_rpc import ServerCatalogueReader
 
 
 def main():
@@ -18,6 +19,7 @@ def main():
         or os.environ.get('GITHUB_SHA') != revision):
         raise ValueError('Exact approved main revision required.')
     token = os.environ['SUPABASE_ACCESS_TOKEN']
+    server_catalogue = ServerCatalogueReader(token)
     def query(sql):
         return api(BASE + '/database/query', token, {'query': sql, 'read_only': True})
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -51,14 +53,17 @@ def main():
     if any(r['sport'] == 'football' for r in heads):
         raise ValueError('Football fast delivery now active: capture its authoritative app reader before claiming parity.')
     for sport in ('football', 'hockey'):
-        manifest = query("select lector_generator_day_manifest('" + day + "','Europe/Paris',array['" + sport + "'],null,null,null,null) as manifest")[0]['manifest']
+        manifest = server_catalogue.read('lector_generator_day_manifest', {
+            'p_date':day, 'p_timezone':'Europe/Paris', 'p_sports':[sport],
+            'p_competitions':None, 'p_readings':None, 'p_scenarios':None, 'p_radar':None})
         parts = []
         for start in range(0, manifest['total'], 50):
             matches = manifest['matches'][start:start + 50]
             source_ids = {r['id'] for r in matches}
             sources = [r for r in manifest['sources'] if r['id'] in source_ids]
-            literal = lambda value: "'" + json.dumps(value).replace("'", "''") + "'::jsonb"
-            parts += query("select lector_generator_day_page('" + day + "','Europe/Paris'," + literal(sources) + ',' + literal(matches) + ") as page")[0]['page']['sources']
+            parts += server_catalogue.read('lector_generator_day_page', {
+                'p_date':day, 'p_timezone':'Europe/Paris', 'p_sources':sources,
+                'p_matches':matches})['sources']
         def merge(a, b):
             if isinstance(a, dict) and isinstance(b, dict):
                 return {k: merge(a[k], b[k]) if k in a and k in b else (a if k in a else b)[k] for k in a.keys() | b.keys()}
