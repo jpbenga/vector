@@ -56,6 +56,7 @@ function ticketFrom(
       marketIds: intent.marketIds,
       requireEachSport: intent.requireEachSport,
       sports: intent.sports,
+      competitionScope: intent.competitionScope,
       goalMode: intent.goalMode,
     },
     warnings: [

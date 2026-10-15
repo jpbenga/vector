@@ -47,7 +47,7 @@ Deno.test("all football competitions expose dated prices even when stale or unsu
       includePastAndLive: true,
     });
     assert.equal(cat.matches![0].quoteAvailability, "stale");
-    assert.equal(cat.candidates.length, 0);
+    assert.equal(cat.candidates.length, 2);
     assert.equal(footballPublishedQuotes(raw.odds, "1")[0].odds, 2.5);
     assert.equal(footballPublishedQuotes(raw.odds, "1").length, 4);
     assert.equal(footballPublishedQuotes(raw.odds, "999").length, 0);
@@ -73,10 +73,9 @@ Deno.test("all football competitions expose dated prices even when stale or unsu
       matchKeys: ["football:1"],
     }) as any;
     assert.equal(detail[0].publishedQuotes[0].bookmaker, "Bet365");
-    assert.equal(
-      detail[0].marketAvailability.reasons[0].code,
-      "quotes_stale",
-    );
+    assert.equal(detail[0].marketAvailability.prematchEligible, true);
+    assert.equal(detail[0].marketAvailability.reasons.length, 0);
+    assert.match(detail[0].marketAvailability.warnings.join(" "), /anciennes/);
   }
 });
 Deno.test("newer cache prices replace old publications without refreshing provider observation dates or admitting other fixtures", () => {

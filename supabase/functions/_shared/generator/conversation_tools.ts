@@ -20,6 +20,7 @@ import {
   type Catalog,
   type Context,
   focusFitsTargets,
+  inCompetitionScope,
   type Intent,
   obj,
   rows,
@@ -41,6 +42,7 @@ import {
 } from "./conversation_memory.ts";
 import {
   CompositionContractError,
+  requestedCompetitions,
   requestedSports,
   sameSports,
 } from "./conversation_scope.ts";
@@ -184,7 +186,7 @@ export const conversationTools = [
   ),
   tool(
     "read_match_data",
-    "Consulter les données détaillées publiées d’une rencontre recherchée : forme, classements, H2H, score ou statistiques selon disponibilité. Pour une rencontre UEFA, items[].europeanComparison contient le dossier pré-match domestique/européen avec cutoff et provenance. Ne rend jamais une cote ancienne admissible.",
+    "Consulter les données détaillées publiées d’une rencontre recherchée : forme, classements, H2H, score ou statistiques selon disponibilité. Pour une rencontre UEFA, items[].europeanComparison contient le dossier pré-match domestique/européen avec cutoff et provenance. Conserve les dates réelles ; une cote ancienne reste utilisable avec une réserve explicite.",
     { queryId: { type: "string" }, matchKey: { type: "string" } },
   ),
   tool(
@@ -198,7 +200,7 @@ export const conversationTools = [
   ),
   tool(
     "read_analysis",
-    "Relire une analyse antérieure par analysisRef obtenu dans read_session, par pages de sélections. Snapshot exact de la proposition d’origine, sans nouvel appel IA ; ne rend pas ses anciennes cotes admissibles aujourd’hui.",
+    "Relire une analyse antérieure par analysisRef obtenu dans read_session, par pages de sélections. Snapshot exact de la proposition d’origine, sans nouvel appel IA ; conserve les dates réelles des anciennes cotes et signale leur ancienneté.",
     {
       analysisId: { type: "string" },
       offset: { type: "integer" },
@@ -353,6 +355,7 @@ export class ConversationReader {
   private clock = () => performance.now();
   private startedAt: number;
   private requestSports: Sport[] | null;
+  private requestCompetitions: NonNullable<Intent["competitionScope"]> | null;
   private explorationBaseCalls: number | null = null;
   get explorationDeadline() {
     return this.explorationBudget?.deadline;
@@ -381,6 +384,7 @@ export class ConversationReader {
     this.startedAt = this.clock();
     this.state = input.state ? structuredClone(input.state) : null;
     this.requestSports = requestedSports(input.message);
+    this.requestCompetitions = requestedCompetitions(input.message);
     // Existing sessions/ticket revisions inherit the current server policy too.
     if (this.state && usesRequestConfiguration(input.context)) {
       this.state.context.configurationPolicy = "request";
@@ -396,6 +400,23 @@ export class ConversationReader {
   }
   /** A sport instruction is effective throughout the turn, before any model patch.
    * Persisted working constraints win over the two-sport preference catalogue. */
+  private constrainedCompetitions() {
+    const working = this.state?.conversation?.workingIntent ??
+      this.state?.intent;
+    const prior = working?.competitionScope ??
+      (working ? requestedCompetitions(working.message) : null);
+    if (this.requestCompetitions !== null) {
+      return this.requestCompetitions.map((c) => ({
+        ...prior?.find((p) => p.sport === c.sport && p.id === c.id),
+        ...c,
+      }));
+    }
+    if (
+      this.requestSports &&
+      prior?.some((p) => !this.requestSports!.includes(p.sport))
+    ) return undefined;
+    return prior ?? undefined;
+  }
   private constrainedSports() {
     return this.requestSports ??
       this.state?.conversation?.workingIntent.sports ?? null;
@@ -479,7 +500,7 @@ export class ConversationReader {
       this.input.context,
       this.input.date,
     );
-    return intent;
+    return { ...intent, competitionScope: this.constrainedCompetitions() };
   }
   activeIntent() {
     const intent = workingIntent(
@@ -487,7 +508,11 @@ export class ConversationReader {
       this.input.context,
       this.input.date,
     );
-    return { ...intent, sports: this.constrainedSports() ?? intent.sports };
+    return {
+      ...intent,
+      sports: this.constrainedSports() ?? intent.sports,
+      competitionScope: this.constrainedCompetitions(),
+    };
   }
   private validDay(date: unknown): string {
     if (
@@ -628,6 +653,7 @@ export class ConversationReader {
   ) {
     const context: Context = {
       ...structuredClone(this.input.context),
+      competitionScope: this.constrainedCompetitions(),
       view,
       radarKind,
       scope: view === "profile" ? "strict" : "discovery",
@@ -703,6 +729,15 @@ export class ConversationReader {
           continue;
         }
         if (view !== "all" && view !== "shortlist" && !known.has(key)) continue;
+        const competitionId = String(
+          native ? raw.competitionId : obj(raw.league).id,
+        );
+        const scopedId = native
+          ? `hockey:api-hockey:competition:${competitionId}`
+          : competitionId;
+        if (
+          !inCompetitionScope(source.sport, scopedId, context.competitionScope)
+        ) continue;
         seen.add(key);
         const match = {
           key,
@@ -1484,6 +1519,7 @@ export class ConversationReader {
           date: q.date,
           view: q.context.view,
           sports: q.sports,
+          competitionScope: q.context.competitionScope ?? [],
           radarKind: q.context.radarKind,
           total: found.length,
           offset: pagination.offset,
@@ -1647,7 +1683,14 @@ export class ConversationReader {
         const projection = {
           match: m,
           live,
-          items: rows(payload.items).filter((f) => String(f.id) === m.id),
+          items: rows(payload.items).filter((f) => String(f.id) === m.id).map((
+            f,
+          ) =>
+            m.sport === "football" ? { ...f, quotes: m.publishedQuotes } : f
+          ),
+          quoteRevision: m.sport === "football"
+            ? q.sources.find((s) => s.id === m.sourceId)?.payload.quoteRevision
+            : undefined,
           competitions: rows(payload.competitions),
           playerRadar: obj(payload.playerRadar),
         };

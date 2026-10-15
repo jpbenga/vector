@@ -1,14 +1,17 @@
+import { dataAgeWarnings } from "./data_age.ts";
 import type { AnalysisMatch, Sport } from "./contracts.ts";
 
 export interface MarketAvailability {
   quoteAvailability: AnalysisMatch["quoteAvailability"] | "unknown";
   candidateCount: number;
   prematchEligible: boolean;
+  warnings: string[];
   reasons: {
     code:
       | "kickoff_passed"
       | "fixture_not_scheduled"
       | "publication_stale"
+      | "publication_date_invalid"
       | "quotes_not_collected"
       | "quotes_stale"
       | "quotes_unavailable"
@@ -50,20 +53,13 @@ export function marketAvailability(
     });
   }
   const age = now.getTime() - Date.parse(match.capturedAt);
-  if (!Number.isFinite(age) || age < -60000 || age > 36 * 3600000) {
+  if (!Number.isFinite(age) || age < -60000) {
     reasons.push({
-      code: "publication_stale",
-      text:
-        "La publication analytique ne satisfait pas le contrôle de fraîcheur.",
+      code: "publication_date_invalid",
+      text: "La date de publication est absente, invalide ou future.",
     });
   }
-  if (quoteAvailability === "stale") {
-    reasons.push({
-      code: "quotes_stale",
-      text:
-        "Des cotes publiées sont consultables, mais leur relevé dépasse 48 h. Elles nécessitent une actualisation avant le calcul d’un combiné prématch.",
-    });
-  } else if (quoteAvailability === "not_collected") {
+  if (quoteAvailability === "not_collected") {
     reasons.push({
       code: "quotes_not_collected",
       text: "Aucune collecte de cotes n’est présente pour cette rencontre.",
@@ -71,8 +67,7 @@ export function marketAvailability(
   } else if (quoteAvailability === "unavailable") {
     reasons.push({
       code: "quotes_unavailable",
-      text:
-        "Aucune cote récente utilisable parmi les marchés pris en charge ; absence ou ancienneté à distinguer lors de la consultation des données.",
+      text: "Aucune cote observée utilisable parmi les marchés pris en charge.",
     });
   } else if (!quoteAvailability) {
     reasons.push({
@@ -85,13 +80,21 @@ export function marketAvailability(
     reasons.push({
       code: "no_supported_candidate",
       text:
-        "Des cotes récentes sont présentes, mais aucune sélection ne satisfait les marchés, lectures et filtres de ce périmètre. Ce n’est pas une absence de cotes.",
+        "Des cotes sont présentes, mais aucune sélection ne satisfait les marchés, lectures et filtres de ce périmètre. Ce n’est pas une absence de cotes.",
     });
   }
   return {
     quoteAvailability: quoteAvailability ?? "unknown",
     candidateCount,
     prematchEligible: !reasons.length && candidateCount > 0,
+    warnings: [
+      ...dataAgeWarnings(match.capturedAt, undefined, now),
+      ...(quoteAvailability === "stale"
+        ? [
+          "Cotes anciennes : utilisées aux valeurs et dates publiées, sans confirmation de leur valeur actuelle. Consultez le relevé daté.",
+        ]
+        : []),
+    ],
     reasons,
   };
 }

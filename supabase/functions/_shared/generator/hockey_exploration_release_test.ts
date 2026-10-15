@@ -152,5 +152,10 @@ Deno.test("hockey C/D: exploration, comparison, explanations, resume, targeted r
     "2026-10-10",
     new Date(now.getTime() + 37 * 3600000),
   );
-  assert.equal(stale.candidates.length, 0); // quote availability cannot override 36h sports freshness
+  assert.ok(stale.candidates.length > 0);
+  assert.ok(
+    stale.candidates[0].warnings.some((w) =>
+      w.startsWith("Publication analytique ancienne")
+    ),
+  );
 });

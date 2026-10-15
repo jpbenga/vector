@@ -32,6 +32,8 @@ export interface RadarScope {
   players: RadarMember[];
 }
 export interface Context {
+  /** Server-derived competition constraint; never edits the saved profile. */
+  competitionScope?: CompetitionConstraint[];
   fixtureFocus?: { sport: Sport; fixtureId: string; date: string };
   shortlist?: import("./shortlist.ts").ShortlistScope;
   origin: "profile" | "explorer";
@@ -55,6 +57,8 @@ export interface Target {
   maxSelections?: number | null;
 }
 export interface Intent {
+  /** Literal user competition instructions, preserved through follow-up turns. */
+  competitionScope?: CompetitionConstraint[];
   action:
     | "generate"
     | "alternative"
@@ -88,6 +92,33 @@ export interface Intent {
   preserveFixtures?: boolean;
   view?: "current" | "profile" | "radar" | "all" | "shortlist";
   radarKind?: "current" | "teams" | "players";
+}
+export interface CompetitionConstraint {
+  sport: Sport;
+  id: string;
+  selections?: number;
+}
+export function inCompetitionScope(
+  sport: Sport,
+  id: string,
+  scope?: CompetitionConstraint[],
+) {
+  return !scope?.length || scope.some((c) => c.sport === sport && c.id === id);
+}
+export function competitionCountsMatch(
+  picks: Candidate[],
+  scope?: CompetitionConstraint[],
+  partial = false,
+) {
+  return !scope?.length ||
+    picks.every((p) => inCompetitionScope(p.sport, p.competitionId, scope)) &&
+      scope.every((c) => {
+        const n = picks.filter((p) =>
+          p.sport === c.sport && p.competitionId === c.id
+        ).length;
+        return c.selections === undefined ||
+          (partial ? n <= c.selections : n === c.selections);
+      });
 }
 /** A count belongs to its ticket, independently of a top-N analysis. */
 export function selectionBounds(intent: Intent, target?: Target) {
@@ -143,6 +174,7 @@ export interface Candidate {
   selection: string;
   odds: number;
   oddsAt: string;
+  quoteReferences?: { queryHash: string; fetchedAt: string }[];
   bookmaker: string;
   snapshotId: string;
   evidence: Evidence[];
@@ -240,6 +272,7 @@ export interface Ticket {
     | "requireEachSport"
     | "sports"
     | "goalMode"
+    | "competitionScope"
   >;
   context: Context;
   warnings: string[];

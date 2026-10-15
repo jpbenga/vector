@@ -110,7 +110,7 @@ function observed(): Analysis {
     missing: [],
   });
 }
-Deno.test("hockey markets require opt-in, real fresh quotes and direct subject support", () => {
+Deno.test("hockey markets require opt-in, real observed quotes and direct subject support", () => {
   const catalog = buildCatalog([source()], context, request.date, now);
   assert.equal(catalog.candidates.length, 2);
   assert.ok(
@@ -129,9 +129,11 @@ Deno.test("hockey markets require opt-in, real fresh quotes and direct subject s
   (stale.payload.items as any[])[0].quotes.forEach((
     q: { capturedAt: string },
   ) => q.capturedAt = "2026-10-01T10:00:00Z");
-  assert.equal(
-    buildCatalog([stale], context, request.date, now).candidates.length,
-    0,
+  const old = buildCatalog([stale], context, request.date, now);
+  assert.ok(old.candidates.length > 0);
+  assert.equal(old.matches![0].quoteAvailability, "stale");
+  assert.ok(
+    old.candidates[0].warnings.some((w) => w.startsWith("Cote ancienne")),
   );
   const negative = source();
   (negative.payload.items as any[])[0].readings.push({
@@ -266,6 +268,6 @@ Deno.test("demo hockey uses published readings and supported quotes without mark
   );
   assert.equal(
     buildCatalog([expired], unconfigured, request.date, now).candidates.length,
-    0,
+    2,
   );
 });

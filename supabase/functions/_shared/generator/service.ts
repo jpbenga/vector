@@ -335,11 +335,11 @@ export function applyIntent(
           reply = input.intent.fixtureFocus?.length
             ? `Je reprends ${
               input.intent.fixtureFocus.map((m) => m.match).join(" ; ")
-            }. Aucun ticket réunissant ces rencontres avec leurs marchés autorisés, des cotes récentes et les contraintes demandées n’est disponible. Je conserve cette liste : je n’ajoute pas d’autres matchs. ${
+            }. Aucun ticket réunissant ces rencontres avec leurs marchés autorisés, des cotes observées et les contraintes demandées n’est disponible. Je conserve cette liste : je n’ajoute pas d’autres matchs. ${
               available.missing.join(" ")
             }`
             : !available.candidates.length
-            ? `Aucune sélection ne dispose actuellement d’un marché autorisé, d’une cote récente et de lectures exploitables dans ce périmètre. ${
+            ? `Aucune sélection ne dispose actuellement d’un marché autorisé, d’une cote observée et de lectures exploitables dans ce périmètre. ${
               available.missing.join(" ")
             }`
             : input.intent.action === "alternative"
@@ -347,7 +347,7 @@ export function applyIntent(
             : "Les données vérifiées ne permettent pas de respecter votre demande. Vous pouvez élargir la date ou ajuster l’objectif.";
         }
       } else {
-        // Keep the untouched selections only if they are still real and fresh.
+        // Keep the untouched selections only if they are still real and available.
         const freshIds = new Set(available.candidates.map((c) => c.id));
         const existingFresh = tickets.every((t, ti) =>
           t.picks.every((p, pi) =>

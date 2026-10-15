@@ -37,6 +37,7 @@ export function toolAudit(
       error: typeof r.error === "string" ? redactAuditText(r.error) : undefined,
       contract: r.contract,
       scope: r.scope,
+      competitionScope: r.competitionScope ?? obj(r.intent).competitionScope,
       dossiers: r.dossiers,
       projectionId: r.projectionId,
       alreadyConsulted: r.alreadyConsulted,

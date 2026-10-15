@@ -1,4 +1,54 @@
-import type { Sport } from "./contracts.ts";
+import type { CompetitionConstraint, Sport } from "./contracts.ts";
+
+/** Only explicitly named competitions. No inference from team nationality.
+ * Null leaves the remembered scope intact; [] is an explicit removal. */
+export function requestedCompetitions(
+  message: string,
+): CompetitionConstraint[] | null {
+  const text = message.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  if (/^\s*(pourquoi|explique|comment)\b/.test(text)) return null;
+  if (
+    /\b(?:toutes les competitions|sans restriction de competition)\b/.test(text)
+  ) return [];
+  const names: [string, string][] = [
+    ["2", "(?:champions league|ligue des champions)"],
+    ["3", "(?:europa league|ligue europa)"],
+    ["40", "(?:championship)"],
+    ["848", "(?:conference league|ligue (?:de )?conference)"],
+  ];
+  const scope: CompetitionConstraint[] = [];
+  for (const [id, name] of names) {
+    if (!new RegExp(`\\b${name}\\b`).test(text)) continue;
+    if (
+      new RegExp(`\\b(?:sans|sauf|pas de|exclure)\\s+(?:la |l['’])?${name}\\b`)
+        .test(text)
+    ) continue;
+    const count = text.match(
+      new RegExp(
+        `\\b(\\d+|un|une|deux|trois|quatre|cinq|six|sept|huit)\\s+(?:(?:matchs?|rencontres?)\\s+)?(?:de\\s+|d['’]\\s*)(?:la\\s+|l['’])?(?:uefa\\s+)?${name}\\b`,
+      ),
+    );
+    const numbers: Record<string, number> = {
+      un: 1,
+      une: 1,
+      deux: 2,
+      trois: 3,
+      quatre: 4,
+      cinq: 5,
+      six: 6,
+      sept: 7,
+      huit: 8,
+    };
+    const n = count ? numbers[count[1]] ?? Number(count[1]) : undefined;
+    scope.push({
+      sport: "football",
+      id,
+      ...(n !== undefined && n >= 1 && n <= 20 ? { selections: n } : {}),
+    });
+  }
+  return scope.length ? scope : null;
+}
 
 export const sameSports = (a: Sport[], b: Sport[]) =>
   [...a].sort().join() === [...b].sort().join();

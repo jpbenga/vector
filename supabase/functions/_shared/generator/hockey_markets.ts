@@ -7,7 +7,7 @@ import {
   rows,
 } from "./contracts.ts";
 
-export function freshHockeyQuotes(f: Json, now: Date): Json[] {
+export function observedHockeyQuotes(f: Json, now: Date): Json[] {
   return rows(f.quotes).filter((q) => {
     const at = Date.parse(String(q.capturedAt)), odds = Number(q.decimalOdds);
     return !!hockeyMarkets[
@@ -17,8 +17,14 @@ export function freshHockeyQuotes(f: Json, now: Date): Json[] {
       typeof q.bookmakerId === "string" && !!q.bookmakerId &&
       Number.isFinite(odds) && odds > 1 && odds <= 100 && Number.isFinite(at) &&
       at <= now.getTime() + 60000 &&
-      now.getTime() - at <= 48 * 3600000 && at < Date.parse(String(f.startsAt));
+      at < Date.parse(String(f.startsAt));
   });
+}
+
+export function freshHockeyQuotes(f: Json, now: Date): Json[] {
+  return observedHockeyQuotes(f, now).filter((q) =>
+    now.getTime() - Date.parse(String(q.capturedAt)) <= 48 * 3600000
+  );
 }
 
 export function hockeyCandidates(
@@ -33,7 +39,7 @@ export function hockeyCandidates(
     /:(standing_advantage|structural_level_gap|recent_form_advantage|form_gap|positive_streak|winning_streak|improving_form|strong_home_team|strong_away_team|home_away_advantage|away_home_advantage|head_to_head_dominance):/;
   const negative = /:(negative_streak|weak_home_team|weak_away_team):/;
   const seen = new Set<string>();
-  for (const q of freshHockeyQuotes(f, now)) {
+  for (const q of observedHockeyQuotes(f, now)) {
     const market = String(q.marketCode),
       code = String(q.selectionCode),
       odds = Number(q.decimalOdds),
@@ -44,7 +50,7 @@ export function hockeyCandidates(
       !q.bookmakerId || !q.bookmaker ||
       !Number.isFinite(odds) || odds <= 1 || odds > 100 ||
       !Number.isFinite(at) || at > now.getTime() + 60000 ||
-      now.getTime() - at > 48 * 3600000 || at >= Date.parse(String(f.startsAt))
+      at >= Date.parse(String(f.startsAt))
     ) continue;
     const side = ["home", "home_draw"].includes(code)
       ? String(home.id)

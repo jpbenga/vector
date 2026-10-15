@@ -1,10 +1,13 @@
+import { dataAgeWarnings } from "./data_age.ts";
 /** Bounded composition protocol, enabled only by the workshop handler.
  * Alternatives share ONE stake; they are proposals, not simultaneous tickets.
  * All ranks describe evidence and construction, never a probability. */
 import {
   calendarDay,
   type Candidate,
+  competitionCountsMatch,
   type Context,
+  inCompetitionScope,
   type Intent,
   selectionBounds,
   type Target,
@@ -56,17 +59,14 @@ export function assessCandidate(c: Candidate, now: Date): CandidateAssessment {
     exclusions.push("insufficient_sample");
   }
   if (
-    direct.some((e) =>
-      !Number.isFinite(age(e.asOf)) || age(e.asOf) < -1 / 60 || age(e.asOf) > 36
-    )
+    direct.some((e) => !Number.isFinite(age(e.asOf)) || age(e.asOf) < -1 / 60)
   ) {
-    exclusions.push("stale_or_invalid_evidence");
+    exclusions.push("invalid_evidence_date");
   }
   if (
-    !Number.isFinite(quoteAgeHours) || quoteAgeHours < -1 / 60 ||
-    quoteAgeHours > 48
+    !Number.isFinite(quoteAgeHours) || quoteAgeHours < -1 / 60
   ) {
-    exclusions.push("stale_or_invalid_quote");
+    exclusions.push("invalid_quote_date");
   }
   if (!Number.isFinite(c.odds) || c.odds <= 1 || c.odds > 100) {
     exclusions.push("invalid_odds");
@@ -98,7 +98,12 @@ export function assessCandidate(c: Candidate, now: Date): CandidateAssessment {
     history: c.warnings.some((w) => w.startsWith("Bilan descriptif"))
       ? "descriptive_only"
       : "not_available",
-    warnings: [...c.warnings],
+    warnings: [
+      ...new Set([
+        ...c.warnings,
+        ...direct.flatMap((e) => dataAgeWarnings(e.asOf, c.oddsAt, now)),
+      ]),
+    ],
     exclusions,
   };
 }
@@ -404,6 +409,13 @@ export function exploreCompositions(
     const assessment = assessCandidate(candidate, options.now);
     const pref = context.preferences[candidate.sport];
     const reasons = [...assessment.exclusions];
+    if (
+      !inCompetitionScope(
+        candidate.sport,
+        candidate.competitionId,
+        intent.competitionScope,
+      )
+    ) reasons.push("outside_requested_competitions");
     if (requiredFixtures && !requiredFixtures.has(fixtureKey(candidate))) {
       reasons.push("outside_preserved_fixtures");
     }
@@ -556,6 +568,13 @@ export function exploreCompositions(
           report.exploredStates++;
           const { candidate, assessment } = bookPool[i];
           if (!compatible(node.picks, candidate)) continue;
+          if (
+            !competitionCountsMatch(
+              [...node.picks, candidate],
+              intent.competitionScope,
+              true,
+            )
+          ) continue;
           const product = node.product * candidate.odds;
           const value = targetValue(product, target);
           if (
@@ -574,6 +593,7 @@ export function exploreCompositions(
           expanded.push(next);
           if (
             picks.length >= boundsCount.min &&
+            competitionCountsMatch(picks, intent.competitionScope) &&
             (bounds.minimum === null || value >= bounds.minimum - .005) &&
             (!intent.requireEachSport ||
               intent.sports.every((sport) =>

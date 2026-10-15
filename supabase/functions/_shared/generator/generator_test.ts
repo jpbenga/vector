@@ -207,7 +207,7 @@ Deno.test("budget, omitted stake and ambiguous return never generate", () => {
     /valide/,
   );
 });
-Deno.test("real quotes, explicit preferences, freshness and prematch status gate candidates", () => {
+Deno.test("real quotes, explicit preferences and prematch status gate candidates; age is disclosed", () => {
   assert.equal(
     buildCatalog([source()], context, intent.date, now).candidates.length,
     1,
@@ -227,7 +227,7 @@ Deno.test("real quotes, explicit preferences, freshness and prematch status gate
   (stale.payload.raw as any).odds[0].update = "2026-10-01T10:00:00Z";
   assert.equal(
     buildCatalog([stale], context, intent.date, now).candidates.length,
-    0,
+    1,
   );
   const unknown = source();
   delete (unknown.payload.raw as any).odds[0].update;
@@ -274,7 +274,7 @@ Deno.test("hockey without collected odds abstains, with no fake football market"
   };
   const result = buildCatalog([h], context, intent.date, now);
   assert.equal(result.candidates.length, 0);
-  assert.match(result.missing.join(), /cote récente/);
+  assert.match(result.missing.join(), /cote observée/);
 });
 Deno.test("exact currency arithmetic and total-versus-net targets", () => {
   assert.equal(totals([pick("fractional", 1.005)], 50).returnTotal, 50.25);

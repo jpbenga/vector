@@ -1,3 +1,4 @@
+import { withCollectedQuotes } from "./cached_quotes.ts";
 import {
   compareExploration,
   explorationChanges,
@@ -161,17 +162,34 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
           Math.round(performance.now() - began);
       }
     };
-    const daySourcesFor = (
+    const daySourcesFor = async (
       context: ReturnType<typeof contextFrom>,
       date: string,
       sports: Sport[],
       onCoverage?: (coverage: DayReadCoverage) => Promise<void>,
-    ) =>
-      loadDaySources(context, date, sports, {
+    ) => {
+      const result = await loadDaySources(context, date, sports, {
         manifest: (parameters) =>
           call("rpc/lector_generator_day_manifest", parameters),
         page: (parameters) => call("rpc/lector_generator_day_page", parameters),
       }, onCoverage);
+      return {
+        ...result,
+        sources: await withCollectedQuotes(
+          result.sources,
+          context,
+          date,
+          new Date(),
+          (query) =>
+            call(
+              `api_football_cached_responses?${query}`,
+              undefined,
+              "GET",
+              10000,
+            ),
+        ),
+      };
+    };
     const sourcesFor = (
       context: ReturnType<typeof contextFrom>,
       date: string,
@@ -272,6 +290,7 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
                 marketId: p.marketId,
                 scope: p.scope,
                 oddsAt: p.oddsAt,
+                quoteReferences: p.quoteReferences,
                 snapshotId: p.snapshotId,
                 evidence: rows(p.evidence).map((e) => e.id),
               })),

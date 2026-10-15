@@ -1,6 +1,12 @@
+import { inCompetitionScope } from "./contracts.ts";
+import { dataAgeWarnings } from "./data_age.ts";
 import { footballQuoteAvailability } from "./published_quotes.ts";
 import { hockeyMarkets } from "../sports/hockey_odds.ts";
-import { freshHockeyQuotes, hockeyCandidates } from "./hockey_markets.ts";
+import {
+  freshHockeyQuotes,
+  hockeyCandidates,
+  observedHockeyQuotes,
+} from "./hockey_markets.ts";
 import { playerSignals, teamSignals } from "./radar.ts";
 import {
   matchRadarSignals,
@@ -225,11 +231,10 @@ export function buildCatalog(
       );
     }
     const age = now.getTime() - Date.parse(source.capturedAt);
-    const freshSource = Number.isFinite(age) && age >= -60000 &&
-      age <= 36 * 3600000;
-    if (!freshSource && !options.includePastAndLive) {
+    const validSource = Number.isFinite(age) && age >= -60000;
+    if (!validSource && !options.includePastAndLive) {
       missing.add(
-        "Une publication est trop ancienne pour la préparation avant match.",
+        "La date de publication est absente, invalide ou future.",
       );
       continue;
     }
@@ -243,6 +248,13 @@ export function buildCatalog(
         calendarDay(String(f.startsAt), context.timezone) === date
       );
       for (const fixture of fixtures) {
+        if (
+          !inCompetitionScope(
+            "hockey",
+            `hockey:api-hockey:competition:${fixture.competitionId}`,
+            context.competitionScope,
+          )
+        ) continue;
         const identity = `hockey:${fixture.id}`;
         if (seen.has(identity)) continue;
         if (
@@ -272,7 +284,7 @@ export function buildCatalog(
           ...evidence(rows(fixture.readings), source, pref.readings),
           ...radar,
         ];
-        const priced = (freshSource && fixture.status === "scheduled" &&
+        const priced = (validSource && fixture.status === "scheduled" &&
             Date.parse(String(fixture.startsAt)) > now.getTime()
           ? hockeyCandidates(
             fixture,
@@ -289,6 +301,11 @@ export function buildCatalog(
                 : String(obj(fixture.away).id))
             )
           );
+        for (const candidate of priced) {
+          candidate.warnings.push(
+            ...dataAgeWarnings(source.capturedAt, candidate.oddsAt, now),
+          );
+        }
         candidates.push(...priced);
         matches.push({
           id: String(fixture.id),
@@ -299,6 +316,8 @@ export function buildCatalog(
           kickoff: String(fixture.startsAt),
           quoteAvailability: freshHockeyQuotes(fixture, now).length
             ? "recent"
+            : observedHockeyQuotes(fixture, now).length
+            ? "stale"
             : fixture.quotesCollectedAt
             ? "unavailable"
             : "not_collected",
@@ -317,7 +336,7 @@ export function buildCatalog(
       }
       if (!candidates.some((c) => c.sport === "hockey")) {
         missing.add(
-          "Hockey : aucune sélection avec marché pris en charge, cote récente et lecture directement pertinente dans ce périmètre. Les disponibilités varient selon les rencontres.",
+          "Hockey : aucune sélection avec marché pris en charge, cote observée et lecture directement pertinente dans ce périmètre. Les disponibilités varient selon les rencontres.",
         );
       }
       continue;
@@ -339,6 +358,9 @@ export function buildCatalog(
         !Number.isFinite(Date.parse(kickoff)) ||
         (!options.includePastAndLive && Date.parse(kickoff) <= now.getTime()) ||
         calendarDay(kickoff, context.timezone) !== date
+      ) continue;
+      if (
+        !inCompetitionScope("football", competitionId, context.competitionScope)
       ) continue;
       seen.add(id);
       const discovery = !pref.competitions.includes(competitionId);
@@ -407,18 +429,17 @@ export function buildCatalog(
       for (const signal of radar) signals.set(signal.id, signal);
       // Historical/live data remain readable, but never become prematch candidates.
       if (
-        !freshSource || obj(f.status).short !== "NS" ||
+        !validSource || obj(f.status).short !== "NS" ||
         Date.parse(kickoff) <= now.getTime()
       ) continue;
       for (const price of prices) {
         const oddsAt = String(price.update ?? ""),
           oddsAge = now.getTime() - Date.parse(oddsAt);
         if (
-          !Number.isFinite(oddsAge) || oddsAge < -60000 ||
-          oddsAge > 48 * 3600000
+          !Number.isFinite(oddsAge) || oddsAge < -60000
         ) {
           missing.add(
-            "Des cotes absentes ou datant de plus de 48 h ont été exclues.",
+            "Des cotes sans date valide ou avec une date future ont été exclues.",
           );
           continue;
         }
@@ -514,6 +535,17 @@ export function buildCatalog(
                 selection,
                 odds,
                 oddsAt,
+                quoteReferences: rows(
+                  obj(source.payload.quoteRevision).cacheReferences,
+                )
+                  .filter((r) =>
+                    typeof r.queryHash === "string" &&
+                    typeof r.fetchedAt === "string"
+                  )
+                  .map((r) => ({
+                    queryHash: String(r.queryHash),
+                    fetchedAt: String(r.fetchedAt),
+                  })),
                 bookmaker: String(bookmaker.name),
                 snapshotId: source.id,
                 evidence: [
@@ -529,6 +561,11 @@ export function buildCatalog(
                   ...radar,
                 ],
                 warnings: [
+                  ...dataAgeWarnings(source.capturedAt, oddsAt, now),
+                  ...(typeof obj(source.payload.quoteRevision).limitation ===
+                      "string"
+                    ? [String(obj(source.payload.quoteRevision).limitation)]
+                    : []),
                   ...(counter.length
                     ? [
                       "Des lectures concernant l’adversaire ou le marché opposé appellent à la vigilance.",
@@ -595,7 +632,7 @@ export function buildCatalog(
   }
   if (!candidates.length) {
     missing.add(
-      "Aucune sélection avec marché autorisé, cote récente et lecture exploitable n’a été vérifiée.",
+      "Aucune sélection avec marché autorisé, cote observée et lecture exploitable n’a été vérifiée.",
     );
   }
   return {

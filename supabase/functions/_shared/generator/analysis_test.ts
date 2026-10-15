@@ -78,7 +78,7 @@ Deno.test("explicit views narrow Pour moi, retain preferences and include only f
     ).matches?.length === 4,
   );
 });
-Deno.test("semantic quote duplicates do not inflate the options; stale prices remain excluded", () => {
+Deno.test("semantic quote duplicates do not inflate options; newer observed prices win without age exclusions", () => {
   const catalog = buildCatalog([source()], context, request.date, now);
   const c = catalog.candidates[0];
   catalog.candidates.push({ ...c, id: "duplicate", odds: 1.04 });

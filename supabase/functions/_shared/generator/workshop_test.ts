@@ -187,10 +187,10 @@ Deno.test("same fixtures means all reference fixtures, even with tempting unrela
     ),
   );
 });
-Deno.test("small samples, expired quotes and another day are rejected without filling the target", () => {
+Deno.test("small samples, invalid quote dates and another day are rejected without filling the target", () => {
   const a = pick("a", 6), b = pick("b", 6), c = pick("c", 6);
   a.evidence[0].sample = 2;
-  b.oddsAt = "2026-10-01T12:00:00Z";
+  b.oddsAt = "invalid-date";
   c.kickoff = "2026-10-11T18:00:00Z";
   const result = exploreCompositions([a, b, c], intent, context, { now });
   assert.equal(result.alternatives.length, 0);
