@@ -8,7 +8,11 @@ import {
   initialIntent,
   rememberTurn,
 } from "./conversation_memory.ts";
-import { requestedCompetitions } from "./conversation_scope.ts";
+import {
+  requestedCompetitions,
+  requestedMinimumSelectionOdds,
+  requestedView,
+} from "./conversation_scope.ts";
 import { context, intent, now, source } from "./evaluation_cases.ts";
 import { obj, rows, type State } from "./contracts.ts";
 
@@ -118,20 +122,21 @@ Deno.test("clear focus cannot broaden an exclusive competition request: search, 
     state: null,
     id: "age-scope",
     message:
-      "Deux variantes avec 4 matchs d’Europa League et 4 de Conference League uniquement. 30€ chacune.",
+      "Deux variantes avec 4 matchs d’Europa ligue et 4 de Conference ligue uniquement. 30€ chacune. Aucune cote inférieure à 1,35.",
   }, { sources: () => Promise.resolve([s]) });
   const q = obj(
     await r.execute("search_matches", {
       date: intent.date,
       sports: ["football"],
-      view: "all",
+      view: "profile",
       radarKind: "teams",
-      query: null,
+      query: "Matchs d’Europa League et de Conference League uniquement",
       offset: 0,
-      limit: 60,
+      limit: 100,
     }),
   );
   assert.equal(q.total, 8);
+  assert.equal(q.view, "all");
   assert.ok(
     rows(q.matches).every((m) =>
       ["3", "848"].includes(String(m.competitionId))
@@ -161,6 +166,8 @@ Deno.test("clear focus cannot broaden an exclusive competition request: search, 
   const preview = r.previews.get(String(res.projectionId))!;
   assert.equal(preview.next.tickets.length, 2);
   for (const t of preview.next.tickets) {
+    assert.ok(t.picks.every((c) => c.odds >= 1.35));
+    assert.equal(t.constraints?.minimumSelectionOdds, 1.35);
     for (const id of ["3", "848"]) {
       assert.equal(t.picks.filter((c) => c.competitionId === id).length, 4);
     }
@@ -174,6 +181,7 @@ Deno.test("clear focus cannot broaden an exclusive competition request: search, 
     id: "follow",
     message: "Change les marchés du deuxième ticket.",
   }, { sources: () => Promise.resolve([s]) });
+  assert.equal(follow.activeIntent().minimumSelectionOdds, 1.35);
   assert.deepEqual(
     follow.activeIntent().competitionScope,
     preview.intent.competitionScope,
@@ -188,6 +196,31 @@ Deno.test("clear focus cannot broaden an exclusive competition request: search, 
   }, { sources: () => Promise.resolve([s]) });
   assert.deepEqual(
     correction.activeIntent().competitionScope,
+    preview.intent.competitionScope,
+  );
+  const brokenState = structuredClone(preview.next);
+  brokenState.messages.push({
+    role: "user",
+    text:
+      "4 matchs d’europa ligue et 4 matchs de conférence ligue. Aucune cote inférieure à 1.35.",
+  });
+  brokenState.conversation!.workingIntent.competitionScope = [{
+    sport: "football",
+    id: "3",
+    selections: 4,
+  }];
+  brokenState.conversation!.workingIntent.view = "profile";
+  const repair = new ConversationReader({
+    context: ctx,
+    date: intent.date,
+    now,
+    state: brokenState,
+    id: "repair",
+    message: "Reprends ma demande.",
+  }, { sources: () => Promise.resolve([s]) });
+  assert.equal(repair.activeIntent().view, "all");
+  assert.deepEqual(
+    repair.activeIntent().competitionScope,
     preview.intent.competitionScope,
   );
   const oldState = {
@@ -211,4 +244,22 @@ Deno.test("clear focus cannot broaden an exclusive competition request: search, 
     oldSession.activeIntent().competitionScope,
     preview.intent.competitionScope,
   );
+});
+
+Deno.test("actual October 15 wording recognises both leagues, universal scope and individual price floor", () => {
+  const message =
+    "je veux faire un combiné de 3 matchs d'europa ligue et 3 matchs de conférence ligue. tu devras faire le tri et me donner ce combiné avec les rencontres dont l'analyse met en evidence une vrai différence de niveau et de dynamique dans leur championnat respectif. je compte miser 30€ et souhaite connaître le gain espérer. je veux 2 variantes. il est interdit de me proposer des cotes inférieur à 1.35";
+  assert.deepEqual(requestedCompetitions(message), [{
+    sport: "football",
+    id: "3",
+    selections: 3,
+  }, { sport: "football", id: "848", selections: 3 }]);
+  assert.equal(requestedView(message), "all");
+  assert.equal(requestedMinimumSelectionOdds(message), 1.35);
+  assert.equal(requestedMinimumSelectionOdds("cote minimale de 1,35"), 1.35);
+  assert.equal(
+    requestedView("Dans ma shortlist, 3 matchs de Conference ligue"),
+    "shortlist",
+  );
+  assert.equal(requestedView("Dans Pour moi, Europa League"), "profile");
 });

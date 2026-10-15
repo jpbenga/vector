@@ -13,9 +13,9 @@ export function requestedCompetitions(
   ) return [];
   const names: [string, string][] = [
     ["2", "(?:champions league|ligue des champions)"],
-    ["3", "(?:europa league|ligue europa)"],
+    ["3", "(?:europa (?:league|ligue)|ligue europa)"],
     ["40", "(?:championship)"],
-    ["848", "(?:conference league|ligue (?:de )?conference)"],
+    ["848", "(?:conference (?:league|ligue)|ligue (?:de )?conference)"],
   ];
   const scope: CompetitionConstraint[] = [];
   for (const [id, name] of names) {
@@ -123,4 +123,37 @@ export class CompositionContractError extends Error {
   result() {
     return { error: this.message, contract: this.contract, noMutation: true };
   }
+}
+
+/** An explicit competition request uses the universal calendar unless the user
+ * also names a restricted workspace. Never changes stored profile settings. */
+export function requestedView(
+  message: string,
+): "profile" | "radar" | "shortlist" | "all" | null {
+  const text = message.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  if (/\b(?:ma |la )shortlist\b/.test(text)) return "shortlist";
+  if (/\bradar\b/.test(text)) return "radar";
+  if (/\bpour moi\b|\bmes lectures\b/.test(text)) return "profile";
+  if (
+    requestedCompetitions(message)?.length ||
+    /\b(?:tous les matchs|toutes les rencontres)\b/.test(text)
+  ) return "all";
+  return null;
+}
+
+/** Literal per-selection minimum; independent of a cumulative ticket target. */
+export function requestedMinimumSelectionOdds(message: string): number | null {
+  const text = message.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  const m = text.match(
+    /cotes?\s+(?:inferieur(?:e)?s?\s+a|minimum(?:s)?(?:\s+de)?|minimale?s?(?:\s+de)?|(?:d'au moins|au moins))\s*(\d+(?:[.,]\d+)?)/,
+  );
+  if (!m) return null;
+  // "inférieures à" describes a bound only when those odds are forbidden.
+  if (/inferieur/.test(m[0]) && !/interdit|aucune|pas de|sans/.test(text)) {
+    return null;
+  }
+  const value = Number(m[1].replace(",", "."));
+  return Number.isFinite(value) && value > 1 && value <= 100 ? value : null;
 }

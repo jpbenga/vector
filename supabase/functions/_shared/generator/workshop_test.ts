@@ -362,3 +362,30 @@ Deno.test("four different tickets retain four matches and individual stakes with
   );
   assert.ok(result.tickets.every((t) => t.returnTotal === 126.56));
 });
+
+Deno.test("individual price floor excludes a valid but too low price independently of ticket total", () => {
+  const request = {
+    ...intent,
+    minimumSelectionOdds: 1.35,
+    tickets: [{
+      stake: 30,
+      minimum: null,
+      maximum: null,
+      kind: "unspecified" as const,
+      minSelections: 2,
+      maxSelections: 2,
+    }],
+  };
+  const result = exploreCompositions(
+    [pick("low", 1.34), pick("edge", 1.35), pick("high", 1.8)],
+    request,
+    context,
+    { now },
+  );
+  assert.ok(result.alternatives.length > 0);
+  assert.ok(
+    result.alternatives.every((t) =>
+      t.picks.length === 2 && t.picks.every((p) => p.odds >= 1.35)
+    ),
+  );
+});

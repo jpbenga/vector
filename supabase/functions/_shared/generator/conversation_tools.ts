@@ -43,7 +43,9 @@ import {
 import {
   CompositionContractError,
   requestedCompetitions,
+  requestedMinimumSelectionOdds,
   requestedSports,
+  requestedView,
   sameSports,
 } from "./conversation_scope.ts";
 import { intentSchema } from "./openai.ts";
@@ -126,7 +128,7 @@ export const conversationTools = [
       radarKind: { type: "string", enum: ["teams", "players"] },
       query: { type: ["string", "null"] },
       offset: { type: "integer" },
-      limit: { type: "integer" },
+      limit: { type: "integer", minimum: 1, maximum: 60 },
     },
   ),
   tool(
@@ -403,7 +405,16 @@ export class ConversationReader {
   private constrainedCompetitions() {
     const working = this.state?.conversation?.workingIntent ??
       this.state?.intent;
-    const prior = working?.competitionScope ??
+    const recovered = requestedCompetitions(
+      this.previousCompetitionRequest() ?? "",
+    );
+    const prior = recovered?.map((c) => ({
+      ...working?.competitionScope?.find((p) =>
+        p.sport === c.sport && p.id === c.id
+      ),
+      ...c,
+    })).filter((c) => !working || working.sports.includes(c.sport)) ??
+      working?.competitionScope ??
       (working ? requestedCompetitions(working.message) : null);
     if (this.requestCompetitions !== null) {
       return this.requestCompetitions.map((c) => ({
@@ -417,8 +428,28 @@ export class ConversationReader {
     ) return undefined;
     return prior ?? undefined;
   }
+  private previousCompetitionRequest() {
+    return [...(this.state?.messages ?? [])].reverse().find((m) =>
+      m.role === "user" && requestedCompetitions(m.text) !== null
+    )?.text;
+  }
+  private constrainedView() {
+    if (!this.constrainedCompetitions()?.length) return null;
+    return requestedView(this.input.message) ??
+      requestedView(this.previousCompetitionRequest() ?? "");
+  }
+  private constrainedMinimumOdds() {
+    return requestedMinimumSelectionOdds(this.input.message) ??
+      this.state?.conversation?.workingIntent.minimumSelectionOdds ??
+      this.state?.intent?.minimumSelectionOdds ??
+      requestedMinimumSelectionOdds(this.previousCompetitionRequest() ?? "") ??
+      undefined;
+  }
   private constrainedSports() {
     return this.requestSports ??
+      (this.requestCompetitions?.length
+        ? [...new Set(this.requestCompetitions.map((c) => c.sport))]
+        : null) ??
       this.state?.conversation?.workingIntent.sports ?? null;
   }
   private scope(
@@ -500,7 +531,12 @@ export class ConversationReader {
       this.input.context,
       this.input.date,
     );
-    return { ...intent, competitionScope: this.constrainedCompetitions() };
+    return {
+      ...intent,
+      view: this.constrainedView() ?? intent.view,
+      minimumSelectionOdds: this.constrainedMinimumOdds(),
+      competitionScope: this.constrainedCompetitions(),
+    };
   }
   activeIntent() {
     const intent = workingIntent(
@@ -511,6 +547,8 @@ export class ConversationReader {
     return {
       ...intent,
       sports: this.constrainedSports() ?? intent.sports,
+      view: this.constrainedView() ?? intent.view,
+      minimumSelectionOdds: this.constrainedMinimumOdds(),
       competitionScope: this.constrainedCompetitions(),
     };
   }
@@ -536,6 +574,7 @@ export class ConversationReader {
     radarKind: "teams" | "players",
     referenceSports?: Sport[],
   ) {
+    view = this.constrainedView() ?? view;
     this.validDay(date);
     this.assertSports(date, sports, view, radarKind, referenceSports);
     if (view === "shortlist") {
@@ -1489,7 +1528,12 @@ export class ConversationReader {
           "offset",
           "limit",
         ]);
-        const pagination = page(args, 60);
+        const pagination = page({
+          ...args,
+          limit: Number.isInteger(args.limit) && Number(args.limit) > 60
+            ? 60
+            : args.limit,
+        }, 60);
         if (
           !Array.isArray(args.sports) ||
           strings(args.sports).length !== args.sports.length ||
@@ -1502,17 +1546,24 @@ export class ConversationReader {
           args.view as "profile",
           args.radarKind as "teams",
         );
+        const searchedCompetitions = typeof args.query === "string"
+          ? requestedCompetitions(args.query)
+          : null;
         const found = q.matches.filter((m) =>
           args.query === null ||
-          normalize(
-            `${m.home} ${m.away} ${m.competition} ${
-              m.sport === "football"
-                ? competitionAliases[m.competitionId ?? ""] ?? ""
-                : ""
-            }`,
-          ).includes(
-            normalize(String(args.query)),
-          )
+          (searchedCompetitions?.length
+            ? searchedCompetitions.some((c) =>
+              c.sport === m.sport && c.id === m.competitionId
+            )
+            : normalize(
+              `${m.home} ${m.away} ${m.competition} ${
+                m.sport === "football"
+                  ? competitionAliases[m.competitionId ?? ""] ?? ""
+                  : ""
+              }`,
+            ).includes(
+              normalize(String(args.query)),
+            ))
         );
         return {
           queryId: q.id,

@@ -410,6 +410,12 @@ export function exploreCompositions(
     const pref = context.preferences[candidate.sport];
     const reasons = [...assessment.exclusions];
     if (
+      intent.minimumSelectionOdds !== undefined &&
+      candidate.odds < intent.minimumSelectionOdds
+    ) {
+      reasons.push("below_requested_selection_odds");
+    }
+    if (
       !inCompetitionScope(
         candidate.sport,
         candidate.competitionId,

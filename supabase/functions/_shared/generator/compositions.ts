@@ -57,6 +57,7 @@ function ticketFrom(
       requireEachSport: intent.requireEachSport,
       sports: intent.sports,
       competitionScope: intent.competitionScope,
+      minimumSelectionOdds: intent.minimumSelectionOdds,
       goalMode: intent.goalMode,
     },
     warnings: [

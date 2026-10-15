@@ -57,6 +57,8 @@ export interface Target {
   maxSelections?: number | null;
 }
 export interface Intent {
+  /** User-requested minimum decimal odds for each individual selection. */
+  minimumSelectionOdds?: number;
   /** Literal user competition instructions, preserved through follow-up turns. */
   competitionScope?: CompetitionConstraint[];
   action:
@@ -273,6 +275,7 @@ export interface Ticket {
     | "sports"
     | "goalMode"
     | "competitionScope"
+    | "minimumSelectionOdds"
   >;
   context: Context;
   warnings: string[];
