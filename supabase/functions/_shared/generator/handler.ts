@@ -71,7 +71,7 @@ async function rest(
   path: string,
   body?: unknown,
   method = body ? "POST" : "GET",
-  timeoutMs = generatorTimeouts.databaseMs,
+  timeoutMs: number = generatorTimeouts.databaseMs,
   signal?: AbortSignal,
 ) {
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
