@@ -162,6 +162,7 @@ Deno.test("NHL mixed standings use only reconciled regular-season results; a dis
     date: "2026-09-20T08:00:00Z",
     scores: { home: 0, away: 5 },
   });
+  input.games.results = input.games.response.length;
   const pre = [home, away].map((r) => ({
     ...structuredClone(r),
     stage: "NHL - Pre-season",
