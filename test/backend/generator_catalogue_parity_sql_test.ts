@@ -37,12 +37,18 @@ Deno.test("real public football and fast hockey captures retain every identity t
       assert.ok(
         cl.every((m) =>
           m.publishedQuotes > 0 &&
-          rows(obj(m.marketAvailability).reasons).some((r) =>
-            r.code === "publication_stale"
+          String(obj(m.marketAvailability).warnings).includes(
+            "Publication analytique ancienne",
           )
         ),
       );
-      assert.ok(cl.every((m) => m.candidates === 0));
+      assert.ok(
+        cl.every((m) =>
+          !rows(obj(m.marketAvailability).reasons).some((r) =>
+            r.code === "publication_stale" || r.code === "quotes_stale"
+          )
+        ),
+      );
     }
   }
 });
@@ -200,8 +206,8 @@ Deno.test("SQL freshness regression: reproduce 5/14, correct 14/14; stale hockey
     assert.ok(
       details.every((m) =>
         !obj(m.marketAvailability).prematchEligible &&
-        rows(obj(m.marketAvailability).reasons).some((r) =>
-          r.code === "publication_stale"
+        String(obj(m.marketAvailability).warnings).includes(
+          "Publication analytique ancienne",
         )
       ),
     );
