@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import urllib.request
 import urllib.error
+import time
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT_URL = 'https://ednvvxxvlawaagjyshkj.supabase.co'
@@ -37,8 +38,19 @@ def verify_publication(payload, values, *, include_quotes=True):
             data=json.dumps({'p_sport': payload['sport'], 'p_section': section,
                              'p_captured_at': payload['capturedAt']}).encode(),
             headers={'apikey': values['SUPABASE_ANON_KEY'], 'Content-Type': 'application/json'}, method='POST')
-        with urllib.request.urlopen(req, timeout=60) as response:
-            return json.load(response)
+        # Re-read the same immutable version after a transient server/network
+        # error. Never repeat publication or replace an identity mismatch.
+        for attempt in range(3):
+            try:
+                with urllib.request.urlopen(req, timeout=60) as response:
+                    return json.load(response)
+            except urllib.error.HTTPError as error:
+                if error.code not in (500, 502, 503, 504) or attempt == 2:
+                    raise
+            except (urllib.error.URLError, TimeoutError):
+                if attempt == 2:
+                    raise
+            time.sleep((1, 3)[attempt])
     stored = read('full')
     if without_prices(stored) != without_prices(payload):
         raise ValueError('Shared server publication differs from the displayed compact')

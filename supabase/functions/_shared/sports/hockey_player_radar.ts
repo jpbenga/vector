@@ -180,12 +180,14 @@ export async function enrichHockeyPlayers(
       // enrichment must never shift the three-game ranking window by itself.
       const cutoff = new Date(Date.parse(recent.at(-1)!.startsAt) + 1)
         .toISOString();
-      const history = recentHockeyResults(
-        [...games.values()],
-        row.team.id,
-        cutoff,
-        Number.MAX_SAFE_INTEGER,
-      );
+      const history = c.id === "57"
+        ? (row.formHistory ?? []).filter((r) => r.startsAt < cutoff)
+        : recentHockeyResults(
+          [...games.values()],
+          row.team.id,
+          cutoff,
+          Number.MAX_SAFE_INTEGER,
+        );
       if (
         history.length < 3 ||
         history.slice(-3).some((r, i) =>

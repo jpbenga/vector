@@ -3,6 +3,7 @@ import {
   recentHockeyResults,
   type SportPublication,
 } from "../../supabase/functions/_shared/sports/hockey_feed.ts";
+import { calculateHockeyStandingContext } from "../../supabase/functions/_shared/sports/hockey_standing_context.ts";
 
 // Use the publication's own retained season responses. No API calls and no
 // invented collection timestamp. Fixture form and readings stay unchanged.
@@ -29,10 +30,23 @@ try {
       windowStart: "1900-01-01",
       windowEnd: "2999-12-31",
     }, Number(c.id)).items;
+    let formGames = games;
+    if (c.id === "57") {
+      let reconciled = false;
+      calculateHockeyStandingContext(c, games, at, (regular, verified) => {
+        reconciled = verified;
+        formGames = verified ? regular : [];
+      });
+      if (c.formPhaseVerified && !reconciled) {
+        throw new Error(
+          "NHL history no longer reconciles with the verified regular-season publication",
+        );
+      }
+    }
     for (const table of c.tables) {
       for (const row of table.rows) {
         const history = c.formPhaseVerified
-          ? recentHockeyResults(games, row.team.id, at, games.length)
+          ? recentHockeyResults(formGames, row.team.id, at, formGames.length)
           : [];
         if (JSON.stringify(history.slice(-5)) !== JSON.stringify(row.form)) {
           throw new Error(

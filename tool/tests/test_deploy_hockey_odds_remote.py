@@ -4,6 +4,7 @@ import unittest
 import copy
 import io
 import json
+import urllib.error
 from unittest.mock import patch
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[1]))
 import deploy_hockey_odds_remote as deploy
@@ -55,6 +56,22 @@ class QuoteProjectionTests(unittest.TestCase):
         requests=[json.loads(x.args[0].data) for x in mock.call_args_list]
         self.assertEqual([r['p_section'] for r in requests],['full','radar'])
         self.assertTrue(all(r['p_captured_at']==self.base['capturedAt'] for r in requests))
+
+    def test_transient_quote_read_retries_the_same_version_without_republishing(self):
+        transient=urllib.error.HTTPError('https://example.test',500,'temporary',{},None)
+        replies=[io.BytesIO(json.dumps(self.base).encode()),transient,io.BytesIO(json.dumps(self.priced).encode())]
+        with patch('publish_sport_feed.urllib.request.urlopen',side_effect=replies) as reads,patch('publish_sport_feed.time.sleep'):
+            result=verify_publication(self.base,{'SUPABASE_ANON_KEY':'public-test'})
+        self.assertEqual(result,self.priced)
+        self.assertEqual(reads.call_args_list[1].args[0].data,reads.call_args_list[2].args[0].data)
+
+    def test_authentication_failures_are_not_retried(self):
+        denied=urllib.error.HTTPError('https://example.test',401,'unauthorized',{},None)
+        with patch('publish_sport_feed.urllib.request.urlopen',side_effect=denied) as reads,patch('publish_sport_feed.time.sleep') as wait:
+            with self.assertRaises(urllib.error.HTTPError):
+                verify_publication(self.base,{'SUPABASE_ANON_KEY':'public-test'})
+        self.assertEqual(reads.call_count,1)
+        wait.assert_not_called()
 
     def test_rejects_another_publication_or_fixture(self):
         for field,value in [('capturedAt','2026-10-09T13:00:00Z'),('collectionId','other')]:

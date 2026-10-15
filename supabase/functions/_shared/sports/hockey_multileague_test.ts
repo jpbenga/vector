@@ -145,6 +145,54 @@ Deno.test("failure in any competition cannot replace the last complete seven-lea
   assert.equal(hockeyLeagueIds.length, 7);
 });
 
+Deno.test("NHL mixed standings use only reconciled regular-season results; a disagreement keeps form unavailable", () => {
+  const input = raw(57), at = new Date("2026-10-07T10:00:00Z");
+  const home = input.standings.response[0][0];
+  home.points = 12;
+  const away = structuredClone(home);
+  away.team = { id: 571, name: "Team 571", logo: null };
+  away.position = 2;
+  away.points = 0;
+  away.games.win.total = 0;
+  away.games.lose.total = 6;
+  input.games.response[6].date = "2026-10-08T08:00:00Z";
+  input.games.response.push({
+    ...structuredClone(input.games.response[0]),
+    id: 5799,
+    date: "2026-09-20T08:00:00Z",
+    scores: { home: 0, away: 5 },
+  });
+  const pre = [home, away].map((r) => ({
+    ...structuredClone(r),
+    stage: "NHL - Pre-season",
+  }));
+  input.standings = envelope([[home, away], pre]);
+  const p = compactHockeyCollection([input], at, "mixed-nhl");
+  const c = p.competitions![0];
+  assert.equal(c.formPhaseVerified, true);
+  assert.equal(c.venueStandings!.status, "reconciled");
+  for (const row of c.tables.flatMap((t) => t.rows)) {
+    assert.equal(row.formHistory!.length, 6);
+    assert.equal(row.form.length, 5);
+    assert.ok(row.formHistory!.every((r) => r.id !== "5799"));
+  }
+  const upcoming = p.items.find((g) => g.status === "scheduled")!;
+  assert.equal(upcoming.recentForm!.home.length, 5);
+  assert.ok(
+    upcoming.recentForm!.home.every((r) => r.startsAt < at.toISOString()),
+  );
+  assert.ok(upcoming.recentForm!.home.every((r) => r.outcome === "win"));
+  assert.ok(upcoming.recentForm!.away.every((r) => r.outcome === "loss"));
+  home.points = 13;
+  const invalid = compactHockeyCollection([input], at, "mismatch-nhl");
+  assert.equal(invalid.competitions![0].formPhaseVerified, false);
+  assert.ok(
+    invalid.competitions![0].tables.flatMap((t) => t.rows).every((r) =>
+      !r.formHistory!.length
+    ),
+  );
+});
+
 Deno.test("official points, rank and optional goals survive standings compaction", () => {
   const source = raw(35);
   Object.assign(source.standings.response[0][0], {

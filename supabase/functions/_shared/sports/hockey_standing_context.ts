@@ -29,6 +29,7 @@ export function calculateHockeyStandingContext(
   competition: PublicCompetition,
   games: PublicFixture[],
   at: string,
+  onRegularGames?: (games: PublicFixture[], reconciled: boolean) => void,
 ) {
   let selected: PublicFixture[] = [], maximumPoints: number | null = null;
   const venueStandings = calculateHockeyVenueStandings(
@@ -38,6 +39,7 @@ export function calculateHockeyStandingContext(
     (rows, maximum, reconciled) => {
       maximumPoints = maximum;
       if (reconciled) selected = rows;
+      onRegularGames?.(rows, reconciled);
     },
   );
   const phase = venueStandings.phase;

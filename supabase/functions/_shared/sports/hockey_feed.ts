@@ -412,9 +412,10 @@ export function compactHockeyCollection(
     )!;
     const rows = standingRows(entry.standings);
     const tables = new Map<string, PublicCompetition["tables"][number]>();
-    // NHL response contains pre-season and regular-season standings, whereas
-    // games do not expose their phase. Do not mix them in a ranked form radar.
-    const formPhaseVerified = new Set(rows.map((r) => r.stage)).size === 1 &&
+    // NHL game responses do not expose their phase. Its histories are filled
+    // below only from the regular-season ledger reconciled to official totals.
+    let formPhaseVerified = entry.leagueId !== 57 &&
+      new Set(rows.map((r) => r.stage)).size === 1 &&
       rows.every((r) => /regular season/i.test(String(r.stage))) &&
       !rows.some((r) => /pre.?season/i.test(String(r.stage))) &&
       rows.length > 0;
@@ -480,10 +481,36 @@ export function compactHockeyCollection(
         rows: t.rows.sort((a, b) => a.rank - b.rank),
       })),
     };
+    let formGames = all;
     Object.assign(
       competition,
-      calculateHockeyStandingContext(competition, all, now.toISOString()),
+      calculateHockeyStandingContext(
+        competition,
+        all,
+        now.toISOString(),
+        (games, reconciled) => {
+          if (entry.leagueId !== 57) return;
+          formPhaseVerified = reconciled;
+          formGames = reconciled ? games : [];
+        },
+      ),
     );
+    competition.formPhaseVerified = formPhaseVerified;
+    if (entry.leagueId === 57) {
+      for (const row of competition.tables.flatMap((t) => t.rows)) {
+        row.formHistory = formPhaseVerified
+          ? recentHockeyResults(
+            formGames,
+            row.team.id,
+            now.toISOString(),
+            formGames.length,
+          )
+          : [];
+        row.form = formPhaseVerified
+          ? recentHockeyResults(formGames, row.team.id, now.toISOString())
+          : [];
+      }
+    }
     competitions.push(competition);
     for (const game of all) {
       if (game.calendarDate < windowStart || game.calendarDate > windowEnd) {
@@ -494,10 +521,10 @@ export function compactHockeyCollection(
         : now.toISOString();
       game.recentForm = {
         home: formPhaseVerified
-          ? recentHockeyResults(all, game.home.id, cutoff)
+          ? recentHockeyResults(formGames, game.home.id, cutoff)
           : [],
         away: formPhaseVerified
-          ? recentHockeyResults(all, game.away.id, cutoff)
+          ? recentHockeyResults(formGames, game.away.id, cutoff)
           : [],
       };
       items.push(game);
