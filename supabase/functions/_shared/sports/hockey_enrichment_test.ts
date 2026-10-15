@@ -122,6 +122,22 @@ Deno.test("history excludes future, current and too-old games, keeps both venue 
     compactHockeyHistory(envelope([game(), game()]), ["1", "2"], now)
   );
 });
+Deno.test("malformed optional historical periods preserve only a verified final score, never regulation", () => {
+  const invalid = { ...game(), periods: { first: "invalid" } };
+  const [history] = compactHockeyHistory(envelope([invalid]), ["1", "2"], now);
+  assert.deepEqual(history.scores, { final: { home: 2, away: 3 } });
+  assert.equal(history.periodDataIssue, "invalid_provider_period_score");
+  assert.throws(() =>
+    compactHockeyHistory(
+      envelope([{ ...invalid, scores: { home: 2, away: null } }]),
+      ["1", "2"],
+      now,
+    )
+  );
+  assert.throws(() =>
+    compactHockeyHistory(envelope([invalid]), ["1", "7"], now)
+  );
+});
 Deno.test("hockey event clocks use period offsets and never turn a missing minute into minute zero", () => {
   const match = compactHockeyHistory(envelope([game()]), ["1", "2"], now)[0];
   const event = {

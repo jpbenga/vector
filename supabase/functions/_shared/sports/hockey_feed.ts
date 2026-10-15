@@ -143,10 +143,11 @@ export function currentNhlSeason(payload: unknown): number {
   }
   return Number(current[0].season);
 }
+export class HockeyPeriodDataError extends Error {}
 function periodScore(value: unknown): PublicScore | null {
   if (value == null) return null;
   if (typeof value !== "string" || !/^\d+-\d+$/.test(value)) {
-    throw new Error("Invalid period score");
+    throw new HockeyPeriodDataError("Invalid period score");
   }
   const [home, away] = value.split("-").map(Number);
   return { home, away };

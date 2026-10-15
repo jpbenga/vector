@@ -1,5 +1,6 @@
 import {
   compactHockeyGames,
+  HockeyPeriodDataError,
   object,
   providerRows,
   type PublicFixture,
@@ -17,6 +18,7 @@ export type HockeyEvent = {
   assists: string[];
 };
 export type HockeyMeeting = PublicFixture & {
+  periodDataIssue?: string;
   events: HockeyEvent[];
   eventsCollected: boolean;
   eventDataIssue?: string;
@@ -113,8 +115,8 @@ export function compactHockeyHistory(
   const meetings: HockeyMeeting[] = [], ids = new Set<string>();
   for (const row of providerRows(payload)) {
     const league = object(row.league);
-    const compact =
-      compactHockeyGames({ errors: [], results: 1, response: [row] }, {
+    const normalize = (game: unknown) =>
+      compactHockeyGames({ errors: [], results: 1, response: [game] }, {
         season: String(league.season),
         capturedAt: now.toISOString(),
         collectionId: "h2h",
@@ -122,6 +124,22 @@ export function compactHockeyHistory(
         windowStart: "1900-01-01",
         windowEnd: "2999-12-31",
       }, count(league.id)).items[0];
+    let compact: PublicFixture, periodDataIssue: string | undefined;
+    try {
+      compact = normalize(row);
+    } catch (error) {
+      if (!(error instanceof HockeyPeriodDataError)) throw error;
+      // Period splits are optional historical detail. Keep a validated final
+      // score, but publish no split or inferred regulation score from this row.
+      compact = normalize({ ...row, periods: null });
+      periodDataIssue = "invalid_provider_period_score";
+      console.warn(JSON.stringify({
+        hockeyHistoryIssue: periodDataIssue,
+        pair: pair.join("-"),
+        gameId: compact.id,
+        competitionId: compact.competitionId,
+      }));
+    }
     if (
       !pair.includes(compact.home.id) || !pair.includes(compact.away.id) ||
       ids.has(compact.id)
@@ -133,6 +151,7 @@ export function compactHockeyHistory(
     ) {
       meetings.push({
         ...compact,
+        ...(periodDataIssue ? { periodDataIssue } : {}),
         events: [],
         eventsCollected: false,
         competitionPhase: `${league.round ?? ""} ${league.stage ?? ""}`.trim(),
