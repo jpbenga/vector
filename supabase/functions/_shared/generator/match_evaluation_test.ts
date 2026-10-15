@@ -42,6 +42,64 @@ export const modelResponse = (value: unknown) =>
     }],
   });
 
+Deno.test("composition evaluates domestic form without switching to observation-only or hiding real markets", async () => {
+  const { publication } = await largeQuery(2);
+  let calls = 0;
+  const reader = new ConversationReader(
+    {
+      context,
+      date: "2026-10-10",
+      state: null,
+      now,
+      id: "composition-form",
+      message:
+        "Deux combinés selon la dynamique dans leur championnat domestique.",
+    },
+    { sources: async () => [publication] },
+    async () => {},
+    {
+      key: "test",
+      model: "gpt-6-luna",
+      deadline: performance.now() + 10000,
+      fetcher: (async (_url, init) => {
+        calls++;
+        const body = JSON.parse(String(init?.body)),
+          data = JSON.parse(body.input);
+        assert.equal(data.exploration, undefined);
+        assert.equal(data.scope.totalMatches, 2);
+        for (const m of data.matches) {
+          assert.equal(m.form.scope, "domestic_championship");
+          assert.ok(m.candidates.length > 0);
+          assert.ok(m.candidates.every((c: any) => c.odds > 1 && c.oddsAt));
+          assert.equal(m.marketAvailability.quoteAvailability, "recent");
+        }
+        return modelResponse(evaluationFor(body));
+      }) as typeof fetch,
+    },
+  );
+  await reader.query("2026-10-10", ["football"], "profile", "teams");
+  const args = {
+    queryId: "q1",
+    criteria: "Dynamique domestique pour composer",
+    matchKeys: null,
+    observationCount: null,
+    useProfileReadings: null,
+    formScope: "domestic_championship",
+  };
+  const result = obj(await reader.execute("evaluate_matches", args));
+  assert.equal(obj(result.coverage).evaluated, 2);
+  assert.equal(result.exploration, undefined);
+  const report = [...reader.evaluations.values()][0];
+  assert.equal(report.formScope, "domestic_championship");
+  assert.ok(report.rows.every((r) => r.candidateId));
+  await reader.execute("evaluate_matches", args);
+  assert.equal(calls, 1);
+  await assert.rejects(
+    reader.execute("evaluate_matches", { ...args, formScope: "invented" }),
+    /forme invalide/,
+  );
+});
+
 Deno.test("all 500 sheets are evaluated with bounded concurrency, local aliases and no initial shortlist; late best matches survive", async () => {
   const { query } = await largeQuery();
   const receipts: ModelReceipt[] = [];

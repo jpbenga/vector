@@ -154,7 +154,7 @@ export const conversationTools = [
         type: ["string", "null"],
         enum: ["domestic_championship", "competition", null],
         description:
-          "Périmètre de forme explicite. Championnat domestique par défaut pour l'exploration football.",
+          "Périmètre de forme, disponible aussi pour composer.",
       },
     },
   ),
@@ -1212,11 +1212,17 @@ export class ConversationReader {
           throw new Error("Nombre d’observations invalide.");
         }
         if (
-          extended && args.observationCount === null &&
-          (args.useProfileReadings !== null || args.formScope !== null)
+          args.formScope != null &&
+          !["domestic_championship", "competition"].includes(
+            String(args.formScope),
+          )
         ) {
-          throw new Error("Paramètres d’exploration sans nombre demandé.");
+          throw new Error("Périmètre de forme invalide.");
         }
+        const formScope = args.formScope as
+          | "domestic_championship"
+          | "competition"
+          | undefined;
         if (!this.evaluator) {
           throw new Error(
             "Évaluation individuelle IA indisponible dans cette session.",
@@ -1261,7 +1267,7 @@ export class ConversationReader {
                 (args.useProfileReadings ?? false) &&
               r.exploration.criterion.formScope ===
                 (args.formScope ?? "domestic_championship")
-            : !r.exploration) &&
+            : !r.exploration && r.formScope === (formScope ?? undefined)) &&
           r.expected === query.matches.length && [
             ...r.rows.map((r) => r.key),
             ...r.failed.flatMap((f) => f.keys),
@@ -1298,6 +1304,11 @@ export class ConversationReader {
             q.id,
             prepareMatchSheets(q, this.input.now, criterion),
           );
+        } else if (formScope) {
+          this.sheets.set(
+            q.id,
+            prepareMatchSheets(q, this.input.now, undefined, formScope),
+          );
         }
         const cachedReport = await this.port.evaluation?.("latest").catch(() =>
           null
@@ -1313,6 +1324,7 @@ export class ConversationReader {
           now: this.input.now,
           deadline: this.evaluator.deadline,
           ...(criterion ? { exploration: criterion } : {}),
+          ...(formScope ? { formScope } : {}),
           ...(this.explorationBudget
             ? {
               budget: this.explorationBudget,
@@ -1369,6 +1381,7 @@ export class ConversationReader {
           id: crypto.randomUUID(),
           query: retryQuery,
           criteria: previous.criteria,
+          ...(previous.formScope ? { formScope: previous.formScope } : {}),
           now: this.input.now,
           deadline: this.evaluator.deadline,
           ...(previous.exploration
