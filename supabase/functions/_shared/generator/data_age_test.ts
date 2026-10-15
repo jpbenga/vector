@@ -9,6 +9,7 @@ import {
   rememberTurn,
 } from "./conversation_memory.ts";
 import {
+  repairUnrequestedYear,
   requestedCompetitions,
   requestedMinimumSelectionOdds,
   requestedView,
@@ -126,7 +127,7 @@ Deno.test("clear focus cannot broaden an exclusive competition request: search, 
   }, { sources: () => Promise.resolve([s]) });
   const q = obj(
     await r.execute("search_matches", {
-      date: intent.date,
+      date: intent.date.replace("2026", "2025"),
       sports: ["football"],
       view: "profile",
       radarKind: "teams",
@@ -136,6 +137,7 @@ Deno.test("clear focus cannot broaden an exclusive competition request: search, 
     }),
   );
   assert.equal(q.total, 8);
+  assert.equal(q.date, intent.date);
   assert.equal(q.view, "all");
   assert.ok(
     rows(q.matches).every((m) =>
@@ -262,4 +264,27 @@ Deno.test("actual October 15 wording recognises both leagues, universal scope an
     "shortlist",
   );
   assert.equal(requestedView("Dans Pour moi, Europa League"), "profile");
+});
+
+Deno.test("wrong model year cannot replace the selected day unless the user requested that year", () => {
+  assert.equal(
+    repairUnrequestedYear(
+      "2025-10-15",
+      "2026-10-15",
+      "3 matchs d’europa ligue",
+    ),
+    "2026-10-15",
+  );
+  assert.equal(
+    repairUnrequestedYear("2025-10-15", "2026-10-15", "le 15 octobre 2025"),
+    "2025-10-15",
+  );
+  assert.equal(
+    repairUnrequestedYear("2025-10-15", "2026-10-15", "l’an dernier"),
+    "2025-10-15",
+  );
+  assert.equal(
+    repairUnrequestedYear("2026-10-16", "2026-10-15", "demain"),
+    "2026-10-16",
+  );
 });

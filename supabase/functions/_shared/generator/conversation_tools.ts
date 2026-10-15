@@ -42,6 +42,7 @@ import {
 } from "./conversation_memory.ts";
 import {
   CompositionContractError,
+  repairUnrequestedYear,
   requestedCompetitions,
   requestedMinimumSelectionOdds,
   requestedSports,
@@ -433,6 +434,13 @@ export class ConversationReader {
       m.role === "user" && requestedCompetitions(m.text) !== null
     )?.text;
   }
+  private constrainedDate(date: string) {
+    return repairUnrequestedYear(
+      date,
+      this.state?.conversation?.workingIntent.date ?? this.input.date,
+      this.input.message,
+    );
+  }
   private constrainedView() {
     if (!this.constrainedCompetitions()?.length) return null;
     return requestedView(this.input.message) ??
@@ -533,6 +541,7 @@ export class ConversationReader {
     );
     return {
       ...intent,
+      date: this.constrainedDate(intent.date),
       view: this.constrainedView() ?? intent.view,
       minimumSelectionOdds: this.constrainedMinimumOdds(),
       competitionScope: this.constrainedCompetitions(),
@@ -547,6 +556,7 @@ export class ConversationReader {
     return {
       ...intent,
       sports: this.constrainedSports() ?? intent.sports,
+      date: this.constrainedDate(intent.date),
       view: this.constrainedView() ?? intent.view,
       minimumSelectionOdds: this.constrainedMinimumOdds(),
       competitionScope: this.constrainedCompetitions(),
@@ -575,6 +585,7 @@ export class ConversationReader {
     referenceSports?: Sport[],
   ) {
     view = this.constrainedView() ?? view;
+    date = this.constrainedDate(date);
     this.validDay(date);
     this.assertSports(date, sports, view, radarKind, referenceSports);
     if (view === "shortlist") {

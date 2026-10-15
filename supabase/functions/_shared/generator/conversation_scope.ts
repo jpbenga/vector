@@ -157,3 +157,22 @@ export function requestedMinimumSelectionOdds(message: string): number | null {
   const value = Number(m[1].replace(",", "."));
   return Number.isFinite(value) && value > 1 && value <= 100 ? value : null;
 }
+
+/** Repair only an unrequested model year substitution for the same calendar day.
+ * Explicit years and relative year requests remain untouched and are validated. */
+export function repairUnrequestedYear(
+  date: string,
+  reference: string,
+  message: string,
+): string {
+  const text = message.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  if (
+    /\b20\d{2}\b|an(?:nee)? (?:dernier|derniere|prochain|prochaine|precedent|precedente)|il y a .*ans?\b/
+      .test(text)
+  ) return date;
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+      date.slice(5) === reference.slice(5)
+    ? reference
+    : date;
+}
