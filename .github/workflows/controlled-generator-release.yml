@@ -58,6 +58,7 @@ jobs:
           path: |
             controlled-generator-release-receipt.json
             controlled-generator-workshop-rollback.tar.gz
+            controlled-generator-request-reservation-rollback.sql
             european-freshness-release-receipt.json
           if-no-files-found: ignore
           retention-days: 30

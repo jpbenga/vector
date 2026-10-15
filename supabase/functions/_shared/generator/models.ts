@@ -1,3 +1,4 @@
+import { generatorTimeouts } from "./timeouts.ts";
 import type { ExplorationBudgetConfig } from "./exploration_budget.ts";
 import { obj } from "./contracts.ts";
 
@@ -141,8 +142,11 @@ export async function structuredResponse(
         method: "POST",
         redirect: "error",
         signal: input.signal
-          ? AbortSignal.any([input.signal, AbortSignal.timeout(45000)])
-          : AbortSignal.timeout(45000),
+          ? AbortSignal.any([
+            input.signal,
+            AbortSignal.timeout(generatorTimeouts.modelMs),
+          ])
+          : AbortSignal.timeout(generatorTimeouts.modelMs),
         headers: {
           authorization: `Bearer ${options.key}`,
           "content-type": "application/json",

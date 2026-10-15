@@ -23,12 +23,20 @@ MIGRATIONS = ('20261013210000_generator_domestic_form_projection.sql',
               '20261014090000_generator_request_audit.sql',
               '20261014160000_hockey_publication_storage.sql',
               '20261014190000_generator_discovery_publication_parity.sql',
-              '20261015090000_generator_composition_contract_audit.sql')
+              '20261015090000_generator_composition_contract_audit.sql',
+              '20261015100000_generator_extended_request_budget.sql')
 DISCOVERY_MIGRATION = '20261014190000_generator_discovery_publication_parity.sql'
 CONTRACT_MIGRATION = '20261015090000_generator_composition_contract_audit.sql'
+TIMEOUT_MIGRATION = '20261015100000_generator_extended_request_budget.sql'
+TIMEOUT_SETTINGS = {
+    'LECTOR_EXPLORATION_INTERNAL_MS': '330000',
+    'LECTOR_EXPLORATION_EVALUATION_MS': '135000',
+    'LECTOR_EXPLORATION_DEEPENING_MS': '60000',
+    'LECTOR_EXPLORATION_FINALIZATION_MS': '105000',
+}
 
 def functions_for_migrations(pending):
-    only_workshop = not pending or all(name in (DISCOVERY_MIGRATION, CONTRACT_MIGRATION) for name, _ in pending)
+    only_workshop = not pending or all(name in (DISCOVERY_MIGRATION, CONTRACT_MIGRATION, TIMEOUT_MIGRATION) for name, _ in pending)
     return ('lector-generator-workshop',) if only_workshop else FUNCTIONS
 
 PREREQUISITES = ('20261010090000', '20261011200000', '20261009120000',
@@ -174,6 +182,14 @@ def main():
                 prior = query("select encode(extensions.digest(pg_get_functiondef('public.lector_generator_day_manifest(date,text,text[],text[],text[],text[],jsonb)'::regprocedure),'sha256'),'hex') as hash")
                 if prior != [{'hash': '99fe6aa743a617eca54723570688577613d872d1a6823724c849267fdeec3826'}]:
                     raise ValueError('Discovery reader differs from the incident baseline.')
+            request_rollback = None
+            if any(name == TIMEOUT_MIGRATION for name, _ in pending):
+                prior = query("select pg_get_functiondef('public.lector_generator_workshop_reserve(uuid,uuid,uuid,integer,integer,integer)'::regprocedure) as definition, encode(extensions.digest(pg_get_functiondef('public.lector_generator_workshop_reserve(uuid,uuid,uuid,integer,integer,integer)'::regprocedure),'sha256'),'hex') as hash")
+                if len(prior) != 1 or prior[0]['hash'] != 'ea56aaede430ff9a6f3c91b3a1d256653a6d2ef8398dd8a54dc92ec07a958303':
+                    raise ValueError('Workshop reservation differs from the verified baseline.')
+                backup = ROOT / 'controlled-generator-request-reservation-rollback.sql'
+                backup.write_text('begin;\n' + prior[0]['definition'] + "\nnotify pgrst,'reload schema';\ncommit;\n")
+                request_rollback = {'file': backup.name, 'sha256': hashlib.sha256(backup.read_bytes()).hexdigest()}
             if pending:
                 sql = "begin; select pg_advisory_xact_lock(hashtext('lector-controlled-generator-release'));\n"
                 for name, body in pending:
@@ -199,16 +215,18 @@ def main():
                        'deployed_functions': list(deployed),
                        'legacy_version': after['lector-generator']['version'], 'legacy_source_sha256': legacy_hash,
                        'legacy_endpoint_replaced': False, 'model_calls': 0,
-                       'workshopRollback': rollback, 'workshopServed': workshop_source(verify=True)}
+                       'workshopRollback': rollback, 'requestReservationRollback': request_rollback,
+                       'workshopServed': workshop_source(verify=True)}
         else:
             if pending:
                 raise ValueError('Install migrations before activation.')
             served = workshop_source(verify=True)
             secrets({'LECTOR_GENERATOR_CANARY_USER_IDS': owner, 'LECTOR_GENERATOR_CANARY_EMAILS': '',
-                     'LECTOR_RELEASE_REVISION': revision, 'LECTOR_GENERATOR_CANARY_ENABLED': 'true'})
+                     'LECTOR_RELEASE_REVISION': revision, 'LECTOR_GENERATOR_CANARY_ENABLED': 'true',
+                     **TIMEOUT_SETTINGS})
             receipt = {'revision': revision, 'operation': operation, 'canary_enabled': True,
                        'allowed_accounts': 1, 'legacy_endpoint_replaced': False, 'model_calls': 0,
-                       'workshopServed': served}
+                       'workshopServed': served, 'requestTimeoutMs': 390000, 'explorationTimeouts': TIMEOUT_SETTINGS}
     (ROOT / 'controlled-generator-release-receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
     print(json.dumps(receipt))
 

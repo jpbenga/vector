@@ -149,7 +149,7 @@ void main() {
       expect(reads, 10);
       expect(
         now.difference(DateTime.utc(2026, 10, 11)),
-        lessThan(const Duration(minutes: 2)),
+        lessThan(const Duration(minutes: 6)),
       );
     },
   );

@@ -1,3 +1,4 @@
+import { generatorTimeouts } from "./timeouts.ts";
 /** One minute of mono 16kHz PCM, verified on the server, bounds transcription cost. */
 export function decodeVoice(value: unknown): Uint8Array {
   if (
@@ -45,7 +46,7 @@ export async function transcribe(
     {
       method: "POST",
       redirect: "error",
-      signal: AbortSignal.timeout(45000),
+      signal: AbortSignal.timeout(generatorTimeouts.modelMs),
       headers: { authorization: `Bearer ${options.key}` },
       body: form,
     },

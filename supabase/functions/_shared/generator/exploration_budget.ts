@@ -8,10 +8,10 @@ export interface ExplorationBudgetConfig {
   extraBatchCalls: number;
 }
 export const defaultExplorationBudget: Readonly<ExplorationBudgetConfig> = {
-  internalMs: 110000,
-  evaluationMs: 45000,
-  deepeningMs: 20000,
-  finalizationMs: 35000,
+  internalMs: 330000,
+  evaluationMs: 135000,
+  deepeningMs: 60000,
+  finalizationMs: 105000,
   maxDeepened: 4,
   extraBatchCalls: 2,
 };
@@ -20,10 +20,10 @@ export function explorationBudgetConfig(
 ): ExplorationBudgetConfig {
   const config = { ...defaultExplorationBudget, ...input };
   const caps: Record<keyof ExplorationBudgetConfig, number> = {
-    internalMs: 130000,
-    evaluationMs: 95000,
-    deepeningMs: 95000,
-    finalizationMs: 60000,
+    internalMs: 390000,
+    evaluationMs: 285000,
+    deepeningMs: 285000,
+    finalizationMs: 180000,
     maxDeepened: 4,
     extraBatchCalls: 2,
   };

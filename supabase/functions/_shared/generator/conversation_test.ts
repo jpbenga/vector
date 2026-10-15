@@ -1233,7 +1233,7 @@ Deno.test("the conversation reserves the final response window instead of starti
     key: "test",
     model: "gpt-6-luna",
     reads: readPort(),
-    clock: () => start + (tick++ ? 100000 : 0),
+    clock: () => start + (tick++ ? 300000 : 0),
     fetcher: (async (_url, init) => {
       calls++;
       const body = JSON.parse(String(init?.body));

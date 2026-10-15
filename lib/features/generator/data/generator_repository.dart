@@ -35,7 +35,7 @@ class SupabaseGeneratorRepository implements GeneratorRepository {
               ),
             },
           )
-          .timeout(const Duration(seconds: 120));
+          .timeout(GeneratorRequestRecovery.requestTimeout);
       final data = generatorMap(response.data);
       if (data['error'] != null) throw StateError(data['error'].toString());
       return data;

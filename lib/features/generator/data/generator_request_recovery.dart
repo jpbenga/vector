@@ -21,6 +21,10 @@ class GeneratorRequestRecovery {
   final DateTime Function() clock;
   final Future<void> Function(Duration) wait;
 
+  static const requestTimeout = Duration(minutes: 6);
+  static const recoveryTimeout = Duration(minutes: 6);
+  static const statusTimeout = Duration(seconds: 24);
+
   static const connectionMessage =
       'La connexion au service a été interrompue. Votre demande reste affichée ; son résultat n’a pas pu être récupéré.';
   static const timeoutMessage =
@@ -44,8 +48,8 @@ class GeneratorRequestRecovery {
       body['conversationId'] is String;
 
   Future<Map<String, dynamic>> _recover(Map<String, Object?> body) async {
-    final deadline = clock().add(const Duration(minutes: 2));
-    const delays = [0, 2, 4, 6, 8, 10, 15, 20, 20, 20];
+    final deadline = clock().add(recoveryTimeout);
+    const delays = [0, 6, 12, 18, 24, 30, 45, 60, 60, 60];
     for (final seconds in delays) {
       final remaining = deadline.difference(clock());
       if (remaining <= Duration.zero) break;
@@ -56,18 +60,13 @@ class GeneratorRequestRecovery {
       if (callBudget <= Duration.zero) break;
       Map<String, dynamic> result;
       try {
-        result =
-            await invoke({
-              'action': 'status',
-              'conversationId': body['conversationId'],
-              'requestId': body['requestId'],
-              'revision': body['revision'] ?? 0,
-              'includeResult': true,
-            }).timeout(
-              callBudget < const Duration(seconds: 8)
-                  ? callBudget
-                  : const Duration(seconds: 8),
-            );
+        result = await invoke({
+          'action': 'status',
+          'conversationId': body['conversationId'],
+          'requestId': body['requestId'],
+          'revision': body['revision'] ?? 0,
+          'includeResult': true,
+        }).timeout(callBudget < statusTimeout ? callBudget : statusTimeout);
       } on http.ClientException {
         continue;
       } on TimeoutException {

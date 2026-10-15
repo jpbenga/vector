@@ -428,7 +428,7 @@ Deno.test("detail cancellation preserves the evaluated ranking, records timeout 
       matchData: async (_s, _d, _id, _at, _source, signal) => {
         assert.ok(signal);
         calls++;
-        elapsed = 75000;
+        elapsed = 225000;
         throw new DOMException("Controlled cancellation", "TimeoutError");
       },
     },

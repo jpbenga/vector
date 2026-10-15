@@ -1,3 +1,4 @@
+import { generatorTimeouts } from "./timeouts.ts";
 import { type Json, obj } from "./contracts.ts";
 import type { DayEvaluation } from "./match_evaluation.ts";
 
@@ -49,7 +50,7 @@ export async function forwardLegacy(
     {
       method: "POST",
       redirect: "error",
-      signal: AbortSignal.timeout(130000),
+      signal: AbortSignal.timeout(generatorTimeouts.conversationMs),
       headers: {
         authorization: request.headers.get("authorization") ?? "",
         apikey: publicKey,

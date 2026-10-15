@@ -7,21 +7,21 @@ import {
 Deno.test("exploration budgets are configurable, validated and not read from process env in domain code", () => {
   const config = explorationBudgetFromEnvironment((key) =>
     ({
-      LECTOR_EXPLORATION_INTERNAL_MS: "120000",
-      LECTOR_EXPLORATION_EVALUATION_MS: "55000",
-      LECTOR_EXPLORATION_DEEPENING_MS: "25000",
+      LECTOR_EXPLORATION_INTERNAL_MS: "360000",
+      LECTOR_EXPLORATION_EVALUATION_MS: "165000",
+      LECTOR_EXPLORATION_DEEPENING_MS: "75000",
       LECTOR_EXPLORATION_MAX_DEEPENED: "2",
     } as Record<string, string>)[key]
   );
-  assert.equal(config.internalMs, 120000);
+  assert.equal(config.internalMs, 360000);
   assert.equal(config.maxDeepened, 2);
   for (
     const bad of [
       { evaluationMs: NaN },
       { internalMs: 500 },
       { maxDeepened: 5 },
-      { evaluationMs: 90000 },
-      { finalizationMs: 110000 },
+      { evaluationMs: 270000 },
+      { finalizationMs: 330000 },
       { extraBatchCalls: -1 },
     ]
   ) {
@@ -31,12 +31,12 @@ Deno.test("exploration budgets are configurable, validated and not read from pro
 Deno.test("phase deadlines never consume the finalization reserve, and denied calls remain measured", () => {
   let now = 0;
   const budget = new ExplorationBudget({}, () => now);
-  assert.equal(budget.evaluationDeadline(200000), 45000);
-  assert.equal(budget.workDeadline, 75000);
+  assert.equal(budget.evaluationDeadline(600000), 135000);
+  assert.equal(budget.workDeadline, 225000);
   for (let i = 0; i < 7; i++) assert.equal(budget.claimBatch(7), true);
   assert.equal(budget.claimBatch(7), false);
   assert.equal(budget.snapshot().evaluationCalls, 7);
-  now = 75000;
+  now = 225000;
   assert.equal(budget.claimBatch(20), false);
   assert.equal(
     budget.admitDeepening("football:1", "explicit_comparison", true),
@@ -62,7 +62,7 @@ Deno.test("only four justified distinct deepenings fit one exchange and a new ex
     false,
   );
   assert.equal(budget.snapshot().deepened, 4);
-  now += 20001;
+  now += 60001;
   assert.equal(
     budget.admitDeepening("hockey:8", "missing_decisive_fact", true),
     false,

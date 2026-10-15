@@ -1,3 +1,4 @@
+import { generatorTimeouts } from "./timeouts.ts";
 import {
   type Analysis,
   type AnalysisMatch,
@@ -323,7 +324,7 @@ export async function analyzeDay(
       missing: input.catalog.missing,
     }),
   }];
-  const deadline = performance.now() + 80000;
+  const deadline = performance.now() + generatorTimeouts.analysisMs;
   for (let round = 0; round < 3; round++) {
     const remaining = Math.floor(deadline - performance.now());
     if (remaining < 1000) {

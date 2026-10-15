@@ -1,3 +1,4 @@
+import { generatorTimeouts } from "./timeouts.ts";
 import { withCollectedQuotes } from "./cached_quotes.ts";
 import {
   compareExploration,
@@ -70,7 +71,7 @@ async function rest(
   path: string,
   body?: unknown,
   method = body ? "POST" : "GET",
-  timeoutMs = 15000,
+  timeoutMs = generatorTimeouts.databaseMs,
   signal?: AbortSignal,
 ) {
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -112,7 +113,10 @@ async function rest(
   const text = await result.text();
   return text ? JSON.parse(text) : null;
 }
-export function generatorHandler(options: { workshop?: boolean } = {}) {
+export function generatorHandler(
+  options: { workshop?: boolean; onReserved?: (headers: Response) => void } =
+    {},
+) {
   return async (request: Request) => {
     const releaseConfig = canaryConfiguration((name) => Deno.env.get(name));
     let trace: Json = {};
@@ -185,7 +189,7 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
               `api_football_cached_responses?${query}`,
               undefined,
               "GET",
-              10000,
+              generatorTimeouts.authenticationMs,
             ),
         ),
       };
@@ -230,7 +234,7 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
             apikey: Deno.env.get("SUPABASE_ANON_KEY")!,
           },
           redirect: "error",
-          signal: AbortSignal.timeout(10000),
+          signal: AbortSignal.timeout(generatorTimeouts.authenticationMs),
         },
       );
       if (!userResponse.ok) {
@@ -916,6 +920,9 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
           }, 409);
       }
       reservation = String(input.requestId);
+      if (options.workshop && action === "chat") {
+        options.onReserved?.(reply({}));
+      }
       const progressState: {
         release?: Json["release"];
         request?: Json["request"];
@@ -1024,6 +1031,7 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
         }, {
           key,
           model,
+          deadline: started + generatorTimeouts.conversationMs,
           onReceipt: (r) => receipts.push(r),
           onToolAudit: (event) => {
             const events = Array.isArray(trace.tools) ? trace.tools : [];
@@ -1139,7 +1147,7 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
                     p_until: now.toISOString(),
                   },
                   "POST",
-                  3000,
+                  generatorTimeouts.optionalHistoryMs,
                 ),
                 call("rpc/lector_generator_decision_list", {
                   p_user: user.id,
@@ -1373,7 +1381,7 @@ export function generatorHandler(options: { workshop?: boolean } = {}) {
               p_until: now.toISOString(),
             },
             "POST",
-            3000,
+            generatorTimeouts.optionalHistoryMs,
           );
           for (const source of sources.filter((s) => s.sport === "football")) {
             source.payload.bilan = history;

@@ -1,3 +1,4 @@
+import { generatorTimeouts } from "./timeouts.ts";
 import { explorationView } from "./exploration_continuity.ts";
 import { compactModelMemory } from "./work_storage.ts";
 import {
@@ -128,6 +129,7 @@ export async function converse(
     onEvaluation?: (report: DayEvaluation) => Promise<void>;
     onToolAudit?: (event: ReturnType<typeof toolAudit>) => void;
     clock?: () => number;
+    deadline?: number;
   },
 ) {
   const configuration = modelRegistry[options.model];
@@ -137,14 +139,17 @@ export async function converse(
     );
   }
   const clock = options.clock ?? (() => performance.now());
-  const deadline = clock() + 130000;
+  const deadline = Math.min(
+    clock() + generatorTimeouts.conversationMs,
+    options.deadline ?? Infinity,
+  );
   const reader = new ConversationReader(
     input,
     options.reads,
     async (phase, detail) => {
       await options.onProgress?.({ phase, detail });
     },
-    { ...options, deadline: deadline - 35000 },
+    { ...options, deadline: deadline - generatorTimeouts.finalizationMs },
   );
   const explicitExploration = input.explorationAction
     ? await reader.execute(
@@ -242,7 +247,9 @@ export async function converse(
     }
     if (
       !finalizing &&
-      (remaining <= (reader.explorationFinalizationMs ?? 35000) ||
+      (remaining <=
+          (reader.explorationFinalizationMs ??
+            generatorTimeouts.finalizationMs) ||
         round === rounds - 1)
     ) {
       finalizing = true;
