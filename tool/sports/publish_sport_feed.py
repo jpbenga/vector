@@ -32,6 +32,23 @@ def without_prices(payload):
     return {**payload, 'items': [{k:v for k,v in f.items() if k not in ('quotes','quotesCollectedAt')} for f in payload['items']]}
 
 
+def post_immutable_publication(request):
+    # The server accepts an identical version again, and rejects any changed
+    # payload at that timestamp. Never recollect or change the body on retry.
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(request, timeout=90) as response:
+                return json.load(response)
+        except urllib.error.HTTPError as error:
+            if error.code not in (502, 503, 504) or attempt == 2:
+                raise
+        except (urllib.error.URLError, TimeoutError):
+            if attempt == 2:
+                raise
+        print(json.dumps({'publication_retry': attempt + 1, 'same_version': True}))
+        time.sleep((1, 3)[attempt])
+
+
 def verify_publication(payload, values, *, include_quotes=True):
     def read(section):
         req = urllib.request.Request(PROJECT_URL + '/rest/v1/rpc/read_sport_feed',
@@ -103,8 +120,7 @@ def main(*, server_key=None):
                 data=text.encode(), headers={'Authorization': 'Bearer ' + values['API_FOOTBALL_SYNC_SECRET'],
                 'Content-Type': 'application/json'}, method='POST')
         try:
-            with urllib.request.urlopen(req, timeout=90) as response:
-                receipt = json.load(response)
+            receipt = post_immutable_publication(req)
         except urllib.error.HTTPError as error:
             # Server errors never expose credentials or submitted provider data.
             try:

@@ -9,7 +9,21 @@ from unittest.mock import patch
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[1]))
 import deploy_hockey_odds_remote as deploy
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[1]/"sports"))
-from publish_sport_feed import verify_publication
+from publish_sport_feed import post_immutable_publication, verify_publication
+
+class ImmutablePublicationRetryTests(unittest.TestCase):
+    def test_unknown_timeout_reuses_exact_request_without_recollection(self):
+        request=urllib.request.Request('https://example.test',data=b'{"capturedAt":"fixed","collectionId":"same"}',method='POST')
+        replies=[TimeoutError('read timed out'),io.BytesIO(b'{"id":"existing-version"}')]
+        with patch('publish_sport_feed.urllib.request.urlopen',side_effect=replies) as send,patch('publish_sport_feed.time.sleep'):
+            self.assertEqual(post_immutable_publication(request),{'id':'existing-version'})
+        self.assertIs(send.call_args_list[0].args[0],send.call_args_list[1].args[0])
+
+    def test_permanent_rejection_and_repeated_timeouts_stop(self):
+        for error,expected in [(urllib.error.HTTPError('https://example.test',400,'invalid',{},None),1),(TimeoutError('read timed out'),3)]:
+            with patch('publish_sport_feed.urllib.request.urlopen',side_effect=error) as send,patch('publish_sport_feed.time.sleep'),self.assertRaises(type(error)):
+                post_immutable_publication(urllib.request.Request('https://example.test',data=b'{}',method='POST'))
+            self.assertEqual(send.call_count,expected)
 
 class HockeyOddsDeployTests(unittest.TestCase):
     def test_install_is_hockey_and_demo_only_and_requires_branch_ci(self):
