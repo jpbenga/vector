@@ -13,6 +13,11 @@ Deno.test("football calendar projects only the requested day, preserves facts an
         "supabase/migrations/20261017190000_football_calendar_projection.sql",
       ),
     );
+    await db.exec(
+      await Deno.readTextFile(
+        "supabase/migrations/20261017200000_football_projection_transport.sql",
+      ),
+    );
     const { rows } = await db.query<{ calendar_day: string }>(
       "select ((now() at time zone 'Europe/Paris')::date)::text as calendar_day",
     );
@@ -71,6 +76,29 @@ Deno.test("football calendar projects only the requested day, preserves facts an
         `select read_football_calendar($1::date,$2)result`,
         [date, section],
       )).rows[0].result;
+    const observed = {
+      fixture: { id: 1 },
+      update: "2026-10-17T05:00:00Z",
+      bookmakers: [{
+        id: 8,
+        name: "Bet365",
+        bets: [{ id: 1, values: [{ value: "Home", odd: "2.10" }] }, {
+          id: 999,
+          values: [{ value: "unsupported", odd: "1.1" }],
+        }, { id: 92, values: [{ value: "Real player", odd: "4.2" }] }],
+      }],
+    };
+    const slim = (await db.query<{ r: typeof observed[] }>(
+      "select compact_football_calendar_odds($1::jsonb,array['1']) r",
+      [JSON.stringify([observed])],
+    )).rows[0].r;
+    assert.deepEqual(slim, [{
+      ...observed,
+      bookmakers: [{
+        ...observed.bookmakers[0],
+        bets: [observed.bookmakers[0].bets[0], observed.bookmakers[0].bets[2]],
+      }],
+    }]);
     const calendar = (await read(day))[0];
     assert.deepEqual(await read(shifted(100)), []);
     assert.equal(calendar.id, "00000000-0000-4000-8000-000000000001");
