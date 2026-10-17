@@ -1175,7 +1175,7 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
         const SizedBox(height: 8),
         if (_filteredCompetitions.any((c) => !c.formPhaseVerified))
           _notice(
-            'NHL : le fournisseur ne distingue pas la phase des rencontres. Son historique n’est pas utilisé dans ce classement de forme.',
+            'Les compétitions dont la phase n’est pas vérifiée sont exclues du classement de forme.',
           ),
         LectorRadarModeToggle(
           firstLabel: 'En forme',

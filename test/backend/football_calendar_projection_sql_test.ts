@@ -13,10 +13,10 @@ Deno.test("football calendar projects only the requested day, preserves facts an
         "supabase/migrations/20261017190000_football_calendar_projection.sql",
       ),
     );
-    const { rows } = await db.query<{ day: string }>(
-      "select ((now() at time zone 'Europe/Paris')::date)::text day",
+    const { rows } = await db.query<{ calendar_day: string }>(
+      "select ((now() at time zone 'Europe/Paris')::date)::text as calendar_day",
     );
-    const day = rows[0].day;
+    const day = rows[0].calendar_day;
     const shifted = (n: number) => {
       const d = new Date(day + "T12:00:00Z");
       d.setUTCDate(d.getUTCDate() + n);
