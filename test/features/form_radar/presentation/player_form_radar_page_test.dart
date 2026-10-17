@@ -183,6 +183,12 @@ void main() {
     expect(find.text('41–50 sur 50'), findsOneWidget);
     expect(find.text('Équipe 50'), findsOneWidget);
     expect(find.text('Équipe 51'), findsNothing);
+    await tester.ensureVisible(find.text('En difficulté'));
+    await tester.tap(find.text('En difficulté'));
+    await tester.pumpAndSettle();
+    expect(find.text('Équipes les moins en forme'), findsOneWidget);
+    expect(find.text('1–10 sur 50'), findsOneWidget);
+    expect(find.text('Équipe 51'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

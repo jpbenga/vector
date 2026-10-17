@@ -81,12 +81,14 @@ class LectorRadarTeamRow extends StatelessWidget {
     required this.activity,
     required this.metric,
     required this.streakLabel,
+    this.negative = false,
     this.logoUrl,
     super.key,
   });
   final int rank;
   final String name, competitionName, metric, streakLabel;
   final String? logoUrl;
+  final bool negative;
   final Widget activity;
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -139,7 +141,9 @@ class LectorRadarTeamRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: context.semantic.success,
+                    color: negative
+                        ? context.semantic.error
+                        : context.semantic.success,
                     fontWeight: FontWeight.w800,
                   ),
                 ),

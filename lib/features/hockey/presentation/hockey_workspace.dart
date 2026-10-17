@@ -1230,6 +1230,7 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
                   logoUrl: top[i].row.team.logoUrl,
                   competitionName: top[i].competition.name,
                   metric: '${top[i].wins}/5',
+                  negative: _weakestTeams,
                   streakLabel: top[i].streakLabel,
                   activity: Column(
                     mainAxisSize: MainAxisSize.min,

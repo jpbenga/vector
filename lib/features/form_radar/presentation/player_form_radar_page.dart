@@ -904,6 +904,7 @@ class _HotTeamRow extends StatelessWidget {
     logoUrl: entry.profile.logoUrl,
     competitionName: entry.profile.leagueName,
     metric: '${entry.points}/15',
+    negative: entry.weakest,
     streakLabel: entry.streakLabel,
     activity: LectorFormResultStrip(
       historyColumns: 5,
