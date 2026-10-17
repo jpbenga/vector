@@ -22,6 +22,9 @@ begin
   ) select s.*,d.payload from selected s join match_feed_analysis_snapshots d on d.id=s.id
    order by s.as_of desc,s.id desc
  loop
+  -- A calendar with no covering publication is unavailable, never an invented
+  -- empty date. Radar may still inspect the latest known form independently.
+  if p_section='calendar' and (source.window_start>p_day or source.window_end<p_day) then continue; end if;
   -- Detoast once per selected source, never once per fixture or JSON field.
   body:=source.payload||'{}'::jsonb; raw_body:=coalesce(body->'raw','{}');
   select coalesce(jsonb_agg(f),'[]'),coalesce(array_agg(f#>>'{fixture,id}'),'{}')

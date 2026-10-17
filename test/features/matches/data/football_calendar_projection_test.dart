@@ -46,13 +46,15 @@ void main() {
               jsonEncode([row]),
               200,
               headers: {'content-type': 'application/json'},
+              request: request,
             );
           }
-          expect(request.url.queryParameters['id'], 'in.(source-61)');
+          expect(request.url.queryParameters['id'], 'in.("source-61")');
           return http.Response(
             jsonEncode([row]),
             200,
             headers: {'content-type': 'application/json'},
+            request: request,
           );
         }),
       );

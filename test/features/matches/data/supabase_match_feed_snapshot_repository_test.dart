@@ -33,6 +33,7 @@ void main() {
             }),
             404,
             headers: {'content-type': 'application/json'},
+            request: request,
           );
         }
 
@@ -110,6 +111,7 @@ void main() {
             }),
             404,
             headers: {'content-type': 'application/json'},
+            request: request,
           );
         }
 
@@ -232,6 +234,7 @@ void main() {
             }),
             404,
             headers: {'content-type': 'application/json'},
+            request: request,
           );
         }
 
@@ -285,6 +288,7 @@ void main() {
               }),
               404,
               headers: {'content-type': 'application/json'},
+              request: request,
             );
           }
 
@@ -354,6 +358,7 @@ void main() {
               }),
               404,
               headers: {'content-type': 'application/json'},
+              request: request,
             );
           }
 

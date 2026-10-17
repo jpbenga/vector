@@ -72,6 +72,7 @@ Deno.test("football calendar projects only the requested day, preserves facts an
         [date, section],
       )).rows[0].result;
     const calendar = (await read(day))[0];
+    assert.deepEqual(await read(shifted(100)), []);
     assert.equal(calendar.id, "00000000-0000-4000-8000-000000000001");
     assert.deepEqual(calendar.payload.raw.fixtures, [base.raw.fixtures[0]]);
     assert.deepEqual(calendar.payload.raw.odds, [base.raw.odds[0]]);

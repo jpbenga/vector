@@ -18,11 +18,18 @@ SQL = """with configured as (
  select distinct on(payload->'league_ids') id,status,payload->'league_ids' leagues,created_at
  from api_football_sync_queue_jobs where created_at>now()-interval '24 hours'
  order by payload->'league_ids',created_at desc
+), daily_attempts as (
+ select distinct on(league_ids) id,status,league_ids,started_at
+ from daily_football_sync_runs where started_at>now()-interval '24 hours'
+ order by league_ids,started_at desc
 ) select jsonb_build_object('checkedAt',now(),
  'parisDay',(now() at time zone 'Europe/Paris')::date,
  'leagues',(select coalesce(jsonb_agg(jsonb_build_object('id',c.league_id,'capturedAt',l.captured_at,
  'windowStart',l.window_start,'windowEnd',l.window_end)),'[]') from configured c left join latest l on l.scope_key='league:'||c.league_id),
- 'failedBatches',(select coalesce(jsonb_agg(jsonb_build_object('id',id,'leagues',leagues,'status',status)),'[]')from attempts where status='failed'),
+ 'failedBatches',(select coalesce(jsonb_agg(to_jsonb(b)),'[]')from(
+ select id,leagues,status,'queue' origin from attempts where status='failed'
+ union all select id,to_jsonb(league_ids),status,'daily' from daily_attempts where status in('failed','partial')
+ )b),
  'stalledBatches',(select coalesce(jsonb_agg(jsonb_build_object('id',id,'status',status)),'[]')from api_football_sync_queue_jobs
  where (status='running' and lease_expires_at<now()-interval '15 minutes')
  or (status in('queued','retrying') and available_at<now()-interval '2 hours'))
