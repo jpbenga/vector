@@ -1,11 +1,11 @@
 -- Public projections of already-public immutable publications. No collection,
 -- generated fact, user data or new access to a private table is introduced.
-create function public.read_football_calendar(p_day date, p_section text default 'calendar')
-returns jsonb language plpgsql stable security definer
+create function public.read_football_calendar_rows(p_day date, p_section text)
+returns setof jsonb language plpgsql stable security definer
 set search_path=public,pg_temp set plan_cache_mode='force_generic_plan'
 set statement_timeout='15s' as $$
 declare source record; body jsonb; raw_body jsonb; fixtures jsonb; fixture_ids text[];
- team_ids text[]; projected jsonb; result jsonb:='[]'::jsonb;
+ team_ids text[]; projected jsonb;
  today date:=(now() at time zone 'Europe/Paris')::date;
 begin
  if p_day is null or p_section is null or p_section not in ('calendar','radar') then
@@ -44,19 +44,31 @@ begin
    'european_comparisons',(select coalesce(jsonb_agg(r),'[]')from jsonb_array_elements(coalesce(raw_body->'european_comparisons','[]'))r where r->>'fixtureId'=any(fixture_ids)),
    'european_card_forms',(select coalesce(jsonb_agg(r),'[]')from jsonb_array_elements(coalesce(raw_body->'european_card_forms','[]'))r where r->>'fixtureId'=any(fixture_ids))
   );
-  result:=result||jsonb_build_array(jsonb_build_object(
+  return next jsonb_build_object(
    'id',source.id,'scope',source.scope,'league_ids',source.league_ids,
    'payload',(body-'raw'-'computed')||jsonb_build_object(
     'window_start',p_day,'window_end',p_day,'raw',projected,
     'computed',coalesce(body->'computed','{}')||jsonb_build_object('fixtures',
      (select coalesce(jsonb_agg(f),'[]')from jsonb_array_elements(coalesce(body#>'{computed,fixtures}','[]'))f where f->>'fixture_id'=any(fixture_ids)))
    )
-  ));
+  );
  end loop;
- return result;
+ return;
 end $$;
+revoke all on function public.read_football_calendar_rows(date,text) from public,anon,authenticated;
+grant execute on function public.read_football_calendar_rows(date,text) to service_role;
+-- Aggregate once. Repeated JSONB concatenation copies the growing result on
+-- every source and becomes quadratic with a full day's real publications.
+create function public.read_football_calendar(p_day date, p_section text default 'calendar')
+returns jsonb language sql stable security definer
+set search_path=public,pg_temp set plan_cache_mode='force_generic_plan'
+set statement_timeout='15s' as $$
+ select coalesce(jsonb_agg(projected),'[]'::jsonb)
+ from public.read_football_calendar_rows(p_day,p_section) projected;
+$$;
 revoke all on function public.read_football_calendar(date,text) from public;
 grant execute on function public.read_football_calendar(date,text) to anon,authenticated,service_role;
 notify pgrst,'reload schema';
--- Rollback: drop function public.read_football_calendar(date,text).
+-- Rollback: drop function public.read_football_calendar(date,text);
+-- drop function public.read_football_calendar_rows(date,text).
 -- Existing publications and the legacy public reader remain untouched.
