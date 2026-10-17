@@ -79,7 +79,9 @@ class MatchFeedRepositoryLoader {
     if (source is SupabaseMatchFeedSnapshotRepository) source.invalidate(date);
     return _navigation.read(
       radar ? _radarKey(date) : 'day:${_dateKey(date)}',
-      () => _loadUncached(now: date, forceRemote: true),
+      () => radar
+          ? _loadRadarUncached(date)
+          : _loadUncached(now: date, forceRemote: true),
       force: true,
       isUsable: (repository) => _usable(repository, date),
     );

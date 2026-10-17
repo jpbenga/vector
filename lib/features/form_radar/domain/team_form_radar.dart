@@ -36,12 +36,14 @@ class TeamFormRadarEntry {
     required this.points,
     required this.recentPoints,
     required this.unbeatenStreak,
+    this.weakest = false,
   });
 
   final TeamFormRadarProfile profile;
   final int points;
   final int recentPoints;
   final int unbeatenStreak;
+  final bool weakest;
   LectorVictorySeriesAssessment get victorySeries => LectorVictorySeries.assess(
     profile.activity.reversed,
     won: (g) => switch (g.result.toUpperCase()) {
@@ -51,7 +53,11 @@ class TeamFormRadarEntry {
     },
     home: (g) => g.venue == RecentMatchVenue.home,
   );
-  String get streakLabel => victorySeries.detected
+  String get streakLabel => weakest
+      ? unbeatenStreak == 0
+            ? 'Aucune série de défaites'
+            : '$unbeatenStreak dernières rencontres perdues'
+      : victorySeries.detected
       ? victorySeries.radarLabel
       : 'Invaincu · $unbeatenStreak';
 }
@@ -63,10 +69,23 @@ class TeamFormRadarRanker {
   static const recentWindow = LectorTeamFormPolicy.recentWindow;
 
   static List<TeamFormRadarEntry> rank(
-    Iterable<TeamFormRadarProfile> profiles,
-  ) => List.unmodifiable(
+    Iterable<TeamFormRadarProfile> profiles, {
+    bool weakest = false,
+  }) => List.unmodifiable(
     LectorTeamFormPolicy.rank(
-      profiles,
+      profiles.where(
+        (p) =>
+            !weakest ||
+            p.activity.every(
+              (m) => const {
+                'W',
+                'V',
+                'D',
+                'N',
+                'L',
+              }.contains(m.result.toUpperCase()),
+            ),
+      ),
       resultValues: (profile) => [
         for (final match in profile.activity)
           switch (match.result.toUpperCase()) {
@@ -75,14 +94,16 @@ class TeamFormRadarRanker {
             _ => 0,
           },
       ],
-      continuesSeries: (value) => value > 0,
+      continuesSeries: (value) => weakest ? value == 0 : value > 0,
       name: (profile) => profile.teamName,
+      weakest: weakest,
     ).map(
       (entry) => TeamFormRadarEntry(
         profile: entry.profile,
         points: entry.score,
         recentPoints: entry.recentScore,
         unbeatenStreak: entry.series,
+        weakest: weakest,
       ),
     ),
   );

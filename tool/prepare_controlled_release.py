@@ -48,6 +48,18 @@ def main():
         'LECTOR_GENERATOR_ENDPOINT':'lector-generator-workshop', 'LECTOR_RELEASE_REVISION':revision,
         'APP_PUBLIC_URL':'https://lector-sports.vercel.app/',
     }
+    generator_revision = os.environ.get('LECTOR_GENERATOR_REVISION', revision)
+    if not re.fullmatch(r'[a-f0-9]{40}', generator_revision):
+        raise ValueError('An immutable Generator API compatibility revision is required')
+    if generator_revision != revision:
+        # A UI/data-reader release may keep the existing Generator backend.
+        # Refuse that path if any of its handler or contract source changed.
+        if subprocess.run(['git','diff','--quiet',generator_revision,revision,'--',
+                           'supabase/functions/_shared/generator',
+                           'supabase/functions/lector-generator-workshop',
+                           'supabase/functions/lector-generator'],cwd=ROOT).returncode:
+            raise ValueError('Generator backend changed; publish a matching backend instead')
+    definitions['LECTOR_GENERATOR_REVISION'] = generator_revision
     if args.build:
         public = {}
         for line in (ROOT/'.env').read_text().splitlines():

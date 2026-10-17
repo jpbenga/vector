@@ -40,13 +40,13 @@ def post_immutable_publication(request):
             with urllib.request.urlopen(request, timeout=90) as response:
                 return json.load(response)
         except urllib.error.HTTPError as error:
-            if error.code not in (502, 503, 504) or attempt == 2:
+            if error.code not in (502, 503, 504, 520, 521, 522, 523, 524) or attempt == 2:
                 raise
         except (urllib.error.URLError, TimeoutError):
             if attempt == 2:
                 raise
         print(json.dumps({'publication_retry': attempt + 1, 'same_version': True}))
-        time.sleep((1, 3)[attempt])
+        time.sleep((10, 30)[attempt])
 
 
 def verify_publication(payload, values, *, include_quotes=True):

@@ -1,6 +1,8 @@
 """Build the exact main revision on the existing runner, with public config only."""
 import os
 import subprocess
+import re
+import urllib.request
 from pathlib import Path
 from deploy_controlled_generator_release import api, BASE, ROOT, REPOSITORY
 
@@ -21,6 +23,16 @@ def main():
         raise ValueError('Successful main CI required before building.')
     keys = api(BASE + '/api-keys', os.environ['SUPABASE_ACCESS_TOKEN'])
     public_key = next(k['api_key'] for k in keys if k['name'] == 'anon')
+    # OPTIONS only: no conversation, model call or account preference mutation.
+    probe = urllib.request.Request('https://ednvvxxvlawaagjyshkj.supabase.co/functions/v1/lector-generator-workshop',
+        headers={'apikey': public_key}, method='OPTIONS')
+    with urllib.request.urlopen(probe, timeout=20) as response:
+        generator_revision = response.headers.get('x-lector-release-revision', '')
+    if not re.fullmatch(r'[a-f0-9]{40}', generator_revision):
+        raise ValueError('Cannot confirm the current Generator API revision')
+    if subprocess.run(['git','cat-file','-e',generator_revision+'^{commit}'],
+                      stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode:
+        subprocess.run(['git','fetch','--no-tags','--depth=1','origin',generator_revision],check=True)
     envfile = ROOT / '.env'
     if envfile.exists():
         raise ValueError('Refuse to overwrite an existing environment file.')
@@ -29,7 +41,8 @@ def main():
                            + 'SUPABASE_ANON_KEY=' + public_key + '\n')
         envfile.chmod(0o600)
         subprocess.run(['python3', 'tool/prepare_controlled_release.py', '--build',
-                        '--output', 'build/controlled-release'], check=True)
+                        '--output', 'build/controlled-release'], check=True,
+                       env={**os.environ,'LECTOR_GENERATOR_REVISION':generator_revision})
     finally:
         envfile.unlink(missing_ok=True)
 

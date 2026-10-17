@@ -52,6 +52,23 @@ SportCompetitionContext competition(
 );
 void main() {
   test(
+    'weakest teams use fewer wins including overtime, without duplicating groups or filling short histories',
+    () {
+      final ranked = HockeyTeamRadarRanker.rank([
+        competition([
+          team('Win', [true, false, false, false, false, false]),
+          team('Loss', [false, false, false, false, false, false]),
+          team('Short', [false, false, false, false]),
+          team('Mixed', [true, true, true, false, false]),
+        ]),
+      ], weakest: true);
+      expect(ranked.map((e) => e.row.team.name), ['Loss', 'Win', 'Mixed']);
+      expect(ranked.first.wins, 0);
+      expect(ranked.first.streakLabel, contains('perdues'));
+    },
+  );
+
+  test(
     'radar indicates an active three-win series and keeps counting beyond five',
     () {
       final ranked = HockeyTeamRadarRanker.rank([

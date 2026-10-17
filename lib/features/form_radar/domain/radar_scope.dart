@@ -13,6 +13,7 @@ class RadarScope {
     this.includeWomen = false,
     this.includeYouth = false,
     this.competitionId,
+    this.weakestTeams = false,
   });
   final String mode, category;
   final DateTime? capturedAt;
@@ -20,6 +21,9 @@ class RadarScope {
   final List<RadarMember> teams, players;
   final bool includeWomen, includeYouth;
   final String? competitionId;
+  // Local presentation choice; membership, ranks and proofs retain the stable
+  // server contract for team Radar without accepting client sporting metrics.
+  final bool weakestTeams;
   Map<String, Object?> toJson() => {
     'version': 1,
     'mode': mode,

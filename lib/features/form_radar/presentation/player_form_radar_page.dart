@@ -69,6 +69,7 @@ class PlayerFormRadarPage extends StatefulWidget {
 class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
   int _playerPage = 0;
   int _teamPage = 0;
+  bool _weakestTeams = false;
   _RadarContentMode _mode = _RadarContentMode.players;
   _RadarScope _scope = _RadarScope.club;
   RadarAudienceFilter _audienceFilter = const RadarAudienceFilter();
@@ -84,6 +85,7 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
       widget.selectedDate,
     );
     if (previous != null) {
+      _weakestTeams = previous.weakestTeams;
       _mode = previous.mode == 'teams'
           ? _RadarContentMode.teams
           : _RadarContentMode.players;
@@ -104,6 +106,7 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
     if (oldWidget.identityScope != widget.identityScope ||
         oldWidget.filterStore != widget.filterStore) {
       _mode = _RadarContentMode.players;
+      _weakestTeams = false;
       _scope = _RadarScope.club;
       _audienceFilter = const RadarAudienceFilter();
       _playerPage = 0;
@@ -175,6 +178,7 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
       audience: _audienceFilter,
       nationalTeams: _scope == _RadarScope.nationalTeam,
       mode: isTeamRadar ? 'teams' : 'players',
+      weakestTeams: _weakestTeams,
       capturedAt: widget.capturedAt ?? dataAsOf,
       sourceIds: widget.sourceIds,
       competitionNames: {
@@ -245,7 +249,7 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
             const SizedBox(height: 3),
             Text(
               isTeamRadar
-                  ? 'Les équipes les plus en forme ${_scope.label}'
+                  ? 'Les équipes les ${_weakestTeams ? 'moins' : 'plus'} en forme ${_scope.label}'
                   : 'Les joueurs chauds ${_scope.label}',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: context.textColors.secondary,
@@ -272,6 +276,18 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
             _teamPage = 0;
           }),
         ),
+        if (isTeamRadar) ...[
+          const SizedBox(height: AppSpacing.sm),
+          LectorRadarModeToggle(
+            firstLabel: 'En forme',
+            secondLabel: 'En difficulté',
+            secondSelected: _weakestTeams,
+            onChanged: (weakest) => setState(() {
+              _weakestTeams = weakest;
+              _teamPage = 0;
+            }),
+          ),
+        ],
         if (formRadarFixtureEnabled) ...[
           const SizedBox(height: AppSpacing.sm),
           const _RadarFixtureNotice(),
@@ -303,6 +319,7 @@ class _PlayerFormRadarPageState extends State<PlayerFormRadarPage> {
             children: [
               if (isTeamRadar)
                 _HotTeamsPanel(
+                  weakest: _weakestTeams,
                   matches: widget.matches,
                   entries: visibleTeams,
                   totalCount: cappedTeams.length,
@@ -773,6 +790,7 @@ class _HotTeamsPanel extends StatelessWidget {
     required this.totalCount,
     required this.page,
     required this.onPageChanged,
+    this.weakest = false,
   });
 
   final List<TeamFormRadarEntry> entries;
@@ -780,19 +798,22 @@ class _HotTeamsPanel extends StatelessWidget {
   final int totalCount;
   final int page;
   final ValueChanged<int> onPageChanged;
+  final bool weakest;
 
   @override
   Widget build(BuildContext context) => LectorRadarRankingPanel(
-    title: 'Équipes les plus chaudes',
+    title: weakest ? 'Équipes les moins en forme' : 'Équipes les plus chaudes',
     totalCount: totalCount,
-    description: const Padding(
+    description: Padding(
       padding: EdgeInsets.only(bottom: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Points sur 5 matchs. À égalité : 6ᵉ match, puis 7ᵉ, etc.'),
-          SizedBox(height: 8),
-          Align(
+          Text(
+            '${weakest ? 'Moins de points' : 'Points'} sur 5 matchs. À égalité : 6ᵉ match, puis 7ᵉ, etc.',
+          ),
+          const SizedBox(height: 8),
+          const Align(
             alignment: Alignment.centerRight,
             child: LectorTeamFormHistoryLegend(),
           ),

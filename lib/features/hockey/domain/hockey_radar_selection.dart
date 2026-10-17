@@ -10,6 +10,7 @@ class HockeyRadarSelection {
     required DateTime day,
     this.competitionId,
     this.mode = 'players',
+    this.weakestTeams = false,
   }) {
     final end = DateTime(day.year, day.month, day.day + 1);
     final before = end.isBefore(snapshot.capturedAt)
@@ -19,6 +20,7 @@ class HockeyRadarSelection {
       snapshot.competitions.where(
         (c) => competitionId == null || c.id.value == competitionId,
       ),
+      weakest: weakestTeams,
     ).take(50).toList();
     players = HockeyPlayerRadarRanker.rank(
       snapshot.players.where(
@@ -30,9 +32,11 @@ class HockeyRadarSelection {
   final SportSnapshot<SportFixture> snapshot;
   final String? competitionId;
   final String mode;
+  final bool weakestTeams;
   late final List<HockeyTeamRadarEntry> teams;
   late final List<HockeyPlayerRadarEntry> players;
   RadarScope get scope => RadarScope(
+    weakestTeams: weakestTeams,
     mode: mode,
     category: 'club',
     capturedAt: snapshot.capturedAt,

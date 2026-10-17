@@ -1,0 +1,59 @@
+-- Public projections of already-public immutable publications. No collection,
+-- generated fact, user data or new access to a private table is introduced.
+create function public.read_football_calendar(p_day date, p_section text default 'calendar')
+returns jsonb language plpgsql stable security definer
+set search_path=public,pg_temp set plan_cache_mode='force_generic_plan'
+set statement_timeout='15s' as $$
+declare source record; body jsonb; raw_body jsonb; fixtures jsonb; fixture_ids text[];
+ team_ids text[]; projected jsonb; result jsonb:='[]'::jsonb;
+ today date:=(now() at time zone 'Europe/Paris')::date;
+begin
+ if p_day is null or p_section is null or p_section not in ('calendar','radar') then
+  raise exception 'Invalid football projection';
+ end if;
+ for source in
+  with selected as materialized (
+   select distinct on(scope_key) id,scope,league_ids,captured_at,as_of,window_start,window_end
+   from match_feed_analysis_snapshots
+   where captured_at<=now() and as_of<=now()
+    and (p_day>=today or as_of<((p_day+1)::timestamp at time zone 'Europe/Paris'))
+    and (p_day>=today or window_start<=p_day and window_end>=p_day)
+   order by scope_key,case when window_start<=p_day and window_end>=p_day then 0 else 1 end,as_of desc,id desc
+  ) select s.*,d.payload from selected s join match_feed_analysis_snapshots d on d.id=s.id
+   order by s.as_of desc,s.id desc
+ loop
+  -- Detoast once per selected source, never once per fixture or JSON field.
+  body:=source.payload||'{}'::jsonb; raw_body:=coalesce(body->'raw','{}');
+  select coalesce(jsonb_agg(f),'[]'),coalesce(array_agg(f#>>'{fixture,id}'),'{}')
+   into fixtures,fixture_ids from jsonb_array_elements(coalesce(raw_body->'fixtures','[]')) f
+   where (f#>>'{fixture,date}')::timestamptz at time zone 'Europe/Paris'>=p_day::timestamp
+    and (f#>>'{fixture,date}')::timestamptz at time zone 'Europe/Paris'<(p_day+1)::timestamp;
+  select coalesce(array_agg(distinct id),'{}') into team_ids from (
+   select f#>>'{teams,home,id}' id from jsonb_array_elements(fixtures) f union all
+   select f#>>'{teams,away,id}' from jsonb_array_elements(fixtures) f
+  ) teams;
+  projected:=jsonb_build_object(
+   'fixtures',fixtures,
+   'odds',(select coalesce(jsonb_agg(o),'[]') from jsonb_array_elements(coalesce(raw_body->'odds','[]')) o where o#>>'{fixture,id}'=any(fixture_ids)),
+   'recent_league_matches',(select coalesce(jsonb_agg(r),'[]')from jsonb_array_elements(coalesce(raw_body->'recent_league_matches','[]'))r where p_section='radar' or r#>>'{team,id}'=any(team_ids)),
+   'player_form_radar',(select coalesce(jsonb_agg(r),'[]')from jsonb_array_elements(coalesce(raw_body->'player_form_radar','[]'))r where p_section='radar' or r#>>'{team,id}'=any(team_ids)),
+   'standings',coalesce(raw_body->'standings','[]'),
+   'european_comparisons',(select coalesce(jsonb_agg(r),'[]')from jsonb_array_elements(coalesce(raw_body->'european_comparisons','[]'))r where r->>'fixtureId'=any(fixture_ids)),
+   'european_card_forms',(select coalesce(jsonb_agg(r),'[]')from jsonb_array_elements(coalesce(raw_body->'european_card_forms','[]'))r where r->>'fixtureId'=any(fixture_ids))
+  );
+  result:=result||jsonb_build_array(jsonb_build_object(
+   'id',source.id,'scope',source.scope,'league_ids',source.league_ids,
+   'payload',(body-'raw'-'computed')||jsonb_build_object(
+    'window_start',p_day,'window_end',p_day,'raw',projected,
+    'computed',coalesce(body->'computed','{}')||jsonb_build_object('fixtures',
+     (select coalesce(jsonb_agg(f),'[]')from jsonb_array_elements(coalesce(body#>'{computed,fixtures}','[]'))f where f->>'fixture_id'=any(fixture_ids)))
+   )
+  ));
+ end loop;
+ return result;
+end $$;
+revoke all on function public.read_football_calendar(date,text) from public;
+grant execute on function public.read_football_calendar(date,text) to anon,authenticated,service_role;
+notify pgrst,'reload schema';
+-- Rollback: drop function public.read_football_calendar(date,text).
+-- Existing publications and the legacy public reader remain untouched.

@@ -64,12 +64,13 @@ jobs:
         run: |
           python3 -m unittest discover -s tool/tests -p 'test_deploy*remote.py'
           python3 -m unittest discover -s tool/tests -p 'test_hockey_freshness_alarm.py'
+          python3 -m unittest discover -s tool/tests -p 'test_football_publication_health.py'
           python3 -m unittest discover -s tool/tests -p 'test_main_promotion_guards.py'
           python3 -m unittest discover -s tool/tests -p 'test_controlled_generator_release.py'
           python3 -m unittest discover -s tool/tests -p 'test_generator_catalogue_rpc.py'
 
       - name: Test actual catalogue and Generator parity
-        run: deno test --node-modules-dir=none --no-lock --allow-read test/backend/generator_catalogue_parity_sql_test.ts test/backend/european_publication_freshness_test.ts tool/tests/generator_catalogue_transport_test.ts
+        run: deno test --node-modules-dir=none --no-lock --allow-read test/backend/generator_catalogue_parity_sql_test.ts test/backend/european_publication_freshness_test.ts test/backend/football_calendar_projection_sql_test.ts tool/tests/generator_catalogue_transport_test.ts
 
       - name: Test controlled exploration pilot and cost admission
         run: deno test --allow-read=test/fixtures/generator_published_day.json tool/tests/generator_exploration_campaign_test.ts tool/tests/generator_validation_budget_test.ts

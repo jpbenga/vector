@@ -24,6 +24,9 @@ class PublishedFeedDelivery {
   final _days = <String, RetainedAsyncValue<Map<String, Object?>?>>{};
   final _artifacts = <String, Future<Map<String, Object?>>>{};
 
+  bool supportsCalendar(DateTime date) =>
+      _localOffset(date) == _parisOffset(date);
+
   void invalidateDay(String sport, DateTime date) {
     _days['$sport:${dateKey(date)}']?.invalidate();
   }
@@ -34,7 +37,7 @@ class PublishedFeedDelivery {
     }
     // The batch publishes Paris calendar days. Other local calendars retain
     // the original full reader so midnight fixtures are never silently lost.
-    if (_localOffset(date) != _parisOffset(date)) {
+    if (!supportsCalendar(date)) {
       return Future.value(null);
     }
     final day = dateKey(date), key = '$sport:$day';

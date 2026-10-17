@@ -42,6 +42,11 @@ if [[ -n "${VERCEL_GIT_COMMIT_SHA:-}" && "$LECTOR_BUILD_REVISION" != "$VERCEL_GI
   echo "Release revision differs from the Vercel source revision." >&2
   exit 1
 fi
+LECTOR_GENERATOR_BUILD_REVISION="${LECTOR_GENERATOR_REVISION:-$LECTOR_BUILD_REVISION}"
+if [[ ! "$LECTOR_GENERATOR_BUILD_REVISION" =~ ^[a-fA-F0-9]{40}$ ]]; then
+  echo "Generator compatibility requires an immutable revision." >&2
+  exit 1
+fi
 
 if ! command -v flutter >/dev/null 2>&1; then
   FLUTTER_VERSION="$(grep -o '"flutter"[[:space:]]*:[[:space:]]*"[^"]*"' .fvmrc | sed 's/.*"flutter"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')"
@@ -64,4 +69,5 @@ flutter build web --release --no-pub --no-wasm-dry-run \
   --dart-define=MATCH_FEED_SOURCE="${MATCH_FEED_SOURCE:-auto}" \
   --dart-define=LECTOR_GENERATOR_UI=true \
   --dart-define=LECTOR_GENERATOR_ENDPOINT=lector-generator-workshop \
+  --dart-define=LECTOR_GENERATOR_REVISION="$LECTOR_GENERATOR_BUILD_REVISION" \
   --dart-define=LECTOR_RELEASE_REVISION="$LECTOR_BUILD_REVISION"

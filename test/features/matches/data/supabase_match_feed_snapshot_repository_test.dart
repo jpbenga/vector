@@ -25,6 +25,17 @@ void main() {
         'computed': {'fixtures': <Object?>[]},
       };
       final transport = MockClient((request) async {
+        if (request.url.path.endsWith('/rpc/read_football_calendar')) {
+          return http.Response(
+            jsonEncode({
+              'code': 'PGRST202',
+              'message': 'Legacy server fixture',
+            }),
+            404,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+
         if (request.url.path.endsWith('manifest.json')) {
           return http.Response(
             '<html>Fallback</html>',
@@ -91,6 +102,17 @@ void main() {
         'delivery': {'sport': 'football', 'day': '2026-10-11'},
       };
       final transport = MockClient((request) async {
+        if (request.url.path.endsWith('/rpc/read_football_calendar')) {
+          return http.Response(
+            jsonEncode({
+              'code': 'PGRST202',
+              'message': 'Legacy server fixture',
+            }),
+            404,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+
         calls.add(request.url.path);
         Object result;
         if (request.url.path.endsWith('manifest.json')) {
@@ -202,6 +224,17 @@ void main() {
     () async {
       final requests = <String>[];
       final transport = MockClient((request) async {
+        if (request.url.path.endsWith('/rpc/read_football_calendar')) {
+          return http.Response(
+            jsonEncode({
+              'code': 'PGRST202',
+              'message': 'Legacy server fixture',
+            }),
+            404,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+
         requests.add(request.url.path);
         return http.Response(
           '[]',
@@ -244,6 +277,17 @@ void main() {
         'https://example.test',
         'public-key',
         httpClient: MockClient((request) async {
+          if (request.url.path.endsWith('/rpc/read_football_calendar')) {
+            return http.Response(
+              jsonEncode({
+                'code': 'PGRST202',
+                'message': 'Legacy server fixture',
+              }),
+              404,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+
           if (!request.url.queryParameters['select']!.contains('payload')) {
             return http.Response(
               jsonEncode(metadata),
@@ -302,6 +346,17 @@ void main() {
         'https://example.test',
         'public-key',
         httpClient: MockClient((request) async {
+          if (request.url.path.endsWith('/rpc/read_football_calendar')) {
+            return http.Response(
+              jsonEncode({
+                'code': 'PGRST202',
+                'message': 'Legacy server fixture',
+              }),
+              404,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+
           final metadata = {
             'id': selectedId,
             'scope': 'league',

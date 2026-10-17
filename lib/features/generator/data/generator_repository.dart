@@ -30,8 +30,11 @@ class SupabaseGeneratorRepository implements GeneratorRepository {
             body: body,
             headers: {
               'x-lector-client-revision': const String.fromEnvironment(
-                'LECTOR_RELEASE_REVISION',
-                defaultValue: 'unversioned',
+                'LECTOR_GENERATOR_REVISION',
+                defaultValue: String.fromEnvironment(
+                  'LECTOR_RELEASE_REVISION',
+                  defaultValue: 'unversioned',
+                ),
               ),
             },
           )

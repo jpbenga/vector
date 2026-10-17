@@ -3,6 +3,27 @@ import 'package:copilot/features/matches/domain/match_board_item.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test(
+    'weakest ranking uses the full eligible pool, fewer points and then the sixth result',
+    () {
+      final ranked = TeamFormRadarRanker.rank([
+        _team('Aucune preuve', ['L', 'L', 'L', 'L']),
+        _team('Nuls', ['D', 'D', 'D', 'D', 'D']),
+        _team('Victoire ancienne', ['W', 'L', 'L', 'L', 'L', 'L']),
+        _team('Défaites', ['L', 'L', 'L', 'L', 'L', 'L']),
+        _team('Inconnu', ['?', 'L', 'L', 'L', 'L']),
+      ], weakest: true);
+      expect(ranked.map((e) => e.profile.teamName), [
+        'Défaites',
+        'Victoire ancienne',
+        'Nuls',
+      ]);
+      expect(ranked.first.points, 0);
+      expect(ranked.first.streakLabel, contains('perdues'));
+      expect(ranked.last.points, 5);
+    },
+  );
+
   test('radar distinguishes three wins from a five-game unbeaten run', () {
     final ranked = TeamFormRadarRanker.rank([
       _team('Série', ['L', 'D', 'W', 'W', 'W']),

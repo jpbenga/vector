@@ -28,6 +28,7 @@ class FootballRadarSelection {
     required this.audience,
     required this.nationalTeams,
     this.mode = 'players',
+    this.weakestTeams = false,
     this.capturedAt,
     this.sourceIds = const [],
     Map<int, String> competitionNames = const {},
@@ -39,7 +40,7 @@ class FootballRadarSelection {
               nationalTeams,
         )
         .toList();
-    final scopedTeams = TeamFormRadarRanker.rank(teams)
+    final scopedTeams = TeamFormRadarRanker.rank(teams, weakest: weakestTeams)
         .where(
           (e) =>
               nationalTeamRadarLeagues.contains(e.profile.leagueId) ==
@@ -77,6 +78,7 @@ class FootballRadarSelection {
   }
   final RadarAudienceFilter audience;
   final bool nationalTeams;
+  final bool weakestTeams;
   final String mode;
   final DateTime? capturedAt;
   final List<String> sourceIds;
@@ -101,6 +103,7 @@ class FootballRadarSelection {
   }
 
   RadarScope get scope => RadarScope(
+    weakestTeams: weakestTeams,
     mode: mode,
     category: nationalTeams ? 'national' : 'club',
     capturedAt: capturedAt,

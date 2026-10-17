@@ -9,6 +9,7 @@ abstract final class LectorTeamFormPolicy {
     required List<int> Function(T) resultValues,
     required bool Function(int) continuesSeries,
     required String Function(T) name,
+    bool weakest = false,
   }) {
     final entries = <LectorTeamFormEntry<T>>[];
     for (final profile in profiles) {
@@ -32,7 +33,9 @@ abstract final class LectorTeamFormPolicy {
       );
     }
     entries.sort((a, b) {
-      final score = b.score.compareTo(a.score);
+      final score = weakest
+          ? a.score.compareTo(b.score)
+          : b.score.compareTo(a.score);
       if (score != 0) return score;
       // Compare the sixth result, then the seventh, etc. Unknown older
       // results are never interpreted as losses.
@@ -40,9 +43,10 @@ abstract final class LectorTeamFormPolicy {
           ? a.values.length
           : b.values.length;
       for (var offset = window + 1; offset <= available; offset++) {
-        final result = b.values[b.values.length - offset].compareTo(
+        var result = b.values[b.values.length - offset].compareTo(
           a.values[a.values.length - offset],
         );
+        if (weakest) result = -result;
         if (result != 0) return result;
       }
       final series = b.series.compareTo(a.series);

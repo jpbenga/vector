@@ -80,6 +80,7 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
   late DateTime _date;
   SportFeedResult? _feed;
   bool _loading = false, _failed = false, _teamsSelected = false;
+  bool _weakestTeams = false;
   late final ReadRecovery _recovery;
   DateTime? _feedDate;
   int _request = 0, _page = 0;
@@ -222,6 +223,7 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
             ? null
             : RadarScopeSession.read(scope, 'hockey', _date);
         _teamsSelected = radar?.mode == 'teams';
+        _weakestTeams = radar?.weakestTeams ?? false;
         _league = radar?.competitionId;
         _preferences = preferences;
         _preferencesReady = true;
@@ -967,6 +969,7 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
       day: _date,
       competitionId: _league,
       mode: _teamsSelected ? 'teams' : 'players',
+      weakestTeams: _weakestTeams,
     );
     if (_scope != null) {
       RadarScopeSession.remember(_scope!, 'hockey', _date, selection.scope);
@@ -1166,7 +1169,7 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Les équipes les plus en forme en club',
+          'Les équipes les ${_weakestTeams ? 'moins' : 'plus'} en forme en club',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 8),
@@ -1174,8 +1177,20 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
           _notice(
             'NHL : le fournisseur ne distingue pas la phase des rencontres. Son historique n’est pas utilisé dans ce classement de forme.',
           ),
+        LectorRadarModeToggle(
+          firstLabel: 'En forme',
+          secondLabel: 'En difficulté',
+          secondSelected: _weakestTeams,
+          onChanged: (weakest) => setState(() {
+            _weakestTeams = weakest;
+            _page = 0;
+          }),
+        ),
+        const SizedBox(height: 8),
         LectorRadarRankingPanel(
-          title: 'Équipes les plus chaudes',
+          title: _weakestTeams
+              ? 'Équipes les moins en forme'
+              : 'Équipes les plus chaudes',
           totalCount: count,
           emptyState: const Text(
             'Pas encore cinq résultats comparables par équipe pour ce filtre.',
@@ -1186,7 +1201,7 @@ class _HockeyWorkspaceState extends State<HockeyWorkspace> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Victoires sur 5 matchs, prolongation et tirs au but inclus. À égalité : 6ᵉ match, puis 7ᵉ, etc.',
+                  '${_weakestTeams ? 'Moins de victoires' : 'Victoires'} sur 5 matchs, prolongation et tirs au but inclus. À égalité : 6ᵉ match, puis 7ᵉ, etc.',
                   style: Theme.of(context).textTheme.labelSmall,
                 ),
                 const SizedBox(height: 8),

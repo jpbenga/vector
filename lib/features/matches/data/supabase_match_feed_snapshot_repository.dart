@@ -20,16 +20,40 @@ class SupabaseMatchFeedSnapshotRepository
   final _delivered = <String, Map<String, Object?>>{};
   String? _radarSelection;
   Map<String, Object?>? _radarPayload;
+  final _calendarOwners = <String, Map<String, String>>{};
+  final _detailSources = <String, Future<Map<String, Object?>?>>{};
 
   Future<Map<String, Object?>?> loadDetails(
     DateTime date,
     String matchId,
   ) async {
+    final sourceId =
+        _calendarOwners[PublishedFeedDelivery.dateKey(date)]?[matchId];
+    if (sourceId != null) {
+      final cached = _detailSources[sourceId];
+      if (cached != null) return cached;
+      final request = _fetchPayloadChunk([
+        sourceId,
+      ]).then(mergeMatchFeedSnapshotRows);
+      _detailSources[sourceId] = request;
+      while (_detailSources.length > 12) {
+        _detailSources.remove(_detailSources.keys.first);
+      }
+      try {
+        return await request;
+      } on Object {
+        _detailSources.remove(sourceId);
+        rethrow;
+      }
+    }
     final overview = _delivered[PublishedFeedDelivery.dateKey(date)];
     return overview == null ? null : delivery?.detail(overview, matchId);
   }
 
   Future<Map<String, Object?>?> loadRadar(DateTime date) async {
+    if (_calendarOwners.containsKey(PublishedFeedDelivery.dateKey(date))) {
+      return _loadProjection(date, section: 'radar');
+    }
     final overview = _delivered[PublishedFeedDelivery.dateKey(date)];
     if (overview == null || delivery == null) return null;
     final descriptor = overview['delivery'];
@@ -71,6 +95,7 @@ class SupabaseMatchFeedSnapshotRepository
     _delivered.remove(PublishedFeedDelivery.dateKey(date));
     _radarSelection = null;
     _radarPayload = null;
+    _calendarOwners.remove(PublishedFeedDelivery.dateKey(date));
   }
 
   Future<Map<String, Object?>?> refreshForDate(DateTime date) {
@@ -113,6 +138,7 @@ class SupabaseMatchFeedSnapshotRepository
           matches: const [],
         );
         if (metadata.covers(date) && !metadata.isObsolete(freshnessAt)) {
+          _calendarOwners.remove(key);
           _delivered.remove(key);
           _delivered[key] = overview;
           while (_delivered.length > 24) {
@@ -127,6 +153,66 @@ class SupabaseMatchFeedSnapshotRepository
   }
 
   Future<Map<String, Object?>?> _loadLatestForDate(DateTime date) async {
+    if (delivery != null && !delivery!.supportsCalendar(date)) {
+      return _loadLegacyForDate(date);
+    }
+    try {
+      return await _loadProjection(date);
+    } on PostgrestException catch (error) {
+      // An older backend can still serve the existing reader during rollout.
+      if (error.code != 'PGRST202' && error.code != '42883') rethrow;
+      return _loadLegacyForDate(date);
+    }
+  }
+
+  Future<Map<String, Object?>?> _loadProjection(
+    DateTime date, {
+    String section = 'calendar',
+  }) async {
+    final rows = await _client
+        .rpc<Object?>(
+          'read_football_calendar',
+          params: {
+            'p_day': PublishedFeedDelivery.dateKey(date),
+            'p_section': section,
+          },
+        )
+        .timeout(const Duration(seconds: 20));
+    if (rows is! List) {
+      throw const FormatException('Invalid football projection');
+    }
+    final merged = mergeMatchFeedSnapshotRows(rows);
+    if (merged == null) return null;
+    if (section == 'calendar') {
+      final owners = <String, String>{};
+      for (final row in rows.whereType<Map<Object?, Object?>>()) {
+        final id = row['id']?.toString();
+        final payload = row['payload'];
+        final raw = payload is Map ? payload['raw'] : null;
+        final fixtures = raw is Map ? raw['fixtures'] : null;
+        if (id == null || fixtures is! List) continue;
+        for (final fixture in fixtures.whereType<Map<Object?, Object?>>()) {
+          final identity = fixture['fixture'];
+          if (identity is Map && identity['id'] != null) {
+            owners.putIfAbsent('api-fixture-${identity['id']}', () => id);
+          }
+        }
+      }
+      _calendarOwners[PublishedFeedDelivery.dateKey(date)] = owners;
+      while (_calendarOwners.length > 24) {
+        _calendarOwners.remove(_calendarOwners.keys.first);
+      }
+    }
+    return {
+      ...merged,
+      'radar_source_ids': [
+        for (final row in rows.whereType<Map<Object?, Object?>>())
+          row['id'].toString(),
+      ],
+    };
+  }
+
+  Future<Map<String, Object?>?> _loadLegacyForDate(DateTime date) async {
     final day = _dateOnly(date).toIso8601String().split('T').first;
     var request = _client
         .from('match_feed_analysis_snapshots')
